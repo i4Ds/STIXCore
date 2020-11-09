@@ -53,10 +53,12 @@ def compress(values, *, s, k, m):
 
     Examples
     --------
-    >>> compress(12345, s=0, k=5, m=3)
-    array([92])
-    >>> compress(-2047, s=1, k=3, m=4)
-    array([255])
+    >>> comp = compress(12345, s=0, k=5, m=3)
+    >>> int(comp)
+    92
+    >>> comp = compress(-1984, s=1, k=3, m=4)
+    >>> int(comp)
+    255
     """
     values = np.atleast_1d(np.array(values))
     if not np.issubdtype(values.dtype, np.integer):
@@ -67,19 +69,19 @@ def compress(values, *, s, k, m):
         raise ValueError(f'Invalid s={s}, k={k}, m={m} must sum to less than 8 not {total}')
 
     max_value = 2**(2**k-2)*(2**(m + 1) - 1)
-    abs_range = [0, max_value] if s == 0 else max_value * np.array([-1, 1])
+    abs_range = [0, max_value] if s == 0 else [-1 * max_value, 1 * max_value]
 
     if values.min() < abs_range[0] or values.max() > abs_range[1]:
         raise ValueError(f'Valid input range exceeded for s={s}, k={k}, m={m}  input (min/max)'
                          f'{values.min()}/{values.max()} exceeds {abs_range}')
 
     negative_indices = np.nonzero(values < 0)
-    compress_indices = np.nonzero(np.abs(values) >= 2 ** (m + 1))
     out = np.abs(values).astype(np.uint64)
-    max_indices = np.nonzero(out == max_value)
+    compress_indices = np.nonzero(out >= 2 ** (m + 1))
+    # max_indices = np.nonzero(out == max_value)
     if values[compress_indices].size != 0:
-        kv = np.floor((np.log(np.abs(values[compress_indices])) / np.log(2.0) - m)).astype(int)
-        mv = (np.abs(values[compress_indices]) // 2**kv) & (2**m - 1)
+        kv = np.floor((np.log(np.abs(values[compress_indices])) / np.log(2.0) - m)).astype(np.int64)
+        mv = (np.abs(values[compress_indices], dtype=np.int64) // 2**kv) & (2**m - 1)
         out[compress_indices] = kv + 1 << m | mv
 
     # out[max_indices] = 255
@@ -112,12 +114,14 @@ def decompress(values, *, s, k, m, return_variance=False):
 
     Examples
     --------
-    >>> decompress(92, s=0, k=5, m=3)
-    array([12799])
-    >>> decompress(255, s=1, k=3, m=4)
-    array([-2015])
+    >>> decomp = decompress(92, s=0, k=5, m=3)
+    >>> int(decomp)
+    12799
+    >>> decomp = decompress(255, s=1, k=3, m=4)
+    >>> int(decomp)
+    -1984
     """
-    values = np.atleast_1d(np.array(values))
+    values = np.atleast_1d(np.array(values, dtype=np.uint64))
     total = s + k + m
     if total > 8:
         raise ValueError(f'Invalid s={s}, k={k}, m={m} must sum to less than 8 not {total}')
@@ -132,7 +136,7 @@ def decompress(values, *, s, k, m, return_variance=False):
         raise ValueError('Decompressed value too large to fit into uint64')
 
     abs_values = values if s == 0 else values & 127
-    out = abs_values[:]
+    out = abs_values[:].astype(np.uint64)
     negative_indices = np.nonzero(values >= 128) if s != 0 else ([])
     decompress_indices = np.nonzero(abs_values >= 2**(m+1))
     max_indices = np.nonzero(values == 255 if s == 0 else (values == 127) | (values == 255))
@@ -152,6 +156,7 @@ def decompress(values, *, s, k, m, return_variance=False):
         variance[max_indices] = max_value**2
 
     if abs_values[negative_indices].size >= 1:
+        out = out.astype(np.int64)
         out[negative_indices] = -1 * out[negative_indices]
 
     if return_variance:

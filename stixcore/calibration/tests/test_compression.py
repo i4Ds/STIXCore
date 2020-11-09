@@ -292,7 +292,7 @@ def test_round_trip(skm):
 ])
 def test_compress_053(values):
     compressed, start, end = values
-    res = compress(np.linspace(start, end, 10, dtype=int), s=0, k=5, m=3)
+    res = compress(np.linspace(start, end, 10, dtype=np.uint64), s=0, k=5, m=3)
     assert np.all(compressed == res)
 
 
@@ -1084,7 +1084,7 @@ def test_decompress_053(values):
 ])
 def test_compress_143(values):
     compressed, start, end = values
-    res = compress(np.linspace(start, end, 10, dtype=int), s=1, k=4, m=3)
+    res = compress(np.linspace(start, end, 10, dtype=np.int64), s=1, k=4, m=3)
     assert np.all(compressed == res)
 
 

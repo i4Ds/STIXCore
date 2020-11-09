@@ -15,7 +15,7 @@ def test_decompress():
     decompressed1 = decompress(1, s=0, k=5, m=3)
     decompressed2 = decompress(255, s=0, k=5, m=3)
     assert decompressed1 == 1
-    assert decompressed2 == 16642998271
+    assert decompressed2 == 16106127360
 
 
 @pytest.mark.parametrize('skm', [(0, 0, 8), (0, 1, 7), (0, 2, 6), (0, 3, 5), (0, 4, 4), (0, 5, 3),
@@ -288,7 +288,7 @@ def test_round_trip(skm):
     (252, 12884901888, 13958643711),
     (253, 13958643712, 15032385535),
     (254, 15032385536, 16106127359),
-    (255, 16106127360, 17179869183),
+    (255, 16106127360, 16106127360),
 ])
 def test_compress_053(values):
     compressed, start, end = values
@@ -552,12 +552,13 @@ def test_compress_053(values):
     (252, 96076792050570576.00),
     (253, 96076792050570576.00),
     (254, 96076792050570576.00),
-    (255, 96076792050570576.00),
+    (255, 259407338536540569600.00),
 ])
 def test_variance_053(values):
     compressed, variance = values
     _, res = decompress(compressed, s=0, k=5, m=3, return_variance=True)
     assert variance == res
+
 
 @pytest.mark.parametrize('values', [
     (0, 0),
@@ -815,7 +816,7 @@ def test_variance_053(values):
     (252, 13421772799),
     (253, 14495514623),
     (254, 15569256447),
-    (255, 16642998271),
+    (255, 16106127360),
 ])
 def test_decompress_053(values):
     compressed, decompressed = values
@@ -951,7 +952,7 @@ def test_decompress_053(values):
     (124, 196608,  212991),
     (125, 212992,  229375),
     (126, 229376,  245759),
-    (127, 245760, 262143),
+    (127, 245760, 245760),
     (0, -0, -0),
     (129, -1, -1),
     (130, -2, -2),
@@ -1079,7 +1080,7 @@ def test_decompress_053(values):
     (252, -196608, -212991),
     (253, -212992, -229375),
     (254, -229376, -245759),
-    (255, -245760, -262143),
+    (255, -245760, -245760),
 ])
 def test_compress_143(values):
     compressed, start, end = values
@@ -1215,7 +1216,7 @@ def test_compress_143(values):
     (124, 204799),
     (125, 221183),
     (126, 237567),
-    (127, 253951),
+    (127, 245760),
     (128, 0),
     (129, -1),
     (130, -2),
@@ -1343,7 +1344,7 @@ def test_compress_143(values):
     (252, -204799),
     (253, -221183),
     (254, -237567),
-    (255, -253951)
+    (255, -245760)
 ])
 def test_decompress_143(values):
     compressed, decompressed = values
@@ -1479,7 +1480,7 @@ def test_decompress_143(values):
     (124, 22369621.50),
     (125, 22369621.50),
     (126, 22369621.50),
-    (127, 0.00),
+    (127, 60397977600.00),
     (128, 0.00),
     (129, 0.00),
     (130, 0.00),
@@ -1607,7 +1608,7 @@ def test_decompress_143(values):
     (252, 22369621.50),
     (253, 22369621.50),
     (254, 22369621.50),
-    (255, 22369621.50)
+    (255, 60397977600.00)
 ])
 def test_variance_143(values):
     compressed, variance = values

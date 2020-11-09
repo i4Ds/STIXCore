@@ -66,7 +66,7 @@ def compress(values, *, s, k, m):
     if total > 8:
         raise ValueError(f'Invalid s={s}, k={k}, m={m} must sum to less than 8 not {total}')
 
-    max_value = np.floor(2 ** (2 ** k - 2) * (2 ** (m + 1)) - 1)
+    max_value = 2**(2**k-2)*(2**(m + 1) - 1)
     abs_range = [0, max_value] if s == 0 else max_value * np.array([-1, 1])
 
     if values.min() < abs_range[0] or values.max() > abs_range[1]:
@@ -75,11 +75,14 @@ def compress(values, *, s, k, m):
 
     negative_indices = np.nonzero(values < 0)
     compress_indices = np.nonzero(np.abs(values) >= 2 ** (m + 1))
-    out = np.abs(values)
+    out = np.abs(values).astype(np.uint64)
+    max_indices = np.nonzero(out == max_value)
     if values[compress_indices].size != 0:
         kv = np.floor((np.log(np.abs(values[compress_indices])) / np.log(2.0) - m)).astype(int)
         mv = (np.abs(values[compress_indices]) // 2**kv) & (2**m - 1)
         out[compress_indices] = kv + 1 << m | mv
+
+    # out[max_indices] = 255
 
     if s != 0 and values[negative_indices].size >= 1:
         out[negative_indices] += 128
@@ -122,7 +125,7 @@ def decompress(values, *, s, k, m, return_variance=False):
     if values.min() < 0 or values.max() > 255:
         raise ValueError(f'Compressed values must be in the range 0 to 255')
 
-    max_value = np.array(2 ** (2 ** k - 2) * (2 ** (m + 1)) - 1)
+    max_value = 2**(2**k-2)*(2**(m + 1) - 1)
     uint64_info = np.iinfo(np.uint64)
 
     if max_value > uint64_info.max:
@@ -132,6 +135,7 @@ def decompress(values, *, s, k, m, return_variance=False):
     out = abs_values[:]
     negative_indices = np.nonzero(values >= 128) if s != 0 else ([])
     decompress_indices = np.nonzero(abs_values >= 2**(m+1))
+    max_indices = np.nonzero(values == 255 if s == 0 else (values == 127) | (values == 255))
 
     if return_variance:
         variance = np.zeros_like(values, dtype=np.float64)
@@ -143,8 +147,9 @@ def decompress(values, *, s, k, m, return_variance=False):
         if return_variance:
             variance[decompress_indices] = ((1 << kv)**2 + 2)/12
 
-    if s == 1 and return_variance:
-        variance[values == 127] = 0
+    out[max_indices] = max_value
+    if return_variance:
+        variance[max_indices] = max_value**2
 
     if abs_values[negative_indices].size >= 1:
         out[negative_indices] = -1 * out[negative_indices]
@@ -153,3 +158,12 @@ def decompress(values, *, s, k, m, return_variance=False):
         return out, variance
     else:
         return out
+
+
+def _check_skm(*, s, k, m):
+    if s not in [0, 1]:
+        raise ValueError(f's: {s} must be either 0 or 1 not.')
+    if k not in range(1,8):
+        raise ValueError(f'k: {k} must be in the range 1 to 7 ')
+    if m not in range(1, 8):
+        raise ValueError(f'm: {m} must in the range 1 to 7')

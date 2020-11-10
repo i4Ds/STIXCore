@@ -7,6 +7,7 @@ This is the documentation for STIXCore.
    :maxdepth: 2
 
    whatsnew/index
+   developers
 
 
 Reference/API

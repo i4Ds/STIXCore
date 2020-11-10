@@ -72,7 +72,7 @@ def compress(values, *, s, k, m):
     abs_range = [0, max_value] if s == 0 else [-1 * max_value, 1 * max_value]
 
     if values.min() < abs_range[0] or values.max() > abs_range[1]:
-        raise ValueError(f'Valid input range exceeded for s={s}, k={k}, m={m}  input (min/max)'
+        raise ValueError(f'Valid input range exceeded for s={s}, k={k}, m={m} input (min/max)'
                          f'{values.min()}/{values.max()} exceeds {abs_range}')
 
     negative_indices = np.nonzero(values < 0)
@@ -121,7 +121,12 @@ def decompress(values, *, s, k, m, return_variance=False):
     >>> int(decomp)
     -1984
     """
-    values = np.atleast_1d(np.array(values, dtype=np.uint64))
+    values = np.atleast_1d(np.array(values))
+    if not np.issubdtype(values.dtype, np.integer):
+        raise ValueError(f'Input must be an integer type not {values.dtype}')
+
+    values = values.astype(np.uint64)
+
     total = s + k + m
     if total > 8:
         raise ValueError(f'Invalid s={s}, k={k}, m={m} must sum to less than 8 not {total}')
@@ -163,12 +168,3 @@ def decompress(values, *, s, k, m, return_variance=False):
         return out, variance
     else:
         return out
-
-
-def _check_skm(*, s, k, m):
-    if s not in [0, 1]:
-        raise ValueError(f's: {s} must be either 0 or 1 not.')
-    if k not in range(1,8):
-        raise ValueError(f'k: {k} must be in the range 1 to 7 ')
-    if m not in range(1, 8):
-        raise ValueError(f'm: {m} must in the range 1 to 7')

@@ -11,11 +11,54 @@ def test_compression():
     assert comp2 == 255
 
 
+def test_compression_nonint_error():
+    with pytest.raises(ValueError) as e:
+        _ = compress(np.float64(10.0), s=0, k=5, m=3)
+    assert str(e.value) == 'Input must be an integer type not float64'
+
+
+def test_compression_skm_error():
+    with pytest.raises(ValueError) as e:
+        _ = compress(1, s=1, k=5, m=4)
+    assert str(e.value) == 'Invalid s=1, k=5, m=4 must sum to less than 8 not 10'
+
+
+def test_compression_maxvalue_error():
+    with pytest.raises(ValueError) as e:
+        _ = compress(256, s=0, k=1, m=7)
+    assert str(e.value) == 'Valid input range exceeded for s=0, k=1, m=7' \
+                           ' input (min/max)256/256 exceeds [0, 255]'
+
+
+def test_decompression_nonint_error():
+    with pytest.raises(ValueError) as e:
+        _ = decompress(np.float64(10.0), s=0, k=5, m=3)
+    assert str(e.value) == 'Input must be an integer type not float64'
+
+
 def test_decompress():
     decompressed1 = decompress(1, s=0, k=5, m=3)
     decompressed2 = decompress(255, s=0, k=5, m=3)
     assert decompressed1 == 1
     assert decompressed2 == 16106127360
+
+
+def test_decompress_skm_error():
+    with pytest.raises(ValueError) as e:
+        _ = decompress(1, s=1, k=5, m=4)
+    assert str(e.value) == 'Invalid s=1, k=5, m=4 must sum to less than 8 not 10'
+
+
+def test_decompress_input_error():
+    with pytest.raises(ValueError) as e:
+        _ = decompress(256, s=0, k=1, m=7)
+    assert str(e.value) == 'Compressed values must be in the range 0 to 255'
+
+
+def test_decompress_maxvalue_error():
+    with pytest.raises(ValueError) as e:
+        _ = decompress(255, s=0, k=6, m=2)
+    assert str(e.value) == 'Decompressed value too large to fit into uint64'
 
 
 @pytest.mark.parametrize('skm', [(0, 0, 8), (0, 1, 7), (0, 2, 6), (0, 3, 5), (0, 4, 4), (0, 5, 3),

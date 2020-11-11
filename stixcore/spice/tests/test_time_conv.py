@@ -8,7 +8,7 @@ from stixcore.spice.manager import SpiceManager
 
 T0_UTC_ISO = '2000-01-01T00:00:00.000+00:00'
 T0_SCET = '1/0000000000:00000'
-T0_DATETIME = datetime.fromisoformat(T0_UTC_ISO)
+T0_DATETIME = datetime(2000, 1, 1, 0, 0, 0, 0, tzinfo=timezone.utc)
 
 orig_directory = ''
 

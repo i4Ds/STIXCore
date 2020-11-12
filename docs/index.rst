@@ -8,13 +8,5 @@ This is the documentation for STIXCore.
 
    whatsnew/index
    developers
+   code_ref/index
 
-
-Reference/API
-=============
-
-.. automodapi:: stixcore
-
-.. automodapi:: stixcore.calibration
-
-.. automodapi:: stixcore.calibration.compression

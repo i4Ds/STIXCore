@@ -4,7 +4,7 @@ from pathlib import Path
 
 import pytest
 
-from stixcore.spice.manager import SpiceManager
+from stixcore.ephemeris.manager import SpiceManager
 
 T0_UTC_ISO = '2000-01-01T00:00:00.000+00:00'
 T0_SCET = '1/0000000000:00000'
@@ -29,7 +29,7 @@ def teardown_function():
 
 @pytest.fixture
 def spicemanager():
-    return SpiceManager(mk_path='test_20201001_V01.mk')
+    return SpiceManager(meta_kernel_path='test_20201001_V01.mk')
 
 
 def test_spicemanager(spicemanager):

@@ -1,6 +1,3 @@
-"""
-
-"""
 from datetime import datetime
 from pathlib import Path
 
@@ -9,29 +6,32 @@ from astropy.time.core import Time
 
 SOLAR_ORBITER_NAIF_ID = -144
 
+__all__ = ['SpiceManager']
+
 
 class SpiceManager:
     """
-
+    Load the SolarOrbiter kernels as provided in the given meta kernel
     """
-    def __init__(self, mk_path):
+    def __init__(self, meta_kernel_path):
         """
+        Load the spice kernel or kernels referenced in the give kernel file
 
         Parameters
         ----------
-        mk_path : str or pathlib.Path
+        meta_kernel_path : `str` or `pathlib.Path`
             Path to the meta kernel
 
         """
-        self.mk_path = Path(mk_path)
+        self.mk_path = Path(meta_kernel_path)
         *_, datestamp, version = self.mk_path.name.split('_')
         self.kernel_date = datetime.strptime(datestamp, '%Y%m%d')
-        spice.furnsh(str(mk_path))
+        spice.furnsh(str(meta_kernel_path))
 
     @staticmethod
     def scet_to_utc(scet):
         """
-        Convert SCET to UTC time strings in ISO format.
+        Convert SCET to UTC time string in ISO format.
 
         Parameters
         ----------

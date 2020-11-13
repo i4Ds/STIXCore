@@ -1,4 +1,4 @@
 STIXCore
-*****
+********
 
 .. automodapi:: stixcore

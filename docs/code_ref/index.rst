@@ -8,4 +8,5 @@ Code Reference
    :maxdepth: 2
 
    stixcore
+   calibration
    ephemeris

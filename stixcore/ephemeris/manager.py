@@ -35,8 +35,8 @@ class SpiceManager:
 
         Parameters
         ----------
-        scet : `str`
-            SCET time string e.g. 625237315:44104
+        scet : `str`, `int`, `float`
+            SCET time as a number or spacecraft clock string e.g. `1.0` or `625237315:44104`
 
         Returns
         -------
@@ -44,7 +44,10 @@ class SpiceManager:
             UTC time string in ISO format
         """
         # Obt to Ephemeris time (seconds past J2000)
-        ephemeris_time = spice.scs2e(SOLAR_ORBITER_NAIF_ID, scet)
+        if isinstance(scet, (float, int)):
+            ephemeris_time = spice.sct2e(SOLAR_ORBITER_NAIF_ID, scet)
+        elif isinstance(scet, str):
+            ephemeris_time = spice.scs2e(SOLAR_ORBITER_NAIF_ID, scet)
         # Ephemeris time to Utc
         # Format of output epoch: ISOC (ISO Calendar format, UTC)
         # Digits of precision in fractional seconds: 6
@@ -58,7 +61,7 @@ class SpiceManager:
         Parameters
         ----------
         utc : `str`
-            UTC time sring in is format e.g. '2019-10-24T13:06:46.682758'
+            UTC time string in ISO format e.g. '2019-10-24T13:06:46.682758'
 
         Returns
         -------
@@ -77,8 +80,8 @@ class SpiceManager:
 
         Parameters
         ----------
-        scet : `str`
-            SCET time string e.g. 625237315:44104
+        scet : `str`, `int`, `float`
+            SCET time as number or spacecraft clock string e.g. `1.0` or `'625237315:44104'`
 
         Returns
         -------
@@ -86,8 +89,11 @@ class SpiceManager:
             Datetime of SCET
 
         """
-        et = spice.scs2e(SOLAR_ORBITER_NAIF_ID, scet)
-        return spice.et2datetime(et)
+        if isinstance(scet, (float, int)):
+            ephemeris_time = spice.sct2e(SOLAR_ORBITER_NAIF_ID, scet)
+        elif isinstance(scet, str):
+            ephemeris_time = spice.scs2e(SOLAR_ORBITER_NAIF_ID, scet)
+        return spice.et2datetime(ephemeris_time)
 
     @staticmethod
     def datetime_to_scet(datetime):
@@ -96,13 +102,13 @@ class SpiceManager:
 
         Parameters
         ----------
-        datetime : datetime.datetime or astropy.time.Time
+        datetime : `datetime.datetime` or `astropy.time.Time`
             Time to convert to SCET
 
         Returns
         -------
         `str`
-            SCET of datetime
+            SCET of datetime encoded as spacecraft clock string
         """
         if isinstance(datetime, Time):
             datetime = datetime.to_datetime()

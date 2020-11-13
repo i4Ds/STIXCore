@@ -43,7 +43,17 @@ def test_utc_to_scet_t0(spicemanager):
 
 # Compare to know fixed UTC ISO T0 value
 def test_scet_to_utc_t0(spicemanager):
-    assert spicemanager.scet_to_utc(T0_SCET) == T0_UTC_ISO[:-6]
+    res_string = spicemanager.scet_to_utc(T0_SCET)
+    res_number = spicemanager.scet_to_utc(0.0)
+    assert res_number == res_string
+    assert res_string == T0_UTC_ISO[:-6]
+
+
+def test_scet_to_datetime_t0(spicemanager):
+    res_string = spicemanager.scet_to_datetime(T0_SCET)
+    res_number = spicemanager.scet_to_datetime(0.0)
+    assert res_number == res_string
+    assert res_number == T0_DATETIME
 
 
 def test_scet_to_utc_round_trips(spicemanager):

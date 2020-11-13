@@ -9,4 +9,3 @@ This is the documentation for STIXCore.
    whatsnew/index
    developers
    code_ref/index
-

@@ -1,7 +1,8 @@
 import numpy as np
 import pytest
 
-from stixcore.calibration.compression import compress, decompress
+from stixcore.calibration.compression import compress, decompress, NonIntegerCompressionError, \
+    CompressionSchemeParameterError, CompressionRangeError
 
 
 def test_compression():
@@ -12,28 +13,24 @@ def test_compression():
 
 
 def test_compression_nonint_error():
-    with pytest.raises(ValueError) as e:
+    with pytest.raises(NonIntegerCompressionError):
         _ = compress(np.float64(10.0), s=0, k=5, m=3)
-    assert str(e.value) == 'Input must be an integer type not float64'
 
 
 def test_compression_skm_error():
-    with pytest.raises(ValueError) as e:
+    with pytest.raises(CompressionSchemeParameterError):
         _ = compress(1, s=1, k=5, m=4)
-    assert str(e.value) == 'Invalid s=1, k=5, m=4 must sum to less than 8 not 10'
 
 
 def test_compression_maxvalue_error():
-    with pytest.raises(ValueError) as e:
+    with pytest.raises(CompressionRangeError) as e:
         _ = compress(256, s=0, k=1, m=7)
-    assert str(e.value) == 'Valid input range exceeded for s=0, k=1, m=7' \
-                           ' input (min/max)256/256 exceeds [0, 255]'
+    assert str(e.value).startswith('Valid input range exceeded')
 
 
 def test_decompression_nonint_error():
-    with pytest.raises(ValueError) as e:
+    with pytest.raises(NonIntegerCompressionError):
         _ = decompress(np.float64(10.0), s=0, k=5, m=3)
-    assert str(e.value) == 'Input must be an integer type not float64'
 
 
 def test_decompress():
@@ -44,19 +41,18 @@ def test_decompress():
 
 
 def test_decompress_skm_error():
-    with pytest.raises(ValueError) as e:
+    with pytest.raises(CompressionSchemeParameterError):
         _ = decompress(1, s=1, k=5, m=4)
-    assert str(e.value) == 'Invalid s=1, k=5, m=4 must sum to less than 8 not 10'
 
 
 def test_decompress_input_error():
-    with pytest.raises(ValueError) as e:
+    with pytest.raises(CompressionRangeError) as e:
         _ = decompress(256, s=0, k=1, m=7)
     assert str(e.value) == 'Compressed values must be in the range 0 to 255'
 
 
 def test_decompress_maxvalue_error():
-    with pytest.raises(ValueError) as e:
+    with pytest.raises(CompressionRangeError) as e:
         _ = decompress(255, s=0, k=6, m=2)
     assert str(e.value) == 'Decompressed value too large to fit into uint64'
 

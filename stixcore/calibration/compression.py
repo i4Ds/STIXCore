@@ -28,7 +28,8 @@ STIX-TN-0117-FHNW
 import numpy as np
 
 
-__all__ = ['compress', 'decompress']
+__all__ = ['compress', 'decompress', 'CompressionRangeError', 'CompressionSchemeParameterError',
+           'NonIntegerCompressionError']
 
 
 def compress(values, *, s, k, m):
@@ -62,18 +63,20 @@ def compress(values, *, s, k, m):
     """
     values = np.atleast_1d(np.array(values))
     if not np.issubdtype(values.dtype, np.integer):
-        raise ValueError(f'Input must be an integer type not {values.dtype}')
+        raise NonIntegerCompressionError(f'Input must be an integer type not {values.dtype}')
 
     total = s + k + m
     if total > 8:
-        raise ValueError(f'Invalid s={s}, k={k}, m={m} must sum to less than 8 not {total}')
+        raise CompressionSchemeParameterError(f'Invalid s={s}, k={k}, m={m} '
+                                              f'must sum to less than 8 not {total}')
 
     max_value = 2**(2**k-2)*(2**(m + 1) - 1)
     abs_range = [0, max_value] if s == 0 else [-1 * max_value, 1 * max_value]
 
     if values.min() < abs_range[0] or values.max() > abs_range[1]:
-        raise ValueError(f'Valid input range exceeded for s={s}, k={k}, m={m} input (min/max)'
-                         f'{values.min()}/{values.max()} exceeds {abs_range}')
+        raise CompressionRangeError(f'Valid input range exceeded for s={s}, k={k}, m={m} '
+                                    f'input (min/max) {values.min()}/{values.max()} '
+                                    f'exceeds {abs_range}')
 
     negative_indices = np.nonzero(values < 0)
     out = np.abs(values).astype(np.uint64)
@@ -123,22 +126,23 @@ def decompress(values, *, s, k, m, return_variance=False):
     """
     values = np.atleast_1d(np.array(values))
     if not np.issubdtype(values.dtype, np.integer):
-        raise ValueError(f'Input must be an integer type not {values.dtype}')
+        raise NonIntegerCompressionError(f'Input must be an integer type not {values.dtype}')
 
     values = values.astype(np.uint64)
 
     total = s + k + m
     if total > 8:
-        raise ValueError(f'Invalid s={s}, k={k}, m={m} must sum to less than 8 not {total}')
+        raise CompressionSchemeParameterError(f'Invalid s={s}, k={k}, m={m} '
+                                              f'must sum to less than 8 not {total}')
 
     if values.min() < 0 or values.max() > 255:
-        raise ValueError(f'Compressed values must be in the range 0 to 255')
+        raise CompressionRangeError(f'Compressed values must be in the range 0 to 255')
 
     max_value = 2**(2**k-2)*(2**(m + 1) - 1)
     uint64_info = np.iinfo(np.uint64)
 
     if max_value > uint64_info.max:
-        raise ValueError('Decompressed value too large to fit into uint64')
+        raise CompressionRangeError('Decompressed value too large to fit into uint64')
 
     abs_values = values if s == 0 else values & 127
     out = abs_values[:].astype(np.uint64)
@@ -168,3 +172,21 @@ def decompress(values, *, s, k, m, return_variance=False):
         return out, variance
     else:
         return out
+
+
+class NonIntegerCompressionError(Exception):
+    """
+    Exception raised when the input to the compression algorithm is not an integer.
+    """
+
+
+class CompressionSchemeParameterError(Exception):
+    """
+    Exception raised for invalid compression scheme parameters.
+    """
+
+
+class CompressionRangeError(Exception):
+    """
+    Exception raised due to invalid range in the input or output.
+    """

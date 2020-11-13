@@ -14,3 +14,7 @@ Reference/API
 =============
 
 .. automodapi:: stixcore
+
+.. automodapi:: stixcore.calibration
+
+.. automodapi:: stixcore.calibration.compression

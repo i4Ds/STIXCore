@@ -138,6 +138,19 @@ class IdbManager:
         return ver == self._get_label(version_label)
 
     def get_idb(self, version_label):
+        """
+        gets an IDB reference of the specified version
+
+        Parameters
+        ----------
+        version_label : `str` or `(int, int, int)`
+            a version definition (major, minor, patch) or "major.minor.patch"
+
+        Returns
+        -------
+        `IDB` reference to a IDB reader
+
+        """
         if self.has_version(version_label) : return IDB(Path(self._get_filename_for_version(version_label)))
         raise ValueError(f'Version "{version_label}" not found in: "{self._get_filename_for_version(version_label)}"')
 

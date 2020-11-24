@@ -21,7 +21,7 @@ class IDB(object):
         self.s2k_table_contents = dict()
 
         self.filename = filename
-        
+
         print('loading idb from: ', self.filename)
 
         self.num_trials = 0

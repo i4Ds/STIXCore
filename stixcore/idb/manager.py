@@ -99,8 +99,8 @@ class IdbManager:
 
         Parameters
         ----------
-        version_label : `str` or `(major, minor, patch))`
-            a version definition
+        version_label : `str` or `(int, int, int)`
+            a version definition (major, minor, patch) or "major.minor.patch"
 
         Returns
         -------

@@ -65,6 +65,7 @@ class IDB(object):
     def close(self):
         if self.conn:
             self.conn.close()
+            self.cur = None
 
     def execute(self, sql, arguments=None, result_type='list'):
         """

@@ -9,7 +9,6 @@ __all__ = ['IDB']
 class IDB(object):
     """
     Provides reading functionality to a IDB (definition of TM/TC packet structures)
-
     """
     def __init__(self, filename='', utc=None):
         self.conn = None

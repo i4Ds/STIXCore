@@ -7,9 +7,7 @@ thread_lock = threading.Lock()
 __all__ = ['IDB']
 
 class IDB(object):
-    """
-    Provides reading functionality to a IDB (definition of TM/TC packet structures)
-    """
+    """ Provides reading functionality to a IDB (definition of TM/TC packet structures) """
     def __init__(self, filename='', utc=None):
         self.conn = None
         self.cur = None
@@ -70,9 +68,7 @@ class IDB(object):
             self.cur = None
 
     def execute(self, sql, arguments=None, result_type='list'):
-        """
-        execute sql and return results in a list or a dictionary
-        """
+        """ execute sql and return results in a list or a dictionary """
         if not self.cur:
             raise Exception('IDB is not initialized!')
         else:
@@ -164,9 +160,7 @@ class IDB(object):
         return ''
 
     def get_packet_type_info(self, packet_type, packet_subtype, pi1_val=-1):
-        """
-        Identify packet type using service, service subtype and information in IDB table PID
-        """
+        """ Identify packet type using service, service subtype and information in IDB table PID """
         args = None
         if pi1_val == -1:
             sql = ('select PID_SPID, PID_DESCR, PID_TPSD from PID '
@@ -211,6 +205,7 @@ class IDB(object):
     def get_fixed_packet_structure(self, spid):
         """
         get parameter structures using SCO ICD (page 39)
+
         Args:
             spid: SPID
         Returns:
@@ -230,9 +225,7 @@ class IDB(object):
         return res
 
     def get_telecommand_info(self, header):
-        """
-            get TC description
-        """
+        """ get TC description """
         service_type = header['service_type']
         service_subtype = header['service_subtype']
         sql = (
@@ -249,10 +242,7 @@ class IDB(object):
             return None
 
     def get_telecommand_structure(self, name):
-        """
-            Get the structure of a telecommand  by its name
-            The structure will be used to decode the TC packet.
-        """
+        """ Get the structure of a telecommand  by its name. The structure will be used to decode the TC packet."""
         sql = ('select CDF_ELTYPE, CDF_DESCR, CDF_ELLEN, CDF_BIT, '
                'CDF_GRPSIZE, CDF_PNAME, CPC_DESCR,  CPC_PAFREF, CPC_PTC,'
                'CPC_PFC from CDF left join CPC on  CDF_PNAME=CPC_PNAME'
@@ -284,9 +274,7 @@ class IDB(object):
         return res
 
     def tcparam_interpret(self, ref, raw):
-        """
-         interpret telecommand parameter by using the table PAS
-        """
+        """ interpret telecommand parameter by using the table PAS """
         sql = 'select PAS_ALTXT from PAS where PAS_NUMBR=? and PAS_ALVAL=?'
         args = (ref, raw)
         rows = self.execute(sql, args)

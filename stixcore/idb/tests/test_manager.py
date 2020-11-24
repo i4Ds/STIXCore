@@ -37,7 +37,7 @@ def test_root_not_found_error():
         _ = IdbManager(".foo/")
     assert str(e.value).startswith('path not found')
 
-@pytest.mark.parametrize('versions', [("2.26.1",False),("2.26.2",False),("2.26.3",False),("2.26.34",True),("1.2.3",False)])
+@pytest.mark.parametrize('versions', [("2.26.1",False),("2.26.2",False),((2, 26, 3),False),("2.26.34",True),("1.2.3",False)])
 def test_has_version(versions, idbManager):
     versionlabel, should = versions
     hasV = idbManager.has_version(versionlabel)

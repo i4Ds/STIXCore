@@ -141,7 +141,7 @@ class IdbManager:
         if self.has_version(version_label) : return IDB(Path(self._get_filename_for_version(version_label)))
         raise ValueError(f'Version "{version_label}" not found in: "{self._get_filename_for_version(version_label)}"')
 
-if __name__ == '__main__':
+if __name__ == '__main__': # pragma: no cover
     a = IdbManager("./stixcore/idb/tests/data")
     print(a.data_root)
     versions = a.get_versions()

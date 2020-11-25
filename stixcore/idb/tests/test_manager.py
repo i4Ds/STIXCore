@@ -4,7 +4,7 @@ from pathlib import Path
 import pytest
 
 from stixcore.idb.manager import IdbManager
-#from stixcore.idb.idb import IDB
+from stixcore.idb.idb import IDB
 
 
 orig_directory = ''

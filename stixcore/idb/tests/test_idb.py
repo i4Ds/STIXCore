@@ -48,8 +48,8 @@ def test_idb_setup_fails():
     with pytest.raises(Exception) as e:
         _idb = IDB("./v2.26.2")
         assert _idb.is_connected() == False
-        _idb.get_idb_version()
-    assert str(e.value).startswith('IDB is not initialized')
+        _ = _idb.get_idb_version()
+    assert str(e.value) == 'IDB is not initialized!'
 
 def test_get_spit(idb):
     spids = idb.get_all_spid()

@@ -10,3 +10,4 @@ Code Reference
    stixcore
    calibration
    ephemeris
+   util

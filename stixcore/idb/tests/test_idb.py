@@ -46,7 +46,7 @@ def test_idb_setup(idb):
 
 def test_idb_setup_fails():
     with pytest.raises(Exception) as e:
-        _idb = IDB("./v2.26.2")
+        _idb = IDB("../data")
         assert _idb.is_connected() == False
         _ = _idb.get_idb_version()
     assert str(e.value) == 'IDB is not initialized!'

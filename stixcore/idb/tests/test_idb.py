@@ -8,7 +8,6 @@ from stixcore.idb.manager import IdbManager
 from stixcore.idb.idb import IDB
 
 
-orig_directory = ''
 VERSION = "2.26.34"
 
 @pytest.fixture

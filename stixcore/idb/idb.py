@@ -81,7 +81,7 @@ class IDB:
         else:
             rows = None
             try:
-                thread_lock.acquire(True)
+                #thread_lock.acquire(True)
                 # sqlite doesn't like multi-threads
 
                 if arguments:
@@ -98,7 +98,8 @@ class IDB:
                         for row in self.cur.fetchall()
                     ]
             finally:
-                thread_lock.release()
+                #thread_lock.release()
+                1
             return rows
 
     def get_spid_info(self, spid):

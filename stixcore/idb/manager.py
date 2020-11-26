@@ -9,7 +9,7 @@ IDB_FILENAME = "idb.sqlite"
 IDB_VERSION_PREFIX = "v"
 IDB_VERSION_DELIM = "."
 
-class IdbManager:
+class IDBManager:
     """Manages IDB (definition of TM/TC packet structures) Versions
     and provides a IDB reader
     """

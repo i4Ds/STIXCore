@@ -3,7 +3,7 @@ from pathlib import Path
 from stixcore.idb.idb import IDB
 import os
 
-__all__ = ['IdbManager']
+__all__ = ['IDBManager']
 
 IDB_FILENAME = "idb.sqlite"
 IDB_VERSION_PREFIX = "v"

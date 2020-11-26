@@ -7,30 +7,13 @@ from stixcore.idb.manager import IdbManager
 from stixcore.idb.idb import IDB
 
 
-orig_directory = ''
-
-
-# For meta kernel to work have to be in the same directory as the kernels or set the PATH variable
-# in the MK to the correct value as we don't know where this during testing the setup and teardown
-# function will change to and form this directory
-def setup_function():
-    global orig_directory
-    orig_directory = os.getcwd()
-    file_dir = Path(os.path.abspath(__file__))
-    os.chdir(file_dir.parent / 'data')
-
-
-def teardown_function():
-    os.chdir(orig_directory)
-
-
 @pytest.fixture
 def idbManager():
-    return IdbManager("./")
+    return IdbManager(Path(os.path.abspath(__file__)).parent / 'data')
 
 
 def test_idbManager(idbManager):
-    assert str(idbManager.data_root) == "."
+    assert str(idbManager.data_root) == str((Path(os.path.abspath(__file__)).parent / 'data'))
 
 def test_root_not_found_error():
     with pytest.raises(ValueError) as e:

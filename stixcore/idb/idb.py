@@ -6,18 +6,16 @@ thread_lock = threading.Lock()
 
 __all__ = ['IDB']
 
-class IDB(object):
+class IDB:
     """ Provides reading functionality to a IDB (definition of TM/TC packet structures) """
 
-    def __init__(self, filename=''):
-        """
-        Creates the IDB reader for a given file
+    def __init__(self, filename):
+        """Creates the IDB reader for a given file
 
         Parameters
         ----------
-        filename = '' : `str` or `pathlib.Path`
+        filename : `str` | `pathlib.Path`
             Path to the idb file
-
         """
         self.conn = None
         self.cur = None
@@ -34,78 +32,49 @@ class IDB(object):
 
         #logger.info(f'loading idb from: {self.filename}')
 
-        self.num_trials = 0
         if self.filename:
             self._connect_database()
 
     def is_connected(self):
-        """
-        tests if the reader is connected to the IDB
+        """tests if the reader is connected to the IDB
 
         returns
-        ----------
+        -------
         True | False
         """
         if self.cur:
             return True
         return False
 
-    def reload(self, filename):
-        """
-        connectes the reader to an other IDB
-
-        Parameters
-        ----------
-        filename : `str` or `pathlib.Path`
-            Path to the idb file
-        """
-
-        if filename == self.filename:
-            #logger.info('IDB already loaded')
-            return
-        self.filename = filename
-        self.close()
-        self.parameter_structures = dict()
-        self.calibration_polynomial = dict()
-        self.calibration_curves = dict()
-        self.textual_parameter_lut = dict()
-        self.soc_descriptions = dict()
-        self.parameter_descriptions = dict()
-        self.s2k_table_contents = dict()
-        if self.filename:
-            self._connect_database()
-
     def get_idb_filename(self):
-        """
-        gets the path to the connected IDB file
+        """gets the path to the connected IDB file
 
         returns
-        ----------
-        `os.path` the path to the IDB file
+        -------
+        `os.path`
+            the path to the IDB file
         """
         return os.path.abspath(self.filename)
 
     def _connect_database(self):
         try:
-            self.conn = sqlite3.connect(self.filename, check_same_thread=False)
+            self.conn = sqlite3.connect(str(self.filename), check_same_thread=False)
             #logger.info('IDB loaded from {}'.format(filename))
             self.cur = self.conn.cursor()
             #self.conn.row_factory = sqlite3.Row
         except sqlite3.Error:
             #logger.error('Failed load IDB from {}'.format(filename))
-            1
+            self.close()
 
     def close(self):
-        """
-        closes the IDB connection
+        """closes the IDB connection
         """
         if self.conn:
             self.conn.close()
             self.cur = None
 
     def _execute(self, sql, arguments=None, result_type='list'):
-        """
-        execute sql and return results in a list or a dictionary
+        """execute sql and return results in a list or a dictionary
         """
         if not self.cur:
             raise Exception('IDB is not initialized!')
@@ -133,31 +102,38 @@ class IDB(object):
             return rows
 
     def get_spid_info(self, spid):
-        """
-        get SPID description
+        """get SPID description
 
         returns
-        ----------
+        -------
         (PID_DESCR, PID_TYPE, PID_STYPE)
-
         """
         sql = 'select PID_DESCR,PID_TYPE,PID_STYPE from PID where PID_SPID=? limit 1'
         return self._execute(sql, (spid, ))
 
     def get_all_spid(self):
-        """
-        get list of all SPIDs and short description
+        """get list of all SPIDs and short description
 
         returns
-        ----------
+        -------
         (PID_SPID, PID_DESCR)
-
         """
         sql = 'select PID_SPID, PID_DESCR from PID'
         return self._execute(sql, None)
 
     def get_scos_description(self, name):
-        """ get scos long description """
+        """get scos long description
+
+        Parameters
+        ----------
+        name : ´str´
+            the scos_name like 'NIX00354'
+
+        Returns
+        -------
+        ´str´
+            the long description
+        """
         if name in self.soc_descriptions:
             return self.soc_descriptions[name]
         else:
@@ -170,15 +146,14 @@ class IDB(object):
             return ''
 
     def get_telemetry_description(self, spid):
-        """
-        gets telemetry data information
+        """gets telemetry data information
 
         Parameters
         ----------
         spid : `int`
 
         returns
-        ----------
+        -------
         (SW_DESCR, tpcf_name)
         """
         sql = ('select sw_para.SW_DESCR, tpcf.tpcf_name  '
@@ -187,8 +162,7 @@ class IDB(object):
         return self._execute(sql, (spid, ))
 
     def get_packet_type_offset(self, packet_type, packet_subtype):
-        """
-        gets (offset, width) for packet type and subtype
+        """gets (offset, width) for packet type and subtype
 
         Parameters
         ----------
@@ -196,9 +170,8 @@ class IDB(object):
         packet_subtype : `int`
 
         returns
-        ----------
+        -------
         (PIC_PI1_OFF, PIC_PI1_WID)
-
         """
         sql = ('select PIC_PI1_OFF, PIC_PI1_WID from PIC '
                'where PIC_TYPE=? and PIC_STYPE=? limit 1')
@@ -209,17 +182,16 @@ class IDB(object):
         return 0, 0
 
     def get_parameter_description(self, name):
-        """
-        get scos long description
+        """get scos long description
 
         Parameters
         ----------
         name : `str`
 
         returns
-        ----------
-        ´str´ a long describtion
-
+        -------
+        ´str´
+            a long describtion
         """
         if name in self.parameter_descriptions:
             return self.parameter_descriptions[name]
@@ -236,17 +208,16 @@ class IDB(object):
             return ''
 
     def get_parameter_unit(self, name):
-        """
-        get unit for parameter
+        """get unit for parameter
 
         Parameters
         ----------
         name : `str`
 
         returns
-        ----------
-        ´str´ the unit
-
+        -------
+        ´str´
+            the unit
         """
         if not self.parameter_units:
             results = self._execute(
@@ -257,8 +228,7 @@ class IDB(object):
         return ''
 
     def get_packet_type_info(self, packet_type, packet_subtype, pi1_val=-1):
-        """
-        Identify packet type using service, service subtype and information in IDB table PID
+        """Identify packet type using service, service subtype and information in IDB table PID
 
         Parameters
         ----------
@@ -267,7 +237,7 @@ class IDB(object):
         pi1_val : `int`
 
         returns
-        ----------
+        -------
         (PID_SPID, PID_DESCR, PID_TPSD) or `None` if not found
         """
         args = None
@@ -291,8 +261,7 @@ class IDB(object):
             return None
 
     def get_s2k_parameter_types(self, ptc, pfc):
-        """
-        gets parameter type
+        """gets parameter type
 
         Parameters
         ----------
@@ -300,8 +269,9 @@ class IDB(object):
         pfc : `int`   PFC_LB and PFC_UB
 
         returns
-        ----------
-        `str` the type
+        -------
+        `str`
+            the type
         """
         if (ptc, pfc) in self.s2k_table_contents:
             return self.s2k_table_contents[(ptc, pfc)]
@@ -318,15 +288,14 @@ class IDB(object):
             return None
 
     def convert_NIXG_NIXD(self, name):
-        """
-        gets NIXG to NIXD  conversation infos for a PDI
+        """gets NIXG to NIXD  conversation infos for a PDI
 
         Parameters
         ----------
         name : `str`  PDI_GLOBAL name
 
         returns
-        ----------
+        -------
         (PDI_GLOBAL, PDI_DETAIL, PDI_OFFSET)
         """
         sql = (
@@ -337,18 +306,16 @@ class IDB(object):
         return rows
 
     def get_fixed_packet_structure(self, spid):
-        """
-        get parameter structures using SCO ICD (page 39)
+        """get parameter structures using SCO ICD (page 39)
 
         Parameters
         ----------
         spid: SPID
 
         returns
-        ----------
-            is_fixed: whether it is a fixed length packet
-            parameter structures
-         """
+        -------
+        parameter structures
+        """
         if spid in self.parameter_structures:
             return self.parameter_structures[spid]
         sql = (
@@ -361,50 +328,43 @@ class IDB(object):
         self.parameter_structures[spid] = res
         return res
 
-    def get_telecommand_info(self, header):
-        """
-        get TC description for a header
+    def get_telecommand_info(self, service_type, service_subtype, subtype=None):
+        """get TC description for a header
 
         Parameters
         ----------
-        header : `dict`   the header with  'service_type' and 'service_subtype' defined
+        service_type : `int`
+        service_subtype : `int`
+        subtype : `int`, optional
 
         returns
         --------
-
-        `dict` or `None`
-
+        `dict` | `None`
         """
-        if 'service_type' not in header or 'service_subtype' not in header :
-            return None
 
-        service_type = header['service_type']
-        service_subtype = header['service_subtype']
         sql = (
             'select  CCF_CNAME, CCF_DESCR, CCF_DESCR2, '
             ' CCF_NPARS from CCF where CCF_TYPE=? and CCF_STYPE =? order by CCF_CNAME asc'
         )
         res = self._execute(sql, (service_type, service_subtype), 'dict')
         index = 0
-        if len(res) > 1 and 'subtype' in header:
-            index = header['subtype'] - 1
+        if len(res) > 1 and (subtype is not None):
+            index = subtype - 1
         try:
             return res[index]
         except IndexError:
             return None
 
     def get_telecommand_structure(self, name):
-        """
-        Get the structure of a telecommand  by its name. The structure will be used to decode the TC packet.
+        """Get the structure of a telecommand  by its name. The structure will be used to decode the TC packet.
 
         Parameters
         ----------
         name : `str`   a structure name like 'ZIX06009'
 
         returns
-        --------
+        -------
         tm structure
-
         """
         sql = ('select CDF_ELTYPE, CDF_DESCR, CDF_ELLEN, CDF_BIT, '
                'CDF_GRPSIZE, CDF_PNAME, CPC_DESCR,  CPC_PAFREF, CPC_PTC,'
@@ -415,17 +375,15 @@ class IDB(object):
         return res
 
     def is_variable_length_telecommand(self, name):
-        """
-        Determines if the TM structure is of variable length
+        """Determines if the TM structure is of variable length
 
         Parameters
         ----------
         name : `str`   a structure name like 'ZIX06009'
 
         returns
-        --------
+        -------
         True|False
-
         """
         sql = 'select CDF_GRPSIZE  from CDF where CDF_GRPSIZE >0 and CDF_CNAME=?'
         args = (name, )
@@ -437,17 +395,15 @@ class IDB(object):
         return False
 
     def get_variable_packet_structure(self, spid):
-        """
-        Get the variable packet structure of a telecommand by its spid (VPD.VPD_TPSD).
+        """Get the variable packet structure of a telecommand by its spid (VPD.VPD_TPSD).
 
         Parameters
         ----------
         name : `str`|`int`  a structure spid like 54118
 
         returns
-        --------
+        -------
         `list` tm structure
-
         """
         if spid in self.parameter_structures:
             return self.parameter_structures[spid]
@@ -461,8 +417,7 @@ class IDB(object):
         return res
 
     def tcparam_interpret(self, ref, raw):
-        """
-        interpret telecommand parameter by using the table PAS
+        """interpret telecommand parameter by using the table PAS
 
         Parameters
         ----------
@@ -470,9 +425,8 @@ class IDB(object):
         raw : `int`  PAS_ALVAL
 
         returns
-        --------
+        -------
         `str` PAS_ALTXT
-
         """
         sql = 'select PAS_ALTXT from PAS where PAS_NUMBR=? and PAS_ALVAL=?'
         args = (ref, raw)
@@ -484,17 +438,15 @@ class IDB(object):
         return ''
 
     def get_calibration_curve(self, pcf_curtx):
-        """
-        calibration curve defined in CAP database
+        """calibration curve defined in CAP database
 
         Parameters
         ----------
         pcf_curtx : `str`  cap_numbr lile 'CIXP0024TM'
 
         returns
-        --------
+        -------
         `list` calibration curve
-
         """
         if pcf_curtx in self.calibration_curves:
             return self.calibration_curves[pcf_curtx]
@@ -507,18 +459,18 @@ class IDB(object):
             return rows
 
     def get_textual_mapping(self, parameter_name):
-        """
-        get a struct for textual mapping of index and names
+        """get a struct for textual mapping of index and names
 
         Parameters
         ----------
         parameter_name : `str`  PCF_NAME lile 'NIX00013'
 
         returns
-        --------
-        `array` [(idx,),(name)] the mapping
-        `None` if parameter_name not found
-
+        -------
+        `array` [(idx,),(name)]
+            the mapping
+        `None`
+            if parameter_name not found
         """
         sql = 'select  TXP_FROM, TXP_ALTXT from TXP join PCF on PCF_CURTX=TXP_NUMBR where PCF_NAME=? order by TXP_FROM asc'
         args = (parameter_name, )
@@ -529,8 +481,7 @@ class IDB(object):
             return None
 
     def textual_interpret(self, pcf_curtx, raw_value):
-        """
-        gets a name for a TXP_NUMBR from TXP for given raw_value
+        """gets a name for a TXP_NUMBR from TXP for given raw_value
 
         Parameters
         ----------
@@ -538,9 +489,9 @@ class IDB(object):
         raw_value : `int`  value in range of TXP_FROM  to TXP_TO
 
         returns
-        --------
-        `list` of names
-
+        -------
+        `list` of `str`
+            the names
         """
         if (pcf_curtx, raw_value) in self.textual_parameter_lut:
             # build a lookup table
@@ -555,17 +506,15 @@ class IDB(object):
         return rows
 
     def get_calibration_polynomial(self, mcf_ident):
-        """
-        gets calibration polynomial information for a given MCF_IDENT
+        """gets calibration polynomial information for a given MCF_IDENT
 
         Parameters
         ----------
         mcf_ident : `str`  TXP_NUMBR lile 'CIX00036TM'
 
         returns
-        --------
+        -------
         (MCF_POL1, MCF_POL2, MCF_POL3, MCF_POL4, MCF_POL5)
-
         """
         if mcf_ident in self.calibration_polynomial:
             return self.calibration_polynomial[mcf_ident]
@@ -578,13 +527,12 @@ class IDB(object):
             return rows
 
     def get_idb_version(self):
-        """
-        gets the verion string of the IDB
+        """gets the verion string of the IDB
 
         returns
-        --------
-        `str` version lable like "1.1.3"
-
+        -------
+        `str`
+            version lable like "1.1.3"
         """
         try:
             sql = ('select version from IDB limit 1')

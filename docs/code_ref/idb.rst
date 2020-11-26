@@ -1,5 +1,5 @@
 STIXCore idb
-******************
+************
 
 The ``idb`` submodule contains IDB (definition of TM/TC packet structures) specific routines.
 

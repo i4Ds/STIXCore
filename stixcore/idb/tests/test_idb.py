@@ -11,23 +11,9 @@ from stixcore.idb.idb import IDB
 orig_directory = ''
 VERSION = "2.26.34"
 
-# For meta kernel to work have to be in the same directory as the kernels or set the PATH variable
-# in the MK to the correct value as we don't know where this during testing the setup and teardown
-# function will change to and form this directory
-def setup_function():
-    global orig_directory
-    orig_directory = os.getcwd()
-    file_dir = Path(os.path.abspath(__file__))
-    os.chdir(file_dir.parent / 'data')
-
-
-def teardown_function():
-    os.chdir(orig_directory)
-
-
 @pytest.fixture
 def idb():
-    return IdbManager("./").get_idb(VERSION)
+    return IdbManager(Path(os.path.abspath(__file__)).parent / 'data').get_idb(VERSION)
 
 
 def test_idb_setup(idb):
@@ -38,15 +24,11 @@ def test_idb_setup(idb):
     assert filename.endswith("idb.sqlite")
     idb.close()
     assert idb.is_connected() == False
-    idb.reload(filename)
-    assert idb.is_connected()
-    assert idb.get_idb_version() == VERSION
-    idb.reload(filename)
-    assert idb.is_connected()
+
 
 def test_idb_setup_fails():
     with pytest.raises(Exception) as e:
-        _idb = IDB("../data")
+        _idb = IDB(Path(os.path.abspath(__file__)).parent / 'data')
         assert _idb.is_connected() == False
         _ = _idb.get_idb_version()
     assert str(e.value) == 'IDB is not initialized!'
@@ -148,13 +130,13 @@ def test_get_fixed_packet_structure(idb):
 
 
 def test_get_telecommand_info(idb):
-    info = idb.get_telecommand_info({'service_type' : 6, 'service_subtype' : 2})
+    info = idb.get_telecommand_info(6, 2)
     assert len(info) == 4
 
-    info = idb.get_telecommand_info({'service_type' : 11, 'service_subtype' : 11})
-    assert info is None
+    info = idb.get_telecommand_info(6, 2, 1)
+    assert len(info) == 4
 
-    info = idb.get_telecommand_info({'service_type' : 11, 'subtype' : 11})
+    info = idb.get_telecommand_info(11, 11)
     assert info is None
 
 def test_get_telecommand_structure(idb):

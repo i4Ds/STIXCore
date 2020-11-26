@@ -120,7 +120,7 @@ class IDBManager:
         ver = idb.get_idb_version()
         idb.close()
         print(ver)
-        return ver == IdbManager.get_label(version_label)
+        return ver == IDBManager.get_label(version_label)
 
     def get_idb(self, version_label):
         """gets an IDB reference of the specified version

@@ -10,4 +10,5 @@ Code Reference
    stixcore
    calibration
    ephemeris
+   idb
    util

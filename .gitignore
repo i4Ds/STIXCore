@@ -149,3 +149,4 @@ docs/api
 docs/whatsnew/latest_changelog.txt
 stixcore/version.py
 htmlcov/
+.vscode/settings.json

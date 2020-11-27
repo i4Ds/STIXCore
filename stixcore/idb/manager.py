@@ -3,13 +3,13 @@ from pathlib import Path
 from stixcore.idb.idb import IDB
 import os
 
-__all__ = ['IDBManager']
+__all__ = ['IdbManager']
 
 IDB_FILENAME = "idb.sqlite"
 IDB_VERSION_PREFIX = "v"
 IDB_VERSION_DELIM = "."
 
-class IDBManager:
+class IdbManager:
     """Manages IDB (definition of TM/TC packet structures) Versions
     and provides a IDB reader
     """
@@ -120,7 +120,7 @@ class IDBManager:
         ver = idb.get_idb_version()
         idb.close()
         print(ver)
-        return ver == IDBManager.get_label(version_label)
+        return ver == IdbManager.get_label(version_label)
 
     def get_idb(self, version_label):
         """gets an IDB reference of the specified version

@@ -7,4 +7,6 @@ or engineering values and ultimately into science ready data
 
 .. automodapi:: stixcore.calibration
 
+.. automodapi:: stixcore.calibration.livetime
+
 .. automodapi:: stixcore.calibration.compression

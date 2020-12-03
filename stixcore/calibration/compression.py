@@ -27,7 +27,6 @@ STIX-TN-0117-FHNW
 """
 import numpy as np
 
-
 __all__ = ['compress', 'decompress', 'CompressionRangeError', 'CompressionSchemeParameterError',
            'NonIntegerCompressionError']
 

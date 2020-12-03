@@ -1,8 +1,13 @@
 import numpy as np
 import pytest
 
-from stixcore.calibration.compression import compress, decompress, NonIntegerCompressionError, \
-    CompressionSchemeParameterError, CompressionRangeError
+from stixcore.calibration.compression import (
+    CompressionRangeError,
+    CompressionSchemeParameterError,
+    NonIntegerCompressionError,
+    compress,
+    decompress,
+)
 
 
 def test_compression():

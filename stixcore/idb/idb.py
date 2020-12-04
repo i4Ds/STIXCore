@@ -1,10 +1,15 @@
+import logging
 import os
 import sqlite3
 import threading
 
+from stixcore.util.logging import get_logger
+
 thread_lock = threading.Lock()
 
 __all__ = ['IDB']
+
+logger = get_logger(__name__)
 
 class IDB:
     """ Provides reading functionality to a IDB (definition of TM/TC packet structures) """
@@ -27,10 +32,8 @@ class IDB:
         self.soc_descriptions = dict()
         self.parameter_descriptions = dict()
         self.s2k_table_contents = dict()
-
         self.filename = filename
-
-        #logger.info(f'loading idb from: {self.filename}')
+        logger.info(f"Creating IDB reader for: {self.filename}")
 
         if self.filename:
             self._connect_database()
@@ -59,12 +62,12 @@ class IDB:
     def _connect_database(self):
         try:
             self.conn = sqlite3.connect(str(self.filename), check_same_thread=False)
-            #logger.info('IDB loaded from {}'.format(filename))
+            logger.info('IDB loaded from {}'.format(self.filename))
             self.cur = self.conn.cursor()
-            #self.conn.row_factory = sqlite3.Row
         except sqlite3.Error:
-            #logger.error('Failed load IDB from {}'.format(filename))
+            logger.error('Failed load IDB from {}'.format(self.filename))
             self.close()
+            raise
 
     def close(self):
         """closes the IDB connection
@@ -72,9 +75,11 @@ class IDB:
         if self.conn:
             self.conn.close()
             self.cur = None
+        else:
+            logger.warning("IDB connection already closed")
 
     def _execute(self, sql, arguments=None, result_type='list'):
-        """execute sql and return results in a list or a dictionary
+        """Execute sql and return results in a list or a dictionary
         """
         if not self.cur:
             raise Exception('IDB is not initialized!')
@@ -143,6 +148,8 @@ class IDB:
                 res = rows[0][0]
                 self.soc_descriptions[name] = res
                 return res
+
+            logger.warning("nothing found in IDB table: sw_para")
             return ''
 
     def get_telemetry_description(self, spid):
@@ -179,6 +186,8 @@ class IDB:
         rows = self._execute(sql, args)
         if rows:
             return rows[0]
+
+        logger.warning("nothing found in IDB table: PIC")
         return 0, 0
 
     def get_parameter_description(self, name):
@@ -205,6 +214,8 @@ class IDB:
                 res = rows[0][0]
                 self.parameter_descriptions[name] = res
                 return res
+
+            logger.warning("nothing found in IDB table: PCF or CPC")
             return ''
 
     def get_parameter_unit(self, name):
@@ -225,6 +236,8 @@ class IDB:
             self.parameter_units = {row[0]: row[1] for row in results}
         if name in self.parameter_units:
             return self.parameter_units[name]
+
+        logger.warning("nothing found in IDB table: PCF")
         return ''
 
     def get_packet_type_info(self, packet_type, packet_subtype, pi1_val=-1):
@@ -254,10 +267,7 @@ class IDB:
         if rows:
             return rows[0]
         else:
-            #TODO replace with logger
-            print(
-                "No information in IDB for service {}, service_subtype {}  and pi1_val: {} "
-                .format(packet_type, packet_subtype, pi1_val))
+            logger.warning(f"No information in IDB for service {packet_type}, service_subtype {packet_subtype}  and pi1_val: {pi1_val}")
             return None
 
     def get_s2k_parameter_types(self, ptc, pfc):
@@ -265,8 +275,10 @@ class IDB:
 
         Parameters
         ----------
-        ptc : `int`   the paramter
-        pfc : `int`   PFC_LB and PFC_UB
+        ptc : `int`
+            the paramter
+        pfc : `int`
+            PFC_LB and PFC_UB
 
         returns
         -------
@@ -285,6 +297,7 @@ class IDB:
                 s2k_type = rows[0][0]
                 self.s2k_table_contents[(ptc, pfc)] = s2k_type
                 return s2k_type
+            logger.warning("nothing found in IDB table: tblConfigS2KParameterTypes")
             return None
 
     def convert_NIXG_NIXD(self, name):
@@ -292,7 +305,8 @@ class IDB:
 
         Parameters
         ----------
-        name : `str`  PDI_GLOBAL name
+        name : `str`
+            PDI_GLOBAL name
 
         returns
         -------
@@ -353,6 +367,7 @@ class IDB:
         try:
             return res[index]
         except IndexError:
+            logger.warning("nothing found in IDB table: CCF")
             return None
 
     def get_telecommand_structure(self, name):
@@ -360,7 +375,8 @@ class IDB:
 
         Parameters
         ----------
-        name : `str`   a structure name like 'ZIX06009'
+        name : `str`
+            a structure name like 'ZIX06009'
 
         returns
         -------
@@ -379,7 +395,8 @@ class IDB:
 
         Parameters
         ----------
-        name : `str`   a structure name like 'ZIX06009'
+        name : `str`
+            a structure name like 'ZIX06009'
 
         returns
         -------
@@ -399,7 +416,8 @@ class IDB:
 
         Parameters
         ----------
-        name : `str`|`int`  a structure spid like 54118
+        name : `str`|`int`
+            a structure spid like 54118
 
         returns
         -------
@@ -421,12 +439,15 @@ class IDB:
 
         Parameters
         ----------
-        ref : `str`  PAS_NUMBR
-        raw : `int`  PAS_ALVAL
+        ref : `str`
+            PAS_NUMBR
+        raw : `int`
+            PAS_ALVAL
 
         returns
         -------
-        `str` PAS_ALTXT
+        `str`
+            PAS_ALTXT
         """
         sql = 'select PAS_ALTXT from PAS where PAS_NUMBR=? and PAS_ALVAL=?'
         args = (ref, raw)
@@ -434,6 +455,7 @@ class IDB:
         try:
             return rows[0][0]
         except (TypeError, IndexError):
+            logger.warning("nothing found in IDB table: PAS")
             return ''
         return ''
 
@@ -442,11 +464,13 @@ class IDB:
 
         Parameters
         ----------
-        pcf_curtx : `str`  cap_numbr lile 'CIXP0024TM'
+        pcf_curtx : `str`
+            cap_numbr lile 'CIXP0024TM'
 
         returns
         -------
-        `list` calibration curve
+        `list`
+            calibration curve
         """
         if pcf_curtx in self.calibration_curves:
             return self.calibration_curves[pcf_curtx]
@@ -463,7 +487,8 @@ class IDB:
 
         Parameters
         ----------
-        parameter_name : `str`  PCF_NAME lile 'NIX00013'
+        parameter_name : `str`
+            PCF_NAME lile 'NIX00013'
 
         returns
         -------
@@ -485,8 +510,10 @@ class IDB:
 
         Parameters
         ----------
-        pcf_curtx : `str`  TXP_NUMBR lile 'CAAT0005TM'
-        raw_value : `int`  value in range of TXP_FROM  to TXP_TO
+        pcf_curtx : `str`
+            TXP_NUMBR lile 'CAAT0005TM'
+        raw_value : `int`
+            value in range of TXP_FROM  to TXP_TO
 
         returns
         -------
@@ -510,7 +537,8 @@ class IDB:
 
         Parameters
         ----------
-        mcf_ident : `str`  TXP_NUMBR lile 'CIX00036TM'
+        mcf_ident : `str`
+            TXP_NUMBR lile 'CIX00036TM'
 
         returns
         -------
@@ -539,5 +567,5 @@ class IDB:
             rows = self._execute(sql, None, 'list')
             return rows[0][0]
         except (sqlite3.OperationalError, IndexError):
-            #logger.warning('No IDB version information found in IDB')
+            logger.warning('No IDB version information found in IDB')
             return '-1'

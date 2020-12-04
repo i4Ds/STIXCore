@@ -122,4 +122,5 @@ Documentation
 -------------
 Documentation is built using `Sphinx <https://www.sphinx-doc.org/en/master/>`_ similarly to the
 tests above this can be run manually or through tox. To run manually cd to the docs directory and
-run `'make html'` to run via tox `'tox -e build_docs'`.
+run `'make html'` to run via tox `'tox -e build_docs'`. There is a known dependency on Graphviz.
+If you have any problems (on Windows) follow `this <https://bobswift.atlassian.net/wiki/spaces/GVIZ/pages/20971549/How+to+install+Graphviz+software>`_ instructions.

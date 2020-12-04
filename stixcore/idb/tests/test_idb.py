@@ -3,10 +3,8 @@ import sqlite3
 from pathlib import Path
 
 import pytest
-
-from stixcore.idb.manager import IdbManager
 from stixcore.idb.idb import IDB
-
+from stixcore.idb.manager import IdbManager
 
 VERSION = "2.26.34"
 
@@ -26,11 +24,11 @@ def test_idb_setup(idb):
 
 
 def test_idb_setup_fails():
-    with pytest.raises(Exception) as e:
+    with pytest.raises(sqlite3.Error) as e:
         _idb = IDB(Path(os.path.abspath(__file__)).parent / 'data')
         assert _idb.is_connected() == False
         _ = _idb.get_idb_version()
-    assert str(e.value) == 'IDB is not initialized!'
+    assert len(str(e.value)) > 0
 
 def test_get_spit(idb):
     spids = idb.get_all_spid()

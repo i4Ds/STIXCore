@@ -1,4 +1,4 @@
-from stixcore.tmtc.parser import parse_binary, parse_bitstream, parse_repeated
+from stixcore.tmtc.parser import parse_binary, parse_bitstream, parse_variable
 
 SOURCE_PACKET_HEADER_STRUCTURE = {
     'version': 'uint:3',
@@ -55,7 +55,7 @@ class SourcePacketHeader:
     data_length : int
         Data length - 1  in bytes (full packet length data_length + 1 + 6)
     """
-    def __init__(self, data):
+    def __init__(self, data, idb):
         """
         Create source packet header
 
@@ -99,13 +99,13 @@ class TMDataHeader:
     scet_fine : int
         SCET fine time
     """
-    def __init__(self, bitstream):
+    def __init__(self, bitstream, idb):
         """
         Create a TM Data Header
 
         Parameters
         ----------
-        bitstream : `bitsream.ConstBitsream`
+        bitstream : `bitstream.ConstBitstream`
         """
         res = parse_bitstream(bitstream, TM_DATA_HEADER_STRUCTURE)
         [setattr(self, key, value)
@@ -138,7 +138,7 @@ class TCDataHeader:
     source_id : `int`
         Source ID
     """
-    def __init__(self, bitstream):
+    def __init__(self, bitstream, idb):
         """
         Create a TM Data Header
 
@@ -181,7 +181,7 @@ class GenericPacket:
         if hasattr(cls, 'is_datasource_for'):
             cls._registry[cls] = cls.is_datasource_for
 
-    def __init__(self, data):
+    def __init__(self, data, idb):
         """
         Create a generic packet from the given data.
 
@@ -190,7 +190,7 @@ class GenericPacket:
         data : binary or `stixcore.tmtc.SourcePacketHeader`
         """
         if not isinstance(data, SourcePacketHeader):
-            data = SourcePacketHeader(data)
+            data = SourcePacketHeader(data, idb)
 
         self.source_packet_header = data
 
@@ -199,7 +199,7 @@ class TMPacket(GenericPacket):
     """
     A non-specific TM packet
     """
-    def __init__(self, data):
+    def __init__(self, data, idb):
         """
         Create a TMPacket
 
@@ -208,8 +208,8 @@ class TMPacket(GenericPacket):
         data : binary or `stixcore.tmtc.packets.SourcePacketHeader`
             Data to create TM packet from
         """
-        super().__init__(data)
-        self.data_header = TMDataHeader(self.source_packet_header.bitstream)
+        super().__init__(data, idb)
+        self.data_header = TMDataHeader(self.source_packet_header.bitstream, idb)
 
     @classmethod
     def is_datasource_for(cls, sph):
@@ -217,20 +217,18 @@ class TMPacket(GenericPacket):
 
 
 class TCPacket(GenericPacket):
-    """
-    A non-specific TC packet
-    """
-    def __init__(self, data):
-        """
-        Create a TCPacket
+    """A non-specific TC packet."""
+
+    def __init__(self, data, idb):
+        """Create a TCPacket.
 
         Parameters
         ----------
         data : binary or `stixcore.tmtc.packets.SourcePacketHeader`
             Data to create TC packet from
         """
-        super().__init__(data)
-        self.data_header = TCDataHeader(self.source_packet_header.bitstream)
+        super().__init__(data, idb)
+        self.data_header = TCDataHeader(self.source_packet_header.bitstream, idb)
 
     @classmethod
     def is_datasource_for(cls, sph):
@@ -238,8 +236,7 @@ class TCPacket(GenericPacket):
 
 
 class GenericTMPacket:
-    """
-    A generic TM packet all specific TM packets are subclasses of this class.
+    """Generic TM packet all specific TM packets are subclasses of this class.
 
     Attributes
     ----------
@@ -250,15 +247,13 @@ class GenericTMPacket:
     ----------
     data : binary data or `stixcore.tmtc.packets.TMPacket`
         Data to create TM packet from
-
-    Notes
-    -----
     """
+
     _registry = dict()
 
     def __init_subclass__(cls, **kwargs):
-        """
-        An __init_subclass__ hook initializes all of the subclasses of a given class.
+        """__init_subclass__ hook initializes all of the subclasses of a given class.
+
         So for each subclass, it will call this block of code on import.
         This registers each subclass in a dict that has the `is_datasource_for` attribute.
         This is then passed into the factory so we can register them.
@@ -267,20 +262,33 @@ class GenericTMPacket:
         if hasattr(cls, 'is_datasource_for'):
             cls._registry[cls] = cls.is_datasource_for
 
-    def __init__(self, data):
-        """
-        Create a new TM packet parsing common source and data headers
+    def __init__(self, data, idb):
+        """Create a new TM packet parsing common source and data headers.
 
         Parameters
         ----------
         data : binary or `TMPacket`
+
+        idb : `stixcore.idb.idb.IDB`
+            The IDB version against the TM packet is parsed.
         """
         if not isinstance(data, TMPacket):
-            self.source_packet_header = SourcePacketHeader(data)
-            self.data_header = TMDataHeader(self.source_packet_header.bitstream)
+            self.source_packet_header = SourcePacketHeader(data, idb)
+            self.data_header = TMDataHeader(self.source_packet_header.bitstream, idb)
         else:
             self.source_packet_header = data.source_packet_header
             self.data_header = data.data_header
+
+        packet_info = idb.get_packet_type_info(self.service_type, self.service_subtype)
+        tree = {}
+        if packet_info.is_variable():
+            ssid = self.source_packet_header.bitstream.peek('uint:8')
+            tree = idb.get_variable_structure(self.service_type, self.service_subtype, ssid)
+        else:
+            tree = idb.get_static_structure(self.service_type, self.service_subtype)
+
+        self.data = parse_variable(self.source_packet_header.bitstream, tree)
+        print(self.source_packet_header.bitstream.pos)
 
     def __repr__(self):
         return f'{self.__class__.__name__}({self.source_packet_header}, {self.data_header})'
@@ -288,16 +296,38 @@ class GenericTMPacket:
     def __str__(self):
         return self.__repr__()
 
+    @property
+    def service_type(self):
+        """Get the TM packet service type from the header.
+
+        Returns
+        -------
+        `int`
+            If the header is not yet available `None`
+        """
+        return self.data_header.service_type if hasattr(self.data_header, "service_type") else None
+
+    @property
+    def service_subtype(self):
+        """Get the TM packet service subtype from the header.
+
+        Returns
+        -------
+        `int`
+            If the header is not yet available `None`
+        """
+        return self.data_header.service_subtype  \
+            if hasattr(self.data_header, "service_subtype") else None
+
 
 class TM_1_1(GenericTMPacket):
-    """
-    TM(1,1) Telecommand acceptance report
-    """
-    def __init__(self, data):
-        super().__init__(data)
-        structure = {'NIX00001': 'uint:16', 'NIX00002': 'uint:16'}
-        res = parse_bitstream(self.source_packet_header.bitstream, structure)
-        [setattr(self, key, value) for key, value in res['fields'].items()]
+    """TM(1,1) Telecommand acceptance report."""
+
+    def __init__(self, data, idb):
+        super().__init__(data, idb)
+        # structure = _IDB.get_structure(self.service_type, self.service_subtype)
+        # data = parse_bitstream(self.source_packet_header.bitstream, structure)
+        # self.data = type('PacketData', (), data['fields'])
 
     @classmethod
     def is_datasource_for(cls, tm_packet):
@@ -306,48 +336,14 @@ class TM_1_1(GenericTMPacket):
 
 
 class TM_21_6_30(GenericTMPacket):
-    """
-    TM(21, 6) SSID 30
-    """
-    def __init__(self, data):
-        super().__init__(data)
-        attr_dict = dict()
-        fixed_structure = {
-            'NIX00120': 'uint:8',
-            'NIX00445': 'uint:32',
-            'NIX00446': 'uint:16',
-            'NIX00405': 'uint:16',
-            'NIX00407': 'uint:32',
-            'spare1': 'uint:4',
-            'NIXD0407': 'uint:12',
-            'spare2': 'uint:1',
-            'NIXD0101': 'uint:1',
-            'NIXD0102': 'uint:3',
-            'NIXD0103': 'uint:3',
-            'NIXD0104': 'uint:1',
-            'NIXD0105': 'uint:3',
-            'NIXD0106': 'uint:3',
-            'NIXD0107': 'uint:1',
-            'NIX00266': 'uint:32',
-            'NIX00270': 'uint:8'
-        }
-        fixed = parse_bitstream(self.source_packet_header.bitstream, fixed_structure)
-        attr_dict.update(fixed['fields'])
-        num_energies = fixed['fields']['NIX00270']
-        # Peak ahead but don't advance pos index
-        num_data_points = self.source_packet_header.bitstream.peek('uint:16')
-        repeaters_structures = [({'NIX00271': ', '.join(['uint:16']),
-                                  'NIX00272': ', '.join(['uint:8']*num_data_points)}, num_energies),
-                                ({'NIX00273': 'uint:16'}, 1),
-                                ({'NIX00274': ', '.join(['uint:8']*num_data_points)}, 1),
-                                ({'NIX00275': 'uint:16'}, 1),
-                                ({'NIX00276': ', '.join(['uint:8']*num_data_points)}, 1)]
+    """TM(21, 6) SSID 30 Packet."""
 
-        for i, (structure, repeats) in enumerate(repeaters_structures):
-            dynamic = parse_repeated(self.source_packet_header.bitstream, structure, repeats)
-            attr_dict.update(dynamic['fields'])
-
-        self.data = type('PacketData', (), attr_dict)
+    def __init__(self, data, idb):
+        super().__init__(data, idb)
+        # ssid = self.source_packet_header.bitstream.peek('uint:8')
+        # tree = _IDB.get_variable_structure(self.service_type, self.service_subtype, ssid = ssid)
+        # data = parse_variable(self.source_packet_header.bitstream, tree)
+        # self.data = type('PacketData', (), data)
 
     @classmethod
     def is_datasource_for(cls, tm_packet):

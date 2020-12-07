@@ -15,7 +15,6 @@ from stixcore.util.logging import get_logger
 
 thread_lock = threading.Lock()
 
-
 __all__ = ['IDBManager']
 
 IDB_FILENAME = "idb.sqlite"
@@ -27,11 +26,10 @@ logger = get_logger(__name__)
 
 
 class IDBManager:
-    """Manages IDB (definition of TM/TC packet structures) Versions
-    and provides a IDB reader
-    """
+    """Manages IDB (definition of TM/TC packet structures) Versions and provides a IDB reader."""
+
     def __init__(self, data_root):
-        """Creates the manager for a given data path root
+        """Create the manager for a given data path root.
 
         Parameters
         ----------
@@ -42,7 +40,7 @@ class IDBManager:
 
     @property
     def data_root(self):
-        """gets the data path root directory
+        """Get the data path root directory.
 
         Returns
         -------
@@ -53,7 +51,7 @@ class IDBManager:
 
     @data_root.setter
     def data_root(self, value):
-        """sets data path root
+        """Set the data path root.
 
         Parameters
         ----------
@@ -73,7 +71,7 @@ class IDBManager:
                              f'{self._data_root / IDB_VERSION_HISTORY_FILE}')
 
     def find_version(self, utc=None):
-        """Find IDB version operational at a given time
+        """Find IDB version operational at a given time.
 
         Parameters
         ----------
@@ -102,7 +100,7 @@ class IDBManager:
     # TODO replace default URL with a public FHNW server
     def download_version(self, version_label, force=False,
                          url="https://nicky.thecrag.com/public/stix/"):
-        """Downloads and installs an IDB version of a public available URL.
+        """Download and installs an IDB version of a public available URL.
 
         Parameters
         ----------
@@ -160,7 +158,7 @@ class IDBManager:
 
     @staticmethod
     def convert_mib_2_sqlite(*, in_folder, out_file, version_label):
-        """Convert a raw IDB version (set of .dat files) into a SqlLite DB
+        """Convert a raw IDB version (set of .dat files) into a SqlLite DB.
 
         Parameters
         ----------
@@ -224,13 +222,13 @@ class IDBManager:
             thread_lock.release()
 
     def get_versions(self):
-        """Get all available versions in the root directory. Does not check for version conflicts.
+        r"""Get all available versions in the root directory. Does not check for version conflicts.
 
         Returns
         -------
         `list`
-            List of available versions e.g `[{'label': '2.26.34', 'path': 'a\\path\\v2.26.34',
-            'version': ['2', '26', '34']}`
+            List of available versions e.g.
+            `[{'label': '2.26.34', 'path': 'a\path\v2.26.34', 'version': ['2', '26', '34']}`
         """
         versions = list()
 
@@ -245,7 +243,7 @@ class IDBManager:
 
     @staticmethod
     def convert_version_label(version_label):
-        """Convert a label or version tuple into a version label
+        """Convert a label or version tuple into a version label.
 
         Parameters
         ----------
@@ -263,7 +261,7 @@ class IDBManager:
             return IDB_VERSION_DELIM.join(map(str, version_label))
 
     def _get_filename_for_version(self, version_label):
-        """Return filename and path for label or version tuple
+        """Return filename and path for label or version tuple.
 
         Parameters
         ----------
@@ -280,7 +278,7 @@ class IDBManager:
         return os.path.join(self._data_root, folder, IDB_FILENAME)
 
     def has_version(self, version_label):
-        """test if the IDB version is available
+        """Test if the IDB version is available.
 
         Parameters
         ----------
@@ -305,7 +303,7 @@ class IDBManager:
         return ver == IDBManager.convert_version_label(version_label)
 
     def get_idb(self, version_label='', utc=None):
-        """Get the IDB for the specified version (or the latest available)
+        """Get the IDB for the specified version (or the latest available).
 
         Parameters
         ----------

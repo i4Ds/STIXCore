@@ -1,7 +1,8 @@
-from datetime import datetime
 from pathlib import Path
+from datetime import datetime
 
 import spiceypy as spice
+
 from astropy.time.core import Time
 
 SOLAR_ORBITER_NAIF_ID = -144

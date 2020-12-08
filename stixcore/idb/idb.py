@@ -1,4 +1,3 @@
-import logging
 import os
 import sqlite3
 import threading
@@ -10,6 +9,7 @@ thread_lock = threading.Lock()
 __all__ = ['IDB']
 
 logger = get_logger(__name__)
+
 
 class IDB:
     """ Provides reading functionality to a IDB (definition of TM/TC packet structures) """
@@ -206,7 +206,7 @@ class IDB:
             return self.parameter_descriptions[name]
         else:
             rows = self._execute('select PCF_DESCR from PCF where PCF_NAME=? ',
-                                (name, ))
+                                 (name, ))
             if not rows:
                 rows = self._execute(
                     'select CPC_DESCR from CPC where CPC_PNAME=? ', (name, ))
@@ -267,7 +267,8 @@ class IDB:
         if rows:
             return rows[0]
         else:
-            logger.warning(f"No information in IDB for service {packet_type}, service_subtype {packet_subtype}  and pi1_val: {pi1_val}")
+            logger.warning(f"No information in IDB for service {packet_type},"
+                           f"service_subtype {packet_subtype}  and pi1_val: {pi1_val}")
             return None
 
     def get_s2k_parameter_types(self, ptc, pfc):
@@ -293,7 +294,7 @@ class IDB:
                    ' and ? >= PFC_LB and  PFC_UB >= ? limit 1')
             args = (ptc, pfc, pfc)
             rows = self._execute(sql, args, 'list')
-            if rows :
+            if rows:
                 s2k_type = rows[0][0]
                 self.s2k_table_contents[(ptc, pfc)] = s2k_type
                 return s2k_type
@@ -371,7 +372,8 @@ class IDB:
             return None
 
     def get_telecommand_structure(self, name):
-        """Get the structure of a telecommand  by its name. The structure will be used to decode the TC packet.
+        """Get the structure of a telecommand  by its name. The structure will be used to decode
+        the TC packet.
 
         Parameters
         ----------
@@ -426,8 +428,8 @@ class IDB:
         if spid in self.parameter_structures:
             return self.parameter_structures[spid]
         sql = (
-            'select PCF.PCF_NAME,  VPD.VPD_POS,PCF.PCF_WIDTH,PCF.PCF_PFC, PCF.PCF_PTC,VPD.VPD_OFFSET,'
-            ' VPD.VPD_GRPSIZE,PCF.PCF_DESCR ,PCF.PCF_CURTX'
+            'select PCF.PCF_NAME, VPD.VPD_POS,PCF.PCF_WIDTH,PCF.PCF_PFC, PCF.PCF_PTC,VPD.'
+            'VPD_OFFSET, VPD.VPD_GRPSIZE,PCF.PCF_DESCR ,PCF.PCF_CURTX'
             ' from VPD inner join PCF on  VPD.VPD_NAME=PCF.PCF_NAME and VPD.VPD_TPSD=? order by '
             ' VPD.VPD_POS asc')
         res = self._execute(sql, (spid, ), 'dict')
@@ -497,7 +499,8 @@ class IDB:
         `None`
             if parameter_name not found
         """
-        sql = 'select  TXP_FROM, TXP_ALTXT from TXP join PCF on PCF_CURTX=TXP_NUMBR where PCF_NAME=? order by TXP_FROM asc'
+        sql = 'select  TXP_FROM, TXP_ALTXT from TXP join PCF on ' \
+              'PCF_CURTX=TXP_NUMBR where PCF_NAME=? order by TXP_FROM asc'
         args = (parameter_name, )
         rows = self._execute(sql, args)
         if rows:

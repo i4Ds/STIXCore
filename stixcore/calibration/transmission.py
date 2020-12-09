@@ -7,12 +7,11 @@ from roentgen.absorption.material import Compound, MassAttenuationCoefficient, M
 import astropy.units as u
 from astropy.table.table import Table
 
-# from stix_parser.products.quicklook import ENERGY_CHANNELS
-
 __all__ = ['Transmission']
 
 MIL_SI = 0.0254 * u.mm
 
+# TODO move to configuration files
 COMPONENTS = OrderedDict([
     ('front_window', [('solarblack', 0.005 * u.mm), ('be', 2*u.mm)]),
     ('rear_window', [('be', 1*u.mm)]),
@@ -109,22 +108,25 @@ ENERGY_CHANNELS = {
 
 class Transmission:
     """
-    Transmission of X-rays through the various components (excluding grids)
+    Calculate the energy dependant transmission of X-ray through the instrument
     """
     def __init__(self, solarblack='solarblack_carbon'):
         """
+        Create a new instance of the transmission with the given solar black composition.
 
         Parameters
         ----------
+
         solarblack : `str` optional
-            The SolarBlack composition to use
+            The SolarBlack composition to use.
         """
         if solarblack not in ['solarblack_oxygen', 'solarblack_carbon']:
-            raise ValueError('solarblack must be either solarblack_oxygen or solarblack_carbon.')
+            raise ValueError("solarblack must be either 'solarblack_oxygen' or "
+                             "'solarblack_carbon'.")
 
         self.solarblack = solarblack
         self.materials = MATERIALS
-        self.components_ = COMPONENTS
+        self.components = COMPONENTS
         self.components = dict()
         self.energies = [ENERGY_CHANNELS[i]['e_lower'] for i in range(1, 32)] * u.keV
 
@@ -142,21 +144,21 @@ class Transmission:
 
     def get_transmission(self, energies=None, attenuator=False):
         """
-        Get the transmission for each detector and science energy channel.
+        Get the transmission for each detector at the center of the given energy bins.
 
-        The fine grids have additional layers of kapton on both sides
+        If energies are not supplied will evaluate at standard science energy channels
 
         Parameters
         ----------
-        energies : `astropy.uints.Quantity`, optional
-            The energies to evalute the transmission
+        energies : `astropy.units.Quantity`, optional
+            The energies to evaluate the transmission
         attenuator : `bool`, optional
-            True for attenutator in X-ray path, False for attenuator not in X-ray path
+            True for attenuator in X-ray path, False for attenuator not in X-ray path
 
         Returns
         -------
         `astropy.table.Table`
-            Table containing the tranmssion values for each energy and detector
+            Table containing the transmission values for each energy and detector
         """
         base_comps = [self.components[name] for name in ['front_window', 'rear_window', 'dem',
                                                          'mli', 'calibration_foil',
@@ -174,6 +176,7 @@ class Transmission:
         fine = Compound(base_comps + [self.components['grid_covers']])
         fine_trans = fine.transmission(energies[:-1] + 0.5 * np.diff(energies))
 
+        # TODO need to move to configuration db
         fine_grids = np.array([11, 13, 18, 12, 19, 17]) - 1
         transmission = Table()
         # transmission['sci_channel'] = range(1, 31)
@@ -187,7 +190,7 @@ class Transmission:
 
     def get_transmission_by_component(self):
         """
-        Get the contributions to the total transmission by component.
+        Get the contributions to the total transmission by broken down by component.
 
         Returns
         -------
@@ -198,14 +201,14 @@ class Transmission:
 
     def get_transmission_by_material(self):
         """
-        Get the contribution to the transmission by material.
+        Get the contribution to the transmission by total thickness for each material.
 
         Layers of the same materials are combined to return one instance with the total thickness.
 
         Returns
         -------
         `dict`
-            Entries are meterials wtih the total thickness for that material.
+            Entries are meterials with the total thickness for that material.
         """
         material_thickness = dict()
         for name, layers in COMPONENTS.items():
@@ -228,14 +231,14 @@ class Transmission:
     @classmethod
     def create_material(cls, name=None, fractional_masses=None, thickness=None, density=None):
         """
-        Create a new material given it composition and fractional masses
+        Create a new material given the composition and fractional masses.
 
         Parameters
         ----------
         name : `str`
             Name of the meterial
         fractional_masses : `dict`
-            The elements and fraciona masses makinng up the material e.g `{'H': 'O': }`
+            The element and fractional masses of the material e.g. `{'H': 0.031, 'O': 0.969}`
         thickness : `astropy.units.Quantity`
             Thickness of the material
         density : `astropy.units.Quantity`
@@ -248,23 +251,16 @@ class Transmission:
         """
         material = Material('h', thickness, density)
         material.name = name
-        # probbably don't need this
+        # probably don't need this
         material.density = density
 
-        def func(fractional_masses, e):
+        # TODO remove in favour of upstream fix when completed
+        #  see https://github.com/ehsteve/roentgen/issues/26
+        def func(composition, e):
             return sum([MassAttenuationCoefficient(element).func(e) * frac_mass
-                        for element, frac_mass in fractional_masses.items()])
+                        for element, frac_mass in composition.items()])
 
         material_func = partial(func, fractional_masses)
 
         material.mass_attenuation_coefficient.func = material_func
         return material
-
-    def _bin_average(self, obj, n_points=1001):
-        out = []
-        for i in range(self.energies.size-1):
-            ee = np.linspace(self.energies[i], self.energies[i+1], n_points)
-            vals = obj.transmission(ee)
-            avg = np.average(vals)
-            out.append(avg)
-        return np.hstack(out)

@@ -154,5 +154,5 @@ docs/generated
 docs/api
 docs/whatsnew/latest_changelog.txt
 stixcore/version.py
+stixcore/data/test/*
 htmlcov/
-.vscode/settings.json

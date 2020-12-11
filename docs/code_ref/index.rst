@@ -10,5 +10,6 @@ Code Reference
    stixcore
    calibration
    ephemeris
+   tmtc
    idb
    util

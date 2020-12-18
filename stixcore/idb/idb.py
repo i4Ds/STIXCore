@@ -476,6 +476,17 @@ class IDB:
             return True
         return False
 
+    @property
+    def version(self):
+        """Get the Version of the IDB.
+
+        Returns
+        -------
+        `str`
+            the Version label like '2.3.4' or None
+        """
+        return self._version
+
     def get_idb_filename(self):
         """Get the path to the connected IDB file.
 
@@ -488,9 +499,12 @@ class IDB:
 
     def _connect_database(self):
         try:
-            self.conn = sqlite3.connect(str(self.filename), check_same_thread=False)
+            # connect to the DB in read only mode
+            uri = self.filename.as_uri() + "?mode=ro"
+            self.conn = sqlite3.connect(uri, check_same_thread=False, uri=True)
             logger.info('IDB loaded from {}'.format(self.filename))
             self.cur = self.conn.cursor()
+            self._version = self.get_idb_version()
         except sqlite3.Error:
             logger.error('Failed load IDB from {}'.format(self.filename))
             self.close()

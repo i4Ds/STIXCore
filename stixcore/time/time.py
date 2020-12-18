@@ -22,7 +22,7 @@ class DateTime:
                 raise ValueError(f"scet_fine must be int")
 
     def as_utc(self):
-        # TODO replace that with real time convertion
+        # TODO replace that with real time conversion
         return pydatetime.now()
 
     @staticmethod

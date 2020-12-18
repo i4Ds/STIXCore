@@ -1,4 +1,3 @@
-from stixcore.idb.idb import IDB
 from stixcore.idb.manager import IDBManager
 from stixcore.time.time import DateTime
 from stixcore.tmtc.parser import parse_binary, parse_bitstream, parse_variable
@@ -58,7 +57,7 @@ class SourcePacketHeader:
     data_length : int
         Data length - 1  in bytes (full packet length data_length + 1 + 6)
     """
-    def __init__(self, data, idbm):
+    def __init__(self, data):
         """
         Create source packet header.
 
@@ -102,7 +101,7 @@ class TMDataHeader:
     scet_fine : int
         SCET fine time
     """
-    def __init__(self, bitstream, idbm):
+    def __init__(self, bitstream):
         """
         Create a TM Data Header
 
@@ -114,14 +113,7 @@ class TMDataHeader:
         [setattr(self, key, value)
             for key, value in res['fields'].items() if not key.startswith('spare')]
 
-        self._datetime = DateTime.from_scet(self.scet_coarse,
-                                            self.scet_fine)
-        self._pi1_val = None
-        idb = self.select_idb(idbm)
-        pi1_pos = idb.get_packet_pi1_val_position(self.service_type, self.service_subtype)
-        if pi1_pos:
-            readformat = f"pad:{pi1_pos.offset}, uint:{pi1_pos.width}"
-            self._pi1_val = bitstream.peeklist(readformat)[-1]
+        self._datetime = DateTime.from_scet(self.scet_coarse, self.scet_fine)
 
     @property
     def date_time(self):
@@ -132,29 +124,6 @@ class TMDataHeader:
         `stixcore.time.DateTime`
         """
         return self._datetime
-
-    @property
-    def pi1_val(self):
-        """Get the pi1_val of this TM packet derived from header information and IDB.
-
-        pi1_val is an optional additional identifier for unique packets besides service_type
-        and service_subtype
-
-        Returns
-        -------
-        `int`
-        """
-        return self._pi1_val
-
-    def select_idb(self, idbm):
-        _idb = None
-        if isinstance(idbm, IDB):
-            _idb = idbm
-        elif isinstance(idbm, IDBManager):
-            _idb = idbm.get_idb(utc=self.date_time.as_utc())
-        else:
-            raise ValueError('idb must be of instance IDB or IDBManager')
-        return _idb
 
     def __repr__(self):
         param_names_values = [f'{k}={v}' for k, v in self.__dict__.items() if k != 'bitstream']
@@ -183,7 +152,7 @@ class TCDataHeader:
     source_id : `int`
         Source ID
     """
-    def __init__(self, bitstream, idbm):
+    def __init__(self, bitstream):
         """
         Create a TM Data Header.
 
@@ -214,6 +183,7 @@ class GenericPacket:
 
     """
     _registry = dict()
+    idb_manager = None
 
     def __init_subclass__(cls, **kwargs):
         """
@@ -226,7 +196,7 @@ class GenericPacket:
         if hasattr(cls, 'is_datasource_for'):
             cls._registry[cls] = cls.is_datasource_for
 
-    def __init__(self, data, idbm):
+    def __init__(self, data):
         """
         Create a generic packet from the given data.
 
@@ -235,7 +205,7 @@ class GenericPacket:
         data : binary or `stixcore.tmtc.SourcePacketHeader`
         """
         if not isinstance(data, SourcePacketHeader):
-            data = SourcePacketHeader(data, idbm)
+            data = SourcePacketHeader(data)
 
         self.source_packet_header = data
 
@@ -243,8 +213,13 @@ class GenericPacket:
 class TMPacket(GenericPacket):
     """
     A non-specific TM packet
+
+    Attributes
+    ----------
+    pi1_val : `int`
+        A free variable to identify the type of data in the packet for STIX this is know as the SSID
     """
-    def __init__(self, data, idbm):
+    def __init__(self, data, idb=None):
         """
         Create a TMPacket
 
@@ -253,8 +228,17 @@ class TMPacket(GenericPacket):
         data : binary or `stixcore.tmtc.packets.SourcePacketHeader`
             Data to create TM packet from
         """
-        super().__init__(data, idbm)
-        self.data_header = TMDataHeader(self.source_packet_header.bitstream, idbm)
+        super().__init__(data)
+        self.data_header = TMDataHeader(self.source_packet_header.bitstream)
+
+        self._pi1_val = None
+        if not idb:
+            idb = self.idb_manager.get_idb(utc=self.data_header.date_time.as_utc())
+        pi1_pos = idb.get_packet_pi1_val_position(self.data_header.service_type,
+                                                  self.data_header.service_subtype)
+        if pi1_pos:
+            read_format = f"pad:{pi1_pos.offset}, uint:{pi1_pos.width}"
+            self.pi1_val = self.source_packet_header.bitstream.peeklist(read_format)[-1]
 
     @classmethod
     def is_datasource_for(cls, sph):
@@ -264,7 +248,7 @@ class TMPacket(GenericPacket):
 class TCPacket(GenericPacket):
     """A non-specific TC packet."""
 
-    def __init__(self, data, idbm):
+    def __init__(self, data):
         """Create a TCPacket.
 
         Parameters
@@ -272,8 +256,8 @@ class TCPacket(GenericPacket):
         data : binary or `stixcore.tmtc.packets.SourcePacketHeader`
             Data to create TC packet from
         """
-        super().__init__(data, idbm)
-        self.data_header = TCDataHeader(self.source_packet_header.bitstream, idbm)
+        super().__init__(data)
+        self.data_header = TCDataHeader(self.source_packet_header.bitstream)
 
     @classmethod
     def is_datasource_for(cls, sph):
@@ -436,42 +420,37 @@ class GenericTMPacket:
         if hasattr(cls, 'is_datasource_for'):
             cls._registry[cls] = cls.is_datasource_for
 
-    def __init__(self, data, idbm):
+    def __init__(self, data, idb=None):
         """Create a new TM packet parsing common source and data headers.
 
         Parameters
         ----------
         data : binary or `TMPacket`
-
-        idb : `stixcore.idb.idb.IDB` or `stixcore.idb.idb.IDBManager`
-            IDB:    The IDB version against the TM packet is parsed.
-                    Use that if a specific version should be forced
-            IDBManager: the IDB Version will be provided by the manager depending on the packet date
         """
         if not isinstance(data, TMPacket):
-            self.source_packet_header = SourcePacketHeader(data, idbm)
-            self.data_header = TMDataHeader(self.source_packet_header.bitstream, idbm)
-        else:
-            self.source_packet_header = data.source_packet_header
-            self.data_header = data.data_header
+            # TODO should just create TMPacket here
+            data = TMPacket(data, idb=idb)
 
-        self._idb_version = None
+        self.source_packet_header = data.source_packet_header
+        self.data_header = data.data_header
+        self.idb = data.idb_manager if idb is None else idb
+        self.pi1_val = getattr(data, 'pi1_val', None)
 
-        idb = self.data_header.select_idb(idbm)
-        self._idb_version = idb.version
+        if isinstance(self.idb, IDBManager):
+            idb = self.idb.get_idb(utc=self.data_header.date_time.as_utc())
 
         packet_info = idb.get_packet_type_info(self.data_header.service_type,
                                                self.data_header.service_subtype,
-                                               self.data_header.pi1_val)
+                                               self.pi1_val)
         tree = {}
         if packet_info.is_variable():
             tree = idb.get_variable_structure(self.data_header.service_type,
                                               self.data_header.service_subtype,
-                                              self.data_header.pi1_val)
+                                              self.pi1_val)
         else:
             tree = idb.get_static_structure(self.data_header.service_type,
                                             self.data_header.service_subtype,
-                                            self.data_header.pi1_val)
+                                            self.pi1_val)
 
         self.data = parse_variable(self.source_packet_header.bitstream, tree)
 
@@ -481,16 +460,16 @@ class GenericTMPacket:
     def __str__(self):
         return self.__repr__()
 
-    @property
-    def idb_version(self):
-        """Get the Version of the IDB against this packet was implemented.
-
-        Returns
-        -------
-        `str`
-            the Version label like '2.3.4' or None
-        """
-        return self._idb_version
+    # @property
+    # def idb_version(self):
+    #     """Get the Version of the IDB against this packet was implemented.
+    #
+    #     Returns
+    #     -------
+    #     `str`
+    #         the Version label like '2.3.4' or None
+    #     """
+    #     return self._idb_version
 
     def get_decompression_parameter(self):
         """List of parameter names that should be decompressed.
@@ -503,6 +482,10 @@ class GenericTMPacket:
             {'NIX00472': ("NIXD0007", "NIXD0008", "NIXD0009"), ...}
         """
         if self.data_header.service_type == 21 and self.data_header.service_subtype == 6:
-            if self.data_header.pi1_val in self._SCHEMAS:
-                return self._SCHEMAS[self.data_header.pi1_val]
+            if self.pi1_val in self._SCHEMAS:
+                return self._SCHEMAS[self.pi1_val]
         return None
+
+    # def select_idb(self):
+    #     _idb = self.idb_manager.get_idb(utc=self.date_time.as_utc())
+    #     return _idb

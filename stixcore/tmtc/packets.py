@@ -1,3 +1,6 @@
+from stixcore.idb.idb import IDB
+from stixcore.idb.manager import IDBManager
+from stixcore.time.time import DateTime
 from stixcore.tmtc.parser import parse_binary, parse_bitstream, parse_variable
 
 SOURCE_PACKET_HEADER_STRUCTURE = {
@@ -269,8 +272,10 @@ class GenericTMPacket:
         ----------
         data : binary or `TMPacket`
 
-        idb : `stixcore.idb.idb.IDB`
-            The IDB version against the TM packet is parsed.
+        idb : `stixcore.idb.idb.IDB` or `stixcore.idb.idb.IDBManager`
+            IDB:    The IDB version against the TM packet is parsed.
+                    Use that if a specific version should be forced
+            IDBManager: the IDB Version will be provided by the manager depending on the packet date
         """
         if not isinstance(data, TMPacket):
             self.source_packet_header = SourcePacketHeader(data, idb)
@@ -279,22 +284,57 @@ class GenericTMPacket:
             self.source_packet_header = data.source_packet_header
             self.data_header = data.data_header
 
-        packet_info = idb.get_packet_type_info(self.service_type, self.service_subtype)
+        self._datetime = DateTime.from_scet(self.data_header.scet_coarse,
+                                            self.data_header.scet_fine)
+        self._idb_version = None
+
+        _idb = None
+        if isinstance(idb, (IDB, IDBManager)):
+            if isinstance(idb, IDBManager):
+                _idb = idb.get_idb(utc=self.date_time.as_utc())
+            else:
+                _idb = idb
+        else:
+            raise ValueError(f'idb must be of instance IDB or IDBManager')
+
+        self._idb_version = _idb.get_idb_version()
+
+        packet_info = _idb.get_packet_type_info(self.service_type, self.service_subtype)
         tree = {}
         if packet_info.is_variable():
             ssid = self.source_packet_header.bitstream.peek('uint:8')
-            tree = idb.get_variable_structure(self.service_type, self.service_subtype, ssid)
+            tree = _idb.get_variable_structure(self.service_type, self.service_subtype, ssid)
         else:
-            tree = idb.get_static_structure(self.service_type, self.service_subtype)
+            tree = _idb.get_static_structure(self.service_type, self.service_subtype)
 
         self.data = parse_variable(self.source_packet_header.bitstream, tree)
-        print(self.source_packet_header.bitstream.pos)
 
     def __repr__(self):
         return f'{self.__class__.__name__}({self.source_packet_header}, {self.data_header})'
 
     def __str__(self):
         return self.__repr__()
+
+    @property
+    def idb_version(self):
+        """Get the Version of the IDB against this packet was implemented.
+
+        Returns
+        -------
+        `str`
+            the Version label like '2.3.4' or None
+        """
+        return self._idb_version
+
+    @property
+    def date_time(self):
+        """Get the date and time of this TM packet derived from header information
+
+        Returns
+        -------
+        `stixcore.time.DateTime`
+        """
+        return self._datetime
 
     @property
     def service_type(self):

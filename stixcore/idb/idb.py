@@ -983,12 +983,12 @@ class IDB:
             return rows
 
     def get_idb_version(self):
-        """gets the verion string of the IDB
+        """get the version string of the IDB
 
         returns
         -------
         `str`
-            version lable like "1.1.3"
+            version label like "1.1.3"
         """
         try:
             sql = ('select version from IDB limit 1')

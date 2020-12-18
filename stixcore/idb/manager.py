@@ -322,9 +322,9 @@ class IDBManager:
             reference to a IDB reader
         """
         if isinstance(utc, datetime):
-            utcversion = self.find_version(utc)
-            if self.has_version(utcversion):
-                version_label = utcversion
+            utc_version = self.find_version(utc)
+            if self.has_version(utc_version):
+                version_label = utc_version
             else:
                 logger.warning("No valid IDB version found for time {utc}."
                                "Falling back to version {version_label}")

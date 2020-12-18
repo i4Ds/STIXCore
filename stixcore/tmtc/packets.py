@@ -58,9 +58,9 @@ class SourcePacketHeader:
     data_length : int
         Data length - 1  in bytes (full packet length data_length + 1 + 6)
     """
-    def __init__(self, data, idb):
+    def __init__(self, data, idbm):
         """
-        Create source packet header
+        Create source packet header.
 
         Parameters
         ----------
@@ -102,7 +102,7 @@ class TMDataHeader:
     scet_fine : int
         SCET fine time
     """
-    def __init__(self, bitstream, idb):
+    def __init__(self, bitstream, idbm):
         """
         Create a TM Data Header
 
@@ -112,7 +112,49 @@ class TMDataHeader:
         """
         res = parse_bitstream(bitstream, TM_DATA_HEADER_STRUCTURE)
         [setattr(self, key, value)
-         for key, value in res['fields'].items() if not key.startswith('spare')]
+            for key, value in res['fields'].items() if not key.startswith('spare')]
+
+        self._datetime = DateTime.from_scet(self.scet_coarse,
+                                            self.scet_fine)
+        self._pi1_val = -1
+        idb = self.select_idb(idbm)
+        pi1_pos = idb.get_packet_pi1_val_position(self.service_type, self.service_subtype)
+        if pi1_pos:
+            readformat = f"pad:{pi1_pos.offset}, uint:{pi1_pos.width}"
+            self._pi1_val = bitstream.peeklist(readformat)[-1]
+
+    @property
+    def date_time(self):
+        """Get the date and time of this TM packet derived from header information
+
+        Returns
+        -------
+        `stixcore.time.DateTime`
+        """
+        return self._datetime
+
+    @property
+    def pi1_val(self):
+        """Get the pi1_val of this TM packet derived from header information and IDB.
+
+        pi1_val is an optional additional identifier for unique packets besides service_type
+        and service_subtype
+
+        Returns
+        -------
+        `int`
+        """
+        return self._pi1_val
+
+    def select_idb(self, idbm):
+        _idb = None
+        if isinstance(idbm, IDB):
+            _idb = idbm
+        elif isinstance(idbm, IDBManager):
+            _idb = idbm.get_idb(utc=self.date_time.as_utc())
+        else:
+            raise ValueError('idb must be of instance IDB or IDBManager')
+        return _idb
 
     def __repr__(self):
         param_names_values = [f'{k}={v}' for k, v in self.__dict__.items() if k != 'bitstream']
@@ -141,9 +183,9 @@ class TCDataHeader:
     source_id : `int`
         Source ID
     """
-    def __init__(self, bitstream, idb):
+    def __init__(self, bitstream, idbm):
         """
-        Create a TM Data Header
+        Create a TM Data Header.
 
         Parameters
         ----------
@@ -151,7 +193,7 @@ class TCDataHeader:
         """
         res = parse_bitstream(bitstream, TC_DATA_HEADER_STRUCTURE)
         [setattr(self, key, value)
-         for key, value in res['fields'].items() if not key.startswith('spare')]
+            for key, value in res['fields'].items() if not key.startswith('spare')]
 
     def __repr__(self):
         param_names_values = [f'{k}={v}' for k, v in self.__dict__.items() if k != 'bitstream']
@@ -184,7 +226,7 @@ class GenericPacket:
         if hasattr(cls, 'is_datasource_for'):
             cls._registry[cls] = cls.is_datasource_for
 
-    def __init__(self, data, idb):
+    def __init__(self, data, idbm):
         """
         Create a generic packet from the given data.
 
@@ -193,7 +235,7 @@ class GenericPacket:
         data : binary or `stixcore.tmtc.SourcePacketHeader`
         """
         if not isinstance(data, SourcePacketHeader):
-            data = SourcePacketHeader(data, idb)
+            data = SourcePacketHeader(data, idbm)
 
         self.source_packet_header = data
 
@@ -202,7 +244,7 @@ class TMPacket(GenericPacket):
     """
     A non-specific TM packet
     """
-    def __init__(self, data, idb):
+    def __init__(self, data, idbm):
         """
         Create a TMPacket
 
@@ -211,8 +253,8 @@ class TMPacket(GenericPacket):
         data : binary or `stixcore.tmtc.packets.SourcePacketHeader`
             Data to create TM packet from
         """
-        super().__init__(data, idb)
-        self.data_header = TMDataHeader(self.source_packet_header.bitstream, idb)
+        super().__init__(data, idbm)
+        self.data_header = TMDataHeader(self.source_packet_header.bitstream, idbm)
 
     @classmethod
     def is_datasource_for(cls, sph):
@@ -222,7 +264,7 @@ class TMPacket(GenericPacket):
 class TCPacket(GenericPacket):
     """A non-specific TC packet."""
 
-    def __init__(self, data, idb):
+    def __init__(self, data, idbm):
         """Create a TCPacket.
 
         Parameters
@@ -230,8 +272,8 @@ class TCPacket(GenericPacket):
         data : binary or `stixcore.tmtc.packets.SourcePacketHeader`
             Data to create TC packet from
         """
-        super().__init__(data, idb)
-        self.data_header = TCDataHeader(self.source_packet_header.bitstream, idb)
+        super().__init__(data, idbm)
+        self.data_header = TCDataHeader(self.source_packet_header.bitstream, idbm)
 
     @classmethod
     def is_datasource_for(cls, sph):
@@ -265,7 +307,7 @@ class GenericTMPacket:
         if hasattr(cls, 'is_datasource_for'):
             cls._registry[cls] = cls.is_datasource_for
 
-    def __init__(self, data, idb):
+    def __init__(self, data, idbm):
         """Create a new TM packet parsing common source and data headers.
 
         Parameters
@@ -278,34 +320,29 @@ class GenericTMPacket:
             IDBManager: the IDB Version will be provided by the manager depending on the packet date
         """
         if not isinstance(data, TMPacket):
-            self.source_packet_header = SourcePacketHeader(data, idb)
-            self.data_header = TMDataHeader(self.source_packet_header.bitstream, idb)
+            self.source_packet_header = SourcePacketHeader(data, idbm)
+            self.data_header = TMDataHeader(self.source_packet_header.bitstream, idbm)
         else:
             self.source_packet_header = data.source_packet_header
             self.data_header = data.data_header
 
-        self._datetime = DateTime.from_scet(self.data_header.scet_coarse,
-                                            self.data_header.scet_fine)
         self._idb_version = None
 
-        _idb = None
-        if isinstance(idb, (IDB, IDBManager)):
-            if isinstance(idb, IDBManager):
-                _idb = idb.get_idb(utc=self.date_time.as_utc())
-            else:
-                _idb = idb
-        else:
-            raise ValueError(f'idb must be of instance IDB or IDBManager')
+        idb = self.data_header.select_idb(idbm)
+        self._idb_version = idb.version
 
-        self._idb_version = _idb.version
-
-        packet_info = _idb.get_packet_type_info(self.service_type, self.service_subtype)
+        packet_info = idb.get_packet_type_info(self.data_header.service_type,
+                                               self.data_header.service_subtype,
+                                               self.data_header.pi1_val)
         tree = {}
         if packet_info.is_variable():
-            ssid = self.source_packet_header.bitstream.peek('uint:8')
-            tree = _idb.get_variable_structure(self.service_type, self.service_subtype, ssid)
+            tree = idb.get_variable_structure(self.data_header.service_type,
+                                              self.data_header.service_subtype,
+                                              self.data_header.pi1_val)
         else:
-            tree = _idb.get_static_structure(self.service_type, self.service_subtype)
+            tree = idb.get_static_structure(self.data_header.service_type,
+                                            self.data_header.service_subtype,
+                                            self.data_header.pi1_val)
 
         self.data = parse_variable(self.source_packet_header.bitstream, tree)
 
@@ -326,45 +363,12 @@ class GenericTMPacket:
         """
         return self._idb_version
 
-    @property
-    def date_time(self):
-        """Get the date and time of this TM packet derived from header information
-
-        Returns
-        -------
-        `stixcore.time.DateTime`
-        """
-        return self._datetime
-
-    @property
-    def service_type(self):
-        """Get the TM packet service type from the header.
-
-        Returns
-        -------
-        `int`
-            If the header is not yet available `None`
-        """
-        return self.data_header.service_type if hasattr(self.data_header, "service_type") else None
-
-    @property
-    def service_subtype(self):
-        """Get the TM packet service subtype from the header.
-
-        Returns
-        -------
-        `int`
-            If the header is not yet available `None`
-        """
-        return self.data_header.service_subtype  \
-            if hasattr(self.data_header, "service_subtype") else None
-
 
 class TM_1_1(GenericTMPacket):
     """TM(1,1) Telecommand acceptance report."""
 
-    def __init__(self, data, idb):
-        super().__init__(data, idb)
+    def __init__(self, data, idbm):
+        super().__init__(data, idbm)
         # structure = _IDB.get_structure(self.service_type, self.service_subtype)
         # data = parse_bitstream(self.source_packet_header.bitstream, structure)
         # self.data = type('PacketData', (), data['fields'])
@@ -373,19 +377,3 @@ class TM_1_1(GenericTMPacket):
     def is_datasource_for(cls, tm_packet):
         dh = tm_packet.data_header
         return dh.service_type == 1 and dh.service_subtype == 1
-
-
-class TM_21_6_30(GenericTMPacket):
-    """TM(21, 6) SSID 30 Packet."""
-
-    def __init__(self, data, idb):
-        super().__init__(data, idb)
-        # ssid = self.source_packet_header.bitstream.peek('uint:8')
-        # tree = _IDB.get_variable_structure(self.service_type, self.service_subtype, ssid = ssid)
-        # data = parse_variable(self.source_packet_header.bitstream, tree)
-        # self.data = type('PacketData', (), data)
-
-    @classmethod
-    def is_datasource_for(cls, tm_packet):
-        dh = tm_packet.data_header
-        return dh.service_type == 21 and dh.service_subtype == 6

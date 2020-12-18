@@ -28,14 +28,60 @@ class IdbData(SimpleNamespace):
         self.__dict__.update(dbtupel)
 
 
-class IdbPacketTypeInfo(IdbData):
-    """A class to perpresent descriptive information for a idb packet type.
+class IdbPi1ValPosition(IdbData):
+    """A class to represent parthing information for optional PI1_Val identifier.
 
     Parameters
     ----------
     IdbData : [type]
         [description]
     """
+    def __init__(self, dbtupel):
+        """Construct all the necessary attributes for the IdbPi1ValPosition object.
+
+        Parameters
+        ----------
+        dbtupel : `dict`
+            all named parameters from the db query
+        """
+        super().__init__(dbtupel)
+
+    @property
+    def offset(self):
+        """Get number of bits as start position for the PI1_Val parameter started after header.
+
+        Derived from PIC_PI1_OFF
+
+        Returns
+        -------
+        `int`
+            Unsigned integer number of bits
+        """
+        return (int(self.__dict__['PIC_PI1_OFF']) - 16) * 8
+
+    @property
+    def width(self):
+        """Get number of bits to read for the PI1_Val parameter.
+
+        Derived from PIC_PI1_WID
+
+        Returns
+        -------
+        `int`
+            bits
+        """
+        return self.__dict__['PIC_PI1_WID']
+
+
+class IdbPacketTypeInfo(IdbData):
+    """A class to represent descriptive information for a idb packet type.
+
+    Parameters
+    ----------
+    IdbData : [type]
+        [description]
+    """
+
     def __init__(self, dbtupel):
         """Construct all the necessary attributes for the IdbPacketTypeInfo object.
 
@@ -607,30 +653,29 @@ class IDB:
                'on tpcf.tpcf_name=sw_para.scos_name and tpcf.tpcf_spid= ?')
         return self._execute(sql, (spid, ))
 
-    def get_packet_type_offset(self, packet_type, packet_subtype):
-        """gets (offset, width) for packet type and subtype
+    def get_packet_pi1_val_position(self, service_type, service_subtype):
+        """Get offset and width for optional PI1_VAL for the packet defined by service type and subtype.
 
         Parameters
         ----------
-        packet_type : `int`
-        packet_subtype : `int`
+        service_type : `int`
+        service_subtype : `int`
 
         returns
         -------
-        (PIC_PI1_OFF, PIC_PI1_WID)
+        `IdbPi1ValPosition` or None
         """
         sql = ('select PIC_PI1_OFF, PIC_PI1_WID from PIC '
-               'where PIC_TYPE=? and PIC_STYPE=? limit 1')
-        args = (packet_type, packet_subtype)
-        rows = self._execute(sql, args)
-        if rows:
-            return rows[0]
+               'where PIC_TYPE = ? and PIC_STYPE = ? and PIC_PI1_OFF >= 0 limit 1')
+        args = (service_type, service_subtype)
+        res = self._execute(sql, args, result_type='dict')
+        if res:
+            return IdbPi1ValPosition(res[0])
 
-        logger.warning("nothing found in IDB table: PIC")
-        return 0, 0
+        return None
 
     def get_parameter_description(self, name):
-        """get scos long description
+        """Get scos long description.
 
         Parameters
         ----------
@@ -680,7 +725,7 @@ class IDB:
         return ''
 
     def get_packet_type_info(self, packet_type, packet_subtype, pi1_val=-1):
-        """Identify packet type using service, service subtype and information in IDB table PID
+        """Identify packet type using service, service subtype and information in IDB table PID.
 
         Parameters
         ----------
@@ -1031,16 +1076,17 @@ class IDB:
         """
         if param_type == 'U':
             return f"uint:{nbytes}"
-        elif param_type == 'I' and nbytes <= 6:
+        elif param_type == 'I':
             return f"int:{nbytes}"
         elif param_type == 'T':
-            raise NotImplementedError("Format Error: to implement: 'T'")
+            return f"uint:{nbytes}"
         elif param_type == 'CONTEXT' and nbytes <= 4:
             raise NotImplementedError("Format Error: to implement: 'CONTEXT'")
 
         raise NotImplementedError(f"Format Error: to implement: '{param_type}:{nbytes}")
 
-    def get_static_structure(self, service_type, service_subtype):
+    # TODO has a static packet ever a sp1_val?
+    def get_static_structure(self, service_type, service_subtype, sp1_val):
         """Create a static parse struct for the specified TM packet.
 
         Parameters
@@ -1056,7 +1102,6 @@ class IDB:
             In this case the generic IdbPacketTree is flat, but can be used fore
             dynamic parseing anyway.
         """
-
         sql = ('''SELECT
                     PID_SPID, PID_DESCR, PID_TPSD,
                     PCF.PCF_DESCR, PLF.PLF_OFFBY, PLF.PLF_OFFBI, PCF.PCF_NAME,

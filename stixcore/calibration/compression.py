@@ -69,7 +69,7 @@ def compress(values, *, s, k, m):
         raise CompressionSchemeParameterError(f'Invalid s={s}, k={k}, m={m} '
                                               f'must sum to less than 8 not {total}')
 
-    max_value = 2**(2**k-2)*(2**(m + 1) - 1)
+    max_value = 2**(2**k-2)*(2**(m + 1)) - 1
     abs_range = [0, max_value] if s == 0 else [-1 * max_value, 1 * max_value]
 
     if values.min() < abs_range[0] or values.max() > abs_range[1]:
@@ -80,13 +80,11 @@ def compress(values, *, s, k, m):
     negative_indices = np.nonzero(values < 0)
     out = np.abs(values).astype(np.uint64)
     compress_indices = np.nonzero(out >= 2 ** (m + 1))
-    # max_indices = np.nonzero(out == max_value)
+
     if values[compress_indices].size != 0:
         kv = np.floor((np.log(np.abs(values[compress_indices])) / np.log(2.0) - m)).astype(np.int64)
         mv = (np.abs(values[compress_indices], dtype=np.int64) // 2**kv) & (2**m - 1)
         out[compress_indices] = kv + 1 << m | mv
-
-    # out[max_indices] = 255
 
     if s != 0 and values[negative_indices].size >= 1:
         out[negative_indices] += 128
@@ -121,7 +119,7 @@ def decompress(values, *, s, k, m, return_variance=False):
     12799
     >>> decomp = decompress(255, s=1, k=3, m=4)
     >>> int(decomp)
-    -1984
+    -2015
     """
     values = np.atleast_1d(np.array(values))
     if not np.issubdtype(values.dtype, np.integer):
@@ -137,7 +135,7 @@ def decompress(values, *, s, k, m, return_variance=False):
     if values.min() < 0 or values.max() > 255:
         raise CompressionRangeError(f'Compressed values must be in the range 0 to 255')
 
-    max_value = 2**(2**k-2)*(2**(m + 1) - 1)
+    max_value = 2**(2**k-2)*(2**(m + 1)) - 1
     uint64_info = np.iinfo(np.uint64)
 
     if max_value > uint64_info.max:
@@ -147,7 +145,6 @@ def decompress(values, *, s, k, m, return_variance=False):
     out = abs_values[:].astype(np.uint64)
     negative_indices = np.nonzero(values >= 128) if s != 0 else ([])
     decompress_indices = np.nonzero(abs_values >= 2**(m+1))
-    max_indices = np.nonzero(values == 255 if s == 0 else (values == 127) | (values == 255))
 
     if return_variance:
         variance = np.zeros_like(values, dtype=np.float64)
@@ -158,10 +155,6 @@ def decompress(values, *, s, k, m, return_variance=False):
         out[decompress_indices] = (mv << kv) + (1 << (kv - 1)) - 1
         if return_variance:
             variance[decompress_indices] = ((1 << kv)**2 + 2)/12
-
-    out[max_indices] = max_value
-    if return_variance:
-        variance[max_indices] = max_value**2
 
     if abs_values[negative_indices].size >= 1:
         out = out.astype(np.int64)

@@ -88,3 +88,9 @@ def test_get_idb(idb_manager):
     assert idb.is_connected() is True
     idb.close()
     assert idb.is_connected() is False
+
+
+def test_get_idb_cached(idb_manager):
+    idb = idb_manager.get_idb("2.26.34")
+    idbc = idb_manager.get_idb("2.26.34")
+    assert idb is idbc

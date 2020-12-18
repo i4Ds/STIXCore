@@ -297,7 +297,7 @@ class GenericTMPacket:
         else:
             raise ValueError(f'idb must be of instance IDB or IDBManager')
 
-        self._idb_version = _idb.get_idb_version()
+        self._idb_version = _idb.version
 
         packet_info = _idb.get_packet_type_info(self.service_type, self.service_subtype)
         tree = {}

@@ -37,6 +37,7 @@ class IDBManager:
             Path to the directory with all IDB versions
         """
         self.data_root = data_root
+        self.idb_cache = dict()
 
     @property
     def data_root(self):
@@ -290,13 +291,16 @@ class IDBManager:
         `True|False`
             does the IDB exists and matches the version
         """
+        if IDBManager.convert_version_label(version_label) in self.idb_cache:
+            return True
+
         file = Path(self._get_filename_for_version(version_label))
         if not file.exists():
             logger.debug("IDB version file not found")
             return False
 
         idb = IDB(file)
-        ver = idb.get_idb_version()
+        ver = idb.version
         idb.close()
         if ver != IDBManager.convert_version_label(version_label):
             logger.debug("IDB version missmatch")
@@ -320,11 +324,15 @@ class IDBManager:
         if isinstance(utc, datetime):
             utcversion = self.find_version(utc)
             if self.has_version(utcversion):
-                return IDB(Path(self._get_filename_for_version(utcversion)))
-            logger.warning("No valid IDB version found for time {utc}."
-                           "Falling back to version {version_label}")
+                version_label = utcversion
+            else:
+                logger.warning("No valid IDB version found for time {utc}."
+                               "Falling back to version {version_label}")
 
         if self.has_version(version_label):
-            return IDB(Path(self._get_filename_for_version(version_label)))
+            if version_label not in self.idb_cache:
+                self.idb_cache[version_label] = \
+                    IDB(Path(self._get_filename_for_version(version_label)))
+            return self.idb_cache[version_label]
         raise ValueError(f'Version "{version_label}" not found in: '
                          f'"{self._get_filename_for_version(version_label)}"')

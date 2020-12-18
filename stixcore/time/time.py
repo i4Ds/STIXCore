@@ -14,12 +14,12 @@ class DateTime:
             if isinstance(kwargs['scet_coarse'], int):
                 self.scet_coarse = kwargs['scet_coarse']
             else:
-                raise ValueError(f"scet_coarse must be int")
+                raise ValueError("scet_coarse must be int")
 
             if isinstance(kwargs['scet_fine'], int):
                 self.scet_fine = kwargs['scet_fine']
             else:
-                raise ValueError(f"scet_fine must be int")
+                raise ValueError("scet_fine must be int")
 
     def as_utc(self):
         # TODO replace that with real time conversion

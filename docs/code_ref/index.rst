@@ -9,6 +9,7 @@ Code Reference
 
    stixcore
    calibration
+   datetime
    ephemeris
    idb
    tmtc

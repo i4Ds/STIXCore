@@ -1,3 +1,4 @@
+import sys
 from collections import defaultdict
 
 from bitstring import ConstBitStream
@@ -81,10 +82,11 @@ def _parse_tree(bitstream, parent, fields):
     for i in range(0, counter):
         for pnode in parent.children:
             # TODO test if next info is avaialable (length)
-            if (pnode.parameter.is_variable() and (pnode.parameter.VPD_OFFSET < 0)):
+            if (pnode.parameter.is_variable() and (pnode.parameter.VPD_OFFSET != 0)):
                 bitstream.pos += int(pnode.parameter.VPD_OFFSET)
             try:
                 raw_val, gr_val = (bitstream.read(pnode.parameter.bin_format), dict())
+                print(pnode.name, raw_val, file=sys.stderr)
             except Exception as e:
                 print(e)
                 raise e

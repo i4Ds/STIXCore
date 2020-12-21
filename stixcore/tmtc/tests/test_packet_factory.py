@@ -27,7 +27,7 @@ def data_dir():
     return Path(__file__).parent / 'data'
 
 
-def _get_bit_from_file(data_dir, filename):
+def _get_bin_from_file(data_dir, filename):
     with (data_dir / filename).open() as file:
         hex = file.read()
         hex_string = re.sub(r"\s+", "", hex)
@@ -93,7 +93,7 @@ def test_tm_packet(idbm):
 
 
 def test_tm_1_1(data_dir, idbm):
-    hex = _get_bit_from_file(data_dir, '1_1.hex')
+    hex = _get_bin_from_file(data_dir, '1_1.hex')
     packet = Packet(hex, idbm)
     assert isinstance(packet, TM_1_1)
     assert packet.data_header.service_type == 1
@@ -105,7 +105,7 @@ def test_tm_1_1(data_dir, idbm):
 
 
 def test_tm_21_6_30(data_dir, idbm):
-    hex = _get_bit_from_file(data_dir, '21_6_30.hex')
+    hex = _get_bin_from_file(data_dir, '21_6_30.hex')
     packet = Packet(hex, idbm)
     assert isinstance(packet, tm_21.TM_21_6_30)
     assert packet.data_header.service_type == 21
@@ -118,7 +118,7 @@ def test_tm_21_6_30(data_dir, idbm):
 
 
 def test_tm_21_6_30_idb(data_dir, idb):
-    hex = _get_bit_from_file(data_dir, '21_6_30.hex')
+    hex = _get_bin_from_file(data_dir, '21_6_30.hex')
     packet = Packet(hex, idb)
     assert isinstance(packet, tm_21.TM_21_6_30)
     assert packet.data_header.service_type == 21
@@ -130,29 +130,43 @@ def test_tm_21_6_30_idb(data_dir, idb):
     assert packet.data.NIXD0407 is not None
 
 
-@pytest.mark.parametrize('values', [
-    (21,   6,   20, tm_21.TM_21_6_20),
-    (21,   6,   21, tm_21.TM_21_6_21),
-    (21,   6,   22, tm_21.TM_21_6_22),
-    (21,   6,   23, tm_21.TM_21_6_23),
-    (21,   6,   24, tm_21.TM_21_6_24),
-    (21,   6,   30, tm_21.TM_21_6_30),
-    (21,   6,   31, tm_21.TM_21_6_31),
-    (21,   6,   32, tm_21.TM_21_6_32),
-    (21,   6,   33, tm_21.TM_21_6_33),
-    (21,   6,   34, tm_21.TM_21_6_34),
-    (21,   6,   41, tm_21.TM_21_6_41),
-    (21,   6,   42, tm_21.TM_21_6_42),
-    (21,   6,   43, tm_21.TM_21_6_43)
-])
-def test_all_tm(data_dir, idbm, values):
-    t, st, pi1, cl = values
+@pytest.mark.parametrize('packtes', [
+    (21,   6,   20, tm_21.TM_21_6_20, True),
+    (21,   6,   21, tm_21.TM_21_6_21, True),
+    (21,   6,   22, tm_21.TM_21_6_22, True),
+    (21,   6,   23, tm_21.TM_21_6_23, True),
+    (21,   6,   24, tm_21.TM_21_6_24, True),
+    (21,   6,   30, tm_21.TM_21_6_30, True),
+    (21,   6,   31, tm_21.TM_21_6_31, True),
+    (21,   6,   32, tm_21.TM_21_6_32, True),
+    (21,   6,   33, tm_21.TM_21_6_33, True),
+    (21,   6,   34, tm_21.TM_21_6_34, True),
+    (21,   6,   41, tm_21.TM_21_6_41, True),
+    (21,   6,   42, tm_21.TM_21_6_42, True),
+    (21,   6,   43, tm_21.TM_21_6_43, False)
+], ids=("TM_21_6_20",
+        "TM_21_6_21",
+        "TM_21_6_22",
+        "TM_21_6_23",
+        "TM_21_6_24",
+        "TM_21_6_30",
+        "TM_21_6_31",
+        "TM_21_6_32",
+        "TM_21_6_33",
+        "TM_21_6_34",
+        "TM_21_6_41",
+        "TM_21_6_42",
+        "TM_21_6_43"))
+def test_all_tm(data_dir, idbm, packtes):
+    t, st, pi1, cl, testpadding = packtes
     filename = f"{t}_{st}.hex" if pi1 == -1 else f"{t}_{st}_{pi1}.hex"
-    hex = _get_bit_from_file(data_dir, filename)
+    hex = _get_bin_from_file(data_dir, filename)
     packet = Packet(hex, idbm)
     assert isinstance(packet, cl)
     assert packet.data_header.service_type == t
     assert packet.data_header.service_subtype == st
     assert packet.data_header.pi1_val == pi1
     # was all data consumed
-    assert packet.source_packet_header.bitstream.pos == len(packet.source_packet_header.bitstream)
+    if testpadding:
+        assert packet.source_packet_header.bitstream.pos == \
+            len(packet.source_packet_header.bitstream)

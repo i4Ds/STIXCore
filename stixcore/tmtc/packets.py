@@ -116,7 +116,7 @@ class TMDataHeader:
 
         self._datetime = DateTime.from_scet(self.scet_coarse,
                                             self.scet_fine)
-        self._pi1_val = -1
+        self._pi1_val = None
         idb = self.select_idb(idbm)
         pi1_pos = idb.get_packet_pi1_val_position(self.service_type, self.service_subtype)
         if pi1_pos:
@@ -362,18 +362,3 @@ class GenericTMPacket:
             the Version label like '2.3.4' or None
         """
         return self._idb_version
-
-
-class TM_1_1(GenericTMPacket):
-    """TM(1,1) Telecommand acceptance report."""
-
-    def __init__(self, data, idbm):
-        super().__init__(data, idbm)
-        # structure = _IDB.get_structure(self.service_type, self.service_subtype)
-        # data = parse_bitstream(self.source_packet_header.bitstream, structure)
-        # self.data = type('PacketData', (), data['fields'])
-
-    @classmethod
-    def is_datasource_for(cls, tm_packet):
-        dh = tm_packet.data_header
-        return dh.service_type == 1 and dh.service_subtype == 1

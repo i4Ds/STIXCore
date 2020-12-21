@@ -7,19 +7,20 @@ from stixcore.idb.manager import IDBManager
 from stixcore.tmtc.packets import (
     SOURCE_PACKET_HEADER_STRUCTURE,
     TC_DATA_HEADER_STRUCTURE,
-    TM_1_1,
     TM_DATA_HEADER_STRUCTURE,
     SourcePacketHeader,
     TCPacket,
     TMDataHeader,
     TMPacket,
 )
+from stixcore.tmtc.tm.tm_1 import TM_1_1
 
 
 @pytest.fixture
 def idb():
     return IDBManager(Path(__file__).parent.parent.parent / "idb" / "tests" / "data") \
         .get_idb("2.26.34")
+
 
 @pytest.mark.parametrize('class_header', [(SourcePacketHeader, SOURCE_PACKET_HEADER_STRUCTURE),
                                           (TMDataHeader, TM_DATA_HEADER_STRUCTURE)])

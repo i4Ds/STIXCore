@@ -724,7 +724,7 @@ class IDB:
         logger.warning("nothing found in IDB table: PCF")
         return ''
 
-    def get_packet_type_info(self, packet_type, packet_subtype, pi1_val=-1):
+    def get_packet_type_info(self, packet_type, packet_subtype, pi1_val=None):
         """Identify packet type using service, service subtype and information in IDB table PID.
 
         Parameters
@@ -738,7 +738,7 @@ class IDB:
         `IdbPacketTypeInfo` or `None` if not found
         """
         args = None
-        if pi1_val == -1:
+        if pi1_val is None:
             sql = ('select pid_spid, pid_descr, pid_tpsd from PID '
                    'where PID_TYPE=? and PID_STYPE=? limit 1')
             args = (packet_type, packet_subtype)

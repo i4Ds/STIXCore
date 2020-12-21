@@ -5,11 +5,12 @@ from pathlib import Path
 import bitstring
 import pytest
 
+import stixcore.tmtc.tm.tm_1 as tm_1
 import stixcore.tmtc.tm.tm_5 as tm_5
 import stixcore.tmtc.tm.tm_21 as tm_21
 from stixcore.idb.manager import IDBManager
 from stixcore.tmtc.packet_factory import BaseFactory, MultipleMatchError, NoMatchError, Packet
-from stixcore.tmtc.packets import SOURCE_PACKET_HEADER_STRUCTURE, TM_1_1, TM_DATA_HEADER_STRUCTURE
+from stixcore.tmtc.packets import SOURCE_PACKET_HEADER_STRUCTURE, TM_DATA_HEADER_STRUCTURE
 
 
 @pytest.fixture
@@ -84,7 +85,7 @@ def test_tm_packet(idbm):
     test_values['v2'] = 2
     test_binary = bitstring.pack(test_fmt, *test_values.values())
     packet = Packet(test_binary, idbm)
-    assert isinstance(packet, TM_1_1)
+    assert isinstance(packet, tm_1.TM_1_1)
     assert all([getattr(packet.source_packet_header, key) == test_values[key]
                 for key in SOURCE_PACKET_HEADER_STRUCTURE.keys()])
     assert all([getattr(packet.data_header, key) == test_values[key]
@@ -96,10 +97,10 @@ def test_tm_packet(idbm):
 def test_tm_1_1(data_dir, idbm):
     hex = _get_bin_from_file(data_dir, '1_1.hex')
     packet = Packet(hex, idbm)
-    assert isinstance(packet, TM_1_1)
+    assert isinstance(packet, tm_1.TM_1_1)
     assert packet.data_header.service_type == 1
     assert packet.data_header.service_subtype == 1
-    assert packet.data_header.pi1_val == -1
+    assert packet.data_header.pi1_val is None
 
     assert packet.data.NIX00001 is not None
     assert packet.data.NIX00002 is not None
@@ -132,6 +133,11 @@ def test_tm_21_6_30_idb(data_dir, idb):
 
 
 @pytest.mark.parametrize('packtes', [
+    (1,   1, None, tm_1.TM_1_1, True),
+    (1,   2, 48000, tm_1.TM_1_2, True),
+    (1,   7, None, tm_1.TM_1_7, True),
+    (1,   8, 48452, tm_1.TM_1_8, True),
+
     (5,   1,   33, tm_5.TM_5_1, True),
     (5,   2,   21548, tm_5.TM_5_2, True),
     (5,   3,   32816, tm_5.TM_5_3, True),
@@ -150,7 +156,12 @@ def test_tm_21_6_30_idb(data_dir, idb):
     (21,   6,   41, tm_21.TM_21_6_41, True),
     (21,   6,   42, tm_21.TM_21_6_42, True),
     (21,   6,   43, tm_21.TM_21_6_43, False)
-], ids=("TM_5_1",
+], ids=("TM_1_1",
+        "TM_1_2",
+        "TM_1_7",
+        "TM_1_8",
+
+        "TM_5_1",
         "TM_5_2",
         "TM_5_3",
         "TM_5_4",
@@ -170,7 +181,7 @@ def test_tm_21_6_30_idb(data_dir, idb):
         "TM_21_6_43"))
 def test_all_tm(data_dir, idbm, packtes):
     t, st, pi1, cl, testpadding = packtes
-    filename = f"{t}_{st}.hex" if pi1 == -1 else f"{t}_{st}_{pi1}.hex"
+    filename = f"{t}_{st}.hex" if pi1 is None else f"{t}_{st}_{pi1}.hex"
     hex = _get_bin_from_file(data_dir, filename)
     packet = Packet(hex, idbm)
     assert isinstance(packet, cl)

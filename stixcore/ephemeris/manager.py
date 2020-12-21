@@ -1,3 +1,6 @@
+import os
+import re
+import tempfile
 import functools
 from pathlib import Path
 from datetime import datetime
@@ -34,16 +37,30 @@ class SpiceManager:
         self.meta_kernel_path = Path(meta_kernel_path)
         if not self.meta_kernel_path.exists():
             raise ValueError(f'Meta kernel not found: {self.meta_kernel_path}')
+
+        with self.meta_kernel_path.open('r') as mk:
+            original_mk = mk.read()
+            new_mk = re.sub(r"PATH_VALUES\s*= \( '.*' \)",
+                            f"PATH_VALUES       = "
+                            f"( '{self.meta_kernel_path.parent.parent.resolve()}' )",
+                            original_mk)
+
+            handle, path = tempfile.mkstemp()
+            with os.fdopen(handle, 'w') as f:
+                f.write(new_mk)
+
+            self.mod_meta_kernal_path = Path(path)
+
         *_, datestamp, version = self.meta_kernel_path.name.split('_')
         self.kernel_date = datetime.strptime(datestamp, '%Y%m%d')
 
     def __enter__(self):
-        spiceypy.furnsh(str(self.meta_kernel_path))
+        spiceypy.furnsh(str(self.mod_meta_kernal_path))
         self.__spice_context_manager = True
         return self
 
     def __exit__(self, exc_type, exc_val, exc_tb):
-        spiceypy.unload(str(self.meta_kernel_path))
+        spiceypy.unload(str(self.mod_meta_kernal_path))
         self.__spice_context_manager = False
 
     def spice_context(func):

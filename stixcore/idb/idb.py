@@ -1085,7 +1085,6 @@ class IDB:
 
         raise NotImplementedError(f"Format Error: to implement: '{param_type}:{nbytes}")
 
-    # TODO has a static packet ever a sp1_val?
     def get_static_structure(self, service_type, service_subtype, sp1_val):
         """Create a static parse struct for the specified TM packet.
 
@@ -1102,7 +1101,7 @@ class IDB:
             In this case the generic IdbPacketTree is flat, but can be used fore
             dynamic parseing anyway.
         """
-        sql = ('''SELECT
+        sql = (f'''SELECT
                     PID_SPID, PID_DESCR, PID_TPSD,
                     PCF.PCF_DESCR, PLF.PLF_OFFBY, PLF.PLF_OFFBI, PCF.PCF_NAME,
                     PCF.PCF_WIDTH, PCF.PCF_PFC,PCF.PCF_PTC, PCF.PCF_CURTX,
@@ -1112,13 +1111,17 @@ class IDB:
                     PLF.PLF_NAME = PCF.PCF_NAME
                     AND PID_TYPE = ?
                     AND PID_STYPE = ?
+                    {"AND PID_PI1_VAL = ? " if sp1_val is not None else " "}
                     AND PLF.PLF_SPID = PID.PID_SPID
                     AND PTYPE.PTC = PCF.PCF_PTC
                     AND PCF.PCF_PFC >= PTYPE.PFC_LB
                     AND PTYPE.PFC_UB >= PCF.PCF_PFC
                 ORDER BY
                     PLF.PLF_OFFBY asc ''')
-        parameters = self._execute(sql, (service_type, service_subtype), 'dict')
+        args = (service_type, service_subtype)
+        if sp1_val is not None:
+            args = args + (sp1_val,)
+        parameters = self._execute(sql, args, 'dict')
 
         parent = IdbPacketTree()
         for par in parameters:
@@ -1136,7 +1139,7 @@ class IDB:
         node = IdbPacketTree(name=name, counter=counter, parameter=parameter, children=children)
         return node
 
-    def get_variable_structure(self, service_type, service_subtype, ssid=None):
+    def get_variable_structure(self, service_type, service_subtype, sp1_val=None):
         """Create a dynamic parse tree for the specified TM packet.
 
         Parameters
@@ -1145,8 +1148,8 @@ class IDB:
             The TM packet service type.
         service_subtype : `int`
             The TM packet service subtype.
-        ssid : `int` optional
-            The TM packet SSID. Default to `None`
+        PI1_VAL : `int` optional
+            The TM packet optional PI1_VAL default `None`
 
         Returns
         -------
@@ -1163,7 +1166,7 @@ class IDB:
                 WHERE
                     PID_TYPE = ?
                     AND PID_STYPE = ?
-                    {"AND PID_PI1_VAL = ? " if ssid is not None else " "}
+                    {"AND PID_PI1_VAL = ? " if sp1_val is not None else " "}
                     AND VPD.VPD_NAME = PCF.PCF_NAME
                     AND VPD.VPD_TPSD = PID.PID_SPID
                     AND PTYPE.PTC = PCF.PCF_PTC
@@ -1172,8 +1175,8 @@ class IDB:
                 ORDER BY
                     VPD.VPD_POS asc ''')
         args = (service_type, service_subtype)
-        if ssid is not None:
-            args = args + (ssid,)
+        if sp1_val is not None:
+            args = args + (sp1_val,)
         param_pcf_structures = self._execute(sql, args, 'dict')
 
         repeater = [{'node': IdbPacketTree(), 'counter': 1024}]

@@ -5,6 +5,7 @@ from pathlib import Path
 import bitstring
 import pytest
 
+import stixcore.tmtc.tm.tm_5 as tm_5
 import stixcore.tmtc.tm.tm_21 as tm_21
 from stixcore.idb.manager import IDBManager
 from stixcore.tmtc.packet_factory import BaseFactory, MultipleMatchError, NoMatchError, Packet
@@ -131,6 +132,11 @@ def test_tm_21_6_30_idb(data_dir, idb):
 
 
 @pytest.mark.parametrize('packtes', [
+    (5,   1,   33, tm_5.TM_5_1, True),
+    (5,   2,   21548, tm_5.TM_5_2, True),
+    (5,   3,   32816, tm_5.TM_5_3, True),
+    (5,   4,   54304, tm_5.TM_5_4, True),
+
     (21,   6,   20, tm_21.TM_21_6_20, True),
     (21,   6,   21, tm_21.TM_21_6_21, True),
     (21,   6,   22, tm_21.TM_21_6_22, True),
@@ -144,7 +150,12 @@ def test_tm_21_6_30_idb(data_dir, idb):
     (21,   6,   41, tm_21.TM_21_6_41, True),
     (21,   6,   42, tm_21.TM_21_6_42, True),
     (21,   6,   43, tm_21.TM_21_6_43, False)
-], ids=("TM_21_6_20",
+], ids=("TM_5_1",
+        "TM_5_2",
+        "TM_5_3",
+        "TM_5_4",
+
+        "TM_21_6_20",
         "TM_21_6_21",
         "TM_21_6_22",
         "TM_21_6_23",

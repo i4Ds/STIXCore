@@ -76,6 +76,7 @@ def test_base_factory(idbm):
     assert res == 2
 
 
+@pytest.mark.skip(reason="TODO: Add back TM1")
 def test_tm_packet(idbm):
     source_structure = {**SOURCE_PACKET_HEADER_STRUCTURE, **TM_DATA_HEADER_STRUCTURE}
     test_fmt = ', '.join([*source_structure.values(), 'uint:16', 'uint:16'])
@@ -96,6 +97,7 @@ def test_tm_packet(idbm):
     assert packet.data.NIX00002 == 2
 
 
+@pytest.mark.skip(reason="TODO: Add back TM1")
 def test_tm_1_1(data_dir, idbm):
     hex = _get_bin_from_file(data_dir, '1_1.hex')
     packet = Packet(hex, idbm)

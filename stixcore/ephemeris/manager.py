@@ -1,9 +1,11 @@
 import os
 import re
+import logging
 import tempfile
 import functools
 from pathlib import Path
 from datetime import datetime
+from textwrap import wrap
 
 import numpy as np
 import spiceypy
@@ -11,12 +13,17 @@ import spiceypy
 import astropy.units as u
 from astropy.time.core import Time as ApTime
 
+from stixcore.util.logging import get_logger
+
 SOLAR_ORBITER_ID = -144
 SOLAR_ORBITER_SRF_FRAME_ID = -144000
 SOLAR_ORBITER_STIX_ILS_FRAME_ID = -144851
 SOLAR_ORBITER_STIX_OPT_FRAME_D = -144852
 
 __all__ = ['SpiceManager', 'Time', 'Position']
+
+logger = get_logger(__name__)
+logger.setLevel(logging.DEBUG)
 
 
 class SpiceManager:
@@ -40,27 +47,31 @@ class SpiceManager:
 
         with self.meta_kernel_path.open('r') as mk:
             original_mk = mk.read()
-            new_mk = re.sub(r"PATH_VALUES\s*= \( '.*' \)",
-                            f"PATH_VALUES       = "
-                            f"( '{self.meta_kernel_path.parent.parent.resolve()}' )",
-                            original_mk)
+            kernel_dir = str(self.meta_kernel_path.parent.parent.resolve())
+            kernel_dir = kernel_dir.replace('\\', '\\\\')
+            # spice meta kernel seems to have a max variable length of 80 characters
+            # https://naif.jpl.nasa.gov/pub/naif/toolkit_docs/C/req/kernel.html#Additional%20Meta-kernel%20Specifications # noqa
+            wrapped = self._wrap_value_field(kernel_dir)
+            path_value = f"PATH_VALUES       = ( {wrapped} )"
+            logger.debug(f'Kernel directory {kernel_dir}')
+            new_mk = re.sub(r"PATH_VALUES\s*= \( '.*' \)", path_value, original_mk)
 
             handle, path = tempfile.mkstemp()
             with os.fdopen(handle, 'w') as f:
                 f.write(new_mk)
 
-            self.mod_meta_kernal_path = Path(path)
+            self.mod_meta_kernel_path = Path(path)
 
         *_, datestamp, version = self.meta_kernel_path.name.split('_')
         self.kernel_date = datetime.strptime(datestamp, '%Y%m%d')
 
     def __enter__(self):
-        spiceypy.furnsh(str(self.mod_meta_kernal_path))
+        spiceypy.furnsh(str(self.mod_meta_kernel_path))
         self.__spice_context_manager = True
         return self
 
     def __exit__(self, exc_type, exc_val, exc_tb):
-        spiceypy.unload(str(self.mod_meta_kernal_path))
+        spiceypy.unload(str(self.mod_meta_kernel_path))
         self.__spice_context_manager = False
 
     def spice_context(func):
@@ -73,6 +84,27 @@ class SpiceManager:
                 raise NotInSpiceContext()
             return func(self, *args, **kwargs)
         return wrapper
+
+    @staticmethod
+    def _wrap_value_field(field):
+        r"""
+        Wrap a value field according to SPICE meta kernal spec
+
+        Parameters
+        ----------
+        field : `str`
+            The value to be wrapped
+
+        Returns
+        -------
+        The wrapped values
+        """
+        parts = wrap(field, width=78)
+        wrapped = "'"
+        for part in parts[:-1]:
+            wrapped = wrapped + part + "+'\n'"
+        wrapped = wrapped + f"{parts[-1]}'"
+        return wrapped
 
 
 class NotInSpiceContext(Exception):

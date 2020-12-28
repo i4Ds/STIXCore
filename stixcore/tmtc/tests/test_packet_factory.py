@@ -8,6 +8,7 @@ import pytest
 import stixcore.tmtc.tm.tm_1 as tm_1
 import stixcore.tmtc.tm.tm_3 as tm_3
 import stixcore.tmtc.tm.tm_5 as tm_5
+import stixcore.tmtc.tm.tm_6 as tm_6
 import stixcore.tmtc.tm.tm_21 as tm_21
 import stixcore.tmtc.tm.tm_236 as tm_236
 from stixcore.idb.manager import IDBManager
@@ -150,6 +151,9 @@ def test_tm_21_6_30_idb(data_dir, idb):
     (5,   3,   32816, tm_5.TM_5_3, True),
     (5,   4,   54304, tm_5.TM_5_4, True),
 
+    (6,   6,  53250, tm_6.TM_6_6, True),
+    (6,   10, None, tm_6.TM_6_10, True),
+
     (21,   6,   20, tm_21.TM_21_6_20, True),
     (21,   6,   21, tm_21.TM_21_6_21, True),
     (21,   6,   22, tm_21.TM_21_6_22, True),
@@ -178,6 +182,9 @@ def test_tm_21_6_30_idb(data_dir, idb):
         "TM_5_2",
         "TM_5_3",
         "TM_5_4",
+
+        "TM_6_6",
+        "TM_6_10",
 
         "TM_21_6_20",
         "TM_21_6_21",

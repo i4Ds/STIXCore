@@ -81,11 +81,11 @@ def _parse_tree(bitstream, parent, fields):
     for i in range(0, counter):
         for pnode in parent.children:
             # dynamic packets might jump back or forward
-            if (pnode.parameter.is_variable() and (pnode.parameter.VPD_OFFSET != 0)):
-                bitstream.pos += int(pnode.parameter.VPD_OFFSET)
-
-            # static packets: each parameter describes it own absolute position
-            if (not pnode.parameter.is_variable()):
+            if (pnode.parameter.is_variable()):
+                if (pnode.parameter.VPD_OFFSET != 0):
+                    bitstream.pos += int(pnode.parameter.VPD_OFFSET)
+            # static packets: each parameter describes its own absolute position
+            else:
                 bitstream.pos = pnode.parameter.PLF_OFFBY * 8 + pnode.parameter.PLF_OFFBI
 
             try:

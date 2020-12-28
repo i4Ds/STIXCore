@@ -9,8 +9,12 @@ import stixcore.tmtc.tm.tm_1 as tm_1
 import stixcore.tmtc.tm.tm_3 as tm_3
 import stixcore.tmtc.tm.tm_5 as tm_5
 import stixcore.tmtc.tm.tm_6 as tm_6
+import stixcore.tmtc.tm.tm_17 as tm_17
 import stixcore.tmtc.tm.tm_21 as tm_21
 import stixcore.tmtc.tm.tm_236 as tm_236
+import stixcore.tmtc.tm.tm_237 as tm_237
+import stixcore.tmtc.tm.tm_238 as tm_238
+import stixcore.tmtc.tm.tm_239 as tm_239
 from stixcore.idb.manager import IDBManager
 from stixcore.tmtc.packet_factory import BaseFactory, MultipleMatchError, NoMatchError, Packet
 from stixcore.tmtc.packets import SOURCE_PACKET_HEADER_STRUCTURE, TM_DATA_HEADER_STRUCTURE
@@ -154,6 +158,8 @@ def test_tm_21_6_30_idb(data_dir, idb):
     (6,   6,  53250, tm_6.TM_6_6, True),
     (6,   10, None, tm_6.TM_6_10, True),
 
+    (17,   2, None, tm_17.TM_17_2, True),
+
     (21,   6,   20, tm_21.TM_21_6_20, True),
     (21,   6,   21, tm_21.TM_21_6_21, True),
     (21,   6,   22, tm_21.TM_21_6_22, True),
@@ -169,7 +175,23 @@ def test_tm_21_6_30_idb(data_dir, idb):
     (21,   6,   43, tm_21.TM_21_6_43, False),
 
     (236,   16,   None, tm_236.TM_236_16, True),
-    (236,   19,   None, tm_236.TM_236_19, True)
+    (236,   19,   None, tm_236.TM_236_19, True),
+
+    (237,   12,   None, tm_237.TM_237_12, True),
+    (237,   20,   None, tm_237.TM_237_20, True),
+
+    (238,   3,   None, tm_238.TM_238_3, True),
+    (238,   7,   None, tm_238.TM_238_7, True),
+
+    (239,   3,   None, tm_239.TM_239_3, True),
+    (239,   6,   None, tm_239.TM_239_6, True),
+    (239,   8,   None, tm_239.TM_239_8, True),
+    (239,   10,  None, tm_239.TM_239_10, True),
+    (239,   12,  None, tm_239.TM_239_12, True),
+    (239,   14,  None, tm_239.TM_239_14, True),
+    (239,   18,  None, tm_239.TM_239_18, True),
+    (239,   21,  None, tm_239.TM_239_21, False)
+    # TODO fix to full packet TM_239_21 read after fox of https://github.com/i4Ds/STIX-IDB/issues/16
 ], ids=("TM_1_1",
         "TM_1_2",
         "TM_1_7",
@@ -186,6 +208,8 @@ def test_tm_21_6_30_idb(data_dir, idb):
         "TM_6_6",
         "TM_6_10",
 
+        "TM_17_2",
+
         "TM_21_6_20",
         "TM_21_6_21",
         "TM_21_6_22",
@@ -201,7 +225,22 @@ def test_tm_21_6_30_idb(data_dir, idb):
         "TM_21_6_43",
 
         "TM_236_16",
-        "TM_236_19"))
+        "TM_236_19",
+
+        "TM_237_12",
+        "TM_237_20",
+
+        "TM_238_3",
+        "TM_238_7",
+
+        "TM_239_3",
+        "TM_239_6",
+        "TM_239_8",
+        "TM_239_10",
+        "TM_239_12",
+        "TM_239_14",
+        "TM_239_18",
+        "TM_239_21"))
 def test_all_tm(data_dir, idbm, packtes):
     t, st, pi1, cl, testpadding = packtes
     filename = f"{t}_{st}.hex" if pi1 is None else f"{t}_{st}_{pi1}.hex"

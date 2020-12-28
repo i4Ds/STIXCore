@@ -1,12 +1,9 @@
+"""Service 238 – STIX Archive memory management."""
 from stixcore.tmtc.packets import GenericTMPacket
 
 
 class TM_238_3(GenericTMPacket):
-    """
-    TM(238, 3) Service 238 – STIX Archive memory management
-
-    User data selections report
-    """
+    """TM(238, 3) User data selections report."""
 
     def __init__(self, data, idb):
         super().__init__(data, idb)
@@ -18,11 +15,7 @@ class TM_238_3(GenericTMPacket):
 
 
 class TM_238_7(GenericTMPacket):
-    """
-    TM(238, 7) Service 238 – STIX Archive memory management
-
-    Filesystem check report
-    """
+    """TM(238, 7) Filesystem check report."""
 
     def __init__(self, data, idb):
         super().__init__(data, idb)

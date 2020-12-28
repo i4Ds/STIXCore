@@ -1,12 +1,9 @@
+"""Service 6 – Memory management."""
 from stixcore.tmtc.packets import GenericTMPacket
 
 
 class TM_6_6(GenericTMPacket):
-    """
-    TM(6, 6) Service 6 – Memory management
-
-    Memory Dump Report
-    """
+    """TM(6, 6) Memory Dump Report."""
 
     def __init__(self, data, idb):
         super().__init__(data, idb)
@@ -18,11 +15,7 @@ class TM_6_6(GenericTMPacket):
 
 
 class TM_6_10(GenericTMPacket):
-    """
-    TM(6, 10) Service 6 – Memory management
-
-    Memory Check Report
-    """
+    """TM(6, 10) Memory Check Report."""
 
     def __init__(self, data, idb):
         super().__init__(data, idb)

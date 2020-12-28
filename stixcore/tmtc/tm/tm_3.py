@@ -1,12 +1,9 @@
+"""Service 3 – housekeeping telemetry report."""
 from stixcore.tmtc.packets import GenericTMPacket
 
 
 class TM_3_25_1(GenericTMPacket):
-    """
-    TM(3, 25) Service 3 – housekeeping telemetry report
-
-    SID 1: HK data “mini” report
-    """
+    """TM(3, 25) SID 1: HK data “mini” report."""
 
     def __init__(self, data, idb):
         super().__init__(data, idb)
@@ -18,11 +15,7 @@ class TM_3_25_1(GenericTMPacket):
 
 
 class TM_3_25_2(GenericTMPacket):
-    """
-    TM(3, 25) Service 3 – housekeeping telemetry report
-
-    SID 2: HK data "maxi” report
-    """
+    """TM(3, 25) SID 2: HK data "maxi” report."""
 
     def __init__(self, data, idb):
         super().__init__(data, idb)
@@ -34,11 +27,7 @@ class TM_3_25_2(GenericTMPacket):
 
 
 class TM_3_25_4(GenericTMPacket):
-    """
-    TM(3, 25) Service 3 – housekeeping telemetry report
-
-    SID 4: Instrument heartbeat
-    """
+    """TM(3, 25) SID 4: Instrument heartbeat."""
 
     def __init__(self, data, idb):
         super().__init__(data, idb)

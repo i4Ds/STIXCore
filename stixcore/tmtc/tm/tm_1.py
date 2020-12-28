@@ -1,12 +1,9 @@
+"""Service 1 – Telecommand Verification."""
 from stixcore.tmtc.packets import GenericTMPacket
 
 
 class TM_1_1(GenericTMPacket):
-    """
-    TM(1, 1) Service 1 – Telecommand Verification.
-
-    Telecommand acceptance report – success
-    """
+    """TM(1, 1) Telecommand acceptance report – success."""
 
     def __init__(self, data, idb):
         super().__init__(data, idb)
@@ -18,11 +15,7 @@ class TM_1_1(GenericTMPacket):
 
 
 class TM_1_2(GenericTMPacket):
-    """
-    TM(1, 2) Service 1 – Telecommand Verification.
-
-    Telecommand acceptance report – failure
-    """
+    """TM(1, 2) Telecommand acceptance report – failure."""
 
     def __init__(self, data, idb):
         super().__init__(data, idb)
@@ -34,11 +27,7 @@ class TM_1_2(GenericTMPacket):
 
 
 class TM_1_7(GenericTMPacket):
-    """
-    TM(1, 7) Service 1 – Telecommand Verification.
-
-    Telecommand execution completed report – success
-    """
+    """TM(1, 7) Telecommand execution completed report – success."""
 
     def __init__(self, data, idb):
         super().__init__(data, idb)
@@ -50,11 +39,7 @@ class TM_1_7(GenericTMPacket):
 
 
 class TM_1_8(GenericTMPacket):
-    """
-    TM(1, 8) Service 1 – Telecommand Verification.
-
-    Telecommand execution completed report – failure
-    """
+    """TM(1, 8) Telecommand execution completed report – failure."""
 
     def __init__(self, data, idb):
         super().__init__(data, idb)

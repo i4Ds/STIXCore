@@ -6,8 +6,10 @@ import bitstring
 import pytest
 
 import stixcore.tmtc.tm.tm_1 as tm_1
+import stixcore.tmtc.tm.tm_3 as tm_3
 import stixcore.tmtc.tm.tm_5 as tm_5
 import stixcore.tmtc.tm.tm_21 as tm_21
+import stixcore.tmtc.tm.tm_236 as tm_236
 from stixcore.idb.manager import IDBManager
 from stixcore.tmtc.packet_factory import BaseFactory, MultipleMatchError, NoMatchError, Packet
 from stixcore.tmtc.packets import SOURCE_PACKET_HEADER_STRUCTURE, TM_DATA_HEADER_STRUCTURE
@@ -138,6 +140,9 @@ def test_tm_21_6_30_idb(data_dir, idb):
     (1,   7, None, tm_1.TM_1_7, True),
     (1,   8, 48452, tm_1.TM_1_8, True),
 
+    (3,   25,   1, tm_3.TM_3_25_1, True),
+    (3,   25,   2, tm_3.TM_3_25_2, True),
+
     (5,   1,   33, tm_5.TM_5_1, True),
     (5,   2,   21548, tm_5.TM_5_2, True),
     (5,   3,   32816, tm_5.TM_5_3, True),
@@ -155,11 +160,17 @@ def test_tm_21_6_30_idb(data_dir, idb):
     (21,   6,   34, tm_21.TM_21_6_34, True),
     (21,   6,   41, tm_21.TM_21_6_41, True),
     (21,   6,   42, tm_21.TM_21_6_42, True),
-    (21,   6,   43, tm_21.TM_21_6_43, False)
+    (21,   6,   43, tm_21.TM_21_6_43, False),
+
+    (236,   16,   None, tm_236.TM_236_16, True),
+    (236,   19,   None, tm_236.TM_236_19, True)
 ], ids=("TM_1_1",
         "TM_1_2",
         "TM_1_7",
         "TM_1_8",
+
+        "TM_3_25_1",
+        "TM_3_25_2",
 
         "TM_5_1",
         "TM_5_2",
@@ -178,7 +189,10 @@ def test_tm_21_6_30_idb(data_dir, idb):
         "TM_21_6_34",
         "TM_21_6_41",
         "TM_21_6_42",
-        "TM_21_6_43"))
+        "TM_21_6_43",
+
+        "TM_236_16",
+        "TM_236_19"))
 def test_all_tm(data_dir, idbm, packtes):
     t, st, pi1, cl, testpadding = packtes
     filename = f"{t}_{st}.hex" if pi1 is None else f"{t}_{st}_{pi1}.hex"

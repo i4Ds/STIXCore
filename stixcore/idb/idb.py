@@ -1080,6 +1080,8 @@ class IDB:
             return f"int:{nbytes}"
         elif param_type == 'T':
             return f"uint:{nbytes}"
+        elif param_type == 'O':
+            return f"uint:{nbytes}"
         elif param_type == 'CONTEXT' and nbytes <= 4:
             raise NotImplementedError("Format Error: to implement: 'CONTEXT'")
 

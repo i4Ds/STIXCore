@@ -5,19 +5,10 @@ from pathlib import Path
 import bitstring
 import pytest
 
-import stixcore.tmtc.tm.tm_1 as tm_1
-import stixcore.tmtc.tm.tm_3 as tm_3
-import stixcore.tmtc.tm.tm_5 as tm_5
-import stixcore.tmtc.tm.tm_6 as tm_6
-import stixcore.tmtc.tm.tm_17 as tm_17
-import stixcore.tmtc.tm.tm_21 as tm_21
-import stixcore.tmtc.tm.tm_236 as tm_236
-import stixcore.tmtc.tm.tm_237 as tm_237
-import stixcore.tmtc.tm.tm_238 as tm_238
-import stixcore.tmtc.tm.tm_239 as tm_239
 from stixcore.idb.manager import IDBManager
 from stixcore.tmtc.packet_factory import BaseFactory, MultipleMatchError, NoMatchError, Packet
 from stixcore.tmtc.packets import SOURCE_PACKET_HEADER_STRUCTURE, TM_DATA_HEADER_STRUCTURE
+from stixcore.tmtc.tm import tm_1, tm_3, tm_5, tm_6, tm_17, tm_21, tm_236, tm_237, tm_238, tm_239
 
 
 @pytest.fixture

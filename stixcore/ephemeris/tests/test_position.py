@@ -1,4 +1,3 @@
-import os
 from datetime import datetime
 
 import numpy as np
@@ -9,24 +8,10 @@ import astropy.units as u
 from stixcore.data.test import test_dir as test_dir
 from stixcore.ephemeris.manager import Position
 
-orig_directory = ''
-
-
-def setup_function():
-    global orig_directory
-    orig_directory = os.getcwd()
-    # file_dir = Path(os.path.abspath(__file__))
-    if test_dir.exists():
-        os.chdir(test_dir.as_posix())
-
-
-def teardown_function():
-    os.chdir(orig_directory)
-
 
 @pytest.fixture
 def spicemanager():
-    return Position(meta_kernel_path=test_dir / 'test_position_20201001_V01.mk')
+    return Position(meta_kernel_path=test_dir / 'mk' / 'test_position_20201001_V01.mk')
 
 
 def test_get_position(spicemanager):

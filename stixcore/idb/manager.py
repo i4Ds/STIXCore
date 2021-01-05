@@ -98,9 +98,8 @@ class IDBManager:
         logger.error(f"No IDB version found for Time: {utc}")
         return ''
 
-    # TODO replace default URL with a public FHNW server
     def download_version(self, version_label, force=False,
-                         url="https://nicky.thecrag.com/public/stix/"):
+                         url="http://pub099.cs.technik.fhnw.ch/data/idb/"):
         """Download and installs an IDB version of a public available URL.
 
         Parameters

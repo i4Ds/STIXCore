@@ -6,6 +6,7 @@ from stixcore.tmtc.tm import tm_5 as tm_5
 from stixcore.tmtc.tm import tm_6 as tm_6
 from stixcore.tmtc.tm import tm_17 as tm_17
 from stixcore.tmtc.tm import tm_21 as tm_21
+from stixcore.tmtc.tm import tm_22 as tm_22
 from stixcore.tmtc.tm import tm_236 as tm_236
 from stixcore.tmtc.tm import tm_237 as tm_237
 from stixcore.tmtc.tm import tm_238 as tm_238

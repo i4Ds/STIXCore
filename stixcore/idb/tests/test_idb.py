@@ -56,12 +56,13 @@ def test_get_scos_description(idb):
     assert info == ""
 
 
-def test_get_packet_type_offset(idb):
-    info = idb.get_packet_type_offset(6, 10)
-    assert info == (-1, 0)
+def test_get_packet_pi1_val_position(idb):
+    info = idb.get_packet_pi1_val_position(21, 6)
+    assert info.PIC_PI1_OFF == 16
+    assert info.PIC_PI1_WID == 8
 
-    info = idb.get_packet_type_offset('foo', 'bar')
-    assert info == (0, 0)
+    info = idb.get_packet_pi1_val_position('foo', 'bar')
+    assert info is None
 
 
 def test_get_parameter_description(idb):
@@ -93,7 +94,7 @@ def test_get_parameter_unit(idb):
 
 
 def test_get_packet_type_info(idb):
-    info = idb.get_packet_type_info(6, 10, -1)
+    info = idb.get_packet_type_info(6, 10, None)
     assert info is not None
 
     info = idb.get_packet_type_info(6, 10, 0)

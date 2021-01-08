@@ -264,8 +264,12 @@ def test_decompress(data_dir, idbm):
     packet.data.set(path, [1, 2, 3])
     nix260_new = packet.data.get_first("NIX00260")
 
-    assert nix260_raw != nix260_un
-    assert nix260_un != nix260_new
+    pathes = list()
+    nix260_all = packet.data.get_all("NIX00260", pathes=pathes)
+
+    assert nix260_raw is not nix260_un
+    assert nix260_un is not nix260_new
+    assert len(nix260_all) > 1
 
     # just to see the print output
     assert False

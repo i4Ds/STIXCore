@@ -81,8 +81,29 @@ class PacketData:
                             path.insert(0, index)
                             path.insert(0, attr)
                             return v
-        # if(path): path.pop(0)
         return None
+
+    def get_all(self, nix, pathes=None):
+        if pathes is None:
+            pathes = []
+        values = []
+        path = []
+        self._get_all(nix, values, pathes, path)
+        return values
+
+    def _get_all(self, nix, values, pathes, path):
+        if hasattr(self, nix):
+            path.append(nix)
+            pathes.append(path.copy())
+            values.append(getattr(self, nix))
+
+        for attr, value in self.__dict__.items():
+            if isinstance(value, PacketData):
+                value._get_all(nix, values, pathes, path.copy() + [attr])
+            elif isinstance(value, list):
+                for index, list_elem in enumerate(value):
+                    if isinstance(list_elem, PacketData):
+                        list_elem._get_all(nix, values, pathes, path.copy() + [attr, index])
 
     def work(self, nix, callback, args, addnix=None):
         write_nix = addnix if addnix else nix

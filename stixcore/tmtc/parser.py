@@ -37,9 +37,76 @@ class PacketData:
         obj = PacketData()
 
         for k in d:
+            # if k=='NIX00260': print('NIX00260')
             obj.__dict__[k] = PacketData.parameter_dict_2_PacketData(d[k])
 
         return obj
+
+    def set(self, path, value):
+        obj = self
+        for p in path[0:-1]:
+            if isinstance(p, str):
+                obj = getattr(obj, p)
+            else:
+                obj = obj[0]
+
+        last = path[-1]
+        if isinstance(last, str):
+            setattr(obj, last, value)
+        else:
+            obj[last] = value
+
+    def get_first(self, nix, path=None):
+        if path is None:
+            path = []
+        v = self._get_first(nix, path)
+        return v
+
+    def _get_first(self, nix, path):
+        if hasattr(self, nix):
+            path.append(nix)
+            return getattr(self, nix)
+
+        for attr, value in self.__dict__.items():
+            if isinstance(value, PacketData):
+                v = value._get_first(nix, path)
+                if v is not None:
+                    path.insert(0, attr)
+                    return v
+            elif isinstance(value, list):
+                for index, list_elem in enumerate(value):
+                    if isinstance(list_elem, PacketData):
+                        v = list_elem._get_first(nix, path)
+                        if v is not None:
+                            path.insert(0, index)
+                            path.insert(0, attr)
+                            return v
+        # if(path): path.pop(0)
+        return None
+
+    def work(self, nix, callback, args, addnix=None):
+        write_nix = addnix if addnix else nix
+        return self._work(nix, callback, args, write_nix, 0)
+
+    def _work(self, nix, callback, args, write_nix, counter):
+        if hasattr(self, nix):
+            # print(f"found: {nix}")
+            val = getattr(self, nix)
+            call_val = callback(val, args)
+            setattr(self, write_nix, call_val)
+            counter += 1
+
+        for attr, value in self.__dict__.items():
+            if isinstance(value, PacketData):
+                # print(f"work:  {attr}", file=sys.stderr)
+                counter = value._work(nix, callback, args, write_nix, counter)
+            elif isinstance(value, list):
+                for list_elem in value:
+                    if isinstance(list_elem, PacketData):
+                        # print(f"work:  {attr}", file=sys.stderr)
+                        counter = list_elem._work(nix, callback, args, write_nix, counter)
+
+        return counter
 
 
 def parse_binary(binary, structure):
@@ -80,6 +147,7 @@ def _parse_tree(bitstream, parent, fields):
 
     for i in range(0, counter):
         for pnode in parent.children:
+
             # dynamic packets might jump back or forward
             if (pnode.parameter.is_variable()):
                 if (pnode.parameter.VPD_OFFSET != 0):

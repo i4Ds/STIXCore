@@ -6,6 +6,7 @@ import bitstring
 import pytest
 
 from stixcore.idb.manager import IDBManager
+from stixcore.processing.decompression import decompress
 from stixcore.tmtc.packet_factory import BaseFactory, MultipleMatchError, NoMatchError, Packet
 from stixcore.tmtc.packets import SOURCE_PACKET_HEADER_STRUCTURE, TM_DATA_HEADER_STRUCTURE
 from stixcore.tmtc.tm import tm_1, tm_3, tm_5, tm_6, tm_17, tm_21, tm_236, tm_237, tm_238, tm_239
@@ -241,7 +242,30 @@ def test_all_tm(data_dir, idbm, packtes):
     assert packet.data_header.service_type == t
     assert packet.data_header.service_subtype == st
     assert packet.data_header.pi1_val == pi1
-    # was all data consumed
+    # was all data consumed?
     if testpadding:
         assert packet.source_packet_header.bitstream.pos == \
             len(packet.source_packet_header.bitstream)
+
+
+def test_decompress(data_dir, idbm):
+    t, st, pi1, cl = (21,   6,   21, tm_21.TM_21_6_21)
+    filename = f"{t}_{st}.hex" if pi1 is None else f"{t}_{st}_{pi1}.hex"
+    hex = _get_bin_from_file(data_dir, filename)
+    packet = Packet(hex, idbm)
+    assert isinstance(packet, cl)
+
+    nix260_raw = packet.data.get_first("NIX00260")
+    decompress(packet)
+
+    path = list()
+    nix260_un = packet.data.get_first("NIX00260", path=path)
+    # just testing
+    packet.data.set(path, [1, 2, 3])
+    nix260_new = packet.data.get_first("NIX00260")
+
+    assert nix260_raw != nix260_un
+    assert nix260_un != nix260_new
+
+    # just to see the print output
+    assert False

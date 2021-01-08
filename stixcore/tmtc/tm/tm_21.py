@@ -26,6 +26,14 @@ class TM_21_6_21(GenericTMPacket):
         dh = tm_packet.data_header
         return dh.service_type == 21 and dh.service_subtype == 6 and dh.pi1_val == 21
 
+    def get_decompression_parameter(self):
+        # https://github.com/i4Ds/STIX-FSW/issues/953
+        params = super().get_decompression_parameter()
+        if self.data_header.date_time:
+            # TODO do some special treatment
+            return params
+        return params
+
 
 class TM_21_6_22(GenericTMPacket):
     """TM(21, 6) SSID 22: X-ray science data: X-ray data compression level 2."""

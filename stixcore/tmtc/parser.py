@@ -1,5 +1,6 @@
 from collections import defaultdict
 
+import numpy as np
 from bitstring import ConstBitStream
 
 from stixcore.util.logging import get_logger
@@ -42,91 +43,74 @@ class PacketData:
 
         return obj
 
-    def set(self, path, value):
-        obj = self
-        for p in path[0:-1]:
-            if isinstance(p, str):
-                obj = getattr(obj, p)
+    def flatten(self):
+        new_root = PacketData()
+        self._flatten(new_root)
+        return new_root
+
+    def _flatten(self, new_root):
+        for attr, value in self.__dict__.items():
+            if isinstance(value, PacketData):
+                value._flatten(new_root)
+            elif isinstance(value, list):
+                if attr == "NIXD0159":
+                    NIX00065 = []
+                    for index, list_elem in enumerate(value):
+                        if isinstance(list_elem, PacketData):
+                            c_v = list_elem.NIX00065
+                            if isinstance(c_v, int):
+                                NIX00065.append(c_v)
+                            elif isinstance(c_v, list) and len(c_v) == 2:
+                                NIX00065.append(int.from_bytes((c_v[0]+1).to_bytes(2, 'big')
+                                                + c_v[1].to_bytes(1, 'big'), 'big'))
+                            else:
+                                raise ValueError(f'Continuation bits value of {len(c_v)} \
+                                not allowed (0, 1, 2)')
+                        else:
+                            NIX00065.append(1)
+                    attr = "NIX00065"
+                    value = NIX00065
+
+                for index, list_elem in enumerate(value):
+                    if isinstance(list_elem, PacketData):
+                        list_elem._flatten(new_root)
+                    else:
+                        if hasattr(new_root, attr):
+                            old_val = getattr(new_root, attr)
+                            if not isinstance(old_val, list):
+                                old_val = [old_val, np.array(value)]
+                            else:
+                                old_val.append(np.array(value))
+                            setattr(new_root, attr, old_val)
+
+                        else:
+                            setattr(new_root, attr, np.array(value))
+                        break
             else:
-                obj = obj[0]
+                if hasattr(new_root, attr):
+                    # TODO check if this is possible
+                    # raise Exception("add value not to repeater NIX")
+                    print(attr, value)
+                else:
+                    setattr(new_root, attr, value)
 
-        last = path[-1]
-        if isinstance(last, str):
-            setattr(obj, last, value)
-        else:
-            obj[last] = value
+    def set(self, nix, value):
+        setattr(self, nix, value)
 
-    def get_first(self, nix, path=None):
-        if path is None:
-            path = []
-        v = self._get_first(nix, path)
-        return v
-
-    def _get_first(self, nix, path):
-        if hasattr(self, nix):
-            path.append(nix)
-            return getattr(self, nix)
-
-        for attr, value in self.__dict__.items():
-            if isinstance(value, PacketData):
-                v = value._get_first(nix, path)
-                if v is not None:
-                    path.insert(0, attr)
-                    return v
-            elif isinstance(value, list):
-                for index, list_elem in enumerate(value):
-                    if isinstance(list_elem, PacketData):
-                        v = list_elem._get_first(nix, path)
-                        if v is not None:
-                            path.insert(0, index)
-                            path.insert(0, attr)
-                            return v
-        return None
-
-    def get_all(self, nix, pathes=None):
-        if pathes is None:
-            pathes = []
-        values = []
-        path = []
-        self._get_all(nix, values, pathes, path)
-        return values
-
-    def _get_all(self, nix, values, pathes, path):
-        if hasattr(self, nix):
-            path.append(nix)
-            pathes.append(path.copy())
-            values.append(getattr(self, nix))
-
-        for attr, value in self.__dict__.items():
-            if isinstance(value, PacketData):
-                value._get_all(nix, values, pathes, path.copy() + [attr])
-            elif isinstance(value, list):
-                for index, list_elem in enumerate(value):
-                    if isinstance(list_elem, PacketData):
-                        list_elem._get_all(nix, values, pathes, path.copy() + [attr, index])
+    def get(self, nix):
+        return getattr(self, nix)
 
     def work(self, nix, callback, args, addnix=None):
         write_nix = addnix if addnix else nix
-        return self._work(nix, callback, args, write_nix, 0)
-
-    def _work(self, nix, callback, args, write_nix, counter):
-        if hasattr(self, nix):
-            # print(f"found: {nix}")
-            val = getattr(self, nix)
-            call_val = callback(val, args)
-            setattr(self, write_nix, call_val)
+        counter = 0
+        val = self.get(nix)
+        if isinstance(val, list):
+            w_val = [callback(v, args) for v in val]
+            counter = len(w_val)
+        else:
+            w_val = callback(val, args)
             counter += 1
-
-        for attr, value in self.__dict__.items():
-            if isinstance(value, PacketData):
-                # print(f"work:  {attr}", file=sys.stderr)
-                counter = value._work(nix, callback, args, write_nix, counter)
-            elif isinstance(value, list):
-                for list_elem in value:
-                    if isinstance(list_elem, PacketData):
-                        # print(f"work:  {attr}", file=sys.stderr)
-                        counter = list_elem._work(nix, callback, args, write_nix, counter)
-
+        self.set(write_nix, w_val)
         return counter
 
 
@@ -221,7 +205,7 @@ def parse_variable(bitstream, tree):
     """
     fields = dict()
     _parse_tree(bitstream, tree, fields)
-    return PacketData.parameter_dict_2_PacketData(fields)
+    return PacketData.parameter_dict_2_PacketData(fields).flatten()
 
 
 def parse_bitstream(bitstream, structure):

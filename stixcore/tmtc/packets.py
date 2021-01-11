@@ -297,6 +297,7 @@ class GenericTMPacket:
     # TODO move that struct(s) to a global configuration?
     _SKM_GROUPS = {
             'EACC':     ("NIXD0007", "NIXD0008", "NIXD0009"),
+            'VIS':      (1,          "NIXD0008", "NIXD0009"),  # hard coded s=1 for negative values
             'ETRIG':    ("NIXD0010", "NIXD0011", "NIXD0012"),
             'LC':       ("NIXD0101", "NIXD0102", "NIXD0103"),
             'TriggerSSID30': ("NIXD0104", "NIXD0105", "NIXD0106"),
@@ -308,133 +309,6 @@ class GenericTMPacket:
     }
 
     _SCHEMAS = {
-                32: {
-                        'NIX00452': _SKM_GROUPS['SPEC'],
-                        'NIX00453': _SKM_GROUPS['SPEC'],
-                        'NIX00454': _SKM_GROUPS['SPEC'],
-                        'NIX00455': _SKM_GROUPS['SPEC'],
-                        'NIX00456': _SKM_GROUPS['SPEC'],
-                        'NIX00457': _SKM_GROUPS['SPEC'],
-                        'NIX00458': _SKM_GROUPS['SPEC'],
-                        'NIX00459': _SKM_GROUPS['SPEC'],
-                        'NIX00460': _SKM_GROUPS['SPEC'],
-                        'NIX00461': _SKM_GROUPS['SPEC'],
-                        'NIX00462': _SKM_GROUPS['SPEC'],
-                        'NIX00463': _SKM_GROUPS['SPEC'],
-                        'NIX00464': _SKM_GROUPS['SPEC'],
-                        'NIX00465': _SKM_GROUPS['SPEC'],
-                        'NIX00466': _SKM_GROUPS['SPEC'],
-                        'NIX00467': _SKM_GROUPS['SPEC'],
-                        'NIX00468': _SKM_GROUPS['SPEC'],
-                        'NIX00469': _SKM_GROUPS['SPEC'],
-                        'NIX00470': _SKM_GROUPS['SPEC'],
-                        'NIX00471': _SKM_GROUPS['SPEC'],
-                        'NIX00472': _SKM_GROUPS['SPEC'],
-                        'NIX00473': _SKM_GROUPS['SPEC'],
-                        'NIX00474': _SKM_GROUPS['SPEC'],
-                        'NIX00475': _SKM_GROUPS['SPEC'],
-                        'NIX00476': _SKM_GROUPS['SPEC'],
-                        'NIX00477': _SKM_GROUPS['SPEC'],
-                        'NIX00478': _SKM_GROUPS['SPEC'],
-                        'NIX00479': _SKM_GROUPS['SPEC'],
-                        'NIX00480': _SKM_GROUPS['SPEC'],
-                        'NIX00481': _SKM_GROUPS['SPEC'],
-                        'NIX00482': _SKM_GROUPS['SPEC'],
-                        'NIX00483': _SKM_GROUPS['SPEC'],
-                        'NIX00484': _SKM_GROUPS['TRIG']
-                    },
-                41: {
-                        'NIX00158': _SKM_GROUPS['CALI']
-                    },
-                30: {
-                        'NIX00272': _SKM_GROUPS['LC'],
-                        'NIX00274': _SKM_GROUPS['TriggerSSID30']
-                    },
-                31: {
-                        'NIX00278': _SKM_GROUPS['BKG'],
-                        'NIX00274': _SKM_GROUPS['TRIG']
-                    },
-                33: {
-                        'NIX00281': _SKM_GROUPS['VAR']
-                    },
-                10: {
-                        'NIX00065': _SKM_GROUPS['EACC'],
-                        'NIX00408': _SKM_GROUPS['ETRIG'],
-                        'NIX00409': _SKM_GROUPS['ETRIG'],
-                        'NIX00410': _SKM_GROUPS['ETRIG'],
-                        'NIX00411': _SKM_GROUPS['ETRIG'],
-                        'NIX00412': _SKM_GROUPS['ETRIG'],
-                        'NIX00413': _SKM_GROUPS['ETRIG'],
-                        'NIX00414': _SKM_GROUPS['ETRIG'],
-                        'NIX00415': _SKM_GROUPS['ETRIG'],
-                        'NIX00416': _SKM_GROUPS['ETRIG'],
-                        'NIX00417': _SKM_GROUPS['ETRIG'],
-                        'NIX00418': _SKM_GROUPS['ETRIG'],
-                        'NIX00419': _SKM_GROUPS['ETRIG'],
-                        'NIX00420': _SKM_GROUPS['ETRIG'],
-                        'NIX00421': _SKM_GROUPS['ETRIG'],
-                        'NIX00422': _SKM_GROUPS['ETRIG'],
-                        'NIX00423': _SKM_GROUPS['ETRIG']
-                    },
-                11: {
-                        'NIX00260': _SKM_GROUPS['EACC'],
-                        'NIX00242': _SKM_GROUPS['ETRIG'],
-                        'NIX00243': _SKM_GROUPS['ETRIG'],
-                        'NIX00244': _SKM_GROUPS['ETRIG'],
-                        'NIX00245': _SKM_GROUPS['ETRIG'],
-                        'NIX00246': _SKM_GROUPS['ETRIG'],
-                        'NIX00247': _SKM_GROUPS['ETRIG'],
-                        'NIX00248': _SKM_GROUPS['ETRIG'],
-                        'NIX00249': _SKM_GROUPS['ETRIG'],
-                        'NIX00250': _SKM_GROUPS['ETRIG'],
-                        'NIX00251': _SKM_GROUPS['ETRIG'],
-                        'NIX00252': _SKM_GROUPS['ETRIG'],
-                        'NIX00253': _SKM_GROUPS['ETRIG'],
-                        'NIX00254': _SKM_GROUPS['ETRIG'],
-                        'NIX00255': _SKM_GROUPS['ETRIG'],
-                        'NIX00256': _SKM_GROUPS['ETRIG'],
-                        'NIX00257': _SKM_GROUPS['ETRIG']
-                    },
-                12: {
-                        'NIX00260': _SKM_GROUPS['EACC'],
-                        'NIX00242': _SKM_GROUPS['ETRIG'],
-                        'NIX00243': _SKM_GROUPS['ETRIG'],
-                        'NIX00244': _SKM_GROUPS['ETRIG'],
-                        'NIX00245': _SKM_GROUPS['ETRIG'],
-                        'NIX00246': _SKM_GROUPS['ETRIG'],
-                        'NIX00247': _SKM_GROUPS['ETRIG'],
-                        'NIX00248': _SKM_GROUPS['ETRIG'],
-                        'NIX00249': _SKM_GROUPS['ETRIG'],
-                        'NIX00250': _SKM_GROUPS['ETRIG'],
-                        'NIX00251': _SKM_GROUPS['ETRIG'],
-                        'NIX00252': _SKM_GROUPS['ETRIG'],
-                        'NIX00253': _SKM_GROUPS['ETRIG'],
-                        'NIX00254': _SKM_GROUPS['ETRIG'],
-                        'NIX00255': _SKM_GROUPS['ETRIG'],
-                        'NIX00256': _SKM_GROUPS['ETRIG'],
-                        'NIX00257': _SKM_GROUPS['ETRIG']
-                    },
-                13: {
-                        'NIX00242': _SKM_GROUPS['ETRIG'],
-                        'NIX00243': _SKM_GROUPS['ETRIG'],
-                        'NIX00244': _SKM_GROUPS['ETRIG'],
-                        'NIX00245': _SKM_GROUPS['ETRIG'],
-                        'NIX00246': _SKM_GROUPS['ETRIG'],
-                        'NIX00247': _SKM_GROUPS['ETRIG'],
-                        'NIX00248': _SKM_GROUPS['ETRIG'],
-                        'NIX00249': _SKM_GROUPS['ETRIG'],
-                        'NIX00250': _SKM_GROUPS['ETRIG'],
-                        'NIX00251': _SKM_GROUPS['ETRIG'],
-                        'NIX00252': _SKM_GROUPS['ETRIG'],
-                        'NIX00253': _SKM_GROUPS['ETRIG'],
-                        'NIX00254': _SKM_GROUPS['ETRIG'],
-                        'NIX00255': _SKM_GROUPS['ETRIG'],
-                        'NIX00256': _SKM_GROUPS['ETRIG'],
-                        'NIX00257': _SKM_GROUPS['ETRIG']
-                    },
-                20: {
-                        'NIX00065': _SKM_GROUPS['EACC']
-                    },
                 21: {
                         'NIX00260': _SKM_GROUPS['EACC'],
                         'NIX00242': _SKM_GROUPS['ETRIG'],
@@ -474,6 +348,9 @@ class GenericTMPacket:
                         'NIX00257': _SKM_GROUPS['ETRIG']
                     },
                 23: {
+                        'NIX00263': _SKM_GROUPS['VIS'],
+                        'NIX00264': _SKM_GROUPS['VIS'],
+                        'NIX00261': _SKM_GROUPS['EACC'],
                         'NIX00242': _SKM_GROUPS['ETRIG'],
                         'NIX00243': _SKM_GROUPS['ETRIG'],
                         'NIX00244': _SKM_GROUPS['ETRIG'],
@@ -494,6 +371,55 @@ class GenericTMPacket:
                 24: {
                         'NIX00268': _SKM_GROUPS['EACC'],
                         'NIX00267': _SKM_GROUPS['ETRIG']
+                    },
+                30: {
+                        'NIX00272': _SKM_GROUPS['LC'],
+                        'NIX00274': _SKM_GROUPS['TriggerSSID30']
+                    },
+                31: {
+                        'NIX00278': _SKM_GROUPS['BKG'],
+                        'NIX00274': _SKM_GROUPS['TRIG']
+                    },
+                32: {
+                        'NIX00452': _SKM_GROUPS['SPEC'],
+                        'NIX00453': _SKM_GROUPS['SPEC'],
+                        'NIX00454': _SKM_GROUPS['SPEC'],
+                        'NIX00455': _SKM_GROUPS['SPEC'],
+                        'NIX00456': _SKM_GROUPS['SPEC'],
+                        'NIX00457': _SKM_GROUPS['SPEC'],
+                        'NIX00458': _SKM_GROUPS['SPEC'],
+                        'NIX00459': _SKM_GROUPS['SPEC'],
+                        'NIX00460': _SKM_GROUPS['SPEC'],
+                        'NIX00461': _SKM_GROUPS['SPEC'],
+                        'NIX00462': _SKM_GROUPS['SPEC'],
+                        'NIX00463': _SKM_GROUPS['SPEC'],
+                        'NIX00464': _SKM_GROUPS['SPEC'],
+                        'NIX00465': _SKM_GROUPS['SPEC'],
+                        'NIX00466': _SKM_GROUPS['SPEC'],
+                        'NIX00467': _SKM_GROUPS['SPEC'],
+                        'NIX00468': _SKM_GROUPS['SPEC'],
+                        'NIX00469': _SKM_GROUPS['SPEC'],
+                        'NIX00470': _SKM_GROUPS['SPEC'],
+                        'NIX00471': _SKM_GROUPS['SPEC'],
+                        'NIX00472': _SKM_GROUPS['SPEC'],
+                        'NIX00473': _SKM_GROUPS['SPEC'],
+                        'NIX00474': _SKM_GROUPS['SPEC'],
+                        'NIX00475': _SKM_GROUPS['SPEC'],
+                        'NIX00476': _SKM_GROUPS['SPEC'],
+                        'NIX00477': _SKM_GROUPS['SPEC'],
+                        'NIX00478': _SKM_GROUPS['SPEC'],
+                        'NIX00479': _SKM_GROUPS['SPEC'],
+                        'NIX00480': _SKM_GROUPS['SPEC'],
+                        'NIX00481': _SKM_GROUPS['SPEC'],
+                        'NIX00482': _SKM_GROUPS['SPEC'],
+                        'NIX00483': _SKM_GROUPS['SPEC'],
+                        'NIX00484': _SKM_GROUPS['TRIG']
+                    },
+                33: {
+                        'NIX00281': _SKM_GROUPS['VAR']
+                    },
+                41: {
+                        'NIX00158': _SKM_GROUPS['CALI']
                     }
     }
 

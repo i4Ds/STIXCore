@@ -5,12 +5,19 @@ __all__ = ['CompressedParameter', 'decompress']
 
 
 class CompressedParameter():
-    """A class to combine the raw and decompressed values and settings of a parameter."""
+    """A class to combine the raw and decompressed values and settings of a parameter.
 
-    _raw = None
-    _decompressed = None
-    _skm = None
-    _error = None
+    Properties
+    ----------
+    raw : `int`|`list`
+        The raw values before the decompression.
+    decompressed : `int`|`list`
+        The decompressed values.
+    error : `int`|`list`
+        The estimated error of the decompression.
+    skm : `tuple`
+        (s, k, m) settings for the decompression algorithm.
+    """
 
     def __init__(self, *, raw, decompressed, error, skm):
         """Create a CompressedParameter object.
@@ -32,69 +39,12 @@ class CompressedParameter():
         self.error = error
 
     def __repr__(self):
-        return f'CompressedParameter(raw={self.raw}, decompressed={self.decompressed}, \
+        return f'{self.__class__.__name__}(raw={self.raw}, decompressed={self.decompressed}, \
         error={self.error}, skm={self.skm})'
 
     def __str__(self):
-        return f'CompressedParameter(raw: len({len(self.raw)}), decompressed: \
+        return f'{self.__class__.__name__}(raw: len({len(self.raw)}), decompressed: \
         len({len(self.decompressed)}), error: len({len(self.error)}), skm={self.skm})'
-
-    @property
-    def raw(self):
-        """Raw values before decompression.
-
-        Returns
-        -------
-        `int`|`list`
-        """
-        return self._raw
-
-    @raw.setter
-    def raw(self, value):
-        self._raw = value
-
-    @property
-    def decompressed(self):
-        """Decompression values.
-
-        Returns
-        -------
-        `int`|`list`
-        """
-        return self._decompressed
-
-    @decompressed.setter
-    def decompressed(self, value):
-        self._decompressed = value
-
-    @property
-    def skm(self):
-        """Decompression settings.
-
-        Returns
-        -------
-        `tuple`
-            (s, k, m) settings for the decompression algorithm.
-        """
-        return self._skm
-
-    @skm.setter
-    def skm(self, value):
-        self._skm = value
-
-    @property
-    def error(self):
-        """Estimated error of the decompression.
-
-        Returns
-        -------
-        `int`|`list`
-        """
-        return self._error
-
-    @error.setter
-    def error(self, value):
-        self._error = value
 
 
 def apply_decompress(raw, skm):

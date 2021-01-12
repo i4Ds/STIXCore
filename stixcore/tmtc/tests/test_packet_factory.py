@@ -6,7 +6,7 @@ import bitstring
 import pytest
 
 from stixcore.idb.manager import IDBManager
-from stixcore.processing.decompression import decompress
+from stixcore.processing.decompression import CompressedParameter, decompress
 from stixcore.tmtc.packet_factory import BaseFactory, MultipleMatchError, NoMatchError, Packet
 from stixcore.tmtc.packets import SOURCE_PACKET_HEADER_STRUCTURE, TM_DATA_HEADER_STRUCTURE
 from stixcore.tmtc.tm import tm_1, tm_3, tm_5, tm_6, tm_17, tm_21, tm_236, tm_237, tm_238, tm_239
@@ -287,5 +287,12 @@ def test_decompress(data_dir, idbm, decom_packets):
     decompression_parameter = packet.get_decompression_parameter()
     if decompression_parameter is not None:
         assert c > 0
+        for param_name, (sn, kn, mn) in decompression_parameter.items():
+            params = packet.data.get(param_name)
+            if isinstance(params, list):
+                for rep in params:
+                    assert isinstance(rep, CompressedParameter)
+            else:
+                isinstance(params, CompressedParameter)
     else:
         assert c == 0

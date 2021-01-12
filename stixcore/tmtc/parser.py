@@ -57,28 +57,31 @@ class PacketData:
         self._flatten(new_root)
         return new_root
 
+    @staticmethod
+    def unpack_NIX00065(param):
+        NIX00065 = []
+        for index, list_elem in enumerate(param):
+            if isinstance(list_elem, PacketData):
+                c_v = list_elem.NIX00065
+                if isinstance(c_v, int):
+                    NIX00065.append(c_v)
+                elif isinstance(c_v, list) and len(c_v) == 2:
+                    NIX00065.append(int.from_bytes((c_v[0]+1).to_bytes(2, 'big')
+                                    + c_v[1].to_bytes(1, 'big'), 'big'))
+                else:
+                    raise ValueError(f'Continuation bits value of {len(c_v)} \
+                    not allowed (0, 1, 2)')
+            else:
+                NIX00065.append(1)
+        return (NIX00065, "NIX00065")
+
     def _flatten(self, new_root):
         for attr, value in self.__dict__.items():
             if isinstance(value, PacketData):
                 value._flatten(new_root)
             elif isinstance(value, list):
                 if attr == "NIXD0159":
-                    NIX00065 = []
-                    for index, list_elem in enumerate(value):
-                        if isinstance(list_elem, PacketData):
-                            c_v = list_elem.NIX00065
-                            if isinstance(c_v, int):
-                                NIX00065.append(c_v)
-                            elif isinstance(c_v, list) and len(c_v) == 2:
-                                NIX00065.append(int.from_bytes((c_v[0]+1).to_bytes(2, 'big')
-                                                + c_v[1].to_bytes(1, 'big'), 'big'))
-                            else:
-                                raise ValueError(f'Continuation bits value of {len(c_v)} \
-                                not allowed (0, 1, 2)')
-                        else:
-                            NIX00065.append(1)
-                    attr = "NIX00065"
-                    value = NIX00065
+                    value, attr = PacketData.unpack_NIX00065(value)
 
                 for index, list_elem in enumerate(value):
                     if isinstance(list_elem, PacketData):
@@ -138,7 +141,7 @@ class PacketData:
         ----------
          nix : `str`
             The NIX name of the parameter.
-        callback : function
+        callback : `callable`
             the callback to by applayed to each data entry of the parameter.
         args : `any`
             will be passed on to the callback

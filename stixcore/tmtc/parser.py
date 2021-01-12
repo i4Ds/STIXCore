@@ -1,5 +1,6 @@
 from collections import defaultdict
 
+import numpy as np
 from bitstring import ConstBitStream
 
 from stixcore.util.logging import get_logger
@@ -37,9 +38,132 @@ class PacketData:
         obj = PacketData()
 
         for k in d:
+            # if k=='NIX00260': print('NIX00260')
             obj.__dict__[k] = PacketData.parameter_dict_2_PacketData(d[k])
 
         return obj
+
+    def flatten(self):
+        """Flatten the tree structure after parsing into a structure with all NIXs on the root level.
+
+        Unpacks/decodes the NIXD0159 counts from TM(21,6,20) by eliminating this repeater level.
+
+        Returns
+        -------
+        `PacketData`
+            a flattend copy
+        """
+        new_root = PacketData()
+        self._flatten(new_root)
+        return new_root
+
+    @staticmethod
+    def unpack_NIX00065(param):
+        NIX00065 = []
+        for index, list_elem in enumerate(param):
+            if isinstance(list_elem, PacketData):
+                c_v = list_elem.NIX00065
+                if isinstance(c_v, int):
+                    NIX00065.append(c_v)
+                elif isinstance(c_v, list) and len(c_v) == 2:
+                    NIX00065.append(int.from_bytes((c_v[0]+1).to_bytes(2, 'big')
+                                    + c_v[1].to_bytes(1, 'big'), 'big'))
+                else:
+                    raise ValueError(f'Continuation bits value of {len(c_v)} \
+                    not allowed (0, 1, 2)')
+            else:
+                NIX00065.append(1)
+        return (NIX00065, "NIX00065")
+
+    def _flatten(self, new_root):
+        for attr, value in self.__dict__.items():
+            if isinstance(value, PacketData):
+                value._flatten(new_root)
+            elif isinstance(value, list):
+                if attr == "NIXD0159":
+                    value, attr = PacketData.unpack_NIX00065(value)
+
+                for index, list_elem in enumerate(value):
+                    if isinstance(list_elem, PacketData):
+                        list_elem._flatten(new_root)
+                    else:
+                        if hasattr(new_root, attr):
+                            old_val = getattr(new_root, attr)
+                            if not isinstance(old_val, list):
+                                old_val = [old_val, np.array(value)]
+                            else:
+                                old_val.append(np.array(value))
+                            setattr(new_root, attr, old_val)
+
+                        else:
+                            setattr(new_root, attr, np.array(value))
+                        break
+            else:
+                if hasattr(new_root, attr):
+                    # TODO check if this is possible
+                    raise Exception("add value not to repeater NIX")
+                else:
+                    setattr(new_root, attr, value)
+
+    def set(self, nix, value):
+        """Set the paremeter vale by the NIX name.
+
+        Parameters
+        ----------
+        nix : `str`
+            The NIX name of the parameter.
+        value : 'any'
+            The new value.
+        """
+        setattr(self, nix, value)
+
+    def get(self, nix):
+        """Get the parameter value for a given NIX name.
+
+        Parameters
+        ----------
+        nix : `str`
+            The NIX name of the parameter.
+
+        Returns
+        -------
+        'any'
+            The found value.
+        """
+        return getattr(self, nix)
+
+    def apply(self, nix, callback, args, addnix=None):
+        """Apply a processing method to a parameter.
+
+        Overids the value after processing or creates a new one.
+
+        Parameters
+        ----------
+         nix : `str`
+            The NIX name of the parameter.
+        callback : `callable`
+            the callback to by applayed to each data entry of the parameter.
+        args : `any`
+            will be passed on to the callback
+        addnix : `str`, optional
+            A NIX name where to overide or create a new parameter. by default None
+
+        Returns
+        -------
+        'int'
+            How many times the callback was invoked?
+        """
+        write_nix = addnix if addnix else nix
+        counter = 0
+        val = self.get(nix)
+        if isinstance(val, list):
+            w_val = [callback(v, args) for v in val]
+            counter = len(w_val)
+        else:
+            w_val = callback(val, args)
+            counter += 1
+        self.set(write_nix, w_val)
+        return counter
 
 
 def parse_binary(binary, structure):
@@ -80,6 +204,7 @@ def _parse_tree(bitstream, parent, fields):
 
     for i in range(0, counter):
         for pnode in parent.children:
+
             # dynamic packets might jump back or forward
             if (pnode.parameter.is_variable()):
                 if (pnode.parameter.VPD_OFFSET != 0):
@@ -132,7 +257,7 @@ def parse_variable(bitstream, tree):
     """
     fields = dict()
     _parse_tree(bitstream, tree, fields)
-    return PacketData.parameter_dict_2_PacketData(fields)
+    return PacketData.parameter_dict_2_PacketData(fields).flatten()
 
 
 def parse_bitstream(bitstream, structure):

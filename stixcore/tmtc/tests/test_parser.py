@@ -1,6 +1,7 @@
 import bitstring
+import numpy as np
 
-from stixcore.tmtc.parser import parse_binary, parse_repeated
+from stixcore.tmtc.parser import PacketData, parse_binary, parse_repeated
 
 
 def test_parse_binary():
@@ -11,6 +12,22 @@ def test_parse_binary():
     structure = {i: key for i, key in enumerate(data.keys())}
     res = parse_binary(test_binary, structure)
     assert list(res['fields'].values()) == list(data.values())
+
+
+def test_parse_unpack_NIX00065():
+    hb = 5
+    lb = 10
+    res = [1, 1, 2, 1, 256 + (hb << 8) + lb]
+
+    pd = PacketData.parameter_dict_2_PacketData(
+        {'NIXD0159': [1, 2, {'NIX00065': 2}, 4, {'NIX00065': [hb, lb]}]}
+    )
+    v, name = PacketData.unpack_NIX00065(pd.get('NIXD0159'))
+    assert v == res
+    assert name == 'NIX00065'
+
+    flatt = pd.flatten()
+    assert (flatt.get(name) == np.array(res)).all()
 
 
 def test_parser_repeated():

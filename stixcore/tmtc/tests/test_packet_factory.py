@@ -6,6 +6,7 @@ import bitstring
 import pytest
 
 from stixcore.idb.manager import IDBManager
+from stixcore.processing.decompression import CompressedParameter, decompress
 from stixcore.tmtc.packet_factory import BaseFactory, MultipleMatchError, NoMatchError, Packet
 from stixcore.tmtc.packets import SOURCE_PACKET_HEADER_STRUCTURE, TM_DATA_HEADER_STRUCTURE
 from stixcore.tmtc.tm import tm_1, tm_3, tm_5, tm_6, tm_17, tm_21, tm_236, tm_237, tm_238, tm_239
@@ -132,7 +133,7 @@ def test_tm_21_6_30_idb(data_dir, idb):
     assert packet.data.NIXD0407 is not None
 
 
-@pytest.mark.parametrize('packtes', [
+@pytest.mark.parametrize('packets', [
     (1,   1, None, tm_1.TM_1_1, True),
     (1,   2, 48000, tm_1.TM_1_2, True),
     (1,   7, None, tm_1.TM_1_7, True),
@@ -232,8 +233,8 @@ def test_tm_21_6_30_idb(data_dir, idb):
         "TM_239_14",
         "TM_239_18",
         "TM_239_21"))
-def test_all_tm(data_dir, idbm, packtes):
-    t, st, pi1, cl, testpadding = packtes
+def test_all_tm(data_dir, idbm, packets):
+    t, st, pi1, cl, testpadding = packets
     filename = f"{t}_{st}.hex" if pi1 is None else f"{t}_{st}_{pi1}.hex"
     hex = _get_bin_from_file(data_dir, filename)
     packet = Packet(hex, idbm)
@@ -241,7 +242,57 @@ def test_all_tm(data_dir, idbm, packtes):
     assert packet.data_header.service_type == t
     assert packet.data_header.service_subtype == st
     assert packet.data_header.pi1_val == pi1
-    # was all data consumed
+    # was all data consumed?
     if testpadding:
         assert packet.source_packet_header.bitstream.pos == \
             len(packet.source_packet_header.bitstream)
+
+
+@pytest.mark.parametrize('decom_packets', [
+    (21,   6,   20, tm_21.TM_21_6_20),
+    (21,   6,   21, tm_21.TM_21_6_21),
+    (21,   6,   22, tm_21.TM_21_6_22),
+    # (21,   6,   23, tm_21.TM_21_6_23),
+    # TODO enable test again after https://github.com/i4Ds/STIXCore/issues/40 resolved
+    (21,   6,   24, tm_21.TM_21_6_24),
+    (21,   6,   30, tm_21.TM_21_6_30),
+    (21,   6,   31, tm_21.TM_21_6_31),
+    (21,   6,   32, tm_21.TM_21_6_32),
+    (21,   6,   33, tm_21.TM_21_6_33),
+    (21,   6,   34, tm_21.TM_21_6_34),
+    (21,   6,   41, tm_21.TM_21_6_41),
+    (21,   6,   42, tm_21.TM_21_6_42),
+    (21,   6,   43, tm_21.TM_21_6_43),
+], ids=("TM_21_6_20",
+        "TM_21_6_21",
+        "TM_21_6_22",
+        # "TM_21_6_23",
+        "TM_21_6_24",
+        "TM_21_6_30",
+        "TM_21_6_31",
+        "TM_21_6_32",
+        "TM_21_6_33",
+        "TM_21_6_34",
+        "TM_21_6_41",
+        "TM_21_6_42",
+        "TM_21_6_43",))
+def test_decompress(data_dir, idbm, decom_packets):
+    t, st, pi1, cl = decom_packets
+    filename = f"{t}_{st}.hex" if pi1 is None else f"{t}_{st}_{pi1}.hex"
+    hex = _get_bin_from_file(data_dir, filename)
+    packet = Packet(hex, idbm)
+    assert isinstance(packet, cl)
+    c = decompress(packet)
+
+    decompression_parameter = packet.get_decompression_parameter()
+    if decompression_parameter is not None:
+        assert c > 0
+        for param_name, (sn, kn, mn) in decompression_parameter.items():
+            params = packet.data.get(param_name)
+            if isinstance(params, list):
+                for rep in params:
+                    assert isinstance(rep, CompressedParameter)
+            else:
+                isinstance(params, CompressedParameter)
+    else:
+        assert c == 0

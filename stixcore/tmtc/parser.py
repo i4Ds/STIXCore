@@ -44,6 +44,15 @@ class PacketData:
         return obj
 
     def flatten(self):
+        """Flatten the tree structure after parsing into a structure with all NIXs on the root level.
+
+        Unpacks/decodes the NIXD0159 counts from TM(21,6,20) by eliminating this repeater level.
+
+        Returns
+        -------
+        `PacketData`
+            a flattend copy
+        """
         new_root = PacketData()
         self._flatten(new_root)
         return new_root
@@ -89,18 +98,58 @@ class PacketData:
             else:
                 if hasattr(new_root, attr):
                     # TODO check if this is possible
-                    # raise Exception("add value not to repeater NIX")
-                    print(attr, value)
+                    raise Exception("add value not to repeater NIX")
                 else:
                     setattr(new_root, attr, value)
 
     def set(self, nix, value):
+        """Set the paremeter vale by the NIX name.
+
+        Parameters
+        ----------
+        nix : `str`
+            The NIX name of the parameter.
+        value : 'any'
+            The new value.
+        """
         setattr(self, nix, value)
 
     def get(self, nix):
+        """Get the parameter value for a given NIX name.
+
+        Parameters
+        ----------
+        nix : `str`
+            The NIX name of the parameter.
+
+        Returns
+        -------
+        'any'
+            The found value.
+        """
         return getattr(self, nix)
 
-    def work(self, nix, callback, args, addnix=None):
+    def apply(self, nix, callback, args, addnix=None):
+        """Apply a processing method to a parameter.
+
+        Overids the value after processing or creates a new one.
+
+        Parameters
+        ----------
+         nix : `str`
+            The NIX name of the parameter.
+        callback : function
+            the callback to by applayed to each data entry of the parameter.
+        args : `any`
+            will be passed on to the callback
+        addnix : `str`, optional
+            A NIX name where to overide or create a new parameter. by default None
+
+        Returns
+        -------
+        'int'
+            How many times the callback was invoked?
+        """
         write_nix = addnix if addnix else nix
         counter = 0
         val = self.get(nix)

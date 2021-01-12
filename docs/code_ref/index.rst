@@ -12,4 +12,5 @@ Code Reference
    ephemeris
    idb
    tmtc
+   processing
    util

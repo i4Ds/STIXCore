@@ -493,6 +493,15 @@ class GenericTMPacket:
         return self._idb_version
 
     def get_decompression_parameter(self):
+        """List of parameter names that should be decompressed.
+
+        The corresponding decompressions setting parameters are also attached.
+
+        Returns
+        -------
+        `dict` or None
+            {'NIX00472': ("NIXD0007", "NIXD0008", "NIXD0009"), ...}
+        """
         if self.data_header.service_type == 21 and self.data_header.service_subtype == 6:
             if self.data_header.pi1_val in self._SCHEMAS:
                 return self._SCHEMAS[self.data_header.pi1_val]

@@ -42,7 +42,7 @@ def test_decompress():
     decompressed1 = decompress(1, s=0, k=5, m=3)
     decompressed2 = decompress(255, s=0, k=5, m=3)
     assert decompressed1 == 1
-    assert decompressed2 == 16106127360
+    assert decompressed2 == 16642998271
 
 
 def test_decompress_skm_error():
@@ -596,7 +596,7 @@ def test_compress_053(values):
     (252, 96076792050570576.00),
     (253, 96076792050570576.00),
     (254, 96076792050570576.00),
-    (255, 259407338536540569600.00),
+    (255, 96076792050570576.00),
 ])
 def test_variance_053(values):
     compressed, variance = values
@@ -860,7 +860,7 @@ def test_variance_053(values):
     (252, 13421772799),
     (253, 14495514623),
     (254, 15569256447),
-    (255, 16106127360),
+    (255, 16642998271),
 ])
 def test_decompress_053(values):
     compressed, decompressed = values
@@ -1260,7 +1260,7 @@ def test_compress_143(values):
     (124, 204799),
     (125, 221183),
     (126, 237567),
-    (127, 245760),
+    (127, 253951),
     (128, 0),
     (129, -1),
     (130, -2),
@@ -1388,7 +1388,7 @@ def test_compress_143(values):
     (252, -204799),
     (253, -221183),
     (254, -237567),
-    (255, -245760)
+    (255, -253951)
 ])
 def test_decompress_143(values):
     compressed, decompressed = values
@@ -1524,7 +1524,7 @@ def test_decompress_143(values):
     (124, 22369621.50),
     (125, 22369621.50),
     (126, 22369621.50),
-    (127, 60397977600.00),
+    (127, 22369621.50),
     (128, 0.00),
     (129, 0.00),
     (130, 0.00),
@@ -1652,7 +1652,7 @@ def test_decompress_143(values):
     (252, 22369621.50),
     (253, 22369621.50),
     (254, 22369621.50),
-    (255, 60397977600.00)
+    (255, 22369621.50)
 ])
 def test_variance_143(values):
     compressed, variance = values

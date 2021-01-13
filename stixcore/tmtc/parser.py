@@ -7,6 +7,8 @@ from stixcore.util.logging import get_logger
 
 logger = get_logger(__name__)
 
+SUBPACKET_NIX = "NIX00403"
+
 
 class PacketData:
     """Generic class for organizing all parameters of the TM packet data."""
@@ -78,10 +80,26 @@ class PacketData:
     def _flatten(self, new_root):
         for attr, value in self.__dict__.items():
             if isinstance(value, PacketData):
-                value._flatten(new_root)
+                # just a single subpacket
+                if attr == SUBPACKET_NIX:
+                    subpacket = PacketData()
+                    value._flatten(subpacket)
+                    setattr(new_root, SUBPACKET_NIX, [subpacket])
+                else:
+                    value._flatten(new_root)
             elif isinstance(value, list):
                 if attr == "NIXD0159":
                     value, attr = PacketData.unpack_NIX00065(value)
+                # multible subpackets
+                if attr == SUBPACKET_NIX:
+                    subpackets = []
+                    for index, list_elem in enumerate(value):
+                        subpacket = PacketData()
+                        list_elem._flatten(subpacket)
+                        subpackets.append(subpacket)
+                    setattr(new_root, SUBPACKET_NIX, subpackets)
+                    # skip the following loop
+                    value = []
 
                 for index, list_elem in enumerate(value):
                     if isinstance(list_elem, PacketData):
@@ -130,7 +148,7 @@ class PacketData:
         'any'
             The found value.
         """
-        return getattr(self, nix)
+        return getattr(self, nix) if hasattr(self, nix) else None
 
     def apply(self, nix, callback, args, addnix=None):
         """Apply a processing method to a parameter.
@@ -156,14 +174,29 @@ class PacketData:
         write_nix = addnix if addnix else nix
         counter = 0
         val = self.get(nix)
-        if isinstance(val, list):
-            w_val = [callback(v, args) for v in val]
-            counter = len(w_val)
-        else:
-            w_val = callback(val, args)
-            counter += 1
-        self.set(write_nix, w_val)
+        if val is not None:
+            if isinstance(val, list):
+                w_val = [callback(v, args) for v in val]
+                counter = len(w_val)
+            else:
+                w_val = callback(val, args)
+                counter += 1
+            self.set(write_nix, w_val)
+
+        if self.has_subpackets():
+            for subpacket in self.get_subpackets():
+                counter += subpacket.apply(nix, callback, args, addnix)
+
         return counter
+
+    def __repr__(self):
+        return f'{self.__class__.__name__}({self.__dict__.keys()})'
+
+    def has_subpackets(self):
+        return hasattr(self, SUBPACKET_NIX)
+
+    def get_subpackets(self):
+        return getattr(self, SUBPACKET_NIX) if self.has_subpackets() else []
 
 
 def parse_binary(binary, structure):

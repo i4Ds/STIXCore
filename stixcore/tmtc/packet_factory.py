@@ -1,7 +1,7 @@
 
-from stixcore.tmtc.packets import GenericPacket, GenericTMPacket, SourcePacketHeader
+from stixcore.tmtc.packets import GenericTMPacket, SourcePacketHeader
 
-__all__ = ['Packet', 'BaseFactory']
+__all__ = ['BaseFactory', 'MultipleMatchError', 'NoMatchError', 'ValidationFunctionError']
 
 
 class BaseFactory:
@@ -24,10 +24,10 @@ class BaseFactory:
         else:
             self.registry = registry
 
-    def __call__(self, data, idb):
-        return self._check_registered(data, idb)
+    def __call__(self, data):
+        return self._check_registered(data)
 
-    def _check_registered(self, data, idb):
+    def _check_registered(self, data):
         """
         Implementation of a basic check to see if arguments match against the registered classes.
 
@@ -55,17 +55,17 @@ class BaseFactory:
             raise MultipleMatchError("Too many candidate types identified ")
 
         # Only one is found
-        PacketType = candidates[0]
+        PacketType = candidates[0]  # noqa
 
-        return PacketType(data, idb)
+        return PacketType(data)
 
-    def register(self, PacketType, validation_function):
+    def register(self, PacketType, validation_function):  # noqa
         if validation_function is not None:
             if not callable(validation_function):
                 raise AttributeError("Keyword argument 'validation_function' must be callable.")
             self.registry[PacketType] = validation_function
 
-    def unregister(self, PacketType):
+    def unregister(self, PacketType):  # noqa
         self.registry.pop(PacketType)
 
 
@@ -74,27 +74,28 @@ class TMTCPacketFactory(BaseFactory):
     Factory from TM/TC packets returning either TM or TC Packets
     """
     def __init__(self, registry=None):
-        # if not isinstance(idb, IDB):
-        #    raise AttributeError("idb is not of type IDB")
         super().__init__(registry=registry)
-        self.tm_packet_factory = TMPacketFactory(registry=GenericTMPacket._registry)
+        self.tm_packet_factory = TMPacketFactory(registry=GenericTMPacket._registry)  # noqa
 
-    def __call__(self, data, idb):
-        sph = SourcePacketHeader(data, idb)
-        packet = self._check_registered(sph, idb)
-        return self.tm_packet_factory(packet, idb)
+    def __call__(self, data):
+        sph = SourcePacketHeader(data)
+        packet = self._check_registered(sph)
+        return self.tm_packet_factory(packet)
 
 
 class TMPacketFactory(BaseFactory):
     """
     Factory from TM packet return the correct type of based on the packet data and registered.
     """
-    def __call__(self, data, idb):
-        return self._check_registered(data, idb)
+    def __init__(self, registry=None):
+        super().__init__(registry=registry)
+
+    def __call__(self, data):
+        return self._check_registered(data)
 
 
 # Main function
-Packet = TMTCPacketFactory(registry=GenericPacket._registry)
+# Packet = TMTCPacketFactory(registry=GenericPacket._registry)
 
 
 class NoMatchError(Exception):

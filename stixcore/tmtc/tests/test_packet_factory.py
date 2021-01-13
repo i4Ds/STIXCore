@@ -7,8 +7,17 @@ import pytest
 
 from stixcore.idb.manager import IDBManager
 from stixcore.processing.decompression import CompressedParameter, decompress
-from stixcore.tmtc.packet_factory import BaseFactory, MultipleMatchError, NoMatchError, Packet
-from stixcore.tmtc.packets import SOURCE_PACKET_HEADER_STRUCTURE, TM_DATA_HEADER_STRUCTURE
+from stixcore.tmtc.packet_factory import (
+    BaseFactory,
+    MultipleMatchError,
+    NoMatchError,
+    TMTCPacketFactory,
+)
+from stixcore.tmtc.packets import (
+    SOURCE_PACKET_HEADER_STRUCTURE,
+    TM_DATA_HEADER_STRUCTURE,
+    GenericPacket,
+)
 from stixcore.tmtc.tm import tm_1, tm_3, tm_5, tm_6, tm_17, tm_21, tm_236, tm_237, tm_238, tm_239
 
 
@@ -19,7 +28,7 @@ def idbm():
 
 @pytest.fixture
 def idb():
-    return IDBManager(Path(__file__).parent.parent.parent / "idb" / "tests" / "data") \
+    return IDBManager(Path(__file__).parent.parent.parent / "idb" / "tests" / "data")\
         .get_idb("2.26.34")
 
 
@@ -56,20 +65,20 @@ def test_base_factory(idbm):
     assert str(e.value).startswith('Keyword argument')
 
     with pytest.raises(NoMatchError):
-        factory(1, idbm)
+        factory(1)
 
     factory.register(Dummy1, Dummy1.validate_function)
     factory.register(Dummy2, Dummy2.validate_function)
 
     with pytest.raises(MultipleMatchError):
-        factory(2, idbm)
+        factory(2)
 
-    res = factory(1, idbm)
+    res = factory(1)
     assert res == 1
     assert isinstance(res, Dummy1)
 
     factory.unregister(Dummy1)
-    res = factory(2, idbm)
+    res = factory(2)
     assert res == 2
 
 
@@ -84,7 +93,10 @@ def test_tm_packet(idbm):
     test_values['v1'] = 1
     test_values['v2'] = 2
     test_binary = bitstring.pack(test_fmt, *test_values.values())
-    packet = Packet(test_binary, idbm)
+
+    Packet = TMTCPacketFactory(registry=GenericPacket._registry, idbm=idbm)
+
+    packet = Packet(test_binary)
     assert isinstance(packet, tm_1.TM_1_1)
     assert all([getattr(packet.source_packet_header, key) == test_values[key]
                 for key in SOURCE_PACKET_HEADER_STRUCTURE.keys()])
@@ -97,36 +109,25 @@ def test_tm_packet(idbm):
 @pytest.mark.skip(reason="TODO: Add back TM1")
 def test_tm_1_1(data_dir, idbm):
     hex = _get_bin_from_file(data_dir, '1_1.hex')
-    packet = Packet(hex, idbm)
+    Packet = TMTCPacketFactory(registry=GenericPacket._registry, idbm=idbm)
+    packet = Packet(hex)
     assert isinstance(packet, tm_1.TM_1_1)
     assert packet.data_header.service_type == 1
     assert packet.data_header.service_subtype == 1
     assert packet.data_header.pi1_val is None
-
     assert packet.data.NIX00001 is not None
     assert packet.data.NIX00002 is not None
 
 
 def test_tm_21_6_30(data_dir, idbm):
     hex = _get_bin_from_file(data_dir, '21_6_30.hex')
-    packet = Packet(hex, idbm)
+    GenericPacket.idb_manager = idbm
+    Packet = TMTCPacketFactory(registry=GenericPacket._registry)
+    packet = Packet(hex)
     assert isinstance(packet, tm_21.TM_21_6_30)
     assert packet.data_header.service_type == 21
     assert packet.data_header.service_subtype == 6
-    assert packet.data_header.pi1_val == 30
-
-    assert packet.data.NIX00120 is not None
-    assert packet.data.NIX00405 is not None
-    assert packet.data.NIXD0407 is not None
-
-
-def test_tm_21_6_30_idb(data_dir, idb):
-    hex = _get_bin_from_file(data_dir, '21_6_30.hex')
-    packet = Packet(hex, idb)
-    assert isinstance(packet, tm_21.TM_21_6_30)
-    assert packet.data_header.service_type == 21
-    assert packet.data_header.service_subtype == 6
-    assert packet.data_header.pi1_val == 30
+    assert packet.pi1_val == 30
 
     assert packet.data.NIX00120 is not None
     assert packet.data.NIX00405 is not None
@@ -237,12 +238,14 @@ def test_all_tm(data_dir, idbm, packets):
     t, st, pi1, cl, testpadding = packets
     filename = f"{t}_{st}.hex" if pi1 is None else f"{t}_{st}_{pi1}.hex"
     hex = _get_bin_from_file(data_dir, filename)
-    packet = Packet(hex, idbm)
+    GenericPacket.idb_manager = idbm
+    Packet = TMTCPacketFactory(registry=GenericPacket._registry)
+    packet = Packet(hex)
     assert isinstance(packet, cl)
     assert packet.data_header.service_type == t
     assert packet.data_header.service_subtype == st
-    assert packet.data_header.pi1_val == pi1
-    # was all data consumed?
+    assert packet.pi1_val == pi1
+    # was all data consumed
     if testpadding:
         assert packet.source_packet_header.bitstream.pos == \
             len(packet.source_packet_header.bitstream)
@@ -280,7 +283,9 @@ def test_decompress(data_dir, idbm, decom_packets):
     t, st, pi1, cl = decom_packets
     filename = f"{t}_{st}.hex" if pi1 is None else f"{t}_{st}_{pi1}.hex"
     hex = _get_bin_from_file(data_dir, filename)
-    packet = Packet(hex, idbm)
+    GenericPacket.idb_manager = idbm
+    Packet = TMTCPacketFactory(registry=GenericPacket._registry)
+    packet = Packet(hex)
     assert isinstance(packet, cl)
     c = decompress(packet)
 

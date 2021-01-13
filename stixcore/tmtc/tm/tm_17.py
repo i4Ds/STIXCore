@@ -5,9 +5,6 @@ from stixcore.tmtc.packets import GenericTMPacket
 class TM_17_2(GenericTMPacket):
     """TM(17, 2) Connection Test Report."""
 
-    def __init__(self, data, idb):
-        super().__init__(data, idb)
-
     @classmethod
     def is_datasource_for(cls, tm_packet):
         dh = tm_packet.data_header

@@ -5,9 +5,6 @@ from stixcore.tmtc.packets import GenericTMPacket
 class TM_1_1(GenericTMPacket):
     """TM(1, 1) Telecommand acceptance report – success."""
 
-    def __init__(self, data, idb):
-        super().__init__(data, idb)
-
     @classmethod
     def is_datasource_for(cls, tm_packet):
         dh = tm_packet.data_header
@@ -17,8 +14,8 @@ class TM_1_1(GenericTMPacket):
 class TM_1_2(GenericTMPacket):
     """TM(1, 2) Telecommand acceptance report – failure."""
 
-    def __init__(self, data, idb):
-        super().__init__(data, idb)
+    def __init__(self, data):
+        super().__init__(data)
 
     @classmethod
     def is_datasource_for(cls, tm_packet):
@@ -29,8 +26,8 @@ class TM_1_2(GenericTMPacket):
 class TM_1_7(GenericTMPacket):
     """TM(1, 7) Telecommand execution completed report – success."""
 
-    def __init__(self, data, idb):
-        super().__init__(data, idb)
+    def __init__(self, data):
+        super().__init__(data)
 
     @classmethod
     def is_datasource_for(cls, tm_packet):
@@ -41,8 +38,8 @@ class TM_1_7(GenericTMPacket):
 class TM_1_8(GenericTMPacket):
     """TM(1, 8) Telecommand execution completed report – failure."""
 
-    def __init__(self, data, idb):
-        super().__init__(data, idb)
+    def __init__(self, data):
+        super().__init__(data)
 
     @classmethod
     def is_datasource_for(cls, tm_packet):

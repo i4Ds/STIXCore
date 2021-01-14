@@ -453,6 +453,13 @@ class GenericTMPacket:
                                             self.pi1_val)
 
         self.data = parse_variable(self.source_packet_header.bitstream, tree)
+        self.unflatten()
+
+    def unflatten(self):
+        """Combine the flattend data array of nested repeaters into a nested list.
+
+        Has to be overridden by individual TM packets with nested repeaters.
+        """
 
     def __repr__(self):
         return f'{self.__class__.__name__}({self.source_packet_header}, {self.data_header})'

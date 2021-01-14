@@ -14,12 +14,14 @@ class PacketData:
     """Generic class for organizing all parameters of the TM packet data."""
 
     @classmethod
-    def parameter_dict_2_PacketData(cls, d):
-        """Convert the nested dictionary of the parameter parsing into a PacketData object.
+    def parameter_list_2_PacketData(cls, d):
+        """Convert the nested lists of the parameter parsing into a PacketData object.
+
+        Unpacks/decodes the NIXD0159 counts from TM(21,6,20) by eliminating this repeater level.
 
         Parameters
         ----------
-        d : `dict`
+        d : `list`
             The parse result of the TM data block.
 
         Returns
@@ -27,28 +29,33 @@ class PacketData:
         `PacketData`
             Generic data structure.
         """
-        # instance of class list
-        if isinstance(d, list):
-            d = [PacketData.parameter_dict_2_PacketData(x) for x in d]
-
         # if d is not a instance of dict then
         # directly object is returned
-        if not isinstance(d, dict):
+        if not isinstance(d, list):
             return d
 
         # constructor of the class passed to obj
         obj = PacketData()
 
         for k in d:
-            # if k=='NIX00260': print('NIX00260')
-            obj.__dict__[k] = PacketData.parameter_dict_2_PacketData(d[k])
+            if k['name'] == 'NIXD0159':
+                name, unpacked = PacketData.unpack_NIX00065(k)
+                obj.__dict__[name] = unpacked
+            else:
+                if 'children' in k:
+                    new_entry = []
+                    val = k['value']
+                    children = k['children']
+                    for child in np.array_split(children, val):
+                        new_entry.append(PacketData.parameter_list_2_PacketData(list(child)))
+                else:
+                    new_entry = PacketData.parameter_list_2_PacketData(k['value'])
+                obj.__dict__[k['name']] = new_entry
 
         return obj
 
     def flatten(self):
         """Flatten the tree structure after parsing into a structure with all NIXs on the root level.
-
-        Unpacks/decodes the NIXD0159 counts from TM(21,6,20) by eliminating this repeater level.
 
         Returns
         -------
@@ -61,35 +68,53 @@ class PacketData:
 
     @staticmethod
     def unpack_NIX00065(param):
-        NIX00065 = []
-        for index, list_elem in enumerate(param):
-            if isinstance(list_elem, PacketData):
-                c_v = list_elem.NIX00065
-                if isinstance(c_v, int):
-                    NIX00065.append(c_v)
-                elif isinstance(c_v, list) and len(c_v) == 2:
-                    NIX00065.append(int.from_bytes((c_v[0]+1).to_bytes(2, 'big')
-                                    + c_v[1].to_bytes(1, 'big'), 'big'))
-                else:
-                    raise ValueError(f'Continuation bits value of {len(c_v)} \
-                    not allowed (0, 1, 2)')
-            else:
-                NIX00065.append(1)
-        return (NIX00065, "NIX00065")
+        """Unpack the NIX00065 values.
+
+        Parameters
+        ----------
+        param : ´dict´
+            parse entry
+
+        Returns
+        -------
+        `tuple` (name, value)
+            the name of the parameter to replace
+            the unpacked value
+
+        Raises
+        ------
+        ValueError
+            if unpacking schema is not supported
+        """
+        NIX00065 = None
+        if param['value'] == 0:
+            NIX00065 = 1
+        elif param['value'] == 1:
+            NIX00065 = param['children'][0]['value']
+        elif param['value'] == 2:
+            hb = param['children'][0]['value']
+            lb = param['children'][1]['value']
+            NIX00065 = int.from_bytes((lb+1).to_bytes(2, 'big')
+                                      + hb.to_bytes(1, 'big'), 'big')
+        else:
+            raise ValueError(f'Continuation bits value of {param["value"]} \
+            not allowed (0, 1, 2)')
+
+        return "NIX00065", NIX00065
 
     def _flatten(self, new_root):
+        print("flatten")
         for attr, value in self.__dict__.items():
             if isinstance(value, PacketData):
                 # just a single subpacket
                 if attr == SUBPACKET_NIX:
+                    print(SUBPACKET_NIX)
                     subpacket = PacketData()
                     value._flatten(subpacket)
                     setattr(new_root, SUBPACKET_NIX, [subpacket])
                 else:
                     value._flatten(new_root)
             elif isinstance(value, list):
-                if attr == "NIXD0159":
-                    value, attr = PacketData.unpack_NIX00065(value)
                 # multible subpackets
                 if attr == SUBPACKET_NIX:
                     subpackets = []
@@ -99,27 +124,28 @@ class PacketData:
                         subpackets.append(subpacket)
                     setattr(new_root, SUBPACKET_NIX, subpackets)
                     # skip the following loop
-                    value = []
-
-                for index, list_elem in enumerate(value):
-                    if isinstance(list_elem, PacketData):
-                        list_elem._flatten(new_root)
-                    else:
-                        if hasattr(new_root, attr):
-                            old_val = getattr(new_root, attr)
-                            if not isinstance(old_val, list):
-                                old_val = [old_val, np.array(value)]
+                else:
+                    for index, list_elem in enumerate(value):
+                        if index == 0:
+                            if hasattr(new_root, attr):
+                                old_val = getattr(new_root, attr)
+                                if not isinstance(old_val, list):
+                                    old_val = [old_val, len(value)]
+                                else:
+                                    old_val.append(len(value))
+                                setattr(new_root, attr, old_val)
                             else:
-                                old_val.append(np.array(value))
-                            setattr(new_root, attr, old_val)
+                                setattr(new_root, attr, len(value))
+                        list_elem._flatten(new_root)
 
-                        else:
-                            setattr(new_root, attr, np.array(value))
-                        break
             else:
                 if hasattr(new_root, attr):
-                    # TODO check if this is possible
-                    raise Exception("add value not to repeater NIX")
+                    old_val = getattr(new_root, attr)
+                    if not isinstance(old_val, list):
+                        old_val = [old_val, value]
+                    else:
+                        old_val.append(value)
+                    setattr(new_root, attr, old_val)
                 else:
                     setattr(new_root, attr, value)
 
@@ -247,7 +273,7 @@ def _parse_tree(bitstream, parent, fields):
                 bitstream.pos = pnode.parameter.PLF_OFFBY * 8 + pnode.parameter.PLF_OFFBI
 
             try:
-                raw_val, gr_val = (bitstream.read(pnode.parameter.bin_format), dict())
+                raw_val, children = (bitstream.read(pnode.parameter.bin_format), [])
             except Exception as e:
                 print(e)
                 raise e
@@ -258,20 +284,16 @@ def _parse_tree(bitstream, parent, fields):
                     if num_children > 0:
                         pnode.counter = num_children
                         is_valid = True
-                        _parse_tree(bitstream, pnode, gr_val)
+                        _parse_tree(bitstream, pnode, children)
                 if not is_valid:
                     if pnode.name != 'NIXD0159':
                         # repeater NIXD0159 can be zero according to STIX ICD-0812-ESC Table 93 P123
                         logger.warning(f'Repeater {pnode.name}  has an invalid value: {raw_val}')
 
-            if pnode.name in fields:
-                oldEntry = fields[pnode.name]
-                if not isinstance(oldEntry, list):
-                    oldEntry = [oldEntry]
-                oldEntry.append(gr_val if len(gr_val) > 0 else raw_val)
-                fields[pnode.name] = oldEntry
-            else:
-                fields[pnode.name] = gr_val if len(gr_val) > 0 else raw_val
+            entry = {'name': pnode.name, "value": raw_val}
+            if len(children) > 0:
+                entry["children"] = children
+            fields.append(entry)
 
 
 def parse_variable(bitstream, tree):
@@ -288,9 +310,9 @@ def parse_variable(bitstream, tree):
     `PacketData`
         The parsed (nested) telemetry packet parameters.
     """
-    fields = dict()
+    fields = []
     _parse_tree(bitstream, tree, fields)
-    return PacketData.parameter_dict_2_PacketData(fields).flatten()
+    return PacketData.parameter_list_2_PacketData(fields).flatten()
 
 
 def parse_bitstream(bitstream, structure):
@@ -337,3 +359,35 @@ def parse_repeated(bitstream, structure, num_repeats):
     [[out[name].append(bitstream.readlist(format)) for name, format in structure.items()]
      for i in range(num_repeats)]
     return {'fields': out, 'bitstream': bitstream}
+
+
+def split_into_length(ar, splits):
+    """Split a list into n chunks with a given length each
+
+    Parameters
+    ----------
+    ar :  `list`
+        List like input to split up
+    splits : `list`
+        list of n length
+
+    Returns
+    -------
+    `list`
+        a list of numpy.array chunks
+
+    Raises
+    ------
+    ValueError
+        if the sum of all length in splits under or overflows
+    """
+    parts = []
+    start = 0
+    for split in splits:
+        parts.append(np.array(ar[start: start + split]))
+        start += split
+    if start < len(ar):
+        raise ValueError("Length does not match to short")
+    elif start > len(ar):
+        raise ValueError("Length does not match to long")
+    return parts

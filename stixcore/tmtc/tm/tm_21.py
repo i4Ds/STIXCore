@@ -1,5 +1,6 @@
 """Service 21 – Science Data Transfer"""
 from stixcore.tmtc.packets import GenericTMPacket
+from stixcore.tmtc.parser import split_into_length
 
 
 class TM_21_6_20(GenericTMPacket):
@@ -20,6 +21,10 @@ class TM_21_6_21(GenericTMPacket):
         dh = tm_packet.data_header
         return dh.service_type == 21 and dh.service_subtype == 6 and tm_packet.pi1_val == 21
 
+    def unflatten(self):
+        for subpacket in self.data.get_subpackets():
+            subpacket.NIX00260 = split_into_length(subpacket.NIX00260, subpacket.NIX00259)
+
     def get_decompression_parameter(self):
         # https://github.com/i4Ds/STIX-FSW/issues/953
         params = super().get_decompression_parameter()
@@ -37,6 +42,10 @@ class TM_21_6_22(GenericTMPacket):
         dh = tm_packet.data_header
         return dh.service_type == 21 and dh.service_subtype == 6 and tm_packet.pi1_val == 22
 
+    def unflatten(self):
+        for subpacket in self.data.get_subpackets():
+            subpacket.NIX00260 = split_into_length(subpacket.NIX00260, subpacket.NIX00259)
+
 
 class TM_21_6_23(GenericTMPacket):
     """TM(21, 6) SSID 23: X-ray science data: X-ray data compression level 3 (Visibilities)."""
@@ -45,6 +54,12 @@ class TM_21_6_23(GenericTMPacket):
     def is_datasource_for(cls, tm_packet):
         dh = tm_packet.data_header
         return dh.service_type == 21 and dh.service_subtype == 6 and tm_packet.pi1_val == 23
+
+    def unflatten(self):
+        for subpacket in self.data.get_subpackets():
+            subpacket.NIX00100 = split_into_length(subpacket.NIX00100, subpacket.NIX00262)
+            subpacket.NIX00263 = split_into_length(subpacket.NIX00263, subpacket.NIX00262)
+            subpacket.NIX00264 = split_into_length(subpacket.NIX00264, subpacket.NIX00262)
 
 
 class TM_21_6_24(GenericTMPacket):
@@ -55,6 +70,10 @@ class TM_21_6_24(GenericTMPacket):
         dh = tm_packet.data_header
         return dh.service_type == 21 and dh.service_subtype == 6 and tm_packet.pi1_val == 24
 
+    def unflatten(self):
+        for subpacket in self.data.get_subpackets():
+            subpacket.NIX00268 = split_into_length(subpacket.NIX00268, subpacket.NIX00270)
+
 
 class TM_21_6_30(GenericTMPacket):
     """TM(21, 6) SSID 30: Quick look data: Summed light curves."""
@@ -64,6 +83,9 @@ class TM_21_6_30(GenericTMPacket):
         dh = tm_packet.data_header
         return dh.service_type == 21 and dh.service_subtype == 6 and tm_packet.pi1_val == 30
 
+    def unflatten(self):
+        self.data.NIX00272 = split_into_length(self.data.NIX00272, self.data.NIX00271)
+
 
 class TM_21_6_31(GenericTMPacket):
     """TM(21, 6) SSID 31: Quick look data: Background monitor."""
@@ -72,6 +94,9 @@ class TM_21_6_31(GenericTMPacket):
     def is_datasource_for(cls, tm_packet):
         dh = tm_packet.data_header
         return dh.service_type == 21 and dh.service_subtype == 6 and tm_packet.pi1_val == 31
+
+    def unflatten(self):
+        self.data.NIX00278 = split_into_length(self.data.NIX00278, self.data.NIX00277)
 
 
 class TM_21_6_32(GenericTMPacket):
@@ -108,6 +133,9 @@ class TM_21_6_41(GenericTMPacket):
     def is_datasource_for(cls, tm_packet):
         dh = tm_packet.data_header
         return dh.service_type == 21 and dh.service_subtype == 6 and tm_packet.pi1_val == 41
+
+    def unflatten(self):
+        self.data.NIX00158 = split_into_length(self.data.NIX00158, self.data.NIX00146)
 
 
 class TM_21_6_42(GenericTMPacket):

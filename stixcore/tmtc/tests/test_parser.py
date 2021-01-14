@@ -1,7 +1,7 @@
 import bitstring
-import numpy as np
+import pytest
 
-from stixcore.tmtc.parser import PacketData, parse_binary, parse_repeated
+from stixcore.tmtc.parser import PacketData, parse_binary, parse_repeated, split_into_length
 
 
 def test_parse_binary():
@@ -17,17 +17,47 @@ def test_parse_binary():
 def test_parse_unpack_NIX00065():
     hb = 5
     lb = 10
-    res = [1, 1, 2, 1, 256 + (hb << 8) + lb]
+    res = 256 + (hb << 8) + lb
+    NIXD0159 = 'NIXD0159'
+    NIX00065 = 'NIX00065'
 
-    pd = PacketData.parameter_dict_2_PacketData(
-        {'NIXD0159': [1, 2, {'NIX00065': 2}, 4, {'NIX00065': [hb, lb]}]}
-    )
-    v, name = PacketData.unpack_NIX00065(pd.get('NIXD0159'))
+    rname, v = PacketData.unpack_NIX00065({'name': NIXD0159, 'value': 0})
+    assert rname == NIX00065
+    assert v == 1
+
+    with pytest.raises(TypeError) as e:
+        rname, v = PacketData.unpack_NIX00065([{'name': NIXD0159, 'value': 1}])
+        assert e is not None
+
+    rname, v = PacketData.unpack_NIX00065({'name': NIXD0159, 'value': 1, 'children':
+                                          [{'name': NIX00065, 'value': lb}]})
+    assert v == lb
+
+    rname, v = PacketData.unpack_NIX00065({'name': NIXD0159, 'value': 2, 'children':
+                                          [{'name': NIX00065, 'value': lb},
+                                           {'name': NIX00065, 'value': hb}]})
     assert v == res
-    assert name == 'NIX00065'
 
-    flatt = pd.flatten()
-    assert (flatt.get(name) == np.array(res)).all()
+    with pytest.raises(ValueError) as e:
+        rname, v = PacketData.unpack_NIX00065({'name': NIXD0159, 'value': 3})
+        assert e is not None
+
+
+def test_split_into_length():
+    a = range(0, 10)
+    split = [2, 3, 5]
+    sa = split_into_length(a, split)
+    assert len(sa) == len(split)
+    for i, s in enumerate(split):
+        assert len(sa[i]) == s
+
+    with pytest.raises(ValueError) as e:
+        split_into_length(a, [5, 3])
+        assert e is not None
+
+    with pytest.raises(ValueError) as e:
+        split_into_length(a, [5, 10])
+        assert e is not None
 
 
 def test_parser_repeated():

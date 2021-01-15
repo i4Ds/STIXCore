@@ -547,7 +547,12 @@ class IDB:
         try:
             # connect to the DB in read only mode
             uri = self.filename.as_uri() + "?mode=ro"
-            self.conn = sqlite3.connect(uri, check_same_thread=False, uri=True)
+            source = sqlite3.connect(uri, check_same_thread=False, uri=True)
+
+            self.conn = sqlite3.connect(':memory:')
+            source.backup(self.conn)
+            source.close()
+
             logger.info('IDB loaded from {}'.format(self.filename))
             self.cur = self.conn.cursor()
             self._version = self.get_idb_version()
@@ -571,7 +576,7 @@ class IDB:
         else:
             rows = None
             try:
-                thread_lock.acquire(True)
+                # thread_lock.acquire(True)
                 # sqlite doesn't like multi-threads
 
                 if arguments:
@@ -588,7 +593,8 @@ class IDB:
                         for row in self.cur.fetchall()
                     ]
             finally:
-                thread_lock.release()
+                # thread_lock.release()
+                pass
             return rows
 
     def get_spid_info(self, spid):

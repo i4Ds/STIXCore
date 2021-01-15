@@ -1,12 +1,16 @@
 import re
 import binascii
+import xml.etree.ElementTree as Et
 from pathlib import Path
+from binascii import unhexlify
+from concurrent.futures import ProcessPoolExecutor, wait
 
 import bitstring
 import pytest
 
 from stixcore.idb.manager import IDBManager
 from stixcore.processing.decompression import CompressedParameter, decompress
+from stixcore.tmtc import Packet
 from stixcore.tmtc.packet_factory import (
     BaseFactory,
     MultipleMatchError,
@@ -307,3 +311,24 @@ def test_decompress(data_dir, idbm, decom_packets):
                 isinstance(params, CompressedParameter)
     else:
         assert c == 0
+
+
+def test_parallel():
+    packet_data = []
+    tree = Et.parse('D:/CruisePhase_STP124_Part3_manual_BatchRequest.PktTmRaw.SOL.' +
+                    '0.2020.337.15.26.50.474.AuYP@2020.337.15.26.51.700.1.xml')
+    root = tree.getroot()
+    for i, node in enumerate(root.iter('Packet')):
+        packet_binary = unhexlify(node.text)
+        # Not sure why guess and extra moc header
+        packet_data.append(packet_binary[76:])
+
+    # for idx, pdhex in enumerate(packet_data):
+    #    packet = Packet(pdhex)
+    # print(packet)
+
+    with ProcessPoolExecutor() as exec:
+        res = exec.map(Packet, packet_data)
+        wait(res)
+
+        print(1)

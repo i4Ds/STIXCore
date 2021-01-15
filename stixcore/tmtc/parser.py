@@ -109,7 +109,6 @@ class PacketData:
         return "NIX00065", NIX00065
 
     def _flatten(self, new_root):
-        print("flatten")
         for attr, value in self.__dict__.items():
             if isinstance(value, PacketData):
                 # just a single subpacket
@@ -389,6 +388,9 @@ def split_into_length(ar, splits):
     """
     parts = []
     start = 0
+    if isinstance(splits, int):
+        splits = [splits]
+
     for split in splits:
         parts.append(np.array(ar[start: start + split]))
         start += split

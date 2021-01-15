@@ -70,6 +70,12 @@ class PacketData:
     def unpack_NIX00065(param):
         """Unpack the NIX00065 values.
 
+        Continuation bits (NIXD0159) define number of subsequent bytes used to define counts for
+        given Detector / Pixel / Energy combination, i.e. value 0 denotes no following bytes and
+        count equal to 1, value 1 denotes 1 byte for “Counts” parameter with value between 2-255
+        and continuation bits equal to 2 are used for 2 successive bytes for “Counts” parameter
+        with value between 256 and 65535.
+
         Parameters
         ----------
         param : ´dict´
@@ -174,7 +180,7 @@ class PacketData:
         'any'
             The found value.
         """
-        return getattr(self, nix) if hasattr(self, nix) else None
+        return getattr(self, nix, None)
 
     def apply(self, nix, callback, args, addnix=None):
         """Apply a processing method to a parameter.
@@ -222,7 +228,7 @@ class PacketData:
         return hasattr(self, SUBPACKET_NIX)
 
     def get_subpackets(self):
-        return getattr(self, SUBPACKET_NIX) if self.has_subpackets() else []
+        return getattr(self, SUBPACKET_NIX, [])
 
 
 def parse_binary(binary, structure):
@@ -291,7 +297,7 @@ def _parse_tree(bitstream, parent, fields):
                         logger.warning(f'Repeater {pnode.name}  has an invalid value: {raw_val}')
 
             entry = {'name': pnode.name, "value": raw_val}
-            if len(children) > 0:
+            if children:
                 entry["children"] = children
             fields.append(entry)
 

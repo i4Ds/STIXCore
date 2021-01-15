@@ -21,7 +21,7 @@ class TM_21_6_21(GenericTMPacket):
         dh = tm_packet.data_header
         return dh.service_type == 21 and dh.service_subtype == 6 and tm_packet.pi1_val == 21
 
-    def unflatten(self):
+    def group_repeaters(self):
         for subpacket in self.data.get_subpackets():
             subpacket.NIX00260 = split_into_length(subpacket.NIX00260, subpacket.NIX00259)
 
@@ -42,7 +42,7 @@ class TM_21_6_22(GenericTMPacket):
         dh = tm_packet.data_header
         return dh.service_type == 21 and dh.service_subtype == 6 and tm_packet.pi1_val == 22
 
-    def unflatten(self):
+    def group_repeaters(self):
         for subpacket in self.data.get_subpackets():
             subpacket.NIX00260 = split_into_length(subpacket.NIX00260, subpacket.NIX00259)
 
@@ -55,7 +55,7 @@ class TM_21_6_23(GenericTMPacket):
         dh = tm_packet.data_header
         return dh.service_type == 21 and dh.service_subtype == 6 and tm_packet.pi1_val == 23
 
-    def unflatten(self):
+    def group_repeaters(self):
         for subpacket in self.data.get_subpackets():
             subpacket.NIX00100 = split_into_length(subpacket.NIX00100, subpacket.NIX00262)
             subpacket.NIX00263 = split_into_length(subpacket.NIX00263, subpacket.NIX00262)
@@ -70,7 +70,7 @@ class TM_21_6_24(GenericTMPacket):
         dh = tm_packet.data_header
         return dh.service_type == 21 and dh.service_subtype == 6 and tm_packet.pi1_val == 24
 
-    def unflatten(self):
+    def group_repeaters(self):
         for subpacket in self.data.get_subpackets():
             subpacket.NIX00268 = split_into_length(subpacket.NIX00268, subpacket.NIX00270)
 
@@ -83,7 +83,7 @@ class TM_21_6_30(GenericTMPacket):
         dh = tm_packet.data_header
         return dh.service_type == 21 and dh.service_subtype == 6 and tm_packet.pi1_val == 30
 
-    def unflatten(self):
+    def group_repeaters(self):
         self.data.NIX00272 = split_into_length(self.data.NIX00272, self.data.NIX00271)
 
 
@@ -95,7 +95,7 @@ class TM_21_6_31(GenericTMPacket):
         dh = tm_packet.data_header
         return dh.service_type == 21 and dh.service_subtype == 6 and tm_packet.pi1_val == 31
 
-    def unflatten(self):
+    def group_repeaters(self):
         self.data.NIX00278 = split_into_length(self.data.NIX00278, self.data.NIX00277)
 
 
@@ -134,7 +134,7 @@ class TM_21_6_41(GenericTMPacket):
         dh = tm_packet.data_header
         return dh.service_type == 21 and dh.service_subtype == 6 and tm_packet.pi1_val == 41
 
-    def unflatten(self):
+    def group_repeaters(self):
         self.data.NIX00158 = split_into_length(self.data.NIX00158, self.data.NIX00146)
 
 

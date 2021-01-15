@@ -252,25 +252,27 @@ def test_all_tm(data_dir, idbm, packets):
 
 
 @pytest.mark.parametrize('decom_packets', [
-    (21,   6,   20, tm_21.TM_21_6_20),
-    (21,   6,   21, tm_21.TM_21_6_21),
-    (21,   6,   22, tm_21.TM_21_6_22),
-    # (21,   6,   23, tm_21.TM_21_6_23),
+    (21,   6,   20, tm_21.TM_21_6_20, 2),
+    (21,   6,   21, tm_21.TM_21_6_21, 2),
+    (21,   6,   21, tm_21.TM_21_6_21, 1),
+    (21,   6,   22, tm_21.TM_21_6_22, 2),
+    # (21,   6,   23, tm_21.TM_21_6_23, 2),
     # TODO enable test again after https://github.com/i4Ds/STIXCore/issues/40 resolved
-    (21,   6,   24, tm_21.TM_21_6_24),
-    (21,   6,   30, tm_21.TM_21_6_30),
-    (21,   6,   31, tm_21.TM_21_6_31),
-    (21,   6,   32, tm_21.TM_21_6_32),
-    (21,   6,   33, tm_21.TM_21_6_33),
-    (21,   6,   34, tm_21.TM_21_6_34),
-    (21,   6,   41, tm_21.TM_21_6_41),
-    (21,   6,   42, tm_21.TM_21_6_42),
-    (21,   6,   43, tm_21.TM_21_6_43),
-], ids=("TM_21_6_20",
-        "TM_21_6_21",
-        "TM_21_6_22",
-        # "TM_21_6_23",
-        "TM_21_6_24",
+    (21,   6,   24, tm_21.TM_21_6_24, 4),
+    (21,   6,   30, tm_21.TM_21_6_30, 0),
+    (21,   6,   31, tm_21.TM_21_6_31, 0),
+    (21,   6,   32, tm_21.TM_21_6_32, 0),
+    (21,   6,   33, tm_21.TM_21_6_33, 0),
+    (21,   6,   34, tm_21.TM_21_6_34, 0),
+    (21,   6,   41, tm_21.TM_21_6_41, 0),
+    (21,   6,   42, tm_21.TM_21_6_42, 0),
+    (21,   6,   43, tm_21.TM_21_6_43, 0),
+], ids=("TM_21_6_20:2",
+        "TM_21_6_21:2",
+        "TM_21_6_21:1",
+        "TM_21_6_22:2",
+        # "TM_21_6_23:2",
+        "TM_21_6_24:4",
         "TM_21_6_30",
         "TM_21_6_31",
         "TM_21_6_32",
@@ -280,14 +282,18 @@ def test_all_tm(data_dir, idbm, packets):
         "TM_21_6_42",
         "TM_21_6_43",))
 def test_decompress(data_dir, idbm, decom_packets):
-    t, st, pi1, cl = decom_packets
-    filename = f"{t}_{st}.hex" if pi1 is None else f"{t}_{st}_{pi1}.hex"
+    t, st, pi1, cl, nstr = decom_packets
+
+    n_str = '' if nstr <= 1 else f'_nstr_{nstr}'
+    filename = f"{t}_{st}{n_str}.hex" if pi1 is None else f"{t}_{st}_{pi1}{n_str}.hex"
     hex = _get_bin_from_file(data_dir, filename)
     GenericPacket.idb_manager = idbm
     Packet = TMTCPacketFactory(registry=GenericPacket._registry)
     packet = Packet(hex)
     assert isinstance(packet, cl)
     c = decompress(packet)
+
+    assert len(packet.data.get_subpackets()) == nstr
 
     decompression_parameter = packet.get_decompression_parameter()
     if decompression_parameter is not None:

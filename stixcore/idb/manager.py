@@ -174,7 +174,7 @@ class IDBManager:
             with sqlite3.connect(str(out_file)) as conn:
                 cur = conn.cursor()
 
-                thread_lock.acquire(True)
+                # thread_lock.acquire(True)
 
                 create_table = open(Path(os.path.abspath(__file__)).parent
                                     / 'createIdb.sql', 'r').read()
@@ -219,7 +219,7 @@ class IDBManager:
         finally:
             conn.commit()
             conn.close()
-            thread_lock.release()
+            # thread_lock.release()
 
     def get_versions(self):
         r"""Get all available versions in the root directory. Does not check for version conflicts.

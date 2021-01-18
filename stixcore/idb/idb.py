@@ -1,4 +1,5 @@
 import os
+import sys
 import sqlite3
 from types import SimpleNamespace
 
@@ -546,12 +547,13 @@ class IDB:
             # connect to the DB in read only mode
             uri = self.filename.as_uri() + "?mode=ro"
 
-            source = sqlite3.connect(uri, check_same_thread=False, uri=True)
-            self.conn = sqlite3.connect(':memory:')
-            source.backup(self.conn)
-            source.close()
-
-            # self.conn = sqlite3.connect(uri, check_same_thread=False, uri=True)
+            if sys.version_info < (3, 7):
+                self.conn = sqlite3.connect(uri, check_same_thread=False, uri=True)
+            else:
+                source = sqlite3.connect(uri, check_same_thread=False, uri=True)
+                self.conn = sqlite3.connect(':memory:')
+                source.backup(self.conn)
+                source.close()
 
             logger.info('IDB loaded from {}'.format(self.filename))
             self.cur = self.conn.cursor()

@@ -1,12 +1,15 @@
 import re
+import glob
 import binascii
 from pathlib import Path
+from concurrent.futures import ProcessPoolExecutor
 
 import bitstring
 import pytest
 
 from stixcore.idb.manager import IDBManager
 from stixcore.processing.decompression import CompressedParameter, decompress
+from stixcore.tmtc import Packet
 from stixcore.tmtc.packet_factory import (
     BaseFactory,
     MultipleMatchError,
@@ -307,3 +310,77 @@ def test_decompress(data_dir, idbm, decom_packets):
                 isinstance(params, CompressedParameter)
     else:
         assert c == 0
+
+
+def test_parallel(data_dir, idbm):
+    packet_data = []
+    root = Path("")
+    for filename in glob.glob(str(data_dir / "*.hex")):
+        hex = _get_bin_from_file(root, filename)
+        packet_data.append(hex)
+
+    packets_count = 0
+    with ProcessPoolExecutor() as exec:
+        res = exec.map(Packet, packet_data)
+        for r in res:
+            packets_count += 1
+
+    assert packets_count == len(packet_data)
+
+# def test_parallel():
+#     packet_data = []
+#     tree = Et.parse('D:/CruisePhase_STP124_Part3_manual_BatchRequest.PktTmRaw.SOL.' +
+#                     '0.2020.337.15.26.50.474.AuYP@2020.337.15.26.51.700.1.xml')
+#     root = tree.getroot()
+#     for i, node in enumerate(root.iter('Packet')):
+#         packet_binary = unhexlify(node.text)
+#         # Not sure why guess and extra moc header
+#         packet_data.append(packet_binary[76:])
+#
+# #     start = time.time()
+# #    for idx, pdhex in enumerate(packet_data):
+# #        packet = Packet(pdhex)
+# #    print(packet)
+# #    end = time.time()
+# #    print(end - start, i)
+#
+#     i = 0
+#     start = time.time()
+#     with ProcessPoolExecutor() as exec:
+#         res = exec.map(Packet, packet_data)
+#
+#         for r in res:
+#             i += 1
+#     end = time.time()
+#
+#     print(end - start, i)
+#     assert True
+#
+# def test_parallel():
+#     packet_data = []
+#     tree = Et.parse('D:/CruisePhase_STP124_Part3_manual_BatchRequest.PktTmRaw.SOL.' +
+#                     '0.2020.337.15.26.50.474.AuYP@2020.337.15.26.51.700.1.xml')
+#     root = tree.getroot()
+#     for i, node in enumerate(root.iter('Packet')):
+#         packet_binary = unhexlify(node.text)
+#         # Not sure why guess and extra moc header
+#         packet_data.append(packet_binary[76:])
+#
+# #     start = time.time()
+# #    for idx, pdhex in enumerate(packet_data):
+# #        packet = Packet(pdhex)
+# #    print(packet)
+# #    end = time.time()
+# #    print(end - start, i)
+#
+#     i = 0
+#     start = time.time()
+#     with ProcessPoolExecutor() as exec:
+#         res = exec.map(Packet, packet_data)
+#
+#         for r in res:
+#             i += 1
+#     end = time.time()
+#
+#     print(end - start, i)
+#     assert True

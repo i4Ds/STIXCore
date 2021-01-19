@@ -1,11 +1,9 @@
 import os
+import sys
 import sqlite3
-import threading
 from types import SimpleNamespace
 
 from stixcore.util.logging import get_logger
-
-thread_lock = threading.Lock()
 
 __all__ = ['IDB', 'IdbData', 'IdbPacketTypeInfo', 'IdbParameter', 'IdbStaticParameter',
            'IdbVariableParameter', 'IdbPacketTree']
@@ -498,6 +496,7 @@ class IDB:
         self.conn = None
         self.cur = None
         self.parameter_structures = dict()
+        self.packet_info = dict()
         self.parameter_units = dict()
         self.calibration_polynomial = dict()
         self.calibration_curves = dict()
@@ -547,7 +546,15 @@ class IDB:
         try:
             # connect to the DB in read only mode
             uri = self.filename.as_uri() + "?mode=ro"
-            self.conn = sqlite3.connect(uri, check_same_thread=False, uri=True)
+
+            if sys.version_info < (3, 7):
+                self.conn = sqlite3.connect(uri, check_same_thread=False, uri=True)
+            else:
+                source = sqlite3.connect(uri, check_same_thread=False, uri=True)
+                self.conn = sqlite3.connect(':memory:')
+                source.backup(self.conn)
+                source.close()
+
             logger.info('IDB loaded from {}'.format(self.filename))
             self.cur = self.conn.cursor()
             self._version = self.get_idb_version()
@@ -555,6 +562,27 @@ class IDB:
             logger.error('Failed load IDB from {}'.format(self.filename))
             self.close()
             raise
+
+    def __getstate__(self):
+        """Return state values to be pickled."""
+        return (self.filename)
+
+    def __setstate__(self, state):
+        """Restore state from the unpickled state values."""
+        self.filename = state
+
+        self.parameter_structures = dict()
+        self.parameter_units = dict()
+        self.packet_info = dict()
+        self.calibration_polynomial = dict()
+        self.calibration_curves = dict()
+        self.textual_parameter_lut = dict()
+        self.soc_descriptions = dict()
+        self.parameter_descriptions = dict()
+        self.s2k_table_contents = dict()
+
+        if self.filename:
+            self._connect_database()
 
     def close(self):
         """Close the IDB connection."""
@@ -570,25 +598,19 @@ class IDB:
             raise Exception('IDB is not initialized!')
         else:
             rows = None
-            try:
-                thread_lock.acquire(True)
-                # sqlite doesn't like multi-threads
-
-                if arguments:
-                    self.cur.execute(sql, arguments)
-                else:
-                    self.cur.execute(sql)
-                if result_type == 'list':
-                    rows = self.cur.fetchall()
-                else:
-                    rows = [
-                        dict(
-                            zip([column[0]
-                                 for column in self.cur.description], row))
-                        for row in self.cur.fetchall()
-                    ]
-            finally:
-                thread_lock.release()
+            if arguments:
+                self.cur.execute(sql, arguments)
+            else:
+                self.cur.execute(sql)
+            if result_type == 'list':
+                rows = self.cur.fetchall()
+            else:
+                rows = [
+                    dict(
+                        zip([column[0]
+                            for column in self.cur.description], row))
+                    for row in self.cur.fetchall()
+                ]
             return rows
 
     def get_spid_info(self, spid):
@@ -737,6 +759,9 @@ class IDB:
         -------
         `IdbPacketTypeInfo` or `None` if not found
         """
+        if (packet_type, packet_subtype, pi1_val) in self.packet_info:
+            return self.packet_info[(packet_type, packet_subtype, pi1_val)]
+
         args = None
         if pi1_val is None:
             sql = ('select pid_spid, pid_descr, pid_tpsd from PID '
@@ -749,7 +774,10 @@ class IDB:
             args = (packet_type, packet_subtype, pi1_val)
         rows = self._execute(sql, args, 'dict')
         if rows:
-            return IdbPacketTypeInfo(rows[0])
+            resObj = IdbPacketTypeInfo(rows[0])
+            self.packet_info[(packet_type, packet_subtype, pi1_val)] = resObj
+            return resObj
+
         else:
             logger.warning(f"No information in IDB for service {packet_type},"
                            f"service_subtype {packet_subtype}  and pi1_val: {pi1_val}")
@@ -895,6 +923,7 @@ class IDB:
             num_repeater = int(rows[0][0])
             if num_repeater > 0:
                 return True
+
         return False
 
     def get_variable_packet_structure(self, spid):
@@ -1103,6 +1132,9 @@ class IDB:
             In this case the generic IdbPacketTree is flat, but can be used fore
             dynamic parseing anyway.
         """
+        if (service_type, service_subtype, sp1_val) in self.parameter_structures:
+            return self.parameter_structures[(service_type, service_subtype, sp1_val)]
+
         sql = (f'''SELECT
                     PID_SPID, PID_DESCR, PID_TPSD,
                     PCF.PCF_DESCR, PLF.PLF_OFFBY, PLF.PLF_OFFBI, PCF.PCF_NAME,
@@ -1130,6 +1162,8 @@ class IDB:
             parObj = IdbStaticParameter(par)
             node = self._create_parse_node(parObj.PCF_NAME, parObj, 0, [])
             parent.children.append(node)
+
+        self.parameter_structures[(service_type, service_subtype, sp1_val)] = parent
         return parent
 
     def _create_parse_node(self, name, parameter=None, counter=0, children=None):
@@ -1158,6 +1192,8 @@ class IDB:
         `~stixcore/idb/idb/IdbPacketTree`
             The IdbPacketTree implements nested repeaters.
         """
+        if (service_type, service_subtype, sp1_val) in self.parameter_structures:
+            return self.parameter_structures[(service_type, service_subtype, sp1_val)]
 
         sql = (f'''SELECT
                     PID_SPID, PID_DESCR, PID_TPSD,
@@ -1199,4 +1235,5 @@ class IDB:
             if parObj.VPD_GRPSIZE > 0:
                 repeater.append({'node': node, 'counter': parObj.VPD_GRPSIZE})
 
+        self.parameter_structures[(service_type, service_subtype, sp1_val)] = repeater[0]['node']
         return repeater[0]['node']

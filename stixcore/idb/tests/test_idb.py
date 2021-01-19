@@ -65,6 +65,15 @@ def test_get_packet_pi1_val_position(idb):
     assert info is None
 
 
+def test_pickle(idb):
+    import pickle
+    clone = pickle.loads(pickle.dumps(idb))
+    assert idb is not clone
+    assert idb.filename == clone.filename
+    assert clone.is_connected()
+    clone.close()
+
+
 def test_get_parameter_description(idb):
     # a PCF param
     info = idb.get_parameter_description('NIX00354')

@@ -1,3 +1,5 @@
+import abc
+
 from stixcore.idb.manager import IDBManager
 from stixcore.time.time import DateTime
 from stixcore.tmtc.parser import parse_binary, parse_bitstream, parse_variable
@@ -228,17 +230,33 @@ class TMPacket(GenericPacket):
         data : binary or `stixcore.tmtc.packets.SourcePacketHeader`
             Data to create TM packet from
         """
-        super().__init__(data)
-        self.data_header = TMDataHeader(self.source_packet_header.bitstream)
+        if isinstance(data, TMPacket):
+            self.source_packet_header = data.source.source_packet_header
+            self.data_header = data.data_header
+            self._pi1_val = data.pi1_val
+        else:
+            super().__init__(data)
+            self.data_header = TMDataHeader(self.source_packet_header.bitstream)
+            self._pi1_val = False
 
-        self._pi1_val = None
+        self.idb = idb
         if not idb:
-            idb = self.idb_manager.get_idb(utc=self.data_header.date_time.as_utc())
-        pi1_pos = idb.get_packet_pi1_val_position(self.data_header.service_type,
-                                                  self.data_header.service_subtype)
+            self.idb = self.idb_manager.get_idb(utc=self.data_header.date_time.as_utc())
+
+    @property
+    def pi1_val(self):
+        if self._pi1_val is not False:
+            return self._pi1_val
+
+        pi1_pos = self.idb.get_packet_pi1_val_position(self.data_header.service_type,
+                                                       self.data_header.service_subtype)
         if pi1_pos:
             read_format = f"pad:{pi1_pos.offset}, uint:{pi1_pos.width}"
-            self.pi1_val = self.source_packet_header.bitstream.peeklist(read_format)[-1]
+            self._pi1_val = self.source_packet_header.bitstream.peeklist(read_format)[-1]
+        else:
+            self._pi1_val = None
+
+        return self._pi1_val
 
     @classmethod
     def is_datasource_for(cls, sph):
@@ -455,6 +473,7 @@ class GenericTMPacket:
         self.data = parse_variable(self.source_packet_header.bitstream, tree)
         self.group_repeaters()
 
+    @abc.abstractmethod
     def group_repeaters(self):
         """Combine the flattend data array of nested repeaters into a nested list.
 

@@ -322,8 +322,10 @@ def test_parallel(data_dir, idbm):
     packets_count = 0
     with ProcessPoolExecutor() as exec:
         res = exec.map(Packet, packet_data)
-        for r in res:
-            packets_count += 1
+
+    for r in res:
+        packets_count += 1
+        assert r.data_header.service_type > 0
 
     assert packets_count == len(packet_data)
 

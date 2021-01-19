@@ -1,7 +1,7 @@
 import abc
 
+from stixcore.datetime.datetime import DateTime
 from stixcore.idb.manager import IDBManager
-from stixcore.time.time import DateTime
 from stixcore.tmtc.parser import parse_binary, parse_bitstream, parse_variable
 
 SOURCE_PACKET_HEADER_STRUCTURE = {
@@ -115,17 +115,7 @@ class TMDataHeader:
         [setattr(self, key, value)
             for key, value in res['fields'].items() if not key.startswith('spare')]
 
-        self._datetime = DateTime.from_scet(self.scet_coarse, self.scet_fine)
-
-    @property
-    def date_time(self):
-        """Get the date and time of this TM packet derived from header information
-
-        Returns
-        -------
-        `stixcore.time.DateTime`
-        """
-        return self._datetime
+        self.datetime = DateTime(coarse=self.scet_coarse, fine=self.scet_fine)
 
     def __repr__(self):
         param_names_values = [f'{k}={v}' for k, v in self.__dict__.items() if k != 'bitstream']
@@ -241,7 +231,7 @@ class TMPacket(GenericPacket):
 
         self.idb = idb
         if not idb:
-            self.idb = self.idb_manager.get_idb(utc=self.data_header.date_time.as_utc())
+            self.idb = self.idb_manager.get_idb(utc=self.data_header.datetime.to_datetime())
 
     @property
     def pi1_val(self):
@@ -455,7 +445,7 @@ class GenericTMPacket:
         self.pi1_val = getattr(data, 'pi1_val', None)
 
         if isinstance(self.idb, IDBManager):
-            idb = self.idb.get_idb(utc=self.data_header.date_time.as_utc())
+            idb = self.idb.get_idb(utc=self.data_header.datetime.to_datetime())
 
         packet_info = idb.get_packet_type_info(self.data_header.service_type,
                                                self.data_header.service_subtype,

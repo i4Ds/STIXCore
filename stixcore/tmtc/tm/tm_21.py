@@ -28,7 +28,7 @@ class TM_21_6_21(GenericTMPacket):
     def get_decompression_parameter(self):
         # https://github.com/i4Ds/STIX-FSW/issues/953
         params = super().get_decompression_parameter()
-        if self.data_header.date_time:
+        if self.data_header.datetime:
             # TODO do some special treatment
             return params
         return params

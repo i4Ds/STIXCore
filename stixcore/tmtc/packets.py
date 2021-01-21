@@ -442,7 +442,7 @@ class GenericTMPacket:
         self.source_packet_header = data.source_packet_header
         self.data_header = data.data_header
         self.idb = data.idb_manager if idb is None else idb
-        self.pi1_val = getattr(data, 'pi1_val', None)
+        self.pi1_val1 = getattr(data, 'pi1_val', None)
 
         if isinstance(self.idb, IDBManager):
             idb = self.idb.get_idb(utc=self.data_header.datetime.to_datetime())

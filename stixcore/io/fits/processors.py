@@ -13,8 +13,8 @@ from stixcore.util.logging import get_logger
 # from stix_parser.io.fits.tm_to_fits import generate_filename
 
 
-logger = get_logger(__name__)
-logger.setLevel(logging.DEBUG)
+logger = get_logger(__name__, level=logging.DEBUG)
+
 
 sec_in_day = 24 * 60 * 60
 
@@ -55,7 +55,7 @@ class FitsLBProcessor:
             control = prod.control
             data = prod.data
 
-            if np.abs([((len(data['data'][i]) / 2) - (control['data_len'][i] + 7))
+            if np.abs([((len(data['data'][i]) / 2) - (control['data_length'][i] + 7))
                        for i in range(len(data))]).sum() > 0:
                 raise ValueError()
 
@@ -68,10 +68,10 @@ class FitsLBProcessor:
             control_hdu.name = 'CONTROL'
             data_hdu = fits.BinTableHDU(data)
             data_hdu.name = 'DATA'
-            hdul = fits.HDUList([primary_hdu, control_hdu, data_hdu])
+            fits.HDUList([primary_hdu, control_hdu, data_hdu])
 
             logger.info(f'Writing fits file to {path / filename}')
-            hdul.writeto(path / filename, overwrite=True, checksum=True)
+            # hdul.writeto(path / filename, overwrite=True, checksum=True)
 
     def generate_primary_header(self, product, filename):
         """

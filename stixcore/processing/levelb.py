@@ -1,4 +1,5 @@
 import os
+import logging
 import xml.etree.ElementTree as Et
 from time import perf_counter
 from pathlib import Path
@@ -14,31 +15,15 @@ from stixcore.io.fits.processors import FitsLBProcessor
 from stixcore.tmtc.packets import TMPacket
 from stixcore.util.logging import get_logger
 
-logger = get_logger(__name__)
+SECONDS_IN_DAY = 24 * 60 * 60
 
-tm_header = {
-    'version': 'uint:3',
-    'type': 'uint:1',
-    'dflag': 'uint:1',
-    'apid': 'uint:7',
-    'apid_cat': 'uint:4',
-    'seq_group': 'uint:2',
-    'seq_count': 'uint:14',
-    'data_len': 'uint:16',
-    'spare1': 'uint:1',
-    'pus_ver': 'uint:3',
-    'spare2': 'uint:4',
-    'service_type': 'uint:8',
-    'service_subtype': 'uint:8',
-    'dest_id': 'uint:8',
-    'scet_coarse': 'uint:32',
-    'scet_fine': 'uint:16'
-}
-
-SECONDS_IN_DAY = 24*60*60
+logger = get_logger(__name__, level=logging.DEBUG)
 
 
 class LevelB:
+    """
+    Class representing level binary data.
+    """
     def __init__(self, control, data):
         self.level = 'LB'
         self.type = f"{control['service_type'][0]}-{control['service_subtype'][0]}"
@@ -93,6 +78,13 @@ class LevelB:
         return cls(control=control, data=data)
 
     def to_days(self):
+        """
+        Return a list of the of classes each containing 1 days worth of observations
+
+        Returns
+        -------
+
+        """
         scet = self.control['scet_coarse'] + (self.control['scet_coarse'] / (2**16-1))
         scet = scet[(self.control['scet_coarse'] >> 31) != 1]
         days, frac = np.divmod(scet, SECONDS_IN_DAY)
@@ -112,15 +104,6 @@ class LevelB:
             yield type(self)(control=control, data=data)
 
 
-class SciLevel0(LevelB):
-    def __init__(self, control, data):
-        super().__init__(control, data)
-        self.ssid = self.control['ssid'][0]
-
-    def to_requests(self):
-        yield self
-
-
 def process_tmtc_file(tmfile, basedir):
     fits_processor = FitsLBProcessor(basedir)
 
@@ -137,11 +120,19 @@ def process_tmtc_file(tmfile, basedir):
             key += f'{-tm_packet.pi1_val}'
         packet_data[key].append(tm_packet)
 
-    for product, packet in packet_data.items():
+    for product, packets in packet_data.items():
 
-        header, hex_data = zip(*packet)
+        headers = []
+        hex_data = []
+        for packet in packets:
+            sh = vars(packet.source_packet_header)
+            bs = sh.pop('bitstream')
+            hex_data.append(bs.hex)
+            dh = vars(packet.data_header)
+            dh.pop('datetime')
+            headers.append({**sh, **dh})
 
-        control = Table(header)
+        control = Table(headers)
         control['index'] = np.arange(len(control))
 
         data = Table()
@@ -149,21 +140,8 @@ def process_tmtc_file(tmfile, basedir):
         # data['data'] = binary_data
         data['data'] = hex_data
 
-        if 'ssid' in control.colnames:
-            ssids = np.unique(control['ssid'])
-            for ssid in ssids:
-                index = np.nonzero(control['ssid'] == ssid)
-                if len(index[0]) > 0:
-                    cur_control = control[index]
-                    cur_data = data[index]
-                    cur_control['index'] = np.arange(len(cur_control))
-                    cur_data['control_index'] = np.arange(len(cur_control))
-
-                    prod = SciLevel0(control=cur_control, data=cur_data)
-                    fits_processor.write_fits(prod)
-        else:
-            prod = LevelB(control=control, data=data)
-            fits_processor.write_fits(prod)
+        prod = LevelB(control=control, data=data)
+        fits_processor.write_fits(prod)
 
     # return packet_data
 
@@ -174,13 +152,14 @@ def process_tm_packet(binary_packet):
 
 if __name__ == '__main__':
     tstart = perf_counter()
-
+    logger.info('test')
     # Real data
     raw_tmtc = Path('/Users/shane/Projects/STIX/dataview/data/real')
     tmtc_files = sorted(list(raw_tmtc.glob('*PktTmRaw*.xml')), key=os.path.getmtime)
-    tmtc_file = ['/Users/shane/Projects/STIX/dataview/data/real/IX4.DAY2.BatchRequest.PktTmRaw.SOL.0.2020.140.11.55.36.842.yzKB@2020.140.11.55.37.803.1.xml'] # NOQA
+    tmtc_files = ['/Users/shane/Projects/STIX/dataview/data/real/IX4.DAY2.BatchRequest.PktTmRaw.SOL.0.2020.140.11.55.36.842.yzKB@2020.140.11.55.37.803.1.xml'] # NOQA
     bd = Path('/Users/shane/Projects/STIX/dataview/data/test2')
-    for tmtc_file in tmtc_files[297:]:
+
+    for tmtc_file in tmtc_files:
         process_tmtc_file(tmtc_file, basedir=bd)
 
     tend = perf_counter()

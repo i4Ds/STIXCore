@@ -1,5 +1,3 @@
-import abc
-
 from stixcore.datetime.datetime import DateTime
 from stixcore.idb.manager import IDBManager
 from stixcore.tmtc.parser import parse_binary, parse_bitstream, parse_variable
@@ -441,7 +439,7 @@ class GenericTMPacket:
         self.source_packet_header = data.source_packet_header
         self.data_header = data.data_header
         self.idb = data.idb_manager if idb is None else idb
-        self.pi1_val1 = getattr(data, 'pi1_val', None)
+        self.pi1_val = getattr(data, 'pi1_val', None)
 
         if isinstance(self.idb, IDBManager):
             idb = self.idb.get_idb(utc=self.data_header.datetime.to_datetime())
@@ -462,7 +460,6 @@ class GenericTMPacket:
         self.data = parse_variable(self.source_packet_header.bitstream, tree)
         self.group_repeaters()
 
-    @abc.abstractmethod
     def group_repeaters(self):
         """Combine the flattend data array of nested repeaters into a nested list.
 

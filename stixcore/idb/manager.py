@@ -91,7 +91,7 @@ class IDBManager:
                 logger.error(str(e))
             return ''
         for item in self.history:
-            if dtparser.parse(item['validityPeriod'][0]) < utc \
+            if dtparser.parse(item['validityPeriod'][0]) < utc.replace(tzinfo=None) \
                     <= dtparser.parse(item['validityPeriod'][1]):
                 return item['version']
 
@@ -321,6 +321,7 @@ class IDBManager:
             reference to a IDB reader
         """
         if isinstance(utc, datetime):
+            utc = utc.replace(tzinfo=None)
             utc_version = self.find_version(utc)
             if self.has_version(utc_version):
                 version_label = utc_version

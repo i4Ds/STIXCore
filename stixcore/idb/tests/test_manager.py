@@ -60,8 +60,8 @@ def test_find_version(idb_manager):
     assert len(str(e.value)) > 1
 
     with pytest.raises(ValueError) as e:
-        idb = idb_manager.get_idb(utc=datetime(2018, 6, 6))
-        assert idb.get_idb_version() == "2.26.34"
+        idb = idb_manager.get_idb(utc=datetime(2016, 6, 6))
+        assert idb.version == "2.26.34"
         idb.close()
     assert len(str(e.value)) > 1
 

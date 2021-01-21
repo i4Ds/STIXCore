@@ -2,6 +2,10 @@
 from stixcore.tmtc.packets import GenericTMPacket
 from stixcore.tmtc.parser import split_into_length
 
+__all__ = ['TM_21_6_20', 'TM_21_6_21', 'TM_21_6_22', 'TM_21_6_23', 'TM_21_6_24', 'TM_21_6_30',
+           'TM_21_6_31', 'TM_21_6_32', 'TM_21_6_33', 'TM_21_6_34', 'TM_21_6_41', 'TM_21_6_42',
+           'TM_21_6_43']
+
 
 class TM_21_6_20(GenericTMPacket):
     """TM(21, 6) SSID 20: X-ray science data: X-ray data compression \
@@ -28,7 +32,7 @@ class TM_21_6_21(GenericTMPacket):
     def get_decompression_parameter(self):
         # https://github.com/i4Ds/STIX-FSW/issues/953
         params = super().get_decompression_parameter()
-        if self.data_header.date_time:
+        if self.data_header.datetime:
             # TODO do some special treatment
             return params
         return params

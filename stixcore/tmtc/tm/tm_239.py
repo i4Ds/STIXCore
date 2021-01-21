@@ -1,6 +1,9 @@
 """Service 239 – STIX testing and debugging."""
 from stixcore.tmtc.packets import GenericTMPacket
 
+__all__ = ['TM_239_3', 'TM_239_6', 'TM_239_8', 'TM_239_10', 'TM_239_12', 'TM_239_14', 'TM_239_18',
+           'TM_239_21']
+
 
 class TM_239_3(GenericTMPacket):
     """TM(239, 3) Report ASIC temperature."""

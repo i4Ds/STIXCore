@@ -1,6 +1,8 @@
 """Service 1 – Telecommand Verification."""
 from stixcore.tmtc.packets import GenericTMPacket
 
+__all__ = ['TM_1_1', 'TM_1_2', 'TM_1_7', 'TM_1_8']
+
 
 class TM_1_1(GenericTMPacket):
     """TM(1, 1) Telecommand acceptance report – success."""

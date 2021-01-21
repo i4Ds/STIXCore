@@ -1,6 +1,8 @@
 """Service 237 – Parameters management."""
 from stixcore.tmtc.packets import GenericTMPacket
 
+__all__ = ['TM_237_12', 'TM_237_20']
+
 
 class TM_237_12(GenericTMPacket):
     """TM(237, 12) SuSW Parameter report."""

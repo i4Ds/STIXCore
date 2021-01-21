@@ -7,6 +7,8 @@ from stixcore.util.logging import get_logger
 
 logger = get_logger(__name__)
 
+__all__ = ['PacketData']
+
 SUBPACKET_NIX = "NIX00403"
 
 

@@ -1,6 +1,9 @@
+from stixcore.datetime.datetime import DateTime
 from stixcore.idb.manager import IDBManager
-from stixcore.time.time import DateTime
 from stixcore.tmtc.parser import parse_binary, parse_bitstream, parse_variable
+
+__all__ = ['SourcePacketHeader', 'TMDataHeader', 'TCDataHeader', 'GenericPacket', 'TMPacket',
+           'TCPacket', 'GenericTMPacket']
 
 SOURCE_PACKET_HEADER_STRUCTURE = {
     'version': 'uint:3',
@@ -113,17 +116,7 @@ class TMDataHeader:
         [setattr(self, key, value)
             for key, value in res['fields'].items() if not key.startswith('spare')]
 
-        self._datetime = DateTime.from_scet(self.scet_coarse, self.scet_fine)
-
-    @property
-    def date_time(self):
-        """Get the date and time of this TM packet derived from header information
-
-        Returns
-        -------
-        `stixcore.time.DateTime`
-        """
-        return self._datetime
+        self.datetime = DateTime(coarse=self.scet_coarse, fine=self.scet_fine)
 
     def __repr__(self):
         param_names_values = [f'{k}={v}' for k, v in self.__dict__.items() if k != 'bitstream']
@@ -214,10 +207,6 @@ class TMPacket(GenericPacket):
     """
     A non-specific TM packet
 
-    Attributes
-    ----------
-    pi1_val : `int`
-        A free variable to identify the type of data in the packet for STIX this is know as the SSID
     """
     def __init__(self, data, idb=None):
         """
@@ -228,17 +217,33 @@ class TMPacket(GenericPacket):
         data : binary or `stixcore.tmtc.packets.SourcePacketHeader`
             Data to create TM packet from
         """
-        super().__init__(data)
-        self.data_header = TMDataHeader(self.source_packet_header.bitstream)
+        if isinstance(data, TMPacket):
+            self.source_packet_header = data.source.source_packet_header
+            self.data_header = data.data_header
+            self._pi1_val = data.pi1_val
+        else:
+            super().__init__(data)
+            self.data_header = TMDataHeader(self.source_packet_header.bitstream)
+            self._pi1_val = False
 
-        self._pi1_val = None
+        self.idb = idb
         if not idb:
-            idb = self.idb_manager.get_idb(utc=self.data_header.date_time.as_utc())
-        pi1_pos = idb.get_packet_pi1_val_position(self.data_header.service_type,
-                                                  self.data_header.service_subtype)
+            self.idb = self.idb_manager.get_idb(utc=self.data_header.datetime.to_datetime())
+
+    @property
+    def pi1_val(self):
+        if self._pi1_val is not False:
+            return self._pi1_val
+
+        pi1_pos = self.idb.get_packet_pi1_val_position(self.data_header.service_type,
+                                                       self.data_header.service_subtype)
         if pi1_pos:
             read_format = f"pad:{pi1_pos.offset}, uint:{pi1_pos.width}"
-            self.pi1_val = self.source_packet_header.bitstream.peeklist(read_format)[-1]
+            self._pi1_val = self.source_packet_header.bitstream.peeklist(read_format)[-1]
+        else:
+            self._pi1_val = None
+
+        return self._pi1_val
 
     @classmethod
     def is_datasource_for(cls, sph):
@@ -437,7 +442,7 @@ class GenericTMPacket:
         self.pi1_val = getattr(data, 'pi1_val', None)
 
         if isinstance(self.idb, IDBManager):
-            idb = self.idb.get_idb(utc=self.data_header.date_time.as_utc())
+            idb = self.idb.get_idb(utc=self.data_header.datetime.to_datetime())
 
         packet_info = idb.get_packet_type_info(self.data_header.service_type,
                                                self.data_header.service_subtype,

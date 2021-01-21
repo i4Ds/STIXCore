@@ -1,6 +1,8 @@
 """Service 6 – Memory management."""
 from stixcore.tmtc.packets import GenericTMPacket
 
+__all__ = ['TM_6_6', 'TM_6_10']
+
 
 class TM_6_6(GenericTMPacket):
     """TM(6, 6) Memory Dump Report."""

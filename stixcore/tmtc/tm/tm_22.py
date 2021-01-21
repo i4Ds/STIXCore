@@ -1,6 +1,8 @@
 """Service 22 – Context Saving."""
 from stixcore.tmtc.packets import GenericTMPacket
 
+__all__ = ['TM_22_2']
+
 
 class TM_22_2(GenericTMPacket):
     """TM(22, 2) Context Report from User."""

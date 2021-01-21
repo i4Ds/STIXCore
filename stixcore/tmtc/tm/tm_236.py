@@ -1,6 +1,8 @@
 """Service 236 – STIX configuration."""
 from stixcore.tmtc.packets import GenericTMPacket
 
+__all__ = ['TM_236_16', 'TM_236_19']
+
 
 class TM_236_16(GenericTMPacket):
     """TM(236, 16) Read STIX subsystem configuration report."""

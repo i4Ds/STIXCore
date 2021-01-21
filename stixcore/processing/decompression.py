@@ -4,10 +4,10 @@ from stixcore.calibration.compression import decompress as algo_decompress
 __all__ = ['CompressedParameter', 'decompress']
 
 
-class CompressedParameter():
+class CompressedParameter:
     """A class to combine the raw and decompressed values and settings of a parameter.
 
-    Properties
+    Attributes
     ----------
     raw : `int`|`list`
         The raw values before the decompression.

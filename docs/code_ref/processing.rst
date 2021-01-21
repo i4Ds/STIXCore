@@ -1,7 +1,8 @@
 STIXCore processing
 *******************
 
-The ``processing`` submodule contains prosessing methods to transform telemtry data into higer processing levels.
+The ``processing`` submodule contains processing methods to transform telemetry data into high level
+data products levels.
 
 
 .. automodapi:: stixcore.processing

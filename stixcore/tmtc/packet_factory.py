@@ -1,7 +1,10 @@
+from pathlib import Path
 
-from stixcore.tmtc.packets import GenericTMPacket, SourcePacketHeader
+from stixcore.idb.manager import IDBManager
+from stixcore.tmtc.packets import GenericPacket, GenericTMPacket, SourcePacketHeader
 
-__all__ = ['BaseFactory', 'MultipleMatchError', 'NoMatchError', 'ValidationFunctionError']
+__all__ = ['Packet', 'BaseFactory', 'TMTCPacketFactory', 'TMPacketFactory',
+           'MultipleMatchError', 'NoMatchError', 'ValidationFunctionError']
 
 
 class BaseFactory:
@@ -94,10 +97,6 @@ class TMPacketFactory(BaseFactory):
         return self._check_registered(data)
 
 
-# Main function
-# Packet = TMTCPacketFactory(registry=GenericPacket._registry)
-
-
 class NoMatchError(Exception):
     """
     Exception for when no candidate class is found.
@@ -114,3 +113,9 @@ class ValidationFunctionError(AttributeError):
     """
     Exception for when no candidate class is found.
     """
+
+
+# Main packet class
+idbm = IDBManager(Path(__file__).parent.parent / "idb" / "tests" / "data")
+GenericPacket.idb_manager = idbm
+Packet = TMTCPacketFactory(registry=GenericPacket._registry)

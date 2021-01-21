@@ -19,9 +19,9 @@ TM/TC
 Pipeline operations
 """""""""""""""""""
 The normal work flow for parsing TM/TC is to use the pipeline to process the TM/TC data as obtained
-from the EDDS. The primary interface for creating packets is the `stixcore.tmtc.Packet` class which
-can create specific packet given the raw packet data for all supported packet types. For example the
-code below will create a `TM_1_1` packet.
+from the EDDS. The primary interface for creating packets is the `~stixcore.tmtc.Packet` packet
+factory which can create specific packet classes (`~stixcore.tmtc.tm`) given the raw packet data. For
+example the code below will create a `~stixcore.tmtc.tm.tm_1.TM_1_1` packet.
 
 .. code-block:: python
 
@@ -52,7 +52,7 @@ parse and extract the packet data from the XML file provided from the EDDS.
         packet_data.append(packet_binary[76:])
 
 Next the source header, data header and ssid or PI1_VAL can be parsed and filtered. In the following
-code we filter for for server 21, subervice 6 and SSID or 21
+code we filter for service 21, sub-service 6 and SSID or PI1_VAL 21
 
 .. code-block:: python
 
@@ -61,12 +61,13 @@ code we filter for for server 21, subervice 6 and SSID or 21
     tm = []
     for pd in packet_data:
         tmpacket = TMPacket(pd)
-        if (tmpacket.data_header.service_type == 21 and tmpacket.data_header.service_subtype == 6
-            and tmpacket.pi1_val == 21):
+        if (tmpacket.data_header.service_type == 21
+            and tmpacket.data_header.service_subtype == 6 and tmpacket.pi1_val == 21):
             tm.append(tmpacket)
 
 Finally the selected packets can be fully parsed since we have filtered the packets down to TM_21_6
-SSID or PI1VAl 21 we can simply pass the partially parsed packets to the `TM_21_6_21` class.
+SSID or PI1VAl 21 we can simply pass the partially parsed packets to the
+`~stixcore.tmtc.tm.tm_21.TM_21_6_21` to fully parse the rest of the packet.
 
 .. code-block:: python
 
@@ -77,5 +78,7 @@ SSID or PI1VAl 21 we can simply pass the partially parsed packets to the `TM_21_
        tm_21_6_21.append(tm_21.TM_21_6_21(res[0]))
 
     tm_12_6_21[0]
-    TM_21_6_21(SourcePacketHeader(version=0, packet_type=0, header_flag=1, process_id=91, packet_category=12, sequence_flag=1, sequence_count=8962, data_length=3959),
-               TMDataHeader(pus_version=1, service_type=21, service_subtype=6, destination_id=0, scet_coarse=660106792, scet_fine=44349, datetime=0660106792:44349))
+    TM_21_6_21(SourcePacketHeader(version=0, packet_type=0, header_flag=1, process_id=91,
+                                  packet_category=12, sequence_flag=1, sequence_count=8962, data_length=3959),
+               TMDataHeader(pus_version=1, service_type=21, service_subtype=6, destination_id=0,
+                            scet_coarse=660106792, scet_fine=44349, datetime=0660106792:44349))

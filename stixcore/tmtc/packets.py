@@ -206,10 +206,6 @@ class TMPacket(GenericPacket):
     """
     A non-specific TM packet
 
-    Attributes
-    ----------
-    pi1_val : `int`
-        A free variable to identify the type of data in the packet for STIX this is know as the SSID
     """
     def __init__(self, data, idb=None):
         """

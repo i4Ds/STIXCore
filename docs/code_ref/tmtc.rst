@@ -4,6 +4,7 @@ STIXCore tmtc
 The ``tmtc`` submodule contains telemetry and telecomand specific routines and data structures.
 
 .. automodapi:: stixcore.tmtc
+    :include-all-objects:
 
 .. automodapi:: stixcore.tmtc.packet_factory
 

@@ -1,9 +1,11 @@
+from enum import Enum
+
 from stixcore.datetime.datetime import DateTime
 from stixcore.idb.manager import IDBManager
 from stixcore.tmtc.parser import parse_binary, parse_bitstream, parse_variable
 
-__all__ = ['SourcePacketHeader', 'TMDataHeader', 'TCDataHeader', 'GenericPacket', 'TMPacket',
-           'TCPacket', 'GenericTMPacket']
+__all__ = ['TMTC', 'SourcePacketHeader', 'TMDataHeader', 'TCDataHeader', 'GenericPacket',
+           'TMPacket', 'TCPacket', 'GenericTMPacket']
 
 SOURCE_PACKET_HEADER_STRUCTURE = {
     'version': 'uint:3',
@@ -35,6 +37,12 @@ TC_DATA_HEADER_STRUCTURE = {
     'service_subtype': 'uint:8',
     'source_id': 'uint:8'
 }
+
+
+class TMTC(Enum):
+    All = 3
+    TM = 2
+    TC = 1
 
 
 class SourcePacketHeader:
@@ -229,6 +237,13 @@ class TMPacket(GenericPacket):
         self.idb = idb
         if not idb:
             self.idb = self.idb_manager.get_idb(utc=self.data_header.datetime.to_datetime())
+
+    @property
+    def key(self):
+        key = f'{self.data_header.service_type}-{self.data_header.service_subtype}'
+        if self.pi1_val is not None:
+            key += f'-{self.pi1_val}'
+        return key
 
     @property
     def pi1_val(self):

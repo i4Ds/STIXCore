@@ -51,6 +51,10 @@ class DateTime:
             utc = time.scet_to_datetime(f'{self.coarse}:{self.fine}')
             return utc
 
+    # TODO check v spice
+    def as_float(self):
+        return self.coarse + (self.fine / (2**16 - 1))
+
     def __repr__(self):
         return f'{self.__class__.__name__}(coarse={self.coarse}, fine={self.fine})'
 

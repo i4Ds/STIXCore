@@ -168,7 +168,7 @@ class PacketData:
         """
         setattr(self, nix, value)
 
-    def get(self, nix):
+    def get(self, nix, aslist=False):
         """Get the parameter value for a given NIX name.
 
         Parameters
@@ -181,7 +181,10 @@ class PacketData:
         'any'
             The found value.
         """
-        return getattr(self, nix, None)
+        attr = getattr(self, nix, None)
+        if aslist:
+            return [attr] if attr is not None else []
+        return attr
 
     def apply(self, nix, callback, args, addnix=None):
         """Apply a processing method to a parameter.

@@ -37,6 +37,9 @@ class SOCPacketFile:
             else:
                 raise ValueError("xml does not contain any TM or TC response")
 
+    def free_packet_data(self):
+        self.packet_data = defaultdict(list)
+
     def read_packet_data_header(self):
         root = Et.parse(str(self.file)).getroot()
         if self.tmtc == TMTC.TC:

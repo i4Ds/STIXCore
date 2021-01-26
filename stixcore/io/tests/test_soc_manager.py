@@ -3,7 +3,7 @@ from pathlib import Path
 
 import pytest
 
-from stixcore.soc.manager import SOCManager, SOCPacketFile
+from stixcore.io.soc.manager import SOCManager, SOCPacketFile
 from stixcore.tmtc.packets import TMTC
 
 

@@ -2,6 +2,7 @@ import os
 import logging
 from time import perf_counter
 from pathlib import Path
+from collections import defaultdict
 
 import numpy as np
 
@@ -10,25 +11,41 @@ from astropy.table.table import QTable, Table
 
 from stixcore.io.fits.processors import SEC_IN_DAY, FitsLBProcessor
 from stixcore.io.soc.manager import SOCManager
-from stixcore.tmtc.packets import TMTC
+from stixcore.tmtc.packets import TMTC, TMPacket
 from stixcore.util.logging import get_logger
 
-__all__ = ['LevelB']
+__all__ = ['BaseProduct', 'LevelB']
 
 
 logger = get_logger(__name__, level=logging.DEBUG)
 
 
-class LevelB:
-    """
-    Class representing level binary data.
-    """
-    def __init__(self, control, data):
+class BaseProduct:
+    # TODO abstract some general product methods
+    pass
+
+
+class LevelB(BaseProduct):
+    """Class representing level binary data."""
+
+    def __init__(self, control, data, prod_key):
+        """Create a new LevelB object.
+
+        Parameters
+        ----------
+        control : ´Table´
+            the control table
+        data : ´Table´
+            the data table
+        prod_key : ´tuple´
+            (service, subservice [, ssid])
+        """
         self.level = 'LB'
-        self.type = f"{control['service_type'][0]}-{control['service_subtype'][0]}"
+        self.type = prod_key
         self.control = control
         self.data = data
 
+        # TODO better encapsulated time handling?
         synced_times = (self.control['scet_coarse'] >> 31) != 1
         self.control['scet_coarse'] = np.where(synced_times, self.control['scet_coarse'],
                                                self.control['scet_coarse'] ^ 2**31)
@@ -47,6 +64,23 @@ class LevelB:
                f"{self.obt_beg}-{self.obt_end}>"
 
     def __add__(self, other):
+        """Combine two packets of same type. Same time points gets overridden.
+
+        Parameters
+        ----------
+        other : `LevelB`
+            The other packet to combine with.
+
+        Returns
+        -------
+        `LevelB`
+            a new LevelB instance with combined data.
+
+        Raises
+        ------
+        TypeError
+            If not of same type: (service, subservice [, ssid])
+        """
         if not isinstance(other, type(self)):
             raise TypeError(f'Products must of same type not {type(self)} and {type(other)}')
 
@@ -68,20 +102,34 @@ class LevelB:
                    for i in range(len(data))]).sum() > 0:
             logger.error('Expected and actual data length do not match')
 
-        return type(self)(control, data)
+        return type(self)(control, data, self.type)
 
     @classmethod
     def from_fits(cls, fitspath):
-        control = QTable.read(fitspath, hdu='CONTROL')
-        data = QTable.read(fitspath, hdu='DATA')
-        return cls(control=control, data=data)
+        """Read fits file data into a LevelB object.
 
-    def to_days(self):
-        """
-        Return a list of the of classes each containing 1 days worth of observations
+        Parameters
+        ----------
+        fitspath : `Path`
+            the path to the FITS file.
 
         Returns
         -------
+        `LevelB`
+            a new `LevelB` object.
+        """
+        control = QTable.read(fitspath, hdu='CONTROL')
+        data = QTable.read(fitspath, hdu='DATA')
+        return cls(control=control, data=data, prod_key=None)
+
+    def to_days(self):
+        """Split the data into a sequence of LevelB objects each containing 1 daysworth\
+        of observations.
+
+        Yields
+        ------
+        `LevelB`
+            the next `LevelB` objects for another day.
 
         """
         scet = self.control['scet_coarse'] + (self.control['scet_coarse'] / (2**16-1))
@@ -100,14 +148,25 @@ class LevelB:
             data = self.data[i]
             data['control_index'] = data['control_index'] - min_index
 
-            yield type(self)(control=control, data=data)
+            yield type(self)(control=control, data=data, prod_key=self.type)
 
     @classmethod
     def process(cls, tmfile, fits_processor):
-        tmfile.read_packet_data_header()
+        """Process the given SOCFile and creates LevelB FITS files.
 
-        for product, packets in tmfile.packet_data.items():
+        Parameters
+        ----------
+        tmfile : `SOCPacketFile`
+            The input data file.
+        fits_processor : `FitsLBProcessor`
+            The FITS file processor that does the writing and merging.
+        """
+        packet_data = defaultdict(list)
+        for binary in tmfile.get_packet_binaries():
+            packet = TMPacket(binary)
+            packet_data[packet.key].append(packet)
 
+        for prod_key, packets in packet_data.items():
             headers = []
             hex_data = []
             for packet in packets:
@@ -124,10 +183,8 @@ class LevelB:
             data = Table()
             data['control_index'] = control['index']
             data['data'] = hex_data
-            product = LevelB(control=control, data=data)
+            product = LevelB(control=control, data=data, prod_key=prod_key)
             fits_processor.write_fits(product)
-
-        tmfile.free_packet_data()
 
 
 if __name__ == '__main__':

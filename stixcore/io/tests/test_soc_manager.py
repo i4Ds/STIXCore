@@ -30,8 +30,10 @@ def test_root_not_found_error():
 def test_get_files(soc_manager):
     files = soc_manager.get_files(TMTC.TM)
     for file in files:
-        file.read_packet_data_header()
-        assert len(file.packet_data) > 0
+        i = 0
+        for binary in file.get_packet_binaries():
+            i += 1
+        assert i > 0
 
 
 def test_soc_file(base_dir):

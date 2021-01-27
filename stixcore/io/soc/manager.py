@@ -1,10 +1,10 @@
+"""Module to encapsulate the SOC file reading and writing."""
 import os
 from pathlib import Path
 from binascii import unhexlify
 from xml.etree import ElementTree as Et
-from collections import defaultdict
 
-from stixcore.tmtc.packets import TMTC, TMPacket
+from stixcore.tmtc.packets import TMTC
 from stixcore.util.logging import get_logger
 
 __all__ = ['SOCManager', 'SOCPacketFile']
@@ -14,7 +14,23 @@ logger = get_logger(__name__)
 
 
 class SOCPacketFile:
+    """Represents a SOC xml file handler that can contain TM or TC data."""
+
     def __init__(self, file):
+        """Create a handler for SOC file.
+
+        Parameters
+        ----------
+        file : `Path`
+            The path to the SOC xml file.
+
+        Raises
+        ------
+        ValueError
+            If the file does not exists.
+        ValueError
+            If the file does not contain the expected XML structure.
+        """
         self.file = Path(file)
         if not self.file.exists():
             raise ValueError(f"file path not found: {file}")
@@ -23,7 +39,6 @@ class SOCPacketFile:
         self.file_date = stat.st_ctime
         self.spacecraft_date = None  # TODO some file name conventions?
         self.tmtc = TMTC.All
-        self.packet_data = defaultdict(list)
 
         with open(self.file, "r") as f:
             header = f.read(1000)
@@ -37,10 +52,14 @@ class SOCPacketFile:
             else:
                 raise ValueError("xml does not contain any TM or TC response")
 
-    def free_packet_data(self):
-        self.packet_data = defaultdict(list)
+    def get_packet_binaries(self):
+        """Get sequence of binary packet data form the SOC file.
 
-    def read_packet_data_header(self):
+        Yields
+        -------
+        ´bytes´
+            the next binary data of hexadecimal representation form the SOC file.
+        """
         root = Et.parse(str(self.file)).getroot()
         if self.tmtc == TMTC.TC:
             for i, node in enumerate(root.iter('PktTcReportListElement')):
@@ -50,8 +69,7 @@ class SOCPacketFile:
             for i, node in enumerate(root.iter('Packet')):
                 packet_binary = unhexlify(node.text)
                 # Not sure why guess and extra moc header
-                tm_packet = TMPacket(packet_binary[76:])
-                self.packet_data[tm_packet.key].append(tm_packet)
+                yield packet_binary[76:]
 
 
 class SOCManager:
@@ -71,7 +89,18 @@ class SOCManager:
         logger.info(f"Create SOCManager @ {self.data_root}")
 
     def get_files(self, tmtc=TMTC.All):
-        files = list()
+        """Get all SOC files from the input directory that contain TM or TC data.
+
+        Parameters
+        ----------
+        tmtc : `TMTC`, optional
+            Filter for TC | TM or ALL, by default TMTC.All
+
+        Yields
+        ------
+        `SOCPacketFile`
+            the next found SOC input file.
+        """
 
         filter = "*.xml"
         if tmtc == TMTC.TC:
@@ -83,7 +112,6 @@ class SOCManager:
             try:
                 file = SOCPacketFile(filename)
                 if file.tmtc.value & tmtc.value:
-                    files.append(file)
+                    yield file
             except ValueError:
                 pass
-        return files

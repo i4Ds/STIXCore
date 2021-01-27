@@ -25,9 +25,7 @@ def _get_compression_scheme(packets, nix1, nix2, nix3):
     np.ndarray
         S,K,M compression scheme parameters
     """
-    comp_counts = np.array((packets.data.get(nix1, aslist=True),
-                            packets.data.get(nix2, aslist=True),
-                            packets.data.get(nix3, aslist=True)), np.ubyte).T
+    comp_counts = np.array((packets.get(nix1), packets.get(nix2), packets.get(nix3)), np.ubyte).T
 
     return comp_counts
 
@@ -50,8 +48,8 @@ def _get_energy_bins(packets, nixlower, nixuppper):
     np.ndarray
         Full energy mask of len 33
     """
-    energy_bin_mask = np.array(packets.data.get(nixlower, aslist=True), np.uint32)
-    energy_bin_mask_upper = np.array(packets.data.get(nixuppper, aslist=True), np.bool8)
+    energy_bin_mask = np.array(packets.get(nixlower), np.uint32)
+    energy_bin_mask_upper = np.array(packets.get(nixuppper), np.bool8)
     full_energy_mask = [format(mask, 'b').zfill(32)[::-1] + format(upper, 'b') for mask, upper in
                         zip(energy_bin_mask, energy_bin_mask_upper)]
     full_energy_mask = [list(map(int, m)) for m in full_energy_mask]
@@ -74,8 +72,8 @@ def _get_detector_mask(packets):
     """
     detector_masks = np.array([
         [bool(int(x))
-         for x in format(packets.data.get('NIX00407', aslist=True)[i], '032b')][::-1]  # reverse ind
-        for i in range(len(packets.data.get('NIX00407', aslist=True)))], np.ubyte)
+         for x in format(packets.get('NIX00407')[i], '032b')][::-1]  # reverse ind
+        for i in range(len(packets.get('NIX00407')))], np.ubyte)
 
     return detector_masks
 
@@ -96,8 +94,8 @@ def _get_pixel_mask(packets, param_name='NIXD0407'):
     """
     pixel_masks = np.array([
         [bool(int(x))
-         for x in format(packets.data.get(param_name, aslist=True)[i], '012b')][::-1]  # reverse ind
-        for i in range(len(packets.data.get(param_name, aslist=True)))], np.ubyte)
+         for x in format(packets.get(param_name)[i], '012b')][::-1]  # reverse ind
+        for i in range(len(packets.get(param_name)))], np.ubyte)
 
     return pixel_masks
 
@@ -116,7 +114,7 @@ def _get_num_energies(packets):
     int
         Number of energies
     """
-    return packets.data.get('NIX00270', aslist=True)
+    return packets.get('NIX00270')
 
 
 def _get_unique(packets, param_name, dtype):

@@ -7,6 +7,10 @@ from stixcore.tmtc.parser import parse_binary, parse_bitstream, parse_variable
 __all__ = ['TMTC', 'SourcePacketHeader', 'TMDataHeader', 'TCDataHeader', 'GenericPacket',
            'TMPacket', 'TCPacket', 'GenericTMPacket']
 
+from stixcore.util.logging import get_logger
+
+logger = get_logger(__name__)
+
 SOURCE_PACKET_HEADER_STRUCTURE = {
     'version': 'uint:3',
     'packet_type': 'uint:1',
@@ -462,6 +466,8 @@ class GenericTMPacket:
         packet_info = idb.get_packet_type_info(self.data_header.service_type,
                                                self.data_header.service_subtype,
                                                self.pi1_val)
+        self.spid = packet_info.PID_SPID
+
         tree = {}
         if packet_info.is_variable():
             tree = idb.get_variable_structure(self.data_header.service_type,
@@ -480,6 +486,17 @@ class GenericTMPacket:
 
         Has to be overridden by individual TM packets with nested repeaters.
         """
+
+    def get(self, name):
+        try:
+            if name in SOURCE_PACKET_HEADER_STRUCTURE.keys():
+                return self.source_headers.__getattribute__(name)
+            elif name in TM_DATA_HEADER_STRUCTURE.keys():
+                return self.data_headers.__getattribute__(name)
+            else:
+                return self.data.__getattribute__(name)
+        except KeyError:
+            logger.debug('Key %s not found', name)
 
     def __repr__(self):
         return f'{self.__class__.__name__}({self.source_packet_header}, {self.data_header})'
@@ -516,3 +533,29 @@ class GenericTMPacket:
     # def select_idb(self):
     #     _idb = self.idb_manager.get_idb(utc=self.date_time.as_utc())
     #     return _idb
+
+
+class PacketSequence:
+    """
+    A sequence of packets
+    """
+    def __init__(self, packets):
+
+        self.source_headers = []
+        self.data_headers = []
+        self.data = []
+        for packet in packets:
+            self.source_headers.append(packet.source_packet_header)
+            self.data_headers.append(packet.data_header)
+            self.data.append(packet.data)
+
+    def get(self, name):
+        try:
+            if name in SOURCE_PACKET_HEADER_STRUCTURE.keys():
+                return [header.__getattribute__(name) for header in self.source_headers]
+            elif name in TM_DATA_HEADER_STRUCTURE.keys():
+                return [header.__getattribute__(name) for header in self.data_headers]
+            else:
+                return [data.__getattribute__(name) for data in self.data]
+        except KeyError:
+            logger.debug('Key %s not found', name)

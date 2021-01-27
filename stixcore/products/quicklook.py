@@ -1,8 +1,6 @@
 """
 High level STIX data products created from single stand alone packets or a sequence of packets.
 """
-from datetime import datetime, timedelta
-from itertools import chain
 
 import numpy as np
 
@@ -101,21 +99,18 @@ class Control(QTable):
         return f'<{self.__class__.__name__} \n {super().__repr__()}>'
 
     def _get_time(self):
-        # Replicate packet time for each sample
-        base_times = [[DateTime(coarse=self["scet_coarse"], fine=self["scet_fine"][i])] * n
-                      for i, n in enumerate(self['num_samples'])]
-        base_times = np.hstack([b.as_float() for b in chain(*[b for b in base_times])]) << u.s
-        # For each sample generate sample number and multiply by duration and apply unit
+        # Replicate integration time for each sample in each packet
+        base_times = np.hstack(
+            [np.full(ns, DateTime(coarse=ct, fine=ft).as_float().value)
+             for ns, ct, ft in self[['num_samples', 'scet_coarse', 'scet_fine']]]) * u.s
         start_delta = np.hstack(
             [(np.arange(ns) * it) for ns, it in self[['num_samples', 'integration_time']]])
 
         durations = np.hstack([np.ones(num_sample) * int_time for num_sample, int_time in
                               self[['num_samples', 'integration_time']]])
 
-        # TODO Write out and simplify
-        end_delta = start_delta + durations
         # Add the delta time to base times and convert to relative from start time
-        times = base_times + start_delta + (end_delta - start_delta) / 2
+        times = base_times + start_delta + (durations / 2)
 
         return times, durations
 
@@ -125,15 +120,15 @@ class Control(QTable):
         control = cls()
         # self.energy_bin_mask = None
         # self.samples = None
-        control['scet_coarse'] = np.array(packets.data.get('NIX00445', aslist=True), np.uint32)
+        control['scet_coarse'] = np.array(packets.get('NIX00445'), np.uint32)
         # Not all QL data have fine time in TM default to 0 if no present
-        scet_fine = packets.data.get('NIX00446', aslist=True)
+        scet_fine = packets.get('NIX00446')
         if scet_fine:
             control['scet_fine'] = np.array(scet_fine, np.uint32)
         else:
             control['scet_fine'] = np.zeros_like(control['scet_coarse'], np.uint32)
 
-        integration_time = packets.data.get('NIX00405', aslist=True)
+        integration_time = packets.get('NIX00405')
         if integration_time:
             control['integration_time'] = (np.array(integration_time, np.float) + 1) * 0.1 * u.s
         else:
@@ -170,8 +165,10 @@ class Product:
         self.control = control
         self.data = data
 
-        self.obs_beg = self.data['time'][0] - self.control['integration_time'][0] / 2
-        self.obs_end = self.data['time'][-1] + self.control['integration_time'][-1] / 2
+        self.obs_beg = DateTime.from_float(self.data['time'][0]
+                                           - self.control['integration_time'][0] / 2)
+        self.obs_end = DateTime.from_float(self.data['time'][-1]
+                                           + self.control['integration_time'][-1] / 2)
         self.obs_avg = self.obs_beg + (self.obs_end - self.obs_beg) / 2
 
     def __add__(self, other):
@@ -213,11 +210,13 @@ class Product:
                f'>'
 
     def to_days(self):
-        days = set([(t.year, t.month, t.day) for t in self.data['time'].to_datetime()])
-        date_ranges = [(datetime(*day), datetime(*day) + timedelta(days=1)) for day in days]
-        for dstart, dend in date_ranges:
-            i = np.where((self.data['time'] >= dstart) &
-                         (self.data['time'] < dend))
+        days = range(int((self.obs_beg.as_float() / u.d).decompose().value),
+                     int((self.obs_end.as_float() / u.d).decompose().value))
+        # days = set([(t.year, t.month, t.day) for t in self.data['time'].to_datetime()])
+        # date_ranges = [(datetime(*day), datetime(*day) + timedelta(days=1)) for day in days]
+        for day in days:
+            i = np.where((self.data['time'] >= day * u.day) &
+                         (self.data['time'] < (day + 1) * u.day))
 
             data = self.data[i]
             control_indices = np.unique(data['control_index'])
@@ -260,7 +259,7 @@ class LightCurve(Product):
     """
     def __init__(self, control=None, data=None):
         super().__init__(control=control, data=data)
-        self.name = 'lightcurve'
+        self.name = 'LightCurve'
         self.level = 'L0'
 
     @classmethod
@@ -274,7 +273,7 @@ class LightCurve(Product):
         control['compression_scheme_triggers_skm'] = \
             _get_compression_scheme(packets, 'NIXD0104', 'NIXD0105', 'NIXD0106')
         control['num_energies'] = _get_num_energies(packets)
-        control['num_samples'] = np.array(packets.data.get('NIX00271'))[
+        control['num_samples'] = np.array(packets.get('NIX00271')).flatten()[
             np.cumsum(control['num_energies']) - 1]
 
         time, duration = control._get_time()
@@ -283,35 +282,38 @@ class LightCurve(Product):
                                      control[['num_samples', 'index']]])
 
         cs, ck, cm = control['compression_scheme_counts_skm'][0]
-        counts, counts_var = decompress(packets.data.get('NIX00272', aslist=True),
+        counts, counts_var = decompress(packets.get('NIX00272'),
                                         s=cs, k=ck, m=cm, return_variance=True)
 
         ts, tk, tm = control['compression_scheme_triggers_skm'][0]
-        triggers, triggers_var = decompress(packets.data.get('NIX00274', aslist=True),
+        triggers, triggers_var = decompress(packets.get('NIX00274'),
                                             s=ts, k=tk, m=tm, return_variance=True)
+        # this may no longer be needed
+        # flat_indices = np.hstack((0, np.cumsum([*control['num_samples']]) *
+        #                           control['num_energies'])).astype(int)
 
-        flat_indices = np.hstack((0, np.cumsum([*control['num_samples']]) *
-                                  control['num_energies'])).astype(int)
-        counts_reformed = [
-            np.array(counts[flat_indices[i]:flat_indices[i + 1]]).reshape(n_eng, n_sam)
-            for i, (n_sam, n_eng) in enumerate(control[['num_samples', 'num_energies']])]
+        counts_reformed = np.hstack(c for c in counts).T
+        counts_var_reformed = np.hstack(c for c in counts_var).T
+        # counts_reformed = [
+        #     np.array(counts[flat_indices[i]:flat_indices[i + 1]]).reshape(n_eng, n_sam)
+        #     for i, (n_sam, n_eng) in enumerate(control[['num_samples', 'num_energies']])]
 
-        counts_var_reformed = [
-            np.array(counts_var[flat_indices[i]:flat_indices[i + 1]]).reshape(n_eng, n_sam)
-            for i, (n_sam, n_eng) in enumerate(control[['num_samples', 'num_energies']])]
+        # counts_var_reformed = [
+        #     np.array(counts_var[flat_indices[i]:flat_indices[i + 1]]).reshape(n_eng, n_sam)
+        #     for i, (n_sam, n_eng) in enumerate(control[['num_samples', 'num_energies']])]
 
-        counts = np.hstack(counts_reformed).T
-        counts_var = np.hstack(counts_var_reformed).T
+        # counts = np.hstack(counts_reformed).T
+        # counts_var = np.hstack(counts_var_reformed).T
 
         data = Data()
         data['control_index'] = control_indices
         data['time'] = time
         data['timedel'] = duration
-        data['triggers'] = triggers
-        data['triggers_err'] = np.sqrt(triggers_var)
-        data['rcr'] = packets.data.get('NIX00276')
-        data['counts'] = counts * u.ct
-        data['counts_err'] = np.sqrt(counts_var) * u.ct
+        data['triggers'] = triggers.flatten()
+        data['triggers_err'] = np.sqrt(triggers_var.flatten())
+        data['rcr'] = np.array(packets.get('NIX00276')).flatten()
+        data['counts'] = counts_reformed * u.ct
+        data['counts_err'] = np.sqrt(counts_var_reformed) * u.ct
 
         return cls(control=control, data=data)
 

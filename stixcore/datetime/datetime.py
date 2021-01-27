@@ -1,3 +1,6 @@
+import numpy as np
+
+import astropy.units as u
 
 from stixcore.data import test
 from stixcore.ephemeris.manager import Time
@@ -51,9 +54,28 @@ class DateTime:
             utc = time.scet_to_datetime(f'{self.coarse}:{self.fine}')
             return utc
 
+    @classmethod
+    def from_float(cls, scet_float):
+        sub_seconds, seconds = np.modf(scet_float.to_value('s'))
+        fine = int((2**16 - 1) * sub_seconds)
+        return DateTime(coarse=int(seconds), fine=fine)
+
+    def __add__(self, other):
+        delta_coarse, new_fine = divmod(self.fine + other.fine, 2**16)
+        new_coarse = self.coarse + other.coarse + delta_coarse
+        return DateTime(coarse=new_coarse, fine=new_fine)
+
+    def __sub__(self, other):
+        delta_coarse, new_fine = divmod(self.fine - other.fine, 2 ** 16)
+        new_coarse = self.coarse - other.coarse + delta_coarse
+        return DateTime(coarse=new_coarse, fine=new_fine)
+
+    def __truediv__(self, other):
+        return DateTime.from_float(self.as_float()/other)
+
     # TODO check v spice
     def as_float(self):
-        return self.coarse + (self.fine / (2**16 - 1))
+        return self.coarse + (self.fine / (2**16 - 1)) << u.s
 
     def __repr__(self):
         return f'{self.__class__.__name__}(coarse={self.coarse}, fine={self.fine})'

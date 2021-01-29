@@ -6,10 +6,10 @@ import zipfile
 import threading
 import urllib.request
 from pathlib import Path
-from datetime import datetime
 
 from dateutil import parser as dtparser
 
+from stixcore.datetime.datetime import DateTime as StixDateTime
 from stixcore.idb.idb import IDB
 from stixcore.util.logging import get_logger
 
@@ -67,11 +67,21 @@ class IDBManager:
         try:
             with open(self._data_root / IDB_VERSION_HISTORY_FILE) as f:
                 self.history = json.load(f)
+                for item in self.history:
+                    item['validityPeriodUTC'][0] = dtparser.parse(item['validityPeriodUTC'][0])
+                    item['validityPeriodUTC'][1] = dtparser.parse(item['validityPeriodUTC'][1])
+                    item['validityPeriodOBT'][0] = StixDateTime(
+                                                    coarse=item['validityPeriodOBT'][0]['coarse'],
+                                                    fine=item['validityPeriodOBT'][0]['fine'])
+                    item['validityPeriodOBT'][1] = StixDateTime(
+                                                    coarse=item['validityPeriodOBT'][1]['coarse'],
+                                                    fine=item['validityPeriodOBT'][1]['fine'])
+
         except EnvironmentError:
             raise ValueError(f'No IDB version history found at: '
                              f'{self._data_root / IDB_VERSION_HISTORY_FILE}')
 
-    def find_version(self, utc=None):
+    def find_version(self, obt=None):
         """Find IDB version operational at a given time.
 
         Parameters
@@ -84,18 +94,17 @@ class IDBManager:
         `str`
             a version label
         """
-        if not utc:
+        if not obt:
             try:
                 return self.history[0]['version']
             except IndexError as e:
                 logger.error(str(e))
             return ''
         for item in self.history:
-            if dtparser.parse(item['validityPeriod'][0]) < utc.replace(tzinfo=None) \
-                    <= dtparser.parse(item['validityPeriod'][1]):
+            if item['validityPeriodOBT'][0] < obt <= item['validityPeriodOBT'][1]:
                 return item['version']
 
-        logger.error(f"No IDB version found for Time: {utc}")
+        logger.error(f"No IDB version found for Time: {obt}")
         return ''
 
     def download_version(self, version_label, force=False,
@@ -305,14 +314,14 @@ class IDBManager:
             logger.debug("IDB version missmatch")
         return ver == IDBManager.convert_version_label(version_label)
 
-    def get_idb(self, version_label='', utc=None):
+    def get_idb(self, version_label='', obt=None):
         """Get the IDB for the specified version (or the latest available).
 
         Parameters
         ----------
         version_label : `str` | `(int, int, int)`
             a version definition (major, minor, patch) or "major.minor.patch"
-        utc : `datetime`, optional
+        obt : `datetime`, optional
             a date for autodetect the IDB version for operation period
 
         Returns
@@ -320,14 +329,13 @@ class IDBManager:
         `~stixcore.idb.idb.IDB`
             reference to a IDB reader
         """
-        if isinstance(utc, datetime):
-            utc = utc.replace(tzinfo=None)
-            utc_version = self.find_version(utc)
+        if isinstance(obt, StixDateTime):
+            utc_version = self.find_version(obt=obt)
             if self.has_version(utc_version):
                 version_label = utc_version
             else:
-                logger.warning("No valid IDB version found for time {utc}."
-                               "Falling back to version {version_label}")
+                logger.warning(f"No valid IDB version found for time {obt}"
+                               f"Falling back to version {version_label}")
 
         if self.has_version(version_label):
             if version_label not in self.idb_cache:

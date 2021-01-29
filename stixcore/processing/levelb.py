@@ -191,16 +191,16 @@ if __name__ == '__main__':
     tstart = perf_counter()
     logger.info('LevelB run')
 
-    socm = SOCManager(Path('/Users/shane/Projects/STIX/dataview/data/real'))
-    out_dir = Path('/Users/shane/Projects/STIX/dataview/data/test2')
+    socm = SOCManager(Path('D:/'))
+    out_dir = Path('D:/stix_out')
 
     if not out_dir.exists():
         os.makedirs(out_dir)
 
     fits_processor = FitsLBProcessor(out_dir)
 
-    files_to_process = socm.get_files(TMTC.TM)
-    for tmtc_file in files_to_process:
+    for tmtc_file in socm.get_files(TMTC.TM):
+        logger.info(f'Processing file: {tmtc_file.file}')
         prod = LevelB.process(tmtc_file, fits_processor)
 
     tend = perf_counter()

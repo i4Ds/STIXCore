@@ -7,7 +7,6 @@ import numpy as np
 import astropy.units as u
 from astropy.io import fits
 from astropy.table import QTable, unique, vstack
-from astropy.time import Time
 
 from stixcore.calibration.compression import decompress
 from stixcore.datetime.datetime import DateTime
@@ -150,7 +149,7 @@ class Data(QTable):
 
 
 class Product:
-    def __init__(self, control, data):
+    def __init__(self, *, service_type, service_subtype, pi1_val, spid, control, data):
         """
         Generic product composed of control and data
 
@@ -161,6 +160,10 @@ class Product:
         data : stix_parser.products.quicklook.Data
             Table containing data
         """
+        self.service_type = service_type
+        self.service_subtype = service_subtype
+        self.pi1_val = pi1_val
+        self.spid = spid
         self.type = 'ql'
         self.control = control
         self.data = data
@@ -201,7 +204,8 @@ class Product:
         unique_control_inds = np.unique(data['control_index'])
         control = control[np.isin(control['index'], unique_control_inds)]
 
-        return type(self)(control, data)
+        return type(self)(service_type=self.service_type, service_subtype=self.service_subtype,
+                          pi1_val=self.pi1_val, spid=self.spid, control=control, data=data)
 
     def __repr__(self):
         return f'<{self.__class__.__name__}\n' \
@@ -225,7 +229,8 @@ class Product:
 
             data['control_index'] = data['control_index'] - control_index_min
             control['index'] = control['index'] - control_index_min
-            yield type(self)(control=control, data=data)
+            yield type(self)(service_type=self.service_type, service_subtype=self.service_subtype,
+                             pi1_val=self.pi1_val, spid=self.spid, control=control, data=data)
 
     @classmethod
     def from_packets(cls, packets, eng_packets):
@@ -236,11 +241,15 @@ class Product:
     @classmethod
     def from_fits(cls, fitspath):
         header = fits.getheader(fitspath)
+        header_info = {'service_type': int(header.get('stype')),
+                       'service_subtype': int(header.get('sstype')),
+                       'pi1_val': int(header.get('ssid')),
+                       'spid': int(header.get('spid'))}
         control = QTable.read(fitspath, hdu='CONTROL')
         data = QTable.read(fitspath, hdu='DATA')
-        obs_beg = Time(header['DATE_OBS'])
-        data['time'] = (data['time'] + obs_beg)
-        return cls(control=control, data=data)
+        obs_beg = DateTime.from_string(header['DATE_OBS'])
+        data['time'] = (data['time'] + obs_beg.as_float())
+        return cls(**header_info, control=control, data=data)
 
     def get_energies(self):
         if 'energy_bin_edge_mask' in self.control.colnames:
@@ -257,13 +266,18 @@ class LightCurve(Product):
     """
     Quick Look Light Curve data product.
     """
-    def __init__(self, control=None, data=None):
-        super().__init__(control=control, data=data)
+    def __init__(self, **kwargs):
+        super().__init__(**kwargs)
         self.name = 'LightCurve'
         self.level = 'L0'
 
     @classmethod
     def from_packets(cls, packets):
+        service_type = packets.get('service_type')[0]
+        service_subtype = packets.get('service_subtype')[0]
+        spid = packets.get('spid')[0]
+        pi1_val = packets.get('pi1_val')[0]
+
         control = Control.from_packets(packets)
         control['detector_mask'] = _get_detector_mask(packets)
         control['pixel_mask'] = _get_pixel_mask(packets)
@@ -282,18 +296,18 @@ class LightCurve(Product):
                                      control[['num_samples', 'index']]])
 
         cs, ck, cm = control['compression_scheme_counts_skm'][0]
-        counts, counts_var = decompress(packets.get('NIX00272'),
-                                        s=cs, k=ck, m=cm, return_variance=True)
+        counts = np.hstack(packets.get('NIX00272'))
+        counts, counts_var = decompress(counts, s=cs, k=ck, m=cm, return_variance=True)
 
         ts, tk, tm = control['compression_scheme_triggers_skm'][0]
-        triggers, triggers_var = decompress(packets.get('NIX00274'),
-                                            s=ts, k=tk, m=tm, return_variance=True)
+        triggers = np.hstack(packets.get('NIX00274'))
+        triggers, triggers_var = decompress(triggers, s=ts, k=tk, m=tm, return_variance=True)
         # this may no longer be needed
         # flat_indices = np.hstack((0, np.cumsum([*control['num_samples']]) *
         #                           control['num_energies'])).astype(int)
 
-        counts_reformed = np.hstack(c for c in counts).T
-        counts_var_reformed = np.hstack(c for c in counts_var).T
+        # counts_reformed = np.hstack(c for c in counts).T
+        # counts_var_reformed = np.hstack(c for c in counts_var).T
         # counts_reformed = [
         #     np.array(counts[flat_indices[i]:flat_indices[i + 1]]).reshape(n_eng, n_sam)
         #     for i, (n_sam, n_eng) in enumerate(control[['num_samples', 'num_energies']])]
@@ -309,13 +323,14 @@ class LightCurve(Product):
         data['control_index'] = control_indices
         data['time'] = time
         data['timedel'] = duration
-        data['triggers'] = triggers.flatten()
-        data['triggers_err'] = np.sqrt(triggers_var.flatten())
-        data['rcr'] = np.array(packets.get('NIX00276')).flatten()
-        data['counts'] = counts_reformed * u.ct
-        data['counts_err'] = np.sqrt(counts_var_reformed) * u.ct
+        data['triggers'] = triggers
+        data['triggers_err'] = np.sqrt(triggers_var)
+        data['rcr'] = np.hstack(packets.get('NIX00276')).flatten()
+        data['counts'] = counts.T * u.ct
+        data['counts_err'] = np.sqrt(counts_var).T * u.ct
 
-        return cls(control=control, data=data)
+        return cls(service_type=service_type, service_subtype=service_subtype,
+                   pi1_val=pi1_val, spid=spid, control=control, data=data)
 
     def __repr__(self):
         return f'{self.name}, {self.level}\n' \

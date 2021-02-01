@@ -1,13 +1,13 @@
 """Module for the different processing levels."""
+import logging
 from datetime import datetime
+
+import numpy as np
+
 import astropy.units as u
 from astropy.io import fits
 from astropy.table import QTable
-from stixcore.util.logging import get_logger
-import logging
-from datetime import datetime
-import numpy as np
-from astropy.io import fits
+
 from stixcore.util.logging import get_logger
 
 __all__ = ['SEC_IN_DAY', 'FitsProcessor', 'FitsLBProcessor']
@@ -154,11 +154,32 @@ class FitsLBProcessor(FitsProcessor):
             hdul.writeto(path / filename, overwrite=True, checksum=True)
 
 
-class FitsL1Processor:
+class FitsL0Processor:
+    """
+    FITS level 1 processor
+    """
     def __init__(self, archive_path):
+        """
+        Create a new processor object.
+
+        Parameters
+        ----------
+        archive_path : `pathlib.Path`
+        """
         self.archive_path = archive_path
 
     def write_fits(self, product):
+        """
+        Write level 1 products into fits files.
+
+        Parameters
+        ----------
+        product : ``
+
+        Returns
+        -------
+
+        """
         if callable(getattr(product, 'to_days', None)):
             products = product.to_days()
         else:
@@ -166,17 +187,10 @@ class FitsL1Processor:
 
         for prod in products:
             filename = self.generate_filename(product=prod, version=1)
-            start_date = str(prod.obs_beg)
-            if prod.type == 'ql':
-                start_date = str(prod.obs_avg)[:10]
-
-            # if getattr(prod, 'ssid', False):
-            #     parts = [prod.level, prod.control['service_type'][0],
-            #              prod.control['service_subtype'][0], prod.ssid]
-            # else:
-            #     parts = [prod.level, prod.control['service_type'][0],
-            #              prod.control['service_subtype'][0]]
-            parts = [start_date]
+            # start_day = np.floor((prod.obs_beg.as_float()
+            #                       // (1 * u.day).to('s')).value * SEC_IN_DAY).astype(int)
+            parts = ['L0', prod.service_type, prod.service_subtype,
+                     prod.pi1_val]
             path = self.archive_path.joinpath(*[str(x) for x in parts])
             path.mkdir(parents=True, exist_ok=True)
 
@@ -185,9 +199,9 @@ class FitsL1Processor:
             if fitspath.exists():
                 logger.info('Fits file %s exists appending data', fitspath.name)
                 existing = prod.from_fits(fitspath)
-                # logger.debug('Existing %s \n New %s', existing, prod)
+                logger.debug('Existing %s \n Current %s', existing, prod)
                 prod = prod + existing
-                # logger.debug('Combined %s', prod)
+                logger.debug('Combined %s', prod)
 
             control = prod.control
             data = prod.data
@@ -214,10 +228,10 @@ class FitsL1Processor:
             energy_hdu = fits.BinTableHDU(energies)
             energy_hdu.name = 'ENERGIES'
 
-            # hdul = fits.HDUList([primary_hdu, control_hdu, data_hdu, energy_hdu])
+            hdul = fits.HDUList([primary_hdu, control_hdu, data_hdu, energy_hdu])
 
             logger.debug(f'Writing fits file to {path / filename}')
-            # hdul.writeto(path / filename, overwrite=True, checksum=True)
+            hdul.writeto(path / filename, overwrite=True, checksum=True)
 
     @staticmethod
     def generate_filename(product=None, version=None, status=''):
@@ -303,6 +317,10 @@ class FitsL1Processor:
             # TODO figure out where this info will come from
             ('SOOP_TYP', 'SOOP'),
             ('OBS_ID', 'obs_id'),
-            ('TARGET', 'Sun')
+            ('TARGET', 'Sun'),
+            ('STYPE', product.service_type),
+            ('SSTYPE', product.service_subtype),
+            ('SSID', product.pi1_val),
+            ('SPID', product.spid)
         )
         return headers

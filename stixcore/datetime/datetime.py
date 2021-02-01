@@ -25,7 +25,7 @@ class DateTime:
     fine : int
         Fine time stamp fraction of seconds 1/2**31 -1
     """
-    def __init__(self, *, coarse, fine):
+    def __init__(self, coarse, fine):
         """
         Create a new datetime using the given coarse and fine values.
 
@@ -59,6 +59,11 @@ class DateTime:
         sub_seconds, seconds = np.modf(scet_float.to_value('s'))
         fine = int((2**16 - 1) * sub_seconds)
         return DateTime(coarse=int(seconds), fine=fine)
+
+    @classmethod
+    def from_string(cls, scet_str):
+        coarse, fine = [int(p) for p in scet_str.split(':')]
+        return DateTime(coarse=coarse, fine=fine)
 
     def __add__(self, other):
         delta_coarse, new_fine = divmod(self.fine + other.fine, 2**16)

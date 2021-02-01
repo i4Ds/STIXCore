@@ -544,14 +544,20 @@ class PacketSequence:
         self.source_headers = []
         self.data_headers = []
         self.data = []
+        self.spid = []
+        self.pi1_val = []
         for packet in packets:
+            self.spid.append(packet.spid)
+            self.pi1_val.append(packet.pi1_val)
             self.source_headers.append(packet.source_packet_header)
             self.data_headers.append(packet.data_header)
             self.data.append(packet.data)
 
     def get(self, name):
         try:
-            if name in SOURCE_PACKET_HEADER_STRUCTURE.keys():
+            if name in {'spid', 'pi1_val'}:
+                return self.__getattribute__(name)
+            elif name in SOURCE_PACKET_HEADER_STRUCTURE.keys():
                 return [header.__getattribute__(name) for header in self.source_headers]
             elif name in TM_DATA_HEADER_STRUCTURE.keys():
                 return [header.__getattribute__(name) for header in self.data_headers]

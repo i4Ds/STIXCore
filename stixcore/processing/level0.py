@@ -8,10 +8,9 @@ from collections import defaultdict
 
 import numpy as np
 
-# from watchdog.events import FileSystemEventHandler, FileMovedEvent
 from astropy.table.table import Table
 
-from stixcore.io.fits.processors import FitsL1Processor
+from stixcore.io.fits.processors import FitsL0Processor
 from stixcore.products.quicklook import LightCurve
 from stixcore.tmtc.packet_factory import Packet
 from stixcore.tmtc.packets import GenericTMPacket, PacketSequence
@@ -164,7 +163,7 @@ def process_packets(packet_lists, spid, product, basepath=None, status='', overw
     overwrite : bool (optional)
         False (default) will raise error if fits file exits, True overwrite existing file
     """
-    fits_processor = FitsL1Processor(basepath)
+    fits_processor = FitsL0Processor(basepath)
 
     # For HK merge all stand alone packets in request
     if spid in [54101, 54102]:
@@ -294,7 +293,6 @@ class Level0:
         self.source_dir = Path(source_dir)
         self.output_dir = Path(output_dir)
         self.level0_files = sorted(list(self.source_dir.rglob('*.fits')),  key=os.path.getctime)
-        self.level0_files = self.level0_files[-17:]
         self.use_name = use_name
 
     def process_fits_files(self):
@@ -340,23 +338,12 @@ class Level0:
         process_products(cur_incomplete, self.output_dir, 'IC', overwrite=True,
                          use_name=self.use_name)
 
-# class TMTCFileHandler(FileSystemEventHandler):
-#     def __init__(self, func, output_path, use_name):
-#         self.func = func
-#         self.output_path = output_path
-#         self.use_name = use_name
-#
-#     def on_moved(self, event):
-#         if isinstance(event, FileMovedEvent):
-#             time.sleep(2)
-#             self.func(Path(event.dest_path), self.output_path, use_name=self.use_name)
-
 
 if __name__ == '__main__':
     tstart = perf_counter()
 
-    fits_path = Path('/Users/shane/Projects/stix/dataview/data/test2/L0/21/6/30')
-    bd = Path('/Users/shane/Projects/STIX/dataview/data/test2')
+    fits_path = Path('/Users/shane/Projects/stix/dataview/data/test_speed/L0/21/6/30')
+    bd = Path('/Users/shane/Projects/STIX/dataview/data/test_new')
 
     l0processor = Level0(fits_path, bd)
     l0processor.process_fits_files()

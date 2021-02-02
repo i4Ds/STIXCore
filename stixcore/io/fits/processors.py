@@ -300,7 +300,7 @@ class FitsL0Processor:
             ('OBT_BEG', str(product.obs_beg)),
             ('OBT_END', str(product.obs_end)),
             ('TIMESYS', 'UTC', 'System used for time keywords'),
-            ('LEVEL', 'L1', 'Processing level of the data'),
+            ('LEVEL', 'L0', 'Processing level of the data'),
             ('ORIGIN', 'STIX Team, FHNW', 'Location where file has been generated'),
             ('CREATOR', 'STIX-SWF', 'FITS creation software'),
             ('VERSION', 1, 'Version of data product'),
@@ -313,6 +313,162 @@ class FitsL0Processor:
             ('DATE_END', str(product.obs_end)),
             # ('MJDREF', product.obs_beg.mjd),
             # ('DATEREF', product.obs_beg.fits),
+            ('OBS_TYPE', 'LC'),
+            # TODO figure out where this info will come from
+            ('SOOP_TYP', 'SOOP'),
+            ('OBS_ID', 'obs_id'),
+            ('TARGET', 'Sun'),
+            ('STYPE', product.service_type),
+            ('SSTYPE', product.service_subtype),
+            ('SSID', product.pi1_val),
+            ('SPID', product.spid)
+        )
+        return headers
+
+
+class FitsL1Processor:
+    def __init__(self, archive_path):
+        self.archive_path = archive_path
+
+    def write_fits(self, product):
+        if callable(getattr(product, 'to_days', None)):
+            products = product.to_days()
+        else:
+            products = product.to_requests()
+
+        for prod in products:
+
+            filename = self.generate_filename(product=prod, version=1)
+            start_date = prod.obs_beg.to_datetime()
+            if prod.type == 'ql':
+                start_date = prod.obs_avg.to_datetime()
+
+            path = self.archive_path.joinpath(*[prod.level, format(start_date.year, '04d'),
+                                                format(start_date.month, '02d'),
+                                                format(start_date.day, '02d'),
+                                                prod.type.upper()])
+            path.mkdir(parents=True, exist_ok=True)
+            fitspath = path / filename
+            if fitspath.exists():
+                logger.info('Fits file %s exists appending data', fitspath.name)
+                existing = prod.from_fits(fitspath)
+                logger.debug('Existing %s \n Current %s', existing, prod)
+                prod = prod + existing
+                logger.debug('Combined %s', prod)
+
+            control = prod.control
+            data = prod.data
+            energies = prod.energies
+
+            # Convert time to be relative to start date
+            data['time'] = (data['time'] - prod.obs_beg).to(u.s)
+
+            primary_header = self.generate_primary_header(filename, prod)
+            primary_hdu = fits.PrimaryHDU()
+            primary_hdu.header.update(primary_header)
+            primary_hdu.header.update({'HISTORY': 'Processed by STIX'})
+
+            control_hdu = fits.BinTableHDU(control)
+            control_hdu.name = 'CONTROL'
+            data_hdu = fits.BinTableHDU(data)
+            data_hdu.name = 'DATA'
+            energy_hdu = fits.BinTableHDU(energies)
+            energy_hdu.name = 'ENERGIES'
+
+            hdul = fits.HDUList([primary_hdu, control_hdu, data_hdu, energy_hdu])
+
+            logger.debug(f'Writing fits file to {path / filename}')
+            hdul.writeto(path / filename, overwrite=True, checksum=True)
+
+    def generate_filename(self, product=None, version=None, status=''):
+        """
+        Generate fits file name with SOLO conventions.
+
+        Parameters
+        ----------
+        product : stix_parser.product.BaseProduct
+            Product
+        version : int
+            Version of this product
+        status : str
+            Status of the packets
+
+        Returns
+        -------
+        str
+            The filename
+        """
+        status = ''
+        if status:
+            status = f'_{status}'
+
+        user_req = ''
+        if 'request_id' in product.control.colnames:
+            user_req = f"-{product.control['request_id'][0]}"
+
+        tc_control = ''
+        if 'tc_packet_seq_control' in product.control.colnames and user_req != '':
+            tc_control = f'_{product.control["tc_packet_seq_control"][0]}'
+
+        if product.type == 'ql':
+            date_range = product.obs_avg.to_datetime().strftime("%Y%m%d")
+        else:
+            start_obs = product.obs_beg.to_datetime().strftime("%Y%m%dT%H%M%S")
+            end_obs = product.obs_end.to_datetime().strftime("%Y%m%dT%H%M%S")
+            date_range = f'{start_obs}-{end_obs}'
+        return f'solo_{product.level}_stix-{product.type}-' \
+               f'{product.name.replace("_", "-")}{user_req}' \
+               f'_{date_range}_V{version:02d}{status}{tc_control}.fits'
+
+    def generate_primary_header(self, filename, product):
+        """
+        Generate primary header cards.
+
+        Parameters
+        ----------
+        filename : str
+            Filename
+        scet_coarse : numpy.ndarray
+            SCET coarse time
+        scet_fine : numpy.ndarray
+            SCET fine time
+        obs_beg : datetime.datetime
+            Begging of observation
+        obs_avg : datetime.datetime
+           Averagea of observation
+        obs_end : datetime.datetime
+            End of observation
+
+        Returns
+        -------
+        tuple
+            List of header cards as tuples (name, value, comment)
+        """
+        headers = (
+            # Name, Value, Comment
+            ('TELESCOP', 'SOLO/STIX', 'Telescope/Sensor name'),
+            ('INSTRUME', 'STIX', 'Instrument name'),
+            ('OBSRVTRY', 'Solar Orbiter', 'Satellite name'),
+            ('FILENAME', filename, 'FITS filename'),
+            ('DATE', datetime.now().isoformat(timespec='milliseconds'),
+             'FITS file creation date in UTC'),
+            # TODO carry SCET over
+            ('OBT_BEG', product.obs_beg.fits),
+            ('OBT_END', product.obs_end.fits),
+            ('TIMESYS', 'UTC', 'System used for time keywords'),
+            ('LEVEL', 'L1', 'Processing level of the data'),
+            ('ORIGIN', 'STIX Team, FHNW', 'Location where file has been generated'),
+            ('CREATOR', 'STIX-SWF', 'FITS creation software'),
+            ('VERSION', 1, 'Version of data product'),
+            ('OBS_MODE', 'Nominal '),
+            ('VERS_SW', 1, 'Software version'),
+            ('DATE_OBS', product.obs_beg.fits,
+             'Start of acquisition time in UT'),
+            ('DATE_BEG', product.obs_beg.fits),
+            ('DATE_AVG', product.obs_avg.fits),
+            ('DATE_END', product.obs_end.fits),
+            ('MJDREF', product.obs_beg.mjd),
+            ('DATEREF', product.obs_beg.fits),
             ('OBS_TYPE', 'LC'),
             # TODO figure out where this info will come from
             ('SOOP_TYP', 'SOOP'),

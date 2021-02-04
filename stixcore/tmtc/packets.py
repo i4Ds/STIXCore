@@ -240,7 +240,7 @@ class TMPacket(GenericPacket):
 
         self.idb = idb
         if not idb:
-            self.idb = self.idb_manager.get_idb(utc=self.data_header.datetime.to_datetime())
+            self.idb = self.idb_manager.get_idb(obt=self.data_header.datetime)
 
     @property
     def key(self):
@@ -461,7 +461,7 @@ class GenericTMPacket:
         self.pi1_val = getattr(data, 'pi1_val', None)
 
         if isinstance(self.idb, IDBManager):
-            idb = self.idb.get_idb(utc=self.data_header.datetime.to_datetime())
+            idb = self.idb.get_idb(obt=self.data_header.datetime)
 
         packet_info = idb.get_packet_type_info(self.data_header.service_type,
                                                self.data_header.service_subtype,
@@ -529,10 +529,6 @@ class GenericTMPacket:
             if self.pi1_val in self._SCHEMAS:
                 return self._SCHEMAS[self.pi1_val]
         return None
-
-    # def select_idb(self):
-    #     _idb = self.idb_manager.get_idb(utc=self.date_time.as_utc())
-    #     return _idb
 
 
 class PacketSequence:

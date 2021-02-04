@@ -2,11 +2,15 @@
         {
                 "version":"2.26.3",
                 "aswVersion":179,
-                "validityPeriod":["2019-01-01T00:00:00", "2019-12-30T00:00:00"]
+                "validityPeriodUTC":["2019-01-01T00:00:00", "2020-01-01T00:00:00"],
+                "validityPeriodOBT":[{"coarse":599616005, "fine":0}, {"coarse":631152005, "fine":0}]
         },
         {
                 "version":"2.26.34",
                 "aswVersion":180,
-                "validityPeriod":["2018-01-01T00:00:00", "2021-12-30T00:00:00"]
+                "comment": "return alway this for the past",
+                "validityPeriodUTC":["2020-01-01T00:00:00", "2022-01-01T00:00:00"],
+                "validityPeriodOBT":[{"coarse":0, "fine":0}, {"coarse":694310302, "fine":0}]
+
         }
 ]

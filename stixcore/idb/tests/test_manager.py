@@ -1,10 +1,10 @@
 import os
 import shutil
 from pathlib import Path
-from datetime import datetime
 
 import pytest
 
+from stixcore.datetime.datetime import DateTime as StixDateTime
 from stixcore.idb.manager import IDBManager
 
 
@@ -49,23 +49,19 @@ def test_download_version(idb_manager):
 
 
 def test_find_version(idb_manager):
-    idb = idb_manager.get_idb(utc=datetime(2020, 6, 6))
+    idb = idb_manager.get_idb(obt=StixDateTime(coarse=631155005, fine=0))
     assert idb.get_idb_version() == "2.26.34"
     idb.close()
 
     with pytest.raises(ValueError) as e:
-        idb = idb_manager.get_idb(utc=datetime(2019, 6, 6))
-        assert idb.get_idb_version() == "2.26.34"
-        idb.close()
+        idb = idb_manager.get_idb(obt=StixDateTime(coarse=9631155005, fine=0))
     assert len(str(e.value)) > 1
 
     with pytest.raises(ValueError) as e:
-        idb = idb_manager.get_idb(utc=datetime(2016, 6, 6))
-        assert idb.version == "2.26.34"
-        idb.close()
+        idb = idb_manager.get_idb(obt=StixDateTime(coarse=-1, fine=0))
     assert len(str(e.value)) > 1
 
-    v = idb_manager.find_version(utc=None)
+    v = idb_manager.find_version(obt=None)
     assert v == "2.26.3"
 
 

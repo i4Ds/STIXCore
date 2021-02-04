@@ -87,3 +87,34 @@ class DateTime:
 
     def __str__(self):
         return f'{self.coarse:010d}:{self.fine:05d}'
+
+    def __gt__(self, other):
+        if(self.coarse > other.coarse):
+            return True
+        if(self.coarse == other.coarse and self.fine > other.fine):
+            return True
+        return False
+
+    def __ge__(self, other):
+        if(self.coarse > other.coarse):
+            return True
+        if(self.coarse == other.coarse and self.fine >= other.fine):
+            return True
+        return False
+
+    def __lt__(self, other):
+        if(self.coarse < other.coarse):
+            return True
+        if(self.coarse == other.coarse and self.fine < other.fine):
+            return True
+        return False
+
+    def __le__(self, other):
+        if(self.coarse < other.coarse):
+            return True
+        if(self.coarse == other.coarse and self.fine <= other.fine):
+            return True
+        return False
+
+    def __eq__(self, other):
+        return self.coarse == other.coarse and self.fine == other.fine

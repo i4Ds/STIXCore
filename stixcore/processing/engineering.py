@@ -1,6 +1,5 @@
 """Processing module for converting raw to engineering values."""
-
-from scipy import interpolate
+import re
 
 from stixcore.util.logging import get_logger
 
@@ -71,22 +70,19 @@ def apply_raw_to_engineering(raw, args):
             logger.error(f'Missing textual calibration info for: {param.PCF_NAME} / \
                             {param.PCF_CURTX} value={raw}')
     elif param.PCF_CATEG == 'N':
-        curve = idb.get_calibration_curve(param.PCF_CURTX)
-        if len(curve) <= 1:
-            logger.error(f'Invalid calibration parameter {param.PCF_NAME} / \
-                          {param.PCF_CURTX}: at least two data points needed')
-        elif len(curve) == 2:
-            en = round((curve.y[1] - curve.y[0]) /
-                       (curve.x[1] - curve.x[0]) *
-                       (raw - curve.x[0]) + curve.y[0], 3)
-        else:
-            try:
-                tck = interpolate.splrep(curve.x, curve.y)
-                val = interpolate.splev(raw, tck)
-                en = round(float(val), 3)
-            except Exception as e:
-                logger.error(f'Failed to calibrate {param.PCF_NAME} / \
-                            {param.PCF_CURTX} due to {e}')
+        prefix = re.split(r'\d+', param.PCF_CURTX)[0]
+        if prefix == 'CIXP':
+            curve = idb.get_calibration_curve(param.PCF_CURTX)
+            en = curve(raw)
+            if en is None:
+                logger.error(f'Failed curve calibrate {param.PCF_NAME} / \
+                               {param.PCF_CURTX} due to bad coefficients {curve}')
+        elif prefix == 'CIX':
+            poly = idb.get_calibration_polynomial(param.PCF_CURTX)
+            en = poly(raw)
+            if en is None:
+                logger.error(f'Failed polynomial calibrate {param.PCF_NAME} / \
+                               {param.PCF_CURTX} due to bad coefficients {poly}')
     else:
         er = (f'Unsupported calibration method: {param.PCF_CATEG} for ' +
               f'{param.PCF_NAME} / {param.PCF_CURTX}')

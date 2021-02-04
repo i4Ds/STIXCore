@@ -3,6 +3,8 @@ import sys
 import sqlite3
 from types import SimpleNamespace
 
+from scipy import interpolate
+
 from stixcore.util.logging import get_logger
 
 __all__ = ['IDB', 'IdbData', 'IdbPacketTypeInfo', 'IdbParameter', 'IdbStaticParameter',
@@ -138,20 +140,79 @@ class IdbPacketTypeInfo(IdbData):
         return self.PID_TPSD != -1
 
 
-class IdbCalibrationCurve(IdbData):
+class IDBPolynomialCalibration(IdbData):
     def __init__(self, rows):
+        """Construct all the necessary attributes for the IDBPolynomialCalibration object.
+
+        Parameters
+        ----------
+        rows : `list`
+            the polynomial parameters from the IDB
+        """
+        try:
+            self.A = [float(row[0], ) for row in rows]
+            self.valid = True
+            self.orig = rows
+        except ValueError:
+            self.valid = False
+
+    def __repr__(self):
+        return f'{self.__class__.__name__}({self.orig})'
+
+    def __call__(self, x):
+
+        return (self.A[0] * x**0 +
+                self.A[1] * x**1 +
+                self.A[2] * x**2 +
+                self.A[3] * x**3 +
+                self.A[4] * x**4) if self.valid else None
+
+
+class IdbCalibrationCurve(IdbData):
+    def __init__(self, rows, param):
         """Construct all the necessary attributes for the IdbCalibrationCurve object.
 
         Parameters
         ----------
         rows : `list`
             [x, y] all support points from the IDB
+        param : `IdbCalibrationParameter`
         """
-        self.x = [float(row[0]) for row in rows]
-        self.y = [float(row[1]) for row in rows]
+        try:
+            self.x = [float(row[0]) for row in rows]
+            self.y = [float(row[1]) for row in rows]
+        except ValueError:
+            self.valid = False
+
+        self.param = param
+        self.orig = rows
+
+        if len(self) <= 1:
+            logger.error(f'Invalid curve calibration parameter {param.PCF_NAME} / \
+                        {param.PCF_CURTX}: at least two data points needed')
+            self.valid = False
+
+    def __repr__(self):
+        return f'{self.__class__.__name__}({self.orig})'
 
     def __len__(self):
         return len(self.x)
+
+    def __call__(self, raw):
+        if not self.valid:
+            return None
+        if len(self) == 2:
+            return ((self.y[1] - self.y[0]) /
+                    (self.x[1] - self.x[0]) *
+                    (raw - self.x[0]) + self.y[0])
+
+        try:
+            tck = interpolate.splrep(self.x, self.y)
+            val = interpolate.splev(raw, tck)
+            return float(val)
+        except Exception as e:
+            logger.error(f'Failed to curve calibrate {self.param.PCF_NAME} / \
+                        {self.param.PCF_CURTX} due to {e}')
 
 
 class IdbParameter(IdbData):
@@ -1003,29 +1064,28 @@ class IDB:
             return ''
         return ''
 
-    def get_calibration_curve(self, pcf_curtx):
+    def get_calibration_curve(self, param):
         """calibration curve defined in CAP database
 
         Parameters
         ----------
-        pcf_curtx : `str`
-            cap_numbr lile 'CIXP0024TM'
+        param : `IdbCalibrationParameter`
 
         returns
         -------
         `IdbCalibrationCurve`
             calibration curve
         """
-        if pcf_curtx in self.calibration_curves:
-            return self.calibration_curves[pcf_curtx]
+        if param.PCF_CURTX in self.calibration_curves:
+            return self.calibration_curves[param.PCF_CURTX]
         else:
             sql = '''select cap_xvals, cap_yvals
                      from cap
                      where cap_numbr = ?
                      order by cast(CAP_XVALS as double) asc'''
-            args = (pcf_curtx, )
-            curve = IdbCalibrationCurve(self._execute(sql, args))
-            self.calibration_curves[pcf_curtx] = curve
+            args = (param.PCF_CURTX, )
+            curve = IdbCalibrationCurve(self._execute(sql, args), param)
+            self.calibration_curves[param.PCF_CURTX] = curve
             return curve
 
     def textual_interpret(self, pcf_curtx, raw_value):
@@ -1063,7 +1123,7 @@ class IDB:
         Parameters
         ----------
         mcf_ident : `str`
-            TXP_NUMBR lile 'CIX00036TM'
+            TXP_NUMBR like 'CIX00036TM'
 
         returns
         -------
@@ -1075,9 +1135,9 @@ class IDB:
             sql = ('select MCF_POL1, MCF_POL2, MCF_POL3, MCF_POL4, MCF_POL5 '
                    'from MCF where MCF_IDENT=? limit 1')
             args = (mcf_ident, )
-            rows = self._execute(sql, args)
-            self.calibration_polynomial[mcf_ident] = rows
-            return rows
+            poly = IDBPolynomialCalibration(self._execute(sql, args))
+            self.calibration_polynomial[mcf_ident] = poly
+            return poly
 
     def get_idb_version(self):
         """get the version string of the IDB

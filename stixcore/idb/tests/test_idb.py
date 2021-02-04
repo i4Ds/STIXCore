@@ -185,19 +185,6 @@ def test_get_calibration_curve(idb):
     assert len(info) == 0
 
 
-def test_get_textual_mapping(idb):
-    info = idb.get_textual_mapping('NIX00013')
-    assert len(info) == 2
-    _idx = info[0]
-    _str = info[1]
-    assert len(_idx) == len(_str)
-    assert isinstance(_idx[0], int)
-    assert isinstance(_str[0], str)
-
-    info = idb.get_textual_mapping('foobar')
-    assert info is None
-
-
 def test_textual_interpret(idb):
     info = idb.textual_interpret('CAAT0005TM', 0)
     assert len(info) >= 1
@@ -207,7 +194,7 @@ def test_textual_interpret(idb):
     assert len(info) >= 1
 
     info = idb.textual_interpret('foobar', 1)
-    assert len(info) == 0
+    assert info is None
 
 
 def test_get_calibration_polynomial(idb):

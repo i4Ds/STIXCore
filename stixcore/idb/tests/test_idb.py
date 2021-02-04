@@ -135,17 +135,6 @@ def test_convert_NIXG_NIXD(idb):
     assert len(info) >= 1
 
 
-def test_get_fixed_packet_structure(idb):
-    info = idb.get_fixed_packet_structure(123)
-    assert len(info) == 0
-
-    info = idb.get_fixed_packet_structure(54005)
-    assert len(info) >= 1
-    # test twice for caching
-    info = idb.get_fixed_packet_structure(54005)
-    assert len(info) >= 1
-
-
 def test_get_telecommand_info(idb):
     info = idb.get_telecommand_info(6, 2)
     assert len(info) == 4
@@ -174,18 +163,6 @@ def test_is_variable_length_telecommand(idb):
 
     info = idb.is_variable_length_telecommand("foobar")
     assert info is False
-
-
-def test_get_variable_packet_structure(idb):
-    info = idb.get_variable_packet_structure(54118)
-    assert len(info) >= 1
-
-    # test twice for caching
-    info = idb.get_variable_packet_structure(54118)
-    assert len(info) >= 1
-
-    info = idb.get_variable_packet_structure("foobar")
-    assert len(info) == 0
 
 
 def test_tcparam_interpret(idb):

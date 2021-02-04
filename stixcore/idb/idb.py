@@ -138,6 +138,22 @@ class IdbPacketTypeInfo(IdbData):
         return self.PID_TPSD != -1
 
 
+class IdbCalibrationCurve(IdbData):
+    def __init__(self, rows):
+        """Construct all the necessary attributes for the IdbCalibrationCurve object.
+
+        Parameters
+        ----------
+        rows : `list`
+            [x, y] all support points from the IDB
+        """
+        self.x = [float(row[0]) for row in rows]
+        self.y = [float(row[1]) for row in rows]
+
+    def __len__(self):
+        return len(self.x)
+
+
 class IdbParameter(IdbData):
     """A base class to represent a parameter of a SCOS-2000 Telemetry Packet."""
 
@@ -393,6 +409,65 @@ class IdbVariableParameter(IdbParameter):
             Always True for this class
         """
         return True
+
+
+class IdbCalibrationParameter(IdbParameter):
+    """A class to represent a parameter for calibration."""
+
+    def __init__(self, dbtupel):
+        """Construct all the necessary attributes for the IdbCalibrationParameter object.
+
+        Parameters
+        ----------
+        dbtupel : `dict`
+            all named parameters from the db query
+        """
+        super().__init__(dbtupel)
+
+    @property
+    def PCF_NAME(self):
+        """Name of the parameter. Alphanumeric string uniquely identifying the monitoring
+        parameter.
+
+        Returns
+        -------
+        `str`
+            max 8 characters.
+        """
+        return self.__dict__['PCF_NAME']
+
+    @property
+    def PCF_CURTX(self):
+        """Parameter calibration identification name.
+
+        Returns
+        -------
+        `str`
+            the decalibration action
+        """
+        return self.__dict__['PCF_CURTX']
+
+    @property
+    def PCF_CATEG(self):
+        """Calibration category of the parameter.
+
+        Returns
+        -------
+        `str`
+            N|S|T|R|D|P|H|S|C
+        """
+        return self.__dict__['PCF_CATEG']
+
+    @property
+    def PCF_UNIT(self):
+        """Engineering unit mnemonic of the parameter values e.g. ‘VOLT’.
+
+        Returns
+        -------
+        `str`
+            max length = 4
+        """
+        return self.__dict__['PCF_UNIT']
 
 
 class IdbPacketTree():
@@ -832,29 +907,6 @@ class IDB:
         rows = self._execute(sql, args, 'dict')
         return rows
 
-    def get_fixed_packet_structure(self, spid):
-        """get parameter structures using SCO ICD (page 39)
-
-        Parameters
-        ----------
-        spid: SPID
-
-        returns
-        -------
-        parameter structures
-        """
-        if spid in self.parameter_structures:
-            return self.parameter_structures[spid]
-        sql = (
-            'select PCF.PCF_DESCR, PLF.PLF_OFFBY, PLF.PLF_OFFBI, PCF.PCF_NAME,'
-            ' PCF.PCF_WIDTH, PCF.PCF_PFC,PCF.PCF_PTC, PCF.PCF_CURTX'
-            ' from PLF   inner join PCF  on PLF.PLF_NAME = PCF.PCF_NAME '
-            ' and PLF.PLF_SPID=? order by PLF.PLF_OFFBY asc')
-        args = (spid, )
-        res = self._execute(sql, args, 'dict')
-        self.parameter_structures[spid] = res
-        return res
-
     def get_telecommand_info(self, service_type, service_subtype, subtype=None):
         """get TC description for a header
 
@@ -926,29 +978,6 @@ class IDB:
 
         return False
 
-    def get_variable_packet_structure(self, spid):
-        """Get the variable packet structure of a telecommand by its spid (VPD.VPD_TPSD).
-
-        Parameters
-        ----------
-        name : `str`|`int`
-            a structure spid like 54118
-
-        returns
-        -------
-        `list` tm structure
-        """
-        if spid in self.parameter_structures:
-            return self.parameter_structures[spid]
-        sql = (
-            'select PCF.PCF_NAME, VPD.VPD_POS,PCF.PCF_WIDTH,PCF.PCF_PFC, PCF.PCF_PTC,VPD.'
-            'VPD_OFFSET, VPD.VPD_GRPSIZE,PCF.PCF_DESCR ,PCF.PCF_CURTX'
-            ' from VPD inner join PCF on  VPD.VPD_NAME=PCF.PCF_NAME and VPD.VPD_TPSD=? order by '
-            ' VPD.VPD_POS asc')
-        res = self._execute(sql, (spid, ), 'dict')
-        self.parameter_structures[spid] = res
-        return res
-
     def tcparam_interpret(self, ref, raw):
         """interpret telecommand parameter by using the table PAS
 
@@ -984,42 +1013,20 @@ class IDB:
 
         returns
         -------
-        `list`
+        `IdbCalibrationCurve`
             calibration curve
         """
         if pcf_curtx in self.calibration_curves:
             return self.calibration_curves[pcf_curtx]
         else:
-            sql = ('select cap_xvals, cap_yvals from cap '
-                   ' where cap_numbr=? order by cast(CAP_XVALS as double) asc')
+            sql = '''select cap_xvals, cap_yvals
+                     from cap
+                     where cap_numbr = ?
+                     order by cast(CAP_XVALS as double) asc'''
             args = (pcf_curtx, )
-            rows = self._execute(sql, args)
-            self.calibration_curves[pcf_curtx] = rows
-            return rows
-
-    def get_textual_mapping(self, parameter_name):
-        """get a struct for textual mapping of index and names
-
-        Parameters
-        ----------
-        parameter_name : `str`
-            PCF_NAME lile 'NIX00013'
-
-        returns
-        -------
-        `array` [(idx,),(name)]
-            the mapping
-        `None`
-            if parameter_name not found
-        """
-        sql = 'select  TXP_FROM, TXP_ALTXT from TXP join PCF on ' \
-              'PCF_CURTX=TXP_NUMBR where PCF_NAME=? order by TXP_FROM asc'
-        args = (parameter_name, )
-        rows = self._execute(sql, args)
-        if rows:
-            return ([int(x[0]) for x in rows], [x[1] for x in rows])
-        else:
-            return None
+            curve = IdbCalibrationCurve(self._execute(sql, args))
+            self.calibration_curves[pcf_curtx] = curve
+            return curve
 
     def textual_interpret(self, pcf_curtx, raw_value):
         """gets a name for a TXP_NUMBR from TXP for given raw_value
@@ -1027,7 +1034,7 @@ class IDB:
         Parameters
         ----------
         pcf_curtx : `str`
-            TXP_NUMBR lile 'CAAT0005TM'
+            TXP_NUMBR like 'CAAT0005TM'
         raw_value : `int`
             value in range of TXP_FROM  to TXP_TO
 
@@ -1037,16 +1044,18 @@ class IDB:
             the names
         """
         if (pcf_curtx, raw_value) in self.textual_parameter_lut:
-            # build a lookup table
             return self.textual_parameter_lut[(pcf_curtx, raw_value)]
 
-        sql = ('select TXP_ALTXT from TXP where  TXP_NUMBR=? and ?>=TXP_FROM '
-               ' and TXP_TO>=? limit 1')
+        sql = '''select TXP_ALTXT from TXP
+                 where TXP_NUMBR = ?
+                    and ? >= TXP_FROM
+                    and TXP_TO >= ? limit 1'''
         args = (pcf_curtx, raw_value, raw_value)
         rows = self._execute(sql, args)
-        self.textual_parameter_lut[(pcf_curtx, raw_value)] = rows
+        val = rows[0][0] if rows else None
+        self.textual_parameter_lut[(pcf_curtx, raw_value)] = val
         # lookup table
-        return rows
+        return val
 
     def get_calibration_polynomial(self, mcf_ident):
         """gets calibration polynomial information for a given MCF_IDENT
@@ -1174,6 +1183,27 @@ class IDB:
         parameter.bin_format = self._get_stream_type_format(parameter.S2K_TYPE, parameter.PCF_WIDTH)
         node = IdbPacketTree(name=name, counter=counter, parameter=parameter, children=children)
         return node
+
+    def get_params_for_calibration(self, service_type, service_subtype, sp1_val=None):
+        sql = (f'''SELECT
+                        PCF.PCF_NAME, PCF.PCF_CURTX, PCF.PCF_CATEG, PCF.PCF_UNIT
+                    FROM
+                        PID
+                    LEFT JOIN PLF ON PLF.PLF_SPID = PID.PID_SPID
+                    LEFT JOIN VPD ON VPD.VPD_TPSD = PID.PID_SPID
+                    LEFT JOIN PCF ON PLF.PLF_NAME = PCF.PCF_NAME or VPD.VPD_NAME = PCF.PCF_NAME
+                    WHERE
+                        PCF.PCF_CURTX not NULL
+                        AND PID_TYPE = ?
+                        AND PID_STYPE = ?
+                        {"AND PID_PI1_VAL = ? " if sp1_val is not None else " "}
+                    ''')
+        args = (service_type, service_subtype)
+        if sp1_val is not None:
+            args = args + (sp1_val,)
+
+        params = self._execute(sql, args, 'dict')
+        return [IdbCalibrationParameter(p) for p in params]
 
     def get_variable_structure(self, service_type, service_subtype, sp1_val=None):
         """Create a dynamic parse tree for the specified TM packet.

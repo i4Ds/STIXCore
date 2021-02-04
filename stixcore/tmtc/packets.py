@@ -1,6 +1,7 @@
 from enum import Enum
 
 from stixcore.datetime.datetime import DateTime
+from stixcore.idb.idb import IDB
 from stixcore.idb.manager import IDBManager
 from stixcore.tmtc.parser import parse_binary, parse_bitstream, parse_variable
 
@@ -503,6 +504,22 @@ class GenericTMPacket:
 
     def __str__(self):
         return self.__repr__()
+
+    def get_idb(self):
+        idb = None
+        if isinstance(self.idb, IDBManager):
+            idb = self.idb.get_idb(utc=self.data_header.datetime.to_datetime())
+        if isinstance(self.idb, IDB):
+            idb = self.idb
+        return idb
+
+    def get_calibration_params(self):
+        idb = self.get_idb()
+        if idb is not None:
+            return idb.get_params_for_calibration(self.data_header.service_type,
+                                                  self.data_header.service_subtype,
+                                                  self.pi1_val)
+        return []
 
     # @property
     # def idb_version(self):

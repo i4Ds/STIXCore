@@ -1,6 +1,7 @@
 """
 High level STIX data products created from single stand alone packets or a sequence of packets.
 """
+from binascii import unhexlify
 
 import numpy as np
 
@@ -16,6 +17,8 @@ from stixcore.products.common import (
     _get_pixel_mask,
 )
 from stixcore.products.product import BaseProduct, Control, Data
+from stixcore.tmtc.packet_factory import Packet
+from stixcore.tmtc.packets import PacketSequence
 from stixcore.util.logging import get_logger
 
 logger = get_logger(__name__)
@@ -105,26 +108,6 @@ class Product(BaseProduct):
             yield type(self)(service_type=self.service_type, service_subtype=self.service_subtype,
                              ssid=self.ssid, control=control, data=data)
 
-    # @classmethod
-    # def from_packets(cls, packets, eng_packets):
-    #     control = Control.from_packets(packets)
-    #     data = Data.from_packets(packets)
-    #     # TODO update will break now
-    #     return cls(control, data)
-    #
-    # @classmethod
-    # def from_fits(cls, fitspath):
-    #     header = fits.getheader(fitspath)
-    #     header_info = {'service_type': int(header.get('stype')),
-    #                    'service_subtype': int(header.get('sstype')),
-    #                    'pi1_val': int(header.get('ssid')),
-    #                    'spid': int(header.get('spid'))}
-    #     control = QTable.read(fitspath, hdu='CONTROL')
-    #     data = QTable.read(fitspath, hdu='DATA')
-    #     obs_beg = DateTime.from_string(header['DATE_OBS'])
-    #     data['time'] = (data['time'] + obs_beg.as_float())
-    #     return cls(**header_info, control=control, data=data)
-
 
 class LightCurve(Product):
     """
@@ -137,7 +120,11 @@ class LightCurve(Product):
         self.level = 'L0'
 
     @classmethod
-    def from_packets(cls, packets):
+    def from_levelb(cls, levelb):
+
+        packets = [Packet(unhexlify(d)) for d in levelb.data['data']]
+        packets = PacketSequence(packets)
+
         service_type = packets.get('service_type')[0]
         service_subtype = packets.get('service_subtype')[0]
         ssid = packets.get('pi1_val')[0]
@@ -169,7 +156,7 @@ class LightCurve(Product):
         control_indices = np.hstack([np.full(ns, cind) for ns, cind in
                                      control[['num_samples', 'index']]])
 
-        cs, ck, cm = control['compression_scheme_counts_skm'][0]
+        # cs, ck, cm = control['compression_scheme_counts_skm'][0]
         counts = np.hstack(packets.get('NIX00272'))
         # counts, counts_var = decompress(counts, s=cs, k=ck, m=cm, return_variance=True)
 

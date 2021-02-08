@@ -10,6 +10,7 @@ from sunpy.util.datatype_factory_base import (
 import astropy.units as u
 from astropy.io import fits
 from astropy.table.table import QTable
+from astropy.time import Time
 
 from stixcore.datetime.datetime import DateTime
 
@@ -32,9 +33,6 @@ class BaseProduct:
         if hasattr(cls, 'is_datasource_for'):
             cls._registry[cls] = cls.is_datasource_for
 
-    def __init__(self, *args, **kwargs):
-        print('adfa')
-
 
 class ProductFactory(BasicRegistrationFactory):
     def __call__(self, *args, **kwargs):
@@ -55,7 +53,7 @@ class ProductFactory(BasicRegistrationFactory):
                         obs_beg = DateTime.from_string(header['OBT_BEG'])
                         offset = obs_beg.as_float()
                     elif timesys == 'UTC':
-                        raise NotImplementedError()
+                        offset = Time(header['OBT_BEG'])
                     data['time'] = data['time'] + offset
 
                 energies = None

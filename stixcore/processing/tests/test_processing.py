@@ -35,6 +35,6 @@ def test_level_b(soc_manager, out_dir):
 
     files_to_process = soc_manager.get_files(TMTC.TM)
     for tmtc_file in files_to_process:
-        LevelB.process(tmtc_file, fits_processor)
+        LevelB.from_tm(tmtc_file, fits_processor)
         # do again for __add__
-        LevelB.process(tmtc_file, fits_processor)
+        LevelB.from_tm(tmtc_file, fits_processor)

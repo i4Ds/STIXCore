@@ -25,7 +25,7 @@ if __name__ == '__main__':
         logger.info(f'Processing file: {tmtc_file.file}')
         # TODO sorting filter etc
         try:
-            prod = LevelB.process(tmtc_file, fits_processor)
+            prod = LevelB.from_tm(tmtc_file, fits_processor)
         except ValueError as e:
             logger.error(e)
 

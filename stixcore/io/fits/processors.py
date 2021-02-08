@@ -45,11 +45,11 @@ class FitsProcessor:
         if user_req:
             user_req = f'_{user_req}'
 
-        scet_obs = (product.control["scet_coarse"][0] // SEC_IN_DAY) * SEC_IN_DAY
+        scet_obs = int(product.obt_avg.as_float().value // SEC_IN_DAY) * SEC_IN_DAY
         name = '-'.join([str(x) for x in [product.service_type, product.service_subtype,
                                           product.ssid]])
         return f'solo_{product.level}_stix-{name}' \
-               f'_{scet_obs}_V{version:02d}{status}.fits'
+               f'_{scet_obs:010d}_V{version:02d}{status}.fits'
 
     @classmethod
     def generate_primary_header(cls, product, filename):
@@ -198,7 +198,6 @@ class FitsL0Processor:
             path = self.archive_path.joinpath(*[str(x) for x in parts])
             path.mkdir(parents=True, exist_ok=True)
 
-            path.mkdir(parents=True, exist_ok=True)
             fitspath = path / filename
             if fitspath.exists():
                 logger.info('Fits file %s exists appending data', fitspath.name)
@@ -272,7 +271,7 @@ class FitsL0Processor:
             tc_control = f'_{product.control["tc_packet_seq_control"][0]}'
 
         if product.type == 'ql':
-            date_range = f'{((product.obs_avg.coarse // (24 * 60 * 60)) ) * 24 * 60 * 60:010d}'
+            date_range = f'{(product.obs_avg.coarse // (24 * 60 * 60) ) * 24 * 60 * 60:010d}'
         else:
             start_obs = product.obs_beg.to_datetime().strftime("%Y%m%dT%H%M%S")
             end_obs = product.obs_end.to_datetime().strftime("%Y%m%dT%H%M%S")
@@ -357,7 +356,7 @@ class FitsL1Processor:
             fitspath = path / filename
             if fitspath.exists():
                 logger.info('Fits file %s exists appending data', fitspath.name)
-                existing = prod.from_fits(fitspath)
+                existing = Product(fitspath)
                 logger.debug('Existing %s \n Current %s', existing, prod)
                 prod = prod + existing
                 logger.debug('Combined %s', prod)
@@ -374,7 +373,7 @@ class FitsL1Processor:
             # Convert time to be relative to start date
             data['time'] = (data['time'] - prod.obs_beg).to(u.s)
 
-            primary_header = self.generate_primary_header(filename, prod)
+            primary_header = self.generate_primary_header(filename=filename, product=prod)
             primary_hdu = fits.PrimaryHDU()
             primary_hdu.header.update(primary_header)
             primary_hdu.header.update({'HISTORY': 'Processed by STIX'})
@@ -391,13 +390,14 @@ class FitsL1Processor:
             logger.debug(f'Writing fits file to {path / filename}')
             hdul.writeto(path / filename, overwrite=True, checksum=True)
 
-    def generate_filename(self, product=None, version=None, status=''):
+    @staticmethod
+    def generate_filename(*, product, version, status=''):
         """
         Generate fits file name with SOLO conventions.
 
         Parameters
         ----------
-        product : stix_parser.product.BaseProduct
+        product : stixcore.products.product.BaseProduct
             Product
         version : int
             Version of this product
@@ -431,24 +431,17 @@ class FitsL1Processor:
                f'{product.name.replace("_", "-")}{user_req}' \
                f'_{date_range}_V{version:02d}{status}{tc_control}.fits'
 
-    def generate_primary_header(self, filename, product):
+    @staticmethod
+    def generate_primary_header(*, filename, product):
         """
         Generate primary header cards.
 
         Parameters
         ----------
-        filename : str
+        filename : `str`
             Filename
-        scet_coarse : numpy.ndarray
-            SCET coarse time
-        scet_fine : numpy.ndarray
-            SCET fine time
-        obs_beg : datetime.datetime
-            Begging of observation
-        obs_avg : datetime.datetime
-           Averagea of observation
-        obs_end : datetime.datetime
-            End of observation
+        product : `stixcore.products.product.BaseProduct
+            Product
 
         Returns
         -------

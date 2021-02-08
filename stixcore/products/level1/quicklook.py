@@ -5,7 +5,9 @@ from datetime import datetime, timedelta
 
 import numpy as np
 
+import astropy.units as u
 from astropy.table import unique, vstack
+from astropy.table.table import QTable
 from astropy.time.core import Time
 
 from stixcore.products.common import _get_energies_from_mask
@@ -33,7 +35,11 @@ class Product(BaseProduct):
         self.ssid = ssid
         self.control = control
         self.data = data
-        self.energies = kwargs.get('energies', None)
+
+        energies = kwargs.get('energies', False)
+        if not energies:
+            energies = self.get_energies()
+        self.energies = energies
 
         self.obs_beg = self.data['time'][0] - (self.control['integration_time'][0] / 2)
         self.obs_end = self.data['time'][-1] + (self.control['integration_time'][-1] / 2)
@@ -72,8 +78,7 @@ class Product(BaseProduct):
         energies = unique(vstack(self.energies, other.energies))
 
         return type(self)(service_type=self.service_type, service_subtype=self.service_subtype,
-                          pi1_val=self.pi1_val, spid=self.spid, control=control, data=data,
-                          energies=energies)
+                          ssid=self.ssid, control=control, data=data, energies=energies)
 
     def __repr__(self):
         return f'<{self.__class__.__name__}\n' \
@@ -116,6 +121,21 @@ class Product(BaseProduct):
                              ssid=self.ssid, control=control, data=data,
                              energies=self.energies)
 
+    def get_energies(self):
+        if 'energy_bin_edge_mask' in self.control.colnames:
+            elow, ehigh = _get_energies_from_mask(self.control['energy_bin_edge_mask'][0])
+        elif 'energy_bin_mask' in self.control.colnames:
+            elow, ehigh = _get_energies_from_mask(self.control['energy_bin_mask'][0])
+        else:
+            elow, ehigh = _get_energies_from_mask()
+
+        energies = QTable()
+        energies['channel'] = range(len(elow))
+        energies['e_low'] = elow * u.keV
+        energies['e_high'] = ehigh * u.keV
+
+        return energies
+
 
 class LightCurve(Product):
     """
@@ -143,13 +163,3 @@ class LightCurve(Product):
     def is_datasource_for(cls,  *, service_type, service_subtype, ssid, **kwargs):
         return (kwargs['level'] == 'L1' and service_type == 21
                 and service_subtype == 6 and ssid == 30)
-
-    def get_energies(self):
-        if 'energy_bin_edge_mask' in self.control.colnames:
-            energies = _get_energies_from_mask(self.control['energy_bin_edge_mask'][0])
-        elif 'energy_bin_mask' in self.control.colnames:
-            energies = _get_energies_from_mask(self.control['energy_bin_mask'][0])
-        else:
-            energies = _get_energies_from_mask()
-
-        return energies

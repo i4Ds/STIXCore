@@ -3,9 +3,9 @@ from collections import defaultdict
 import numpy as np
 
 from astropy.table.operations import unique, vstack
-from astropy.table.table import QTable, Table
+from astropy.table.table import Table
 
-# from stixcore.io.fits.processors import SEC_IN_DAY
+from stixcore.datetime.datetime import DateTime
 from stixcore.products.product import BaseProduct
 from stixcore.tmtc.packets import TMPacket
 from stixcore.util.logging import get_logger
@@ -36,21 +36,17 @@ class LevelB(BaseProduct):
         self.data = data
 
         # TODO better encapsulated time handling?
-        synced_times = (self.control['scet_coarse'] >> 31) != 1
-        self.control['scet_coarse'] = np.where(synced_times, self.control['scet_coarse'],
-                                               self.control['scet_coarse'] ^ 2**31)
-        self.control['time_sync'] = synced_times
-        scet = self.control['scet_coarse'] + self.control['scet_coarse']/2**16
-        min_time_ind = scet.argmin()
-        max_time_ind = scet.argmax()
-        self.obt_beg = f"{self.control['scet_coarse'][min_time_ind]}:" \
-                       f"{self.control['scet_fine'][min_time_ind]:05d}"
+        times = [DateTime(c, f) for c, f in self.control[['scet_coarse', 'scet_fine']]]
+        self.control['scet_coarse'] = [t.coarse for t in times]
+        self.control['time_sync'] = [t.time_sync for t in times]
 
-        self.obt_end = f"{self.control['scet_coarse'][max_time_ind]}:" \
-                       f"{self.control['scet_fine'][max_time_ind]:05d}"
+        # TODO check if need to sort before this
+        self.obt_beg = DateTime(self.control['scet_coarse'][0], self.control['scet_fine'][0])
+        self.obt_end = DateTime(self.control['scet_coarse'][-1], self.control['scet_fine'][-1])
+        self.obt_avg = self.obt_beg + (self.obt_end - self.obt_beg)/2
 
     def __repr__(self):
-        return f"<LevelB {self.level}, {self.type}, " \
+        return f"<LevelB {self.level}, {self.service_type}, {self.service_subtype}, {self.ssid} " \
                f"{self.obt_beg}-{self.obt_end}>"
 
     def __add__(self, other):
@@ -95,24 +91,6 @@ class LevelB(BaseProduct):
         return type(self)(service_type=self.service_type, service_subtype=self.service_subtype,
                           ssid=self.ssid, control=control, data=data)
 
-    @classmethod
-    def from_fits(cls, fitspath):
-        """Read fits file data into a LevelB object.
-
-        Parameters
-        ----------
-        fitspath : `Path`
-            the path to the FITS file.
-
-        Returns
-        -------
-        `LevelB`
-            a new `LevelB` object.
-        """
-        control = QTable.read(fitspath, hdu='CONTROL')
-        data = QTable.read(fitspath, hdu='DATA')
-        return cls(control=control, data=data, prod_key=None)
-
     def to_days(self):
         """Split the data into a sequence of LevelB objects each containing 1 daysworth\
         of observations.
@@ -144,7 +122,7 @@ class LevelB(BaseProduct):
                              ssid=self.ssid, control=control, data=data)
 
     @classmethod
-    def process(cls, tmfile, fits_processor):
+    def from_tm(cls, tmfile, fits_processor):
         """Process the given SOCFile and creates LevelB FITS files.
 
         Parameters
@@ -180,6 +158,7 @@ class LevelB(BaseProduct):
             service_type, service_subtype, ssid = prod_key
             product = LevelB(service_type=service_type, service_subtype=service_subtype,
                              ssid=ssid, control=control, data=data)
+            fits_processor.write_fits(product)
 
     @classmethod
     def is_datasource_for(cls, **kwargs):

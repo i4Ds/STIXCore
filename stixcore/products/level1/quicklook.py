@@ -5,18 +5,18 @@ from datetime import datetime, timedelta
 
 import numpy as np
 
-from astropy.io import fits
-from astropy.table import QTable, unique, vstack
+from astropy.table import unique, vstack
 from astropy.time.core import Time
 
-from stixcore.datetime.datetime import DateTime
+from stixcore.products.common import _get_energies_from_mask
+from stixcore.products.product import BaseProduct
 from stixcore.util.logging import get_logger
 
 logger = get_logger(__name__)
 
 
-class Product:
-    def __init__(self, *, service_type, service_subtype, pi1_val, spid, control, data, energies):
+class Product(BaseProduct):
+    def __init__(self, service_type, service_subtype, ssid, data, control, **kwargs):
         """
         Generic product composed of control and data
 
@@ -30,11 +30,10 @@ class Product:
         self.type = 'ql'
         self.service_type = service_type
         self.service_subtype = service_subtype
-        self.pi1_val = pi1_val
-        self.spid = spid
+        self.ssid = ssid
         self.control = control
         self.data = data
-        self.energies = energies
+        self.energies = kwargs.get('energies', None)
 
         self.obs_beg = self.data['time'][0] - (self.control['integration_time'][0] / 2)
         self.obs_end = self.data['time'][-1] + (self.control['integration_time'][-1] / 2)
@@ -82,22 +81,22 @@ class Product:
                f' {self.data.__repr__()}\n' \
                f'>'
 
-    @classmethod
-    def from_fits(cls, fitspath):
-        header = fits.getheader(fitspath)
-        header_info = {'service_type': int(header.get('stype')),
-                       'service_subtype': int(header.get('sstype')),
-                       'pi1_val': int(header.get('ssid')),
-                       'spid': int(header.get('spid'))}
-        control = QTable.read(fitspath, hdu='CONTROL')
-        data = QTable.read(fitspath, hdu='DATA')
-        energies = QTable.read(fitspath, hdu='ENERGIES')
-        if header['level'] == 'L0':
-            obs_beg = Time(DateTime.from_string(header['DATE_OBS']).to_datetime())
-        elif header['level'] == 'L1':
-            obs_beg = Time(header['DATE_OBS'])
-        data['time'] = (obs_beg + data['time'])
-        return cls(**header_info, control=control, data=data, energies=energies)
+    # @classmethod
+    # def from_fits(cls, fitspath):
+    #     header = fits.getheader(fitspath)
+    #     header_info = {'service_type': int(header.get('stype')),
+    #                    'service_subtype': int(header.get('sstype')),
+    #                    'pi1_val': int(header.get('ssid')),
+    #                    'spid': int(header.get('spid'))}
+    #     control = QTable.read(fitspath, hdu='CONTROL')
+    #     data = QTable.read(fitspath, hdu='DATA')
+    #     energies = QTable.read(fitspath, hdu='ENERGIES')
+    #     if header['level'] == 'L0':
+    #         obs_beg = Time(DateTime.from_string(header['DATE_OBS']).to_datetime())
+    #     elif header['level'] == 'L1':
+    #         obs_beg = Time(header['DATE_OBS'])
+    #     data['time'] = (obs_beg + data['time'])
+    #     return cls(**header_info, control=control, data=data, energies=energies)
 
     def to_days(self):
         days = set([(t.year, t.month, t.day) for t in self.data['time'].to_datetime()])
@@ -114,7 +113,7 @@ class Product:
             data['control_index'] = data['control_index'] - control_index_min
             control['index'] = control['index'] - control_index_min
             yield type(self)(service_type=self.service_type, service_subtype=self.service_subtype,
-                             pi1_val=self.pi1_val, spid=self.spid, control=control, data=data,
+                             ssid=self.ssid, control=control, data=data,
                              energies=self.energies)
 
 
@@ -122,8 +121,9 @@ class LightCurve(Product):
     """
     Quick Look Light Curve data product.
     """
-    def __init__(self, **kwargs):
-        super().__init__(**kwargs)
+    def __init__(self, *, service_type, service_subtype, ssid, control, data, **kwargs):
+        super().__init__(service_type=service_type, service_subtype=service_subtype, ssid=ssid,
+                         control=control, data=data, **kwargs)
         self.name = 'LightCurve'
         self.level = 'L1'
 
@@ -131,3 +131,25 @@ class LightCurve(Product):
         return f'{self.name}, {self.level}\n' \
                f'{self.obs_beg}, {self.obs_end}\n ' \
                f'{len(self.control)}, {len(self.data)}'
+
+    @classmethod
+    def from_level0(cls, level0):
+        delta_times = level0.data['time'] - level0.obs_beg.as_float()
+        level0.data['time'] = Time(level0.obs_beg.to_datetime()) + delta_times
+        return cls(service_type=level0.service_type, service_subtype=level0.service_subtype,
+                   ssid=level0.ssid, control=level0.control, data=level0.data)
+
+    @classmethod
+    def is_datasource_for(cls,  *, service_type, service_subtype, ssid, **kwargs):
+        return (kwargs['level'] == 'L1' and service_type == 21
+                and service_subtype == 6 and ssid == 30)
+
+    def get_energies(self):
+        if 'energy_bin_edge_mask' in self.control.colnames:
+            energies = _get_energies_from_mask(self.control['energy_bin_edge_mask'][0])
+        elif 'energy_bin_mask' in self.control.colnames:
+            energies = _get_energies_from_mask(self.control['energy_bin_mask'][0])
+        else:
+            energies = _get_energies_from_mask()
+
+        return energies

@@ -1,34 +1,22 @@
-import os
-import logging
-from time import perf_counter
-from pathlib import Path
 from collections import defaultdict
 
 import numpy as np
 
-from astropy.table import unique, vstack
+from astropy.table.operations import unique, vstack
 from astropy.table.table import QTable, Table
 
-from stixcore.io.fits.processors import SEC_IN_DAY, FitsLBProcessor
-from stixcore.io.soc.manager import SOCManager
-from stixcore.tmtc.packets import TMTC, TMPacket
+# from stixcore.io.fits.processors import SEC_IN_DAY
+from stixcore.products.product import BaseProduct
+from stixcore.tmtc.packets import TMPacket
 from stixcore.util.logging import get_logger
 
-__all__ = ['BaseProduct', 'LevelB']
-
-
-logger = get_logger(__name__, level=logging.DEBUG)
-
-
-class BaseProduct:
-    # TODO abstract some general product methods
-    pass
+logger = get_logger(__name__)
 
 
 class LevelB(BaseProduct):
     """Class representing level binary data."""
 
-    def __init__(self, control, data, prod_key):
+    def __init__(self, *, service_type, service_subtype, ssid, control, data, **kwargs):
         """Create a new LevelB object.
 
         Parameters
@@ -41,7 +29,9 @@ class LevelB(BaseProduct):
             (service, subservice [, ssid])
         """
         self.level = 'LB'
-        self.type = prod_key
+        self.service_type = service_type
+        self.service_subtype = service_subtype
+        self.ssid = ssid
         self.control = control
         self.data = data
 
@@ -102,7 +92,8 @@ class LevelB(BaseProduct):
                    for i in range(len(data))]).sum() > 0:
             logger.error('Expected and actual data length do not match')
 
-        return type(self)(control, data, self.type)
+        return type(self)(service_type=self.service_type, service_subtype=self.service_subtype,
+                          ssid=self.ssid, control=control, data=data)
 
     @classmethod
     def from_fits(cls, fitspath):
@@ -134,6 +125,7 @@ class LevelB(BaseProduct):
         """
         scet = self.control['scet_coarse'] + (self.control['scet_coarse'] / (2**16-1))
         scet = scet[(self.control['scet_coarse'] >> 31) != 1]
+        from stixcore.io.fits.processors import SEC_IN_DAY
         days, frac = np.divmod(scet, SEC_IN_DAY)
         days = np.unique(days) * SEC_IN_DAY
         for day_start in days:
@@ -148,7 +140,8 @@ class LevelB(BaseProduct):
             data = self.data[i]
             data['control_index'] = data['control_index'] - min_index
 
-            yield type(self)(control=control, data=data, prod_key=self.type)
+            yield type(self)(service_type=self.service_type, service_subtype=self.service_subtype,
+                             ssid=self.ssid, control=control, data=data)
 
     @classmethod
     def process(cls, tmfile, fits_processor):
@@ -164,7 +157,8 @@ class LevelB(BaseProduct):
         packet_data = defaultdict(list)
         for binary in tmfile.get_packet_binaries():
             packet = TMPacket(binary)
-            packet_data[packet.key].append(packet)
+            if packet.key == (21, 6, 30):
+                packet_data[packet.key].append(packet)
 
         for prod_key, packets in packet_data.items():
             headers = []
@@ -183,25 +177,10 @@ class LevelB(BaseProduct):
             data = Table()
             data['control_index'] = control['index']
             data['data'] = hex_data
-            product = LevelB(control=control, data=data, prod_key=prod_key)
-            fits_processor.write_fits(product)
+            service_type, service_subtype, ssid = prod_key
+            product = LevelB(service_type=service_type, service_subtype=service_subtype,
+                             ssid=ssid, control=control, data=data)
 
-
-if __name__ == '__main__':
-    tstart = perf_counter()
-    logger.info('LevelB run')
-
-    socm = SOCManager(Path('D:/'))
-    out_dir = Path('D:/stix_out')
-
-    if not out_dir.exists():
-        os.makedirs(out_dir)
-
-    fits_processor = FitsLBProcessor(out_dir)
-
-    for tmtc_file in socm.get_files(TMTC.TM):
-        logger.info(f'Processing file: {tmtc_file.file}')
-        prod = LevelB.process(tmtc_file, fits_processor)
-
-    tend = perf_counter()
-    logger.info('Time taken %f', tend - tstart)
+    @classmethod
+    def is_datasource_for(cls, **kwargs):
+        return kwargs['level'] == 'LB'

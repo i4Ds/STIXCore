@@ -6,7 +6,7 @@ import pytest
 
 from stixcore.io.fits.processors import FitsLBProcessor
 from stixcore.io.soc.manager import SOCManager
-from stixcore.processing.levelb import LevelB
+from stixcore.products.levelb.binary import LevelB
 from stixcore.tmtc.packets import TMTC
 
 

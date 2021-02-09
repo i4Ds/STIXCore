@@ -4,7 +4,12 @@ from pathlib import Path
 
 import pytest
 
-from stixcore.idb.idb import IDB
+from stixcore.idb.idb import (
+    IDB,
+    IdbCalibrationCurve,
+    IdbCalibrationParameter,
+    IDBPolynomialCalibration,
+)
 from stixcore.idb.manager import IDBManager
 
 VERSION = "2.26.34"
@@ -127,14 +132,6 @@ def test_get_s2k_parameter_types(idb):
     assert info is None
 
 
-def test_convert_NIXG_NIXD(idb):
-    info = idb.convert_NIXG_NIXD("foobar")
-    assert len(info) == 0
-
-    info = idb.convert_NIXG_NIXD("NIXG0011")
-    assert len(info) >= 1
-
-
 def test_get_telecommand_info(idb):
     info = idb.get_telecommand_info(6, 2)
     assert len(info) == 4
@@ -174,15 +171,17 @@ def test_tcparam_interpret(idb):
 
 
 def test_get_calibration_curve(idb):
-    info = idb.get_calibration_curve('CIXP0024TM')
-    assert len(info) >= 1
+    p = IdbCalibrationParameter({'PCF_CURTX': 'CIXP0024TM'})
+    info = idb.get_calibration_curve(p)
+    assert isinstance(info, IdbCalibrationCurve)
 
     # test twice for caching
-    info = idb.get_calibration_curve('CIXP0024TM')
-    assert len(info) >= 1
+    info = idb.get_calibration_curve(p)
+    assert isinstance(info, IdbCalibrationCurve)
 
-    info = idb.get_calibration_curve('foobar')
-    assert len(info) == 0
+    info = idb.get_calibration_curve(IdbCalibrationParameter({'PCF_CURTX': 'f', 'PCF_NAME': 'b'}))
+    assert isinstance(info, IdbCalibrationCurve)
+    assert info.valid is False
 
 
 def test_textual_interpret(idb):
@@ -198,14 +197,15 @@ def test_textual_interpret(idb):
 
 
 def test_get_calibration_polynomial(idb):
-    info = idb.get_calibration_polynomial('CIX00036TM')
-    assert len(info) == 1
-    assert len(info[0]) == 5
+    poly = idb.get_calibration_polynomial('CIX00036TM')
+    assert isinstance(poly, IDBPolynomialCalibration)
+    assert poly.valid is True
 
     # test twice for caching
-    info = idb.get_calibration_polynomial('CIX00036TM')
-    assert len(info) == 1
-    assert len(info[0]) == 5
+    poly = idb.get_calibration_polynomial('CIX00036TM')
+    assert isinstance(poly, IDBPolynomialCalibration)
+    assert poly.valid is True
 
-    info = idb.get_calibration_polynomial('foobar')
-    assert len(info) == 0
+    poly = idb.get_calibration_polynomial('foobar')
+    assert isinstance(poly, IDBPolynomialCalibration)
+    assert poly.valid is False

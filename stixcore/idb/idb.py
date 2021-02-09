@@ -150,10 +150,11 @@ class IDBPolynomialCalibration(IdbData):
             the polynomial parameters from the IDB
         """
         try:
-            self.A = [float(row[0], ) for row in rows]
+            self.orig = rows
+            self.A = [float(row) for row in rows[0]]
             self.valid = True
             self.orig = rows
-        except ValueError:
+        except (ValueError, IndexError):
             self.valid = False
 
     def __repr__(self):
@@ -181,6 +182,7 @@ class IdbCalibrationCurve(IdbData):
         try:
             self.x = [float(row[0]) for row in rows]
             self.y = [float(row[1]) for row in rows]
+            self.valid = True
         except ValueError:
             self.valid = False
 
@@ -728,6 +730,12 @@ class IDB:
         else:
             logger.warning("IDB connection already closed")
 
+    @classmethod
+    def generate_calibration_name(cls, prefix, id, suffix="TM"):
+        zeros = 10-len(prefix)-len(suffix)-len(str(id))
+        name = prefix + ("0" * zeros) + str(id) + suffix
+        return (name, id + 1)
+
     def _execute(self, sql, arguments=None, result_type='list'):
         """Execute sql and return results in a list or a dictionary."""
         if not self.cur:
@@ -948,25 +956,6 @@ class IDB:
                 return s2k_type
             logger.warning("nothing found in IDB table: tblConfigS2KParameterTypes")
             return None
-
-    def convert_NIXG_NIXD(self, name):
-        """gets NIXG to NIXD  conversation infos for a PDI
-
-        Parameters
-        ----------
-        name : `str`
-            PDI_GLOBAL name
-
-        returns
-        -------
-        (PDI_GLOBAL, PDI_DETAIL, PDI_OFFSET)
-        """
-        sql = (
-            'select PDI_GLOBAL, PDI_DETAIL, PDI_OFFSET from PDI where PDI_GLOBAL=? '
-        )
-        args = (name, )
-        rows = self._execute(sql, args, 'dict')
-        return rows
 
     def get_telecommand_info(self, service_type, service_subtype, subtype=None):
         """get TC description for a header

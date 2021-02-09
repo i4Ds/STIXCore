@@ -38,12 +38,12 @@ class EngineeringParameter:
         self.unit = unit
 
     def __repr__(self):
-        return f'{self.__class__.__name__}(raw={self.raw}, engineering={self.engineering}, \
-        unit={self.unit})'
+        return f'{self.__class__.__name__}(raw={self.raw}, engineering={self.engineering}, ' + \
+               f'unit={self.unit})'
 
     def __str__(self):
-        return f'{self.__class__.__name__}(raw: len({len(self.raw)}), engineering: \
-        len({len(self.engineering)}), unit={self.unit})'
+        return f'{self.__class__.__name__}(raw: len({len(self.raw)}), engineering: ' + \
+               f'len({len(self.engineering)}), unit={self.unit})'
 
 
 # TODO deside on raw as array input
@@ -72,7 +72,7 @@ def apply_raw_to_engineering(raw, args):
     elif param.PCF_CATEG == 'N':
         prefix = re.split(r'\d+', param.PCF_CURTX)[0]
         if prefix == 'CIXP':
-            curve = idb.get_calibration_curve(param.PCF_CURTX)
+            curve = idb.get_calibration_curve(param)
             en = curve(raw)
             if en is None:
                 logger.error(f'Failed curve calibrate {param.PCF_NAME} / \

@@ -508,7 +508,7 @@ class GenericTMPacket:
     def get_idb(self):
         idb = None
         if isinstance(self.idb, IDBManager):
-            idb = self.idb.get_idb(utc=self.data_header.datetime.to_datetime())
+            idb = self.idb.get_idb(obt=self.data_header.datetime)
         if isinstance(self.idb, IDB):
             idb = self.idb
         return idb

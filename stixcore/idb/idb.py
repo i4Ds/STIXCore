@@ -3,19 +3,21 @@ import sys
 import sqlite3
 from types import SimpleNamespace
 
+from scipy import interpolate
+
 from stixcore.util.logging import get_logger
 
-__all__ = ['IDB', 'IdbData', 'IdbPacketTypeInfo', 'IdbParameter', 'IdbStaticParameter',
-           'IdbVariableParameter', 'IdbPacketTree']
+__all__ = ['IDB', 'IDBData', 'IDBPacketTypeInfo', 'IDBParameter', 'IDBStaticParameter',
+           'IDBVariableParameter', 'IDBPacketTree']
 
 logger = get_logger(__name__)
 
 
-class IdbData(SimpleNamespace):
+class IDBData(SimpleNamespace):
     """A base class to represent the query results from the IDB."""
 
     def __init__(self, dbtupel):
-        """Construct all the necessary attributes for the IdbData object and stores all
+        """Construct all the necessary attributes for the IDBData object and stores all
         entries given in the dbtupel internally.
 
         Parameters
@@ -26,12 +28,12 @@ class IdbData(SimpleNamespace):
         self.__dict__.update(dbtupel)
 
 
-class IdbPi1ValPosition(IdbData):
+class IdbPi1ValPosition(IDBData):
     """A class to represent parthing information for optional PI1_Val identifier.
 
     Parameters
     ----------
-    IdbData : [type]
+    IDBData : [type]
         [description]
     """
     def __init__(self, dbtupel):
@@ -71,17 +73,17 @@ class IdbPi1ValPosition(IdbData):
         return self.__dict__['PIC_PI1_WID']
 
 
-class IdbPacketTypeInfo(IdbData):
+class IDBPacketTypeInfo(IDBData):
     """A class to represent descriptive information for a idb packet type.
 
     Parameters
     ----------
-    IdbData : [type]
+    IDBData : [type]
         [description]
     """
 
     def __init__(self, dbtupel):
-        """Construct all the necessary attributes for the IdbPacketTypeInfo object.
+        """Construct all the necessary attributes for the IDBPacketTypeInfo object.
 
         Parameters
         ----------
@@ -138,11 +140,112 @@ class IdbPacketTypeInfo(IdbData):
         return self.PID_TPSD != -1
 
 
-class IdbParameter(IdbData):
+class IDBPolynomialCalibration(IDBData):
+    """A class to represent a 4th order polynomial calibration defined in the IDB."""
+    def __init__(self, rows):
+        """Construct all the necessary attributes for the IDBPolynomialCalibration object.
+
+        Parameters
+        ----------
+        rows : `list`
+            the polynomial parameters from the IDB
+        """
+        try:
+            self.orig = rows
+            self.A = [float(row) for row in rows[0]]
+            self.valid = True
+        except (ValueError, IndexError):
+            self.valid = False
+
+    def __repr__(self):
+        return f'{self.__class__.__name__}({self.orig})'
+
+    def __call__(self, x):
+        """Apply the polynomial function to the raw value.
+
+        Parameters
+        ----------
+        x : `number`
+            the raw value
+
+        Returns
+        -------
+        `float`
+            polynomial function value
+        """
+        return (self.A[0] * x**0 +
+                self.A[1] * x**1 +
+                self.A[2] * x**2 +
+                self.A[3] * x**3 +
+                self.A[4] * x**4) if self.valid else None
+
+
+class IDBCalibrationCurve(IDBData):
+    """A class to represent a calibration curve for a LUT based interpolation defined in the IDB."""
+    def __init__(self, rows, param):
+        """Construct all the necessary attributes for the IDBCalibrationCurve object.
+
+        Parameters
+        ----------
+        rows : `list`
+            [x, y] all support points from the IDB
+        param : `IdbCalibrationParameter`
+        """
+        try:
+            self.x = [float(row[0]) for row in rows]
+            self.y = [float(row[1]) for row in rows]
+            self.valid = True
+        except ValueError:
+            self.valid = False
+
+        self.param = param
+        self.orig = rows
+
+        if len(self) <= 1:
+            logger.error(f'Invalid curve calibration parameter {param.PCF_NAME} / \
+                        {param.PCF_CURTX}: at least two data points needed')
+            self.valid = False
+
+    def __repr__(self):
+        return f'{self.__class__.__name__}({self.orig})'
+
+    def __len__(self):
+        return len(self.x)
+
+    def __call__(self, raw):
+        """Apply the interpolation function with the raw value based on the LUT provided by the IDB.
+
+        Parameters
+        ----------
+        x : `number`
+            the raw value
+
+        Returns
+        -------
+        `float`
+            interpolated value
+        """
+        if not self.valid:
+            return None
+        if len(self) == 2:
+            return ((self.y[1] - self.y[0]) /
+                    (self.x[1] - self.x[0]) *
+                    (raw - self.x[0]) + self.y[0])
+
+        try:
+            tck = interpolate.splrep(self.x, self.y)
+            val = interpolate.splev(raw, tck)
+            return float(val)
+        except Exception as e:
+            logger.error(f'Failed to curve calibrate {self.param.PCF_NAME} / \
+                        {self.param.PCF_CURTX} due to {e}')
+
+
+class IDBParameter(IDBData):
     """A base class to represent a parameter of a SCOS-2000 Telemetry Packet."""
 
     def __init__(self, dbtupel):
-        """Construct all the necessary attributes for the IdbParameter object.
+        """Construct all the necessary attributes for the IDBParameter object.
 
         Parameters
         ----------
@@ -286,11 +389,11 @@ class IdbParameter(IdbData):
         return self.__dict__['S2K_TYPE']
 
 
-class IdbStaticParameter(IdbParameter):
+class IDBStaticParameter(IDBParameter):
     """A class to represent a parameter of a static SCOS-2000 Telemetry Packet."""
 
     def __init__(self, dbtupel):
-        """Construct all the necessary attributes for the IdbStaticParameter object.
+        """Construct all the necessary attributes for the IDBStaticParameter object.
 
         Parameters
         ----------
@@ -334,11 +437,11 @@ class IdbStaticParameter(IdbParameter):
         return False
 
 
-class IdbVariableParameter(IdbParameter):
+class IDBVariableParameter(IDBParameter):
     """A class to represent a parameter of a variable SCOS-2000 Telemetry Packet."""
 
     def __init__(self, dbtupel):
-        """Construct all the necessary attributes for the IdbVariableParameter object.
+        """Construct all the necessary attributes for the IDBVariableParameter object.
 
         Parameters
         ----------
@@ -395,22 +498,82 @@ class IdbVariableParameter(IdbParameter):
         return True
 
 
-class IdbPacketTree():
+class IdbCalibrationParameter(IDBParameter):
+    """A class to represent a parameter for calibration."""
+
+    def __init__(self, dbtupel):
+        """Construct all the necessary attributes for the IdbCalibrationParameter object.
+
+        Parameters
+        ----------
+        dbtupel : `dict`
+            all named parameters from the db query
+        """
+        super().__init__(dbtupel)
+
+    @property
+    def PCF_NAME(self):
+        """Name of the parameter. Alphanumeric string uniquely identifying the monitoring
+        parameter.
+
+        Returns
+        -------
+        `str`
+            max 8 characters.
+        """
+        return self.__dict__['PCF_NAME']
+
+    @property
+    def PCF_CURTX(self):
+        """Parameter calibration identification name.
+
+        Returns
+        -------
+        `str`
+            the decalibration action
+        """
+        return self.__dict__['PCF_CURTX']
+
+    @property
+    def PCF_CATEG(self):
+        """Calibration category of the parameter.
+
+        Returns
+        -------
+        `str`
+            N|S|T|R|D|P|H|S|C
+            STIX only uses (N)umeric and (S)tring at the moment.
+        """
+        return self.__dict__['PCF_CATEG']
+
+    @property
+    def PCF_UNIT(self):
+        """Engineering unit mnemonic of the parameter values e.g. ‘VOLT’.
+
+        Returns
+        -------
+        `str`
+            max length = 4
+        """
+        return self.__dict__['PCF_UNIT']
+
+
+class IDBPacketTree():
     """Class representing a dynamic telemetry packet of variable length in a tree structure
     with nested repeaters."""
 
     def __init__(self, *, children=None, counter=1, name='top', parameter=None):
-        """Construct all the necessary attributes for the IdbPacketTree object.
+        """Construct all the necessary attributes for the IDBPacketTree object.
 
         Parameters
         ----------
         children : `list`, optional
-            list of IdbPacketTree, by default None: will be transformed to []
+            list of IDBPacketTree, by default None: will be transformed to []
         counter : `int`, optional
             how often this parameter is repeated, by default 1
         name : `str`, optional
             unique name of the parameter, by default 'top'
-        parameter : IdbParameter, optional
+        parameter : IDBParameter, optional
             enhanced description of the parameter, by default None
         """
         if children is None:
@@ -428,7 +591,7 @@ class IdbPacketTree():
         Returns
         -------
         `list`
-            List of `~stixcore/idb/idb/IdbPacketTree`
+            List of `~stixcore/idb/idb/IDBPacketTree`
         """
         return self._children
 
@@ -442,7 +605,7 @@ class IdbPacketTree():
 
         Returns
         -------
-        `~stixcore/idb/idb/IdbParameter`
+        `~stixcore/idb/idb/IDBParameter`
             enhanced description of the parameter
         """
         return self._parameter
@@ -592,6 +755,12 @@ class IDB:
         else:
             logger.warning("IDB connection already closed")
 
+    @classmethod
+    def generate_calibration_name(cls, prefix, id, suffix="TM"):
+        zeros = 10-len(prefix)-len(suffix)-len(str(id))
+        name = prefix + ("0" * zeros) + str(id) + suffix
+        return (name, id + 1)
+
     def _execute(self, sql, arguments=None, result_type='list'):
         """Execute sql and return results in a list or a dictionary."""
         if not self.cur:
@@ -724,28 +893,6 @@ class IDB:
             logger.warning("nothing found in IDB table: PCF or CPC")
             return ''
 
-    def get_parameter_unit(self, name):
-        """get unit for parameter
-
-        Parameters
-        ----------
-        name : `str`
-
-        returns
-        -------
-        ´str´
-            the unit
-        """
-        if not self.parameter_units:
-            results = self._execute(
-                'select PCF_NAME, PCF_UNIT from PCF where PCF_UNIT!=""')
-            self.parameter_units = {row[0]: row[1] for row in results}
-        if name in self.parameter_units:
-            return self.parameter_units[name]
-
-        logger.warning("nothing found in IDB table: PCF")
-        return ''
-
     def get_packet_type_info(self, packet_type, packet_subtype, pi1_val=None):
         """Identify packet type using service, service subtype and information in IDB table PID.
 
@@ -757,7 +904,7 @@ class IDB:
 
         returns
         -------
-        `IdbPacketTypeInfo` or `None` if not found
+        `IDBPacketTypeInfo` or `None` if not found
         """
         if (packet_type, packet_subtype, pi1_val) in self.packet_info:
             return self.packet_info[(packet_type, packet_subtype, pi1_val)]
@@ -774,7 +921,7 @@ class IDB:
             args = (packet_type, packet_subtype, pi1_val)
         rows = self._execute(sql, args, 'dict')
         if rows:
-            resObj = IdbPacketTypeInfo(rows[0])
+            resObj = IDBPacketTypeInfo(rows[0])
             self.packet_info[(packet_type, packet_subtype, pi1_val)] = resObj
             return resObj
 
@@ -812,48 +959,6 @@ class IDB:
                 return s2k_type
             logger.warning("nothing found in IDB table: tblConfigS2KParameterTypes")
             return None
-
-    def convert_NIXG_NIXD(self, name):
-        """gets NIXG to NIXD  conversation infos for a PDI
-
-        Parameters
-        ----------
-        name : `str`
-            PDI_GLOBAL name
-
-        returns
-        -------
-        (PDI_GLOBAL, PDI_DETAIL, PDI_OFFSET)
-        """
-        sql = (
-            'select PDI_GLOBAL, PDI_DETAIL, PDI_OFFSET from PDI where PDI_GLOBAL=? '
-        )
-        args = (name, )
-        rows = self._execute(sql, args, 'dict')
-        return rows
-
-    def get_fixed_packet_structure(self, spid):
-        """get parameter structures using SCO ICD (page 39)
-
-        Parameters
-        ----------
-        spid: SPID
-
-        returns
-        -------
-        parameter structures
-        """
-        if spid in self.parameter_structures:
-            return self.parameter_structures[spid]
-        sql = (
-            'select PCF.PCF_DESCR, PLF.PLF_OFFBY, PLF.PLF_OFFBI, PCF.PCF_NAME,'
-            ' PCF.PCF_WIDTH, PCF.PCF_PFC,PCF.PCF_PTC, PCF.PCF_CURTX'
-            ' from PLF   inner join PCF  on PLF.PLF_NAME = PCF.PCF_NAME '
-            ' and PLF.PLF_SPID=? order by PLF.PLF_OFFBY asc')
-        args = (spid, )
-        res = self._execute(sql, args, 'dict')
-        self.parameter_structures[spid] = res
-        return res
 
     def get_telecommand_info(self, service_type, service_subtype, subtype=None):
         """get TC description for a header
@@ -926,29 +1031,6 @@ class IDB:
 
         return False
 
-    def get_variable_packet_structure(self, spid):
-        """Get the variable packet structure of a telecommand by its spid (VPD.VPD_TPSD).
-
-        Parameters
-        ----------
-        name : `str`|`int`
-            a structure spid like 54118
-
-        returns
-        -------
-        `list` tm structure
-        """
-        if spid in self.parameter_structures:
-            return self.parameter_structures[spid]
-        sql = (
-            'select PCF.PCF_NAME, VPD.VPD_POS,PCF.PCF_WIDTH,PCF.PCF_PFC, PCF.PCF_PTC,VPD.'
-            'VPD_OFFSET, VPD.VPD_GRPSIZE,PCF.PCF_DESCR ,PCF.PCF_CURTX'
-            ' from VPD inner join PCF on  VPD.VPD_NAME=PCF.PCF_NAME and VPD.VPD_TPSD=? order by '
-            ' VPD.VPD_POS asc')
-        res = self._execute(sql, (spid, ), 'dict')
-        self.parameter_structures[spid] = res
-        return res
-
     def tcparam_interpret(self, ref, raw):
         """interpret telecommand parameter by using the table PAS
 
@@ -974,52 +1056,29 @@ class IDB:
             return ''
         return ''
 
-    def get_calibration_curve(self, pcf_curtx):
+    def get_calibration_curve(self, param):
         """calibration curve defined in CAP database
 
         Parameters
         ----------
-        pcf_curtx : `str`
-            cap_numbr lile 'CIXP0024TM'
+        param : `IdbCalibrationParameter`
 
         returns
         -------
-        `list`
+        `IDBCalibrationCurve`
             calibration curve
         """
-        if pcf_curtx in self.calibration_curves:
-            return self.calibration_curves[pcf_curtx]
+        if param.PCF_CURTX in self.calibration_curves:
+            return self.calibration_curves[param.PCF_CURTX]
         else:
-            sql = ('select cap_xvals, cap_yvals from cap '
-                   ' where cap_numbr=? order by cast(CAP_XVALS as double) asc')
-            args = (pcf_curtx, )
-            rows = self._execute(sql, args)
-            self.calibration_curves[pcf_curtx] = rows
-            return rows
-
-    def get_textual_mapping(self, parameter_name):
-        """get a struct for textual mapping of index and names
-
-        Parameters
-        ----------
-        parameter_name : `str`
-            PCF_NAME lile 'NIX00013'
-
-        returns
-        -------
-        `array` [(idx,),(name)]
-            the mapping
-        `None`
-            if parameter_name not found
-        """
-        sql = 'select  TXP_FROM, TXP_ALTXT from TXP join PCF on ' \
-              'PCF_CURTX=TXP_NUMBR where PCF_NAME=? order by TXP_FROM asc'
-        args = (parameter_name, )
-        rows = self._execute(sql, args)
-        if rows:
-            return ([int(x[0]) for x in rows], [x[1] for x in rows])
-        else:
-            return None
+            sql = '''select cap_xvals, cap_yvals
+                     from cap
+                     where cap_numbr = ?
+                     order by cast(CAP_XVALS as double) asc'''
+            args = (param.PCF_CURTX, )
+            curve = IDBCalibrationCurve(self._execute(sql, args), param)
+            self.calibration_curves[param.PCF_CURTX] = curve
+            return curve
 
     def textual_interpret(self, pcf_curtx, raw_value):
         """gets a name for a TXP_NUMBR from TXP for given raw_value
@@ -1027,7 +1086,7 @@ class IDB:
         Parameters
         ----------
         pcf_curtx : `str`
-            TXP_NUMBR lile 'CAAT0005TM'
+            TXP_NUMBR like 'CAAT0005TM'
         raw_value : `int`
             value in range of TXP_FROM  to TXP_TO
 
@@ -1037,16 +1096,18 @@ class IDB:
             the names
         """
         if (pcf_curtx, raw_value) in self.textual_parameter_lut:
-            # build a lookup table
             return self.textual_parameter_lut[(pcf_curtx, raw_value)]
 
-        sql = ('select TXP_ALTXT from TXP where  TXP_NUMBR=? and ?>=TXP_FROM '
-               ' and TXP_TO>=? limit 1')
+        sql = '''select TXP_ALTXT from TXP
+                 where TXP_NUMBR = ?
+                    and ? >= TXP_FROM
+                    and TXP_TO >= ? limit 1'''
         args = (pcf_curtx, raw_value, raw_value)
         rows = self._execute(sql, args)
-        self.textual_parameter_lut[(pcf_curtx, raw_value)] = rows
+        val = rows[0][0] if rows else None
+        self.textual_parameter_lut[(pcf_curtx, raw_value)] = val
         # lookup table
-        return rows
+        return val
 
     def get_calibration_polynomial(self, mcf_ident):
         """gets calibration polynomial information for a given MCF_IDENT
@@ -1054,7 +1115,7 @@ class IDB:
         Parameters
         ----------
         mcf_ident : `str`
-            TXP_NUMBR lile 'CIX00036TM'
+            TXP_NUMBR like 'CIX00036TM'
 
         returns
         -------
@@ -1066,9 +1127,9 @@ class IDB:
             sql = ('select MCF_POL1, MCF_POL2, MCF_POL3, MCF_POL4, MCF_POL5 '
                    'from MCF where MCF_IDENT=? limit 1')
             args = (mcf_ident, )
-            rows = self._execute(sql, args)
-            self.calibration_polynomial[mcf_ident] = rows
-            return rows
+            poly = IDBPolynomialCalibration(self._execute(sql, args))
+            self.calibration_polynomial[mcf_ident] = poly
+            return poly
 
     def get_idb_version(self):
         """get the version string of the IDB
@@ -1094,9 +1155,9 @@ class IDB:
         Parameters
         ----------
         param_type : `str`
-            see `~stixcore/idb/idb/IdbParameter.S2K_TYPE`
+            see `~stixcore/idb/idb/IDBParameter.S2K_TYPE`
         nbytes : `int`
-            see `~stixcore/idb/idb/IdbParameter.PCF_WIDTH`
+            see `~stixcore/idb/idb/IDBParameter.PCF_WIDTH`
 
         Returns
         -------
@@ -1128,8 +1189,8 @@ class IDB:
 
         Returns
         -------
-        `~stixcore/idb/idb/IdbPacketTree`
-            In this case the generic IdbPacketTree is flat, but can be used fore
+        `~stixcore/idb/idb/IDBPacketTree`
+            In this case the generic IDBPacketTree is flat, but can be used fore
             dynamic parseing anyway.
         """
         if (service_type, service_subtype, sp1_val) in self.parameter_structures:
@@ -1157,9 +1218,9 @@ class IDB:
             args = args + (sp1_val,)
         parameters = self._execute(sql, args, 'dict')
 
-        parent = IdbPacketTree()
+        parent = IDBPacketTree()
         for par in parameters:
-            parObj = IdbStaticParameter(par)
+            parObj = IDBStaticParameter(par)
             node = self._create_parse_node(parObj.PCF_NAME, parObj, 0, [])
             parent.children.append(node)
 
@@ -1172,8 +1233,29 @@ class IDB:
             children = []
 
         parameter.bin_format = self._get_stream_type_format(parameter.S2K_TYPE, parameter.PCF_WIDTH)
-        node = IdbPacketTree(name=name, counter=counter, parameter=parameter, children=children)
+        node = IDBPacketTree(name=name, counter=counter, parameter=parameter, children=children)
         return node
+
+    def get_params_for_calibration(self, service_type, service_subtype, sp1_val=None):
+        sql = (f'''SELECT
+                        PCF.PCF_NAME, PCF.PCF_CURTX, PCF.PCF_CATEG, PCF.PCF_UNIT
+                    FROM
+                        PID
+                    LEFT JOIN PLF ON PLF.PLF_SPID = PID.PID_SPID
+                    LEFT JOIN VPD ON VPD.VPD_TPSD = PID.PID_SPID
+                    LEFT JOIN PCF ON PLF.PLF_NAME = PCF.PCF_NAME or VPD.VPD_NAME = PCF.PCF_NAME
+                    WHERE
+                        PCF.PCF_CURTX not NULL
+                        AND PID_TYPE = ?
+                        AND PID_STYPE = ?
+                        {"AND PID_PI1_VAL = ? " if sp1_val is not None else " "}
+                    ''')
+        args = (service_type, service_subtype)
+        if sp1_val is not None:
+            args = args + (sp1_val,)
+
+        params = self._execute(sql, args, 'dict')
+        return [IdbCalibrationParameter(p) for p in params]
 
     def get_variable_structure(self, service_type, service_subtype, sp1_val=None):
         """Create a dynamic parse tree for the specified TM packet.
@@ -1189,8 +1271,8 @@ class IDB:
 
         Returns
         -------
-        `~stixcore/idb/idb/IdbPacketTree`
-            The IdbPacketTree implements nested repeaters.
+        `~stixcore/idb/idb/IDBPacketTree`
+            The IDBPacketTree implements nested repeaters.
         """
         if (service_type, service_subtype, sp1_val) in self.parameter_structures:
             return self.parameter_structures[(service_type, service_subtype, sp1_val)]
@@ -1217,10 +1299,10 @@ class IDB:
             args = args + (sp1_val,)
         param_pcf_structures = self._execute(sql, args, 'dict')
 
-        repeater = [{'node': IdbPacketTree(), 'counter': 1024}]
+        repeater = [{'node': IDBPacketTree(), 'counter': 1024}]
 
         for par in param_pcf_structures:
-            parObj = IdbVariableParameter(par)
+            parObj = IDBVariableParameter(par)
             if repeater:
                 for e in reversed(repeater):
                     e['counter'] -= 1

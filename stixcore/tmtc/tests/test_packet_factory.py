@@ -9,6 +9,7 @@ import pytest
 
 from stixcore.idb.manager import IDBManager
 from stixcore.processing.decompression import CompressedParameter, decompress
+from stixcore.processing.engineering import EngineeringParameter, raw_to_engineering
 from stixcore.tmtc import Packet
 from stixcore.tmtc.packet_factory import (
     BaseFactory,
@@ -137,58 +138,66 @@ def test_tm_21_6_30(data_dir, idbm):
     assert packet.data.NIXD0407 is not None
 
 
-@pytest.mark.parametrize('packets', [
-    (1,   1, None, tm_1.TM_1_1, True),
-    (1,   2, 48000, tm_1.TM_1_2, True),
-    (1,   7, None, tm_1.TM_1_7, True),
-    (1,   8, 48452, tm_1.TM_1_8, True),
+common_args = ('packets', [
+    (1,   1, None, tm_1.TM_1_1, True, 1),
+    (1,   2, 48000, tm_1.TM_1_2, True, 1),
+    (1,   7, None, tm_1.TM_1_7, True, 1),
+    (1,   8, 48452, tm_1.TM_1_8, True, 1),
 
-    (3,   25,   1, tm_3.TM_3_25_1, True),
-    (3,   25,   2, tm_3.TM_3_25_2, True),
+    (3,   25,   1, tm_3.TM_3_25_1, True, 1),
+    (3,   25,   2, tm_3.TM_3_25_2, True, 1),
 
-    (5,   1,   33, tm_5.TM_5_1, True),
-    (5,   2,   21548, tm_5.TM_5_2, True),
-    (5,   3,   32816, tm_5.TM_5_3, True),
-    (5,   4,   54304, tm_5.TM_5_4, True),
+    (5,   1,   33, tm_5.TM_5_1, True, 1),
+    (5,   2,   21548, tm_5.TM_5_2, True, 1),
+    (5,   3,   32816, tm_5.TM_5_3, True, 1),
+    (5,   4,   54304, tm_5.TM_5_4, True, 1),
 
-    (6,   6,  53250, tm_6.TM_6_6, True),
-    (6,   10, None, tm_6.TM_6_10, True),
+    (6,   6,  53250, tm_6.TM_6_6, True, 1),
+    (6,   10, None, tm_6.TM_6_10, True, 1),
 
-    (17,   2, None, tm_17.TM_17_2, True),
+    (17,   2, None, tm_17.TM_17_2, True, 1),
 
-    (21,   6,   20, tm_21.TM_21_6_20, True),
-    (21,   6,   21, tm_21.TM_21_6_21, True),
-    (21,   6,   22, tm_21.TM_21_6_22, True),
-    (21,   6,   23, tm_21.TM_21_6_23, True),
-    (21,   6,   24, tm_21.TM_21_6_24, True),
-    (21,   6,   30, tm_21.TM_21_6_30, True),
-    (21,   6,   31, tm_21.TM_21_6_31, True),
-    (21,   6,   32, tm_21.TM_21_6_32, True),
-    (21,   6,   33, tm_21.TM_21_6_33, True),
-    (21,   6,   34, tm_21.TM_21_6_34, True),
-    (21,   6,   41, tm_21.TM_21_6_41, True),
-    (21,   6,   42, tm_21.TM_21_6_42, True),
-    (21,   6,   43, tm_21.TM_21_6_43, False),
+    (21,   6,   20, tm_21.TM_21_6_20, True, 1),
+    (21,   6,   20, tm_21.TM_21_6_20, True, 2),
+    (21,   6,   21, tm_21.TM_21_6_21, True, 1),
+    (21,   6,   21, tm_21.TM_21_6_21, True, 2),
+    (21,   6,   22, tm_21.TM_21_6_22, True, 1),
+    (21,   6,   22, tm_21.TM_21_6_22, True, 2),
+    (21,   6,   23, tm_21.TM_21_6_23, True, 1),
+    (21,   6,   23, tm_21.TM_21_6_23, True, 2),
+    (21,   6,   24, tm_21.TM_21_6_24, True, 1),
+    (21,   6,   24, tm_21.TM_21_6_24, True, 4),
+    (21,   6,   30, tm_21.TM_21_6_30, True, 1),
+    (21,   6,   31, tm_21.TM_21_6_31, True, 1),
+    (21,   6,   32, tm_21.TM_21_6_32, True, 1),
+    (21,   6,   33, tm_21.TM_21_6_33, True, 1),
+    (21,   6,   34, tm_21.TM_21_6_34, True, 1),
+    (21,   6,   41, tm_21.TM_21_6_41, True, 1),
+    (21,   6,   42, tm_21.TM_21_6_42, True, 1),
+    (21,   6,   43, tm_21.TM_21_6_43, False, 1),
 
-    (236,   16,   None, tm_236.TM_236_16, True),
-    (236,   19,   None, tm_236.TM_236_19, True),
+    (236,   16,   None, tm_236.TM_236_16, True, 1),
+    (236,   19,   None, tm_236.TM_236_19, True, 1),
 
-    (237,   12,   None, tm_237.TM_237_12, True),
-    (237,   20,   None, tm_237.TM_237_20, True),
+    (237,   12,   None, tm_237.TM_237_12, True, 1),
+    (237,   20,   None, tm_237.TM_237_20, True, 1),
 
-    (238,   3,   None, tm_238.TM_238_3, True),
-    (238,   7,   None, tm_238.TM_238_7, True),
+    (238,   3,   None, tm_238.TM_238_3, True, 1),
+    (238,   7,   None, tm_238.TM_238_7, True, 1),
 
-    (239,   3,   None, tm_239.TM_239_3, True),
-    (239,   6,   None, tm_239.TM_239_6, True),
-    (239,   8,   None, tm_239.TM_239_8, True),
-    (239,   10,  None, tm_239.TM_239_10, True),
-    (239,   12,  None, tm_239.TM_239_12, True),
-    (239,   14,  None, tm_239.TM_239_14, True),
-    (239,   18,  None, tm_239.TM_239_18, True),
-    (239,   21,  None, tm_239.TM_239_21, False)
+    (239,   3,   None, tm_239.TM_239_3, True, 1),
+    (239,   6,   None, tm_239.TM_239_6, True, 1),
+    (239,   8,   None, tm_239.TM_239_8, True, 1),
+    (239,   10,  None, tm_239.TM_239_10, True, 1),
+    (239,   12,  None, tm_239.TM_239_12, True, 1),
+    (239,   14,  None, tm_239.TM_239_14, True, 1),
+    (239,   18,  None, tm_239.TM_239_18, True, 1),
+    (239,   21,  None, tm_239.TM_239_21, False, 1)
     # TODO fix to full packet TM_239_21 read after fox of https://github.com/i4Ds/STIX-IDB/issues/16
-], ids=("TM_1_1",
+])
+
+packets_test_names = (
+        "TM_1_1",
         "TM_1_2",
         "TM_1_7",
         "TM_1_8",
@@ -207,10 +216,15 @@ def test_tm_21_6_30(data_dir, idbm):
         "TM_17_2",
 
         "TM_21_6_20",
+        "TM_21_6_20x2",
         "TM_21_6_21",
+        "TM_21_6_21x2",
         "TM_21_6_22",
+        "TM_21_6_22x2",
         "TM_21_6_23",
+        "TM_21_6_23x2",
         "TM_21_6_24",
+        "TM_21_6_24x4",
         "TM_21_6_30",
         "TM_21_6_31",
         "TM_21_6_32",
@@ -236,10 +250,15 @@ def test_tm_21_6_30(data_dir, idbm):
         "TM_239_12",
         "TM_239_14",
         "TM_239_18",
-        "TM_239_21"))
+        "TM_239_21")
+
+
+@pytest.mark.parametrize(*common_args, ids=packets_test_names)
 def test_all_tm(data_dir, idbm, packets):
-    t, st, pi1, cl, testpadding = packets
-    filename = f"{t}_{st}.hex" if pi1 is None else f"{t}_{st}_{pi1}.hex"
+    t, st, pi1, cl, testpadding, nstr = packets
+    n_str = '' if nstr <= 1 else f'_nstr_{nstr}'
+    filename = f"{t}_{st}{n_str}.hex" if pi1 is None else f"{t}_{st}_{pi1}{n_str}.hex"
+
     hex = _get_bin_from_file(data_dir, filename)
     GenericPacket.idb_manager = idbm
     Packet = TMTCPacketFactory(registry=GenericPacket._registry)
@@ -254,38 +273,13 @@ def test_all_tm(data_dir, idbm, packets):
             len(packet.source_packet_header.bitstream)
 
 
-@pytest.mark.parametrize('decom_packets', [
-    (21,   6,   20, tm_21.TM_21_6_20, 2),
-    (21,   6,   21, tm_21.TM_21_6_21, 2),
-    (21,   6,   21, tm_21.TM_21_6_21, 1),
-    (21,   6,   22, tm_21.TM_21_6_22, 2),
-    # (21,   6,   23, tm_21.TM_21_6_23, 2),
+@pytest.mark.parametrize(*common_args, ids=packets_test_names)
+def test_decompress(data_dir, idbm, packets):
+    t, st, pi1, cl, test, nstr = packets
+
     # TODO enable test again after https://github.com/i4Ds/STIXCore/issues/40 resolved
-    (21,   6,   24, tm_21.TM_21_6_24, 4),
-    (21,   6,   30, tm_21.TM_21_6_30, 0),
-    (21,   6,   31, tm_21.TM_21_6_31, 0),
-    (21,   6,   32, tm_21.TM_21_6_32, 0),
-    (21,   6,   33, tm_21.TM_21_6_33, 0),
-    (21,   6,   34, tm_21.TM_21_6_34, 0),
-    (21,   6,   41, tm_21.TM_21_6_41, 0),
-    (21,   6,   42, tm_21.TM_21_6_42, 0),
-    (21,   6,   43, tm_21.TM_21_6_43, 0),
-], ids=("TM_21_6_20:2",
-        "TM_21_6_21:2",
-        "TM_21_6_21:1",
-        "TM_21_6_22:2",
-        # "TM_21_6_23:2",
-        "TM_21_6_24:4",
-        "TM_21_6_30",
-        "TM_21_6_31",
-        "TM_21_6_32",
-        "TM_21_6_33",
-        "TM_21_6_34",
-        "TM_21_6_41",
-        "TM_21_6_42",
-        "TM_21_6_43",))
-def test_decompress(data_dir, idbm, decom_packets):
-    t, st, pi1, cl, nstr = decom_packets
+    if cl == tm_21.TM_21_6_23:
+        return
 
     n_str = '' if nstr <= 1 else f'_nstr_{nstr}'
     filename = f"{t}_{st}{n_str}.hex" if pi1 is None else f"{t}_{st}_{pi1}{n_str}.hex"
@@ -296,7 +290,8 @@ def test_decompress(data_dir, idbm, decom_packets):
     assert isinstance(packet, cl)
     c = decompress(packet)
 
-    assert len(packet.data.get_subpackets()) == nstr
+    if (nstr > 1):
+        assert len(packet.data.get_subpackets()) == nstr
 
     decompression_parameter = packet.get_decompression_parameter()
     if decompression_parameter is not None:
@@ -308,6 +303,38 @@ def test_decompress(data_dir, idbm, decom_packets):
                     assert isinstance(rep, CompressedParameter)
             else:
                 isinstance(params, CompressedParameter)
+    else:
+        assert c == 0
+
+
+@pytest.mark.parametrize(*common_args, ids=packets_test_names)
+def test_engineering(data_dir, idbm, packets):
+    t, st, pi1, cl, test, nstr = packets
+
+    n_str = '' if nstr <= 1 else f'_nstr_{nstr}'
+    filename = f"{t}_{st}{n_str}.hex" if pi1 is None else f"{t}_{st}_{pi1}{n_str}.hex"
+
+    hex = _get_bin_from_file(data_dir, filename)
+    GenericPacket.idb_manager = idbm
+    Packet = TMTCPacketFactory(registry=GenericPacket._registry)
+    packet = Packet(hex)
+    assert isinstance(packet, cl)
+
+    c = raw_to_engineering(packet)
+
+    if (nstr > 1):
+        assert len(packet.data.get_subpackets()) == nstr
+
+    e_parameter = packet.get_calibration_params()
+    if len(e_parameter) > 0:
+        assert c > 0
+        for cparam in e_parameter:
+            param = packet.data.get(cparam.PCF_NAME)
+            if isinstance(param, list):
+                for rep in param:
+                    assert isinstance(rep, EngineeringParameter)
+            else:
+                isinstance(param, EngineeringParameter)
     else:
         assert c == 0
 

@@ -39,13 +39,13 @@ def test_has_version(versions, idb_manager):
 
 @pytest.mark.remote_data
 def test_download_version(idb_manager):
-    assert idb_manager.download_version("2.26.33")
+    assert idb_manager.download_version("2.26.34", force=True)
 
     with pytest.raises(ValueError) as e:
-        idb_manager.download_version("2.26.33")
+        idb_manager.download_version("2.26.34")
     assert len(str(e.value)) > 1
 
-    assert idb_manager.download_version("2.26.33", force=True)
+    assert idb_manager.download_version("2.26.34", force=True)
 
 
 def test_find_version(idb_manager):
@@ -53,13 +53,9 @@ def test_find_version(idb_manager):
     assert idb.get_idb_version() == "2.26.34"
     idb.close()
 
-    with pytest.raises(ValueError) as e:
-        idb = idb_manager.get_idb(obt=StixDateTime(coarse=9631155005, fine=0))
-    assert len(str(e.value)) > 1
-
-    with pytest.raises(ValueError) as e:
-        idb = idb_manager.get_idb(obt=StixDateTime(coarse=-1, fine=0))
-    assert len(str(e.value)) > 1
+    # fall back to the default
+    idb = idb_manager.get_idb(obt=StixDateTime(coarse=9631155005, fine=0))
+    assert idb.get_idb_version() == "2.26.34"
 
     v = idb_manager.find_version(obt=None)
     assert v == "2.26.3"

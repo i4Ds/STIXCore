@@ -4,7 +4,12 @@ from pathlib import Path
 
 import pytest
 
-from stixcore.idb.idb import IDB
+from stixcore.idb.idb import (
+    IDB,
+    IDBCalibrationCurve,
+    IdbCalibrationParameter,
+    IDBPolynomialCalibration,
+)
 from stixcore.idb.manager import IDBManager
 
 VERSION = "2.26.34"
@@ -90,18 +95,6 @@ def test_get_parameter_description(idb):
     assert info == ""
 
 
-def test_get_parameter_unit(idb):
-    # a PCF param
-    info = idb.get_parameter_unit('NIX00102')
-    assert info != ""
-    # test twice for caching
-    info = idb.get_parameter_unit('NIX00102')
-    assert info != ""
-
-    info = idb.get_parameter_unit('foobar')
-    assert info == ""
-
-
 def test_get_packet_type_info(idb):
     info = idb.get_packet_type_info(6, 10, None)
     assert info is not None
@@ -125,25 +118,6 @@ def test_get_s2k_parameter_types(idb):
 
     info = idb.get_s2k_parameter_types(11, 18)
     assert info is None
-
-
-def test_convert_NIXG_NIXD(idb):
-    info = idb.convert_NIXG_NIXD("foobar")
-    assert len(info) == 0
-
-    info = idb.convert_NIXG_NIXD("NIXG0011")
-    assert len(info) >= 1
-
-
-def test_get_fixed_packet_structure(idb):
-    info = idb.get_fixed_packet_structure(123)
-    assert len(info) == 0
-
-    info = idb.get_fixed_packet_structure(54005)
-    assert len(info) >= 1
-    # test twice for caching
-    info = idb.get_fixed_packet_structure(54005)
-    assert len(info) >= 1
 
 
 def test_get_telecommand_info(idb):
@@ -176,18 +150,6 @@ def test_is_variable_length_telecommand(idb):
     assert info is False
 
 
-def test_get_variable_packet_structure(idb):
-    info = idb.get_variable_packet_structure(54118)
-    assert len(info) >= 1
-
-    # test twice for caching
-    info = idb.get_variable_packet_structure(54118)
-    assert len(info) >= 1
-
-    info = idb.get_variable_packet_structure("foobar")
-    assert len(info) == 0
-
-
 def test_tcparam_interpret(idb):
     info = idb.tcparam_interpret('CAAT0005TC', 0)
     assert info != ''
@@ -197,28 +159,19 @@ def test_tcparam_interpret(idb):
 
 
 def test_get_calibration_curve(idb):
-    info = idb.get_calibration_curve('CIXP0024TM')
-    assert len(info) >= 1
+    p = IdbCalibrationParameter({'PCF_CURTX': 'CIXP0024TM'})
+    curve = idb.get_calibration_curve(p)
+    assert isinstance(curve, IDBCalibrationCurve)
+    for i, x in enumerate(curve.x):
+        assert abs(curve(x) - curve.y[i]) < 0.001
 
     # test twice for caching
-    info = idb.get_calibration_curve('CIXP0024TM')
-    assert len(info) >= 1
+    curve = idb.get_calibration_curve(p)
+    assert isinstance(curve, IDBCalibrationCurve)
 
-    info = idb.get_calibration_curve('foobar')
-    assert len(info) == 0
-
-
-def test_get_textual_mapping(idb):
-    info = idb.get_textual_mapping('NIX00013')
-    assert len(info) == 2
-    _idx = info[0]
-    _str = info[1]
-    assert len(_idx) == len(_str)
-    assert isinstance(_idx[0], int)
-    assert isinstance(_str[0], str)
-
-    info = idb.get_textual_mapping('foobar')
-    assert info is None
+    curve = idb.get_calibration_curve(IdbCalibrationParameter({'PCF_CURTX': 'f', 'PCF_NAME': 'b'}))
+    assert isinstance(curve, IDBCalibrationCurve)
+    assert curve.valid is False
 
 
 def test_textual_interpret(idb):
@@ -230,18 +183,20 @@ def test_textual_interpret(idb):
     assert len(info) >= 1
 
     info = idb.textual_interpret('foobar', 1)
-    assert len(info) == 0
+    assert info is None
 
 
 def test_get_calibration_polynomial(idb):
-    info = idb.get_calibration_polynomial('CIX00036TM')
-    assert len(info) == 1
-    assert len(info[0]) == 5
+    poly = idb.get_calibration_polynomial('CIX00036TM')
+    assert isinstance(poly, IDBPolynomialCalibration)
+    assert poly(1) == poly.A[1]
+    assert poly.valid is True
 
     # test twice for caching
-    info = idb.get_calibration_polynomial('CIX00036TM')
-    assert len(info) == 1
-    assert len(info[0]) == 5
+    poly = idb.get_calibration_polynomial('CIX00036TM')
+    assert isinstance(poly, IDBPolynomialCalibration)
+    assert poly.valid is True
 
-    info = idb.get_calibration_polynomial('foobar')
-    assert len(info) == 0
+    poly = idb.get_calibration_polynomial('foobar')
+    assert isinstance(poly, IDBPolynomialCalibration)
+    assert poly.valid is False

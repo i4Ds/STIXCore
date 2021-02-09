@@ -1,4 +1,5 @@
 import os
+import re
 import json
 import shutil
 import sqlite3
@@ -191,7 +192,7 @@ class IDBManager:
                 cur.executescript(create_table)
 
                 for fname in file_list:
-                    name = fname.name
+                    name = fname.stem
 
                     with open(fname, 'r') as datafile:
                         try:
@@ -204,7 +205,7 @@ class IDBManager:
                         num = len(names)
                         for line in datafile:
                             cols = [e.strip() for e in line.split("\t")]
-
+                            cols = [None if c == '' else c for c in cols]
                             # fill tailing NULL values as they might not part of the dat file
                             if num > len(cols):
                                 cols.extend(['NULL'] * (num - len(cols)))
@@ -224,6 +225,39 @@ class IDBManager:
                 cur.executescript(update_db)
                 cur.execute("insert into IDB (creation_datetime, version) "
                             "values (current_timestamp, ?);", (version_label,))
+
+                # inject custom calibrations
+
+                nextID = 0
+                for calibN, in cur.execute("select distinct PCF_CURTX from PCF " +
+                                           "where PCF_CURTX not NULL")\
+                                  .fetchall():
+                    nr = int(re.match(r'([a-z]+)([0-9]+)([a-z]+)', calibN, re.IGNORECASE).group(2))
+                    if nr > nextID:
+                        nextID = nr
+                nextID += 1
+
+                # NIX00405
+                nix = 'NIX00405'
+                count,  = cur.execute("select count(*) from PCF where PCF_NAME = ? " +
+                                      "AND PCF_CURTX not NULL", (nix,))\
+                             .fetchone()
+                if count == 0:
+                    pname, nextID = IDB.generate_calibration_name("CIX", nextID)
+                    cur.execute('''update PCF set
+                                    PCF_CURTX = ?,
+                                    PCF_CATEG = 'N',
+                                    PCF_UNIT = 's'
+                                   where PCF_NAME = ?''', (pname, nix))
+
+                    cur.execute('''insert into MCF (MCF_IDENT, MCF_DESCR, MCF_POL1,
+                                    MCF_POL2, MCF_POL3, MCF_POL4, MCF_POL5, SDB_IMPORTED)
+                                   values
+                                    (?,?,?,?,?,?,?, 0)''', (pname, "Duration", 0, 0.1, 0, 0, 0))
+
+                else:
+                    logger.info(f"Skip calib injection for {nix}: allready present")
+                print(nix)
 
         finally:
             conn.commit()
@@ -314,13 +348,14 @@ class IDBManager:
             logger.debug("IDB version missmatch")
         return ver == IDBManager.convert_version_label(version_label)
 
-    def get_idb(self, version_label='', obt=None):
+    def get_idb(self, version_label='2.26.34', obt=None):
         """Get the IDB for the specified version (or the latest available).
 
         Parameters
         ----------
         version_label : `str` | `(int, int, int)`
             a version definition (major, minor, patch) or "major.minor.patch"
+            default to '2.26.34'
         obt : `datetime`, optional
             a date for autodetect the IDB version for operation period
 
@@ -330,9 +365,9 @@ class IDBManager:
             reference to a IDB reader
         """
         if isinstance(obt, StixDateTime):
-            utc_version = self.find_version(obt=obt)
-            if self.has_version(utc_version):
-                version_label = utc_version
+            obt_version = self.find_version(obt=obt)
+            if self.has_version(obt_version):
+                version_label = obt_version
             else:
                 logger.warning(f"No valid IDB version found for time {obt}"
                                f"Falling back to version {version_label}")
@@ -341,6 +376,10 @@ class IDBManager:
             if version_label not in self.idb_cache:
                 self.idb_cache[version_label] = \
                     IDB(Path(self._get_filename_for_version(version_label)))
-            return self.idb_cache[version_label]
+
+            idb = self.idb_cache[version_label]
+            if not idb.is_connected():
+                idb._connect_database()
+            return idb
         raise ValueError(f'Version "{version_label}" not found in: '
                          f'"{self._get_filename_for_version(version_label)}"')

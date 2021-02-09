@@ -376,6 +376,10 @@ class IDBManager:
             if version_label not in self.idb_cache:
                 self.idb_cache[version_label] = \
                     IDB(Path(self._get_filename_for_version(version_label)))
-            return self.idb_cache[version_label]
+
+            idb = self.idb_cache[version_label]
+            if not idb.is_connected():
+                idb._connect_database()
+            return idb
         raise ValueError(f'Version "{version_label}" not found in: '
                          f'"{self._get_filename_for_version(version_label)}"')

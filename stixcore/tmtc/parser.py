@@ -262,7 +262,7 @@ def _parse_tree(bitstream, parent, fields):
     ----------
     bitstream : `bitstream.ConstBitstream`
         Input binary data
-    parent : `~stixcore/idb/idb/IdbPacketTree`
+    parent : `~stixcore/idb/idb/IDBPacketTree`
         the dynamic parse tree defined by the IDB
     fields : `dict`
         The parsed parameters - mutable out data.
@@ -313,7 +313,7 @@ def parse_variable(bitstream, tree):
     ----------
     bitstream : `bitstream.ConstBitstream`
         Input binary data
-    tree : `~stixcore/idb/idb/IdbPacketTree`
+    tree : `~stixcore/idb/idb/IDBPacketTree`
         the dynamic parse tree defined by the IDB
     Returns
     -------

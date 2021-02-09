@@ -6,7 +6,7 @@ import pytest
 
 from stixcore.idb.idb import (
     IDB,
-    IdbCalibrationCurve,
+    IDBCalibrationCurve,
     IdbCalibrationParameter,
     IDBPolynomialCalibration,
 )
@@ -95,18 +95,6 @@ def test_get_parameter_description(idb):
     assert info == ""
 
 
-def test_get_parameter_unit(idb):
-    # a PCF param
-    info = idb.get_parameter_unit('NIX00102')
-    assert info != ""
-    # test twice for caching
-    info = idb.get_parameter_unit('NIX00102')
-    assert info != ""
-
-    info = idb.get_parameter_unit('foobar')
-    assert info == ""
-
-
 def test_get_packet_type_info(idb):
     info = idb.get_packet_type_info(6, 10, None)
     assert info is not None
@@ -172,16 +160,18 @@ def test_tcparam_interpret(idb):
 
 def test_get_calibration_curve(idb):
     p = IdbCalibrationParameter({'PCF_CURTX': 'CIXP0024TM'})
-    info = idb.get_calibration_curve(p)
-    assert isinstance(info, IdbCalibrationCurve)
+    curve = idb.get_calibration_curve(p)
+    assert isinstance(curve, IDBCalibrationCurve)
+    for i, x in enumerate(curve.x):
+        assert abs(curve(x) - curve.y[i]) < 0.001
 
     # test twice for caching
-    info = idb.get_calibration_curve(p)
-    assert isinstance(info, IdbCalibrationCurve)
+    curve = idb.get_calibration_curve(p)
+    assert isinstance(curve, IDBCalibrationCurve)
 
-    info = idb.get_calibration_curve(IdbCalibrationParameter({'PCF_CURTX': 'f', 'PCF_NAME': 'b'}))
-    assert isinstance(info, IdbCalibrationCurve)
-    assert info.valid is False
+    curve = idb.get_calibration_curve(IdbCalibrationParameter({'PCF_CURTX': 'f', 'PCF_NAME': 'b'}))
+    assert isinstance(curve, IDBCalibrationCurve)
+    assert curve.valid is False
 
 
 def test_textual_interpret(idb):
@@ -199,6 +189,7 @@ def test_textual_interpret(idb):
 def test_get_calibration_polynomial(idb):
     poly = idb.get_calibration_polynomial('CIX00036TM')
     assert isinstance(poly, IDBPolynomialCalibration)
+    assert poly(1) == poly.A[1]
     assert poly.valid is True
 
     # test twice for caching

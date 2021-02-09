@@ -9,4 +9,6 @@ data products levels.
 
 .. automodapi:: stixcore.processing.decompression
 
+.. automodapi:: stixcore.processing.engineering
+
 .. automodapi:: stixcore.processing.levelb

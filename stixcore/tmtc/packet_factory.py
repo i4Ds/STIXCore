@@ -27,10 +27,10 @@ class BaseFactory:
         else:
             self.registry = registry
 
-    def __call__(self, data):
-        return self._check_registered(data)
+    def __call__(self, *args, **kwargs):
+        return self._check_registered(*args, **kwargs)
 
-    def _check_registered(self, data):
+    def _check_registered(self, *args, **kwargs):
         """
         Implementation of a basic check to see if arguments match against the registered classes.
 
@@ -47,7 +47,7 @@ class BaseFactory:
 
         for key in self.registry:
             # Call the registered validation function for each registered class
-            if self.registry[key](data):
+            if self.registry[key](*args, **kwargs):
                 candidates.append(key)
 
         n_matches = len(candidates)
@@ -60,7 +60,7 @@ class BaseFactory:
         # Only one is found
         PacketType = candidates[0]  # noqa
 
-        return PacketType(data)
+        return PacketType(*args, **kwargs)
 
     def register(self, PacketType, validation_function):  # noqa
         if validation_function is not None:

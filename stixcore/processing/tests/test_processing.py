@@ -6,7 +6,7 @@ import pytest
 
 from stixcore.io.fits.processors import FitsLBProcessor
 from stixcore.io.soc.manager import SOCManager
-from stixcore.processing.levelb import LevelB
+from stixcore.products.levelb.binary import LevelB
 from stixcore.tmtc.packets import TMTC
 
 
@@ -35,6 +35,8 @@ def test_level_b(soc_manager, out_dir):
 
     files_to_process = soc_manager.get_files(TMTC.TM)
     for tmtc_file in files_to_process:
-        LevelB.process(tmtc_file, fits_processor)
+        lb1 = LevelB.from_tm(tmtc_file)
+        fits_processor.write_fits(lb1)
         # do again for __add__
-        LevelB.process(tmtc_file, fits_processor)
+        lb2 = LevelB.from_tm(tmtc_file)
+        fits_processor.write_fits(lb2)

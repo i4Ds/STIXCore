@@ -1,3 +1,4 @@
+from pathlib import Path
 from functools import partial
 from collections import OrderedDict
 
@@ -6,6 +7,8 @@ from roentgen.absorption.material import Compound, MassAttenuationCoefficient, M
 
 import astropy.units as u
 from astropy.table.table import Table
+
+from stixcore.config.reader import read_energy_channels
 
 __all__ = ['Transmission']
 
@@ -37,73 +40,9 @@ MATERIALS = OrderedDict([
     ('te_o2', ({'Te': 0.7995088158691722, 'O': 0.20049124678825841}, 5.670 * u.g/u.cm**3))]
 )
 
-# TODO move to somewhere better and create from txt file look at IDL implementation
-ENERGY_CHANNELS = {
-    0: {'channel_edge': 0, 'energy_edge': 0, 'e_lower': 0.0, 'e_upper': 4.0, 'bin_width': 4.0,
-        'dE_E': 2.000, 'ql_channel': None},
-    1: {'channel_edge': 1, 'energy_edge': 4, 'e_lower': 4.0, 'e_upper': 5.0, 'bin_width': 1.0,
-        'dE_E': 0.222, 'ql_channel': 0},
-    2: {'channel_edge': 2, 'energy_edge': 5, 'e_lower': 5.0, 'e_upper': 6.0, 'bin_width': 1.0,
-        'dE_E': 0.182, 'ql_channel': 0},
-    3: {'channel_edge': 3, 'energy_edge': 6, 'e_lower': 6.0, 'e_upper': 7.0, 'bin_width': 1.0,
-        'dE_E': 0.154, 'ql_channel': 0},
-    4: {'channel_edge': 4, 'energy_edge': 7, 'e_lower': 7.0, 'e_upper': 8.0, 'bin_width': 1.0,
-        'dE_E': 0.133, 'ql_channel': 0},
-    5: {'channel_edge': 5, 'energy_edge': 8, 'e_lower': 8.0, 'e_upper': 9.0, 'bin_width': 1.0,
-        'dE_E': 0.118, 'ql_channel': 0},
-    6: {'channel_edge': 6, 'energy_edge': 9, 'e_lower': 9.0, 'e_upper': 10.0, 'bin_width': 1.0,
-        'dE_E': 0.105, 'ql_channel': 0},
-    7: {'channel_edge': 7, 'energy_edge': 10, 'e_lower': 10.0, 'e_upper': 11.0, 'bin_width': 1.0,
-        'dE_E': 0.095, 'ql_channel': 1},
-    8: {'channel_edge': 8, 'energy_edge': 11, 'e_lower': 11.0, 'e_upper': 12.0, 'bin_width': 1.0,
-        'dE_E': 0.087, 'ql_channel': 1},
-    9: {'channel_edge': 9, 'energy_edge': 12, 'e_lower': 12.0, 'e_upper': 13.0, 'bin_width': 1.0,
-        'dE_E': 0.080, 'ql_channel': 1},
-    10: {'channel_edge': 10, 'energy_edge': 13, 'e_lower': 13.0, 'e_upper': 14.0, 'bin_width': 1.0,
-         'dE_E': 0.074, 'ql_channel': 1},
-    11: {'channel_edge': 11, 'energy_edge': 14, 'e_lower': 14.0, 'e_upper': 15.0, 'bin_width': 1.0,
-         'dE_E': 0.069, 'ql_channel': 1},
-    12: {'channel_edge': 12, 'energy_edge': 15, 'e_lower': 15.0, 'e_upper': 16.0, 'bin_width': 1.0,
-         'dE_E': 0.065, 'ql_channel': 2},
-    13: {'channel_edge': 13, 'energy_edge': 16, 'e_lower': 16.0, 'e_upper': 18.0, 'bin_width': 1.0,
-         'dE_E': 0.061, 'ql_channel': 2},
-    14: {'channel_edge': 14, 'energy_edge': 18, 'e_lower': 18.0, 'e_upper': 20.0, 'bin_width': 2.0,
-         'dE_E': 0.105, 'ql_channel': 2},
-    15: {'channel_edge': 15, 'energy_edge': 20, 'e_lower': 20.0, 'e_upper': 22.0, 'bin_width': 2.0,
-         'dE_E': 0.095, 'ql_channel': 2},
-    16: {'channel_edge': 16, 'energy_edge': 22, 'e_lower': 22.0, 'e_upper': 25.0, 'bin_width': 3.0,
-         'dE_E': 0.128, 'ql_channel': 2},
-    17: {'channel_edge': 17, 'energy_edge': 25, 'e_lower': 25.0, 'e_upper': 28.0, 'bin_width': 3.0,
-         'dE_E': 0.113, 'ql_channel': 3},
-    18: {'channel_edge': 18, 'energy_edge': 28, 'e_lower': 28.0, 'e_upper': 32.0, 'bin_width': 4.0,
-         'dE_E': 0.133, 'ql_channel': 3},
-    19: {'channel_edge': 19, 'energy_edge': 32, 'e_lower': 32.0, 'e_upper': 36.0, 'bin_width': 4.0,
-         'dE_E': 0.118, 'ql_channel': 3},
-    20: {'channel_edge': 20, 'energy_edge': 36, 'e_lower': 36.0, 'e_upper': 40.0, 'bin_width': 4.0,
-         'dE_E': 0.105, 'ql_channel': 3},
-    21: {'channel_edge': 21, 'energy_edge': 40, 'e_lower': 40.0, 'e_upper': 45.0, 'bin_width': 5.0,
-         'dE_E': 0.118, 'ql_channel': 3},
-    22: {'channel_edge': 22, 'energy_edge': 45, 'e_lower': 45.0, 'e_upper': 50.0, 'bin_width': 5.0,
-         'dE_E': 0.105, 'ql_channel': 3},
-    23: {'channel_edge': 23, 'energy_edge': 50, 'e_lower': 50.0, 'e_upper': 56.0, 'bin_width': 6.0,
-         'dE_E': 0.113, 'ql_channel': 4},
-    24: {'channel_edge': 24, 'energy_edge': 56, 'e_lower': 56.0, 'e_upper': 63.0, 'bin_width': 7.0,
-         'dE_E': 0.118, 'ql_channel': 4},
-    25: {'channel_edge': 25, 'energy_edge': 63, 'e_lower': 63.0, 'e_upper': 70.0, 'bin_width': 7.0,
-         'dE_E': 0.105, 'ql_channel': 4},
-    26: {'channel_edge': 26, 'energy_edge': 70, 'e_lower': 70.0, 'e_upper': 76.0, 'bin_width': 6.0,
-         'dE_E': 0.082, 'ql_channel': 4},
-    27: {'channel_edge': 27, 'energy_edge': 76, 'e_lower': 76.0, 'e_upper': 84.0, 'bin_width': 8.0,
-         'dE_E': 0.100, 'ql_channel': 4},
-    28: {'channel_edge': 28, 'energy_edge': 84, 'e_lower': 84.0, 'e_upper': 100.0,
-         'bin_width': 16.0, 'dE_El': 0.174, 'ql_channel': 4},
-    29: {'channel_edge': 29, 'energy_edge': 100, 'e_lower': 100.0, 'e_upper': 120.0,
-         'bin_width': 20.0, 'dE_El': 0.182, 'ql_channel': 4},
-    30: {'channel_edge': 30, 'energy_edge': 120, 'e_lower': 120.0, 'e_upper': 150.0,
-         'bin_width': 30.0, 'dE_El': 0.222, 'ql_channel': 4},
-    31: {'channel_edge': 31, 'energy_edge': 150, 'e_lower': 150.0, 'e_upper': np.inf,
-         'bin_width': np.inf, 'dE_E': np.inf, 'ql_channel': None}
-}
+# TODO get file from config
+ENERGY_CHANNELS = read_energy_channels(Path(__file__).parent.parent / "config" / "data" /
+                                       "common" / "detector" / "ScienceEnergyChannels_1000.csv")
 
 
 class Transmission:
@@ -128,7 +67,7 @@ class Transmission:
         self.materials = MATERIALS
         self.components = COMPONENTS
         self.components = dict()
-        self.energies = [ENERGY_CHANNELS[i]['e_lower'] for i in range(1, 32)] * u.keV
+        self.energies = [ENERGY_CHANNELS[i].e_lower for i in range(1, 32)] * u.keV
 
         for name, layers in COMPONENTS.items():
             parts = []

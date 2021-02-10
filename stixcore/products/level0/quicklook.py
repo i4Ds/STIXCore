@@ -21,10 +21,12 @@ from stixcore.tmtc.packet_factory import Packet
 from stixcore.tmtc.packets import PacketSequence
 from stixcore.util.logging import get_logger
 
+__all__ = ['QLProduct', 'LightCurve']
+
 logger = get_logger(__name__)
 
 
-class Product(BaseProduct):
+class QLProduct(BaseProduct):
     def __init__(self, *, service_type, service_subtype, ssid, control, data, **kwargs):
         """
         Generic product composed of control and data
@@ -57,11 +59,11 @@ class Product(BaseProduct):
 
         Parameters
         ----------
-        other : A subclass of stix_parser.products.quicklook.Product
+        other : A subclass of stix_parser.products.quicklook.QLProduct
 
         Returns
         -------
-        A subclass of stix_parser.products.quicklook.Product
+        A subclass of stix_parser.products.quicklook.QLProduct
             The combined data product
         """
         if not isinstance(other, type(self)):
@@ -109,7 +111,7 @@ class Product(BaseProduct):
                              ssid=self.ssid, control=control, data=data)
 
 
-class LightCurve(Product):
+class LightCurve(QLProduct):
     """
     Quick Look Light Curve data product.
     """

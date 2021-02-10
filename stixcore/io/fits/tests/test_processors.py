@@ -10,7 +10,7 @@ def test_level0_processor_init():
     assert pro.archive_path == 'some/path'
 
 
-@patch('stixcore.products.level0.quicklook.Product')
+@patch('stixcore.products.level0.quicklook.QLProduct')
 def test_level0_processor_generate_filename(product):
     processor = FitsL0Processor('some/path')
     product.control.colnames = []
@@ -40,7 +40,7 @@ def test_level0_processor_generate_filename(product):
                        '20200102T030405-20200405T060708_V01_98765.fits'
 
 
-@patch('stixcore.products.level0.quicklook.Product')
+@patch('stixcore.products.level0.quicklook.QLProduct')
 @patch('stixcore.io.fits.processors.datetime')
 def test_level0_processor_generate_primary_header(datetime, product):
     processor = FitsL0Processor('some/path')

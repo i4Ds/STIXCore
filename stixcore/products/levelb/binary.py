@@ -10,6 +10,8 @@ from stixcore.products.product import BaseProduct
 from stixcore.tmtc.packets import TMPacket
 from stixcore.util.logging import get_logger
 
+__all__ = ['LevelB']
+
 logger = get_logger(__name__)
 
 
@@ -122,21 +124,18 @@ class LevelB(BaseProduct):
                              ssid=self.ssid, control=control, data=data)
 
     @classmethod
-    def from_tm(cls, tmfile, fits_processor):
+    def from_tm(cls, tmfile):
         """Process the given SOCFile and creates LevelB FITS files.
 
         Parameters
         ----------
         tmfile : `SOCPacketFile`
             The input data file.
-        fits_processor : `FitsLBProcessor`
-            The FITS file processor that does the writing and merging.
         """
         packet_data = defaultdict(list)
         for binary in tmfile.get_packet_binaries():
             packet = TMPacket(binary)
-            if packet.key == (21, 6, 30):
-                packet_data[packet.key].append(packet)
+            packet_data[packet.key].append(packet)
 
         for prod_key, packets in packet_data.items():
             headers = []
@@ -158,7 +157,7 @@ class LevelB(BaseProduct):
             service_type, service_subtype, ssid = prod_key
             product = LevelB(service_type=service_type, service_subtype=service_subtype,
                              ssid=ssid, control=control, data=data)
-            fits_processor.write_fits(product)
+            return product
 
     @classmethod
     def is_datasource_for(cls, **kwargs):

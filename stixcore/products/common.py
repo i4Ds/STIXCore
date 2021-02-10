@@ -2,6 +2,10 @@ import numpy as np
 
 from stixcore.util.logging import get_logger
 
+__all__ = ['ENERGY_CHANNELS', '_get_compression_scheme', '_get_energy_bins', '_get_detector_mask',
+           '_get_pixel_mask', '_get_num_energies', '_get_unique', '_get_sub_spectrum_mask',
+           '_get_energies_from_mask', 'rebin_proportional']
+
 logger = get_logger(__name__)
 
 ENERGY_CHANNELS = {

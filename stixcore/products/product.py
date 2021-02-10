@@ -14,10 +14,12 @@ from astropy.time import Time
 
 from stixcore.datetime.datetime import DateTime
 
+__all__ = ['BaseProduct', 'ProductFactory', 'Product']
+
 
 class BaseProduct:
     """
-    Base Product that all other product inherit from contains the registry for the factory pattern
+    Base QLProduct that all other product inherit from contains the registry for the factory pattern
     """
 
     _registry = {}

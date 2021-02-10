@@ -31,7 +31,7 @@ class FitsProcessor:
         Parameters
         ----------
         product : `BaseProduct`
-            Product
+            QLProduct
         version : `int`
             Version of this product
         status : `str`
@@ -247,7 +247,7 @@ class FitsL0Processor:
         Parameters
         ----------
         product : stix_parser.product.BaseProduct
-            Product
+            QLProduct
         version : int
             Version of this product
         status : str
@@ -287,8 +287,8 @@ class FitsL0Processor:
 
         filename : str
             Filename
-        product : `stixcore.product.quicklook.Product`
-            Product
+        product : `stixcore.product.quicklook.QLProduct`
+            QLProduct
 
         Returns
         -------
@@ -398,7 +398,7 @@ class FitsL1Processor:
         Parameters
         ----------
         product : stixcore.products.product.BaseProduct
-            Product
+            QLProduct
         version : int
             Version of this product
         status : str
@@ -441,7 +441,7 @@ class FitsL1Processor:
         filename : `str`
             Filename
         product : `stixcore.products.product.BaseProduct
-            Product
+            QLProduct
 
         Returns
         -------

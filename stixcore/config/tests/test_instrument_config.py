@@ -5,7 +5,7 @@ import pytest
 
 @pytest.fixture
 def path():
-    return Path(__file__).parent.parent.parent / "STIX-CONF"
+    return Path(__file__).parent.parent / "data" / "common"
 
 
 def test_module_available(path):

@@ -8,7 +8,8 @@ from scipy import interpolate
 from stixcore.util.logging import get_logger
 
 __all__ = ['IDB', 'IDBData', 'IDBPacketTypeInfo', 'IDBParameter', 'IDBStaticParameter',
-           'IDBVariableParameter', 'IDBPacketTree']
+           'IDBVariableParameter', 'IDBPacketTree', 'IDBPi1ValPosition',
+           'IDBPolynomialCalibration', 'IDBCalibrationCurve', 'IDBCalibrationParameter']
 
 logger = get_logger(__name__)
 
@@ -28,7 +29,7 @@ class IDBData(SimpleNamespace):
         self.__dict__.update(dbtupel)
 
 
-class IdbPi1ValPosition(IDBData):
+class IDBPi1ValPosition(IDBData):
     """A class to represent parthing information for optional PI1_Val identifier.
 
     Parameters
@@ -37,7 +38,7 @@ class IdbPi1ValPosition(IDBData):
         [description]
     """
     def __init__(self, dbtupel):
-        """Construct all the necessary attributes for the IdbPi1ValPosition object.
+        """Construct all the necessary attributes for the IDBPi1ValPosition object.
 
         Parameters
         ----------
@@ -189,7 +190,7 @@ class IDBCalibrationCurve(IDBData):
         ----------
         rows : `list`
             [x, y] all support points from the IDB
-        param : `IdbCalibrationParameter`
+        param : `IDBCalibrationParameter`
         """
         try:
             self.x = [float(row[0]) for row in rows]
@@ -498,11 +499,11 @@ class IDBVariableParameter(IDBParameter):
         return True
 
 
-class IdbCalibrationParameter(IDBParameter):
+class IDBCalibrationParameter(IDBParameter):
     """A class to represent a parameter for calibration."""
 
     def __init__(self, dbtupel):
-        """Construct all the necessary attributes for the IdbCalibrationParameter object.
+        """Construct all the necessary attributes for the IDBCalibrationParameter object.
 
         Parameters
         ----------
@@ -854,14 +855,14 @@ class IDB:
 
         returns
         -------
-        `IdbPi1ValPosition` or None
+        `IDBPi1ValPosition` or None
         """
         sql = ('select PIC_PI1_OFF, PIC_PI1_WID from PIC '
                'where PIC_TYPE = ? and PIC_STYPE = ? and PIC_PI1_OFF >= 0 limit 1')
         args = (service_type, service_subtype)
         res = self._execute(sql, args, result_type='dict')
         if res:
-            return IdbPi1ValPosition(res[0])
+            return IDBPi1ValPosition(res[0])
 
         return None
 
@@ -1061,7 +1062,7 @@ class IDB:
 
         Parameters
         ----------
-        param : `IdbCalibrationParameter`
+        param : `IDBCalibrationParameter`
 
         returns
         -------
@@ -1255,7 +1256,7 @@ class IDB:
             args = args + (sp1_val,)
 
         params = self._execute(sql, args, 'dict')
-        return [IdbCalibrationParameter(p) for p in params]
+        return [IDBCalibrationParameter(p) for p in params]
 
     def get_variable_structure(self, service_type, service_subtype, sp1_val=None):
         """Create a dynamic parse tree for the specified TM packet.

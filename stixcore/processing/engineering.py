@@ -48,19 +48,19 @@ class EngineeringParameter:
 
 # TODO deside on raw as array input
 def apply_raw_to_engineering(raw, args):
-    """Wrap the converting algorithm into a callback.
+    """Wrap the raw to engineering converting algorithm into a callback.
 
     Parameters
     ----------
     raw : `int`|`list`
         will be the original parameter value (input)
-    args : `list`
-        list of compression settings [s, k, m]
+    args : `tuple`
+        (IDBCalibrationParameter, IDB)
 
     Returns
     -------
-    [type]
-        [description]
+    `EngineeringParameter`
+        The raw and engineering value
     """
     param, idb = args
     en = None

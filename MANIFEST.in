@@ -9,6 +9,7 @@ recursive-include docs *
 recursive-include licenses *
 recursive-include cextern *
 recursive-include scripts *
+recursive-include stixcore/config/data *
 graft **/tests/data
 
 prune build

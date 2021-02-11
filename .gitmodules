@@ -1,0 +1,3 @@
+[submodule "stixcore/config/data/common"]
+	path = stixcore/config/data/common
+	url = https://github.com/i4Ds/STIX-CONF

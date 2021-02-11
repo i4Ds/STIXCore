@@ -9,6 +9,9 @@ version: 2
 sphinx:
   configuration: docs/conf.py
 
+submodules:
+  recursive: true
+
 # Optionally build your docs in additional formats such as PDF and ePub
 formats: []
 

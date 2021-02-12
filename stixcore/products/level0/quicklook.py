@@ -9,8 +9,9 @@ import astropy.units as u
 from astropy.table import unique, vstack
 
 from stixcore.datetime.datetime import DateTime
+from stixcore.processing.decompression import decompress
+from stixcore.processing.engineering import raw_to_engineering
 from stixcore.products.common import (
-    _get_compression_scheme,
     _get_detector_mask,
     _get_energy_bins,
     _get_num_energies,
@@ -123,8 +124,12 @@ class LightCurve(QLProduct):
 
     @classmethod
     def from_levelb(cls, levelb):
-
         packets = [Packet(unhexlify(d)) for d in levelb.data['data']]
+
+        for packet in packets:
+            decompress(packet)
+            raw_to_engineering(packet)
+
         packets = PacketSequence(packets)
 
         service_type = packets.get('service_type')[0]
@@ -139,14 +144,7 @@ class LightCurve(QLProduct):
         control['pixel_mask'].meta = {'NIXS': 'NIXD0407'}
         control['energy_bin_edge_mask'] = _get_energy_bins(packets, 'NIX00266', 'NIXD0107')
         control['energy_bin_edge_mask'].meta = {'NIXS': ['NIX00266', 'NIXD0107']}
-        control['compression_scheme_counts_skm'] = \
-            _get_compression_scheme(packets, 'NIXD0101', 'NIXD0102', 'NIXD0103')
-        control['compression_scheme_counts_skm'].meta = {'NIXS': ['NIXD0101', 'NIXD0102',
-                                                                  'NIXD0103']}
-        control['compression_scheme_triggers_skm'] = \
-            _get_compression_scheme(packets, 'NIXD0104', 'NIXD0105', 'NIXD0106')
-        control['compression_scheme_triggers_skm'].meta = {'NIXS': ['NIXD0104', 'NIXD0105',
-                                                                    'NIXD0106']}
+
         control['num_energies'] = _get_num_energies(packets)
         control['num_energies'].meta = {'NIXS': 'NIX00270'}
         control['num_samples'] = np.array(packets.get('NIX00271')).flatten()[
@@ -158,42 +156,26 @@ class LightCurve(QLProduct):
         control_indices = np.hstack([np.full(ns, cind) for ns, cind in
                                      control[['num_samples', 'index']]])
 
-        # cs, ck, cm = control['compression_scheme_counts_skm'][0]
         counts = np.hstack(packets.get('NIX00272'))
-        # counts, counts_var = decompress(counts, s=cs, k=ck, m=cm, return_variance=True)
+        control['compression_scheme_counts_skm'] = [np.array([c.skm for c in counts])]
+        control['compression_scheme_counts_skm'].meta = {'NIXS': counts[0].meta}
 
-        # ts, tk, tm = control['compression_scheme_triggers_skm'][0]
         triggers = np.hstack(packets.get('NIX00274'))
-        # triggers, triggers_var = decompress(triggers, s=ts, k=tk, m=tm, return_variance=True)
-        # this may no longer be needed
-        # flat_indices = np.hstack((0, np.cumsum([*control['num_samples']]) *
-        #                           control['num_energies'])).astype(int)
-
-        # counts_reformed = np.hstack(c for c in counts).T
-        # counts_var_reformed = np.hstack(c for c in counts_var).T
-        # counts_reformed = [
-        #     np.array(counts[flat_indices[i]:flat_indices[i + 1]]).reshape(n_eng, n_sam)
-        #     for i, (n_sam, n_eng) in enumerate(control[['num_samples', 'num_energies']])]
-
-        # counts_var_reformed = [
-        #     np.array(counts_var[flat_indices[i]:flat_indices[i + 1]]).reshape(n_eng, n_sam)
-        #     for i, (n_sam, n_eng) in enumerate(control[['num_samples', 'num_energies']])]
-
-        # counts = np.hstack(counts_reformed).T
-        # counts_var = np.hstack(counts_var_reformed).T
+        control['compression_scheme_triggers_skm'] = [np.array([t.skm for t in triggers])]
+        control['compression_scheme_triggers_skm'].meta = {'NIXS': triggers[0].meta}
 
         data = Data()
         data['control_index'] = control_indices
         data['time'] = time
         data['timedel'] = duration
-        data['triggers'] = triggers
+        data['triggers'] = np.vstack([c.decompressed for c in triggers])
         data['triggers'].meta = {'NIXS': 'NIX00274'}
-        # data['triggers_err'] = np.sqrt(triggers_var)
+        data['triggers_err'] = np.sqrt(np.vstack([c.error for c in triggers])) * u.ct
         data['rcr'] = np.hstack(packets.get('NIX00276')).flatten()
         data['rcr'].meta = {'NIXS': 'NIX00276'}
-        data['counts'] = counts.T
+        data['counts'] = np.vstack([c.decompressed for c in counts]).T
         data['counts'].meta = {'NIXS': 'NIX00272'}
-        # data['counts_err'] = np.sqrt(counts_var).T * u.ct
+        data['counts_err'] = np.sqrt(np.vstack([c.error for c in counts])).T * u.ct
 
         return cls(service_type=service_type, service_subtype=service_subtype, ssid=ssid,
                    control=control, data=data)

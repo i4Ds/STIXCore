@@ -144,7 +144,7 @@ class Control(QTable):
 
         integration_time = packets.get('NIX00405')
         if integration_time:
-            control['integration_time'] = (np.array(integration_time, np.float) + 1) * 0.1 * u.s
+            control['integration_time'] = [it.engineering * u.s for it in integration_time]
         else:
             control['integration_time'] = np.zeros_like(control['scet_coarse'], np.float) * u.s
         control['integration_time'].meta = {'NIXS': 'NIX00405'}

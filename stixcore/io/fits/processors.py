@@ -273,8 +273,8 @@ class FitsL0Processor:
         if product.type == 'ql':
             date_range = f'{(product.obs_avg.coarse // (24 * 60 * 60) ) * 24 * 60 * 60:010d}'
         else:
-            start_obs = product.obs_beg.to_datetime().strftime("%Y%m%dT%H%M%S")
-            end_obs = product.obs_end.to_datetime().strftime("%Y%m%dT%H%M%S")
+            start_obs = str(product.obs_beg)
+            end_obs = str(product.obs_end)
             date_range = f'{start_obs}-{end_obs}'
         return f'solo_{product.level}_stix-{product.type}-' \
                f'{product.name.replace("_", "-")}{user_req}' \

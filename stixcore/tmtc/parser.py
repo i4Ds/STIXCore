@@ -16,7 +16,7 @@ class PacketData:
     """Generic class for organizing all parameters of the TM packet data."""
 
     @classmethod
-    def parameter_list_2_PacketData(cls, d):
+    def parameter_list_2_PacketData(cls, parameters):
         """Convert the nested lists of the parameter parsing into a PacketData object.
 
         Unpacks/decodes the NIXD0159 counts from TM(21,6,20) by eliminating this repeater level.
@@ -33,26 +33,22 @@ class PacketData:
         """
         # if d is not a instance of dict then
         # directly object is returned
-        if not isinstance(d, list):
-            return d
+        if not isinstance(parameters, list):
+            return parameters
 
         # constructor of the class passed to obj
         obj = PacketData()
 
-        for k in d:
-            if k['name'] == 'NIXD0159':
-                name, unpacked = PacketData.unpack_NIX00065(k)
-                obj.__dict__[name] = unpacked
+        for parameter in parameters:
+            if parameter.name == 'NIXD0159':
+                obj.__dict__[parameter.name] =  PacketData.unpack_NIX00065(parameter)
             else:
-                if 'children' in k:
-                    new_entry = []
-                    val = k['value']
-                    children = k['children']
-                    for child in np.array_split(children, val):
-                        new_entry.append(PacketData.parameter_list_2_PacketData(list(child)))
+                if parameter.children:
+                    new_entry = [PacketData.parameter_list_2_PacketData(list(child))
+                                 for child in np.array_split(parameter.children, parameter.value)]
                 else:
-                    new_entry = PacketData.parameter_list_2_PacketData(k['value'])
-                obj.__dict__[k['name']] = new_entry
+                    new_entry = PacketData.parameter_list_2_PacketData(parameter)
+                obj.__dict__[parameter.name] = new_entry
 
         return obj
 
@@ -95,20 +91,20 @@ class PacketData:
             if unpacking schema is not supported
         """
         NIX00065 = None
-        if param['value'] == 0:
+        if param.value == 0:
             NIX00065 = 1
-        elif param['value'] == 1:
-            NIX00065 = param['children'][0]['value']
-        elif param['value'] == 2:
-            hb = param['children'][0]['value']
-            lb = param['children'][1]['value']
+        elif param.value == 1:
+            NIX00065 = param.children[0].value
+        elif param.value == 2:
+            hb = param.children[0].value
+            lb = param.children[1].value
             NIX00065 = int.from_bytes((lb+1).to_bytes(2, 'big')
                                       + hb.to_bytes(1, 'big'), 'big')
         else:
-            raise ValueError(f'Continuation bits value of {param["value"]} \
+            raise ValueError(f'Continuation bits value of {param.value} \
             not allowed (0, 1, 2)')
 
-        return "NIX00065", NIX00065
+        return NIX00065
 
     def _flatten(self, new_root):
         for attr, value in self.__dict__.items():
@@ -209,7 +205,7 @@ class PacketData:
         """
         write_nix = addnix if addnix else nix
         counter = 0
-        val = self.get(nix)
+        val = self.get(nix, aslist=True)
         if val is not None:
             if isinstance(val, list):
                 w_val = [callback(v, args) for v in val]
@@ -255,6 +251,18 @@ def parse_binary(binary, structure):
     return parse_bitstream(bitstream, structure)
 
 
+class Parameter:
+    def __init__(self, name, value, idb_info, children=None):
+        self.name = name
+        self.value = value
+        self.idb_info = idb_info
+        self.children = children
+
+    def __repr__(self):
+        return f'{self.__class__.__name__}(name={self.name}, value={self.value}, ' \
+               f'idb_info={self.idb_info}, ' \
+               f'children={len(self.children) if self.children else None})'
+
 def _parse_tree(bitstream, parent, fields):
     """Recursive parsing of TM data.
 
@@ -275,8 +283,8 @@ def _parse_tree(bitstream, parent, fields):
         for pnode in parent.children:
 
             # dynamic packets might jump back or forward
-            if (pnode.parameter.is_variable()):
-                if (pnode.parameter.VPD_OFFSET != 0):
+            if pnode.parameter.is_variable():
+                if pnode.parameter.VPD_OFFSET != 0:
                     bitstream.pos += int(pnode.parameter.VPD_OFFSET)
             # static packets: each parameter describes its own absolute position
             else:
@@ -285,7 +293,6 @@ def _parse_tree(bitstream, parent, fields):
             try:
                 raw_val, children = (bitstream.read(pnode.parameter.bin_format), [])
             except Exception as e:
-                print(e)
                 raise e
             if pnode.children:
                 num_children = raw_val
@@ -300,9 +307,11 @@ def _parse_tree(bitstream, parent, fields):
                         # repeater NIXD0159 can be zero according to STIX ICD-0812-ESC Table 93 P123
                         logger.warning(f'Repeater {pnode.name}  has an invalid value: {raw_val}')
 
-            entry = {'name': pnode.name, "value": raw_val}
-            if children:
-                entry["children"] = children
+            # entry = {'name': pnode.name, "value": raw_val}
+            # if children:
+            #     entry["children"] = children
+            entry = Parameter(name=pnode.name, value=raw_val, idb_info=pnode.parameter,
+                              children=children)
             fields.append(entry)
 
 

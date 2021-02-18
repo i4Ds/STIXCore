@@ -159,7 +159,7 @@ def test_tcparam_interpret(idb):
 
 
 def test_get_calibration_curve(idb):
-    p = IDBCalibrationParameter({'PCF_CURTX': 'CIXP0024TM'})
+    p = IDBCalibrationParameter(**{'PCF_CURTX': 'CIXP0024TM'})
     curve = idb.get_calibration_curve(p)
     assert isinstance(curve, IDBCalibrationCurve)
     for i, x in enumerate(curve.x):
@@ -169,7 +169,7 @@ def test_get_calibration_curve(idb):
     curve = idb.get_calibration_curve(p)
     assert isinstance(curve, IDBCalibrationCurve)
 
-    curve = idb.get_calibration_curve(IDBCalibrationParameter({'PCF_CURTX': 'f', 'PCF_NAME': 'b'}))
+    curve = idb.get_calibration_curve(IDBCalibrationParameter(**{'PCF_CURTX': 'f', 'PCF_NAME': 'b'}))
     assert isinstance(curve, IDBCalibrationCurve)
     assert curve.valid is False
 

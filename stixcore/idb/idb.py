@@ -17,35 +17,15 @@ logger = get_logger(__name__)
 class IDBData(SimpleNamespace):
     """A base class to represent the query results from the IDB."""
 
-    def __init__(self, dbtupel):
-        """Construct all the necessary attributes for the IDBData object and stores all
-        entries given in the dbtupel internally.
-
-        Parameters
-        ----------
-        dbtupel : `dict`
-            all named parameters from the db query
-        """
-        self.__dict__.update(dbtupel)
-
 
 class IDBPi1ValPosition(IDBData):
-    """A class to represent parthing information for optional PI1_Val identifier.
+    """A class to represent parsing information for optional PI1_Val identifier.
 
     Parameters
     ----------
     IDBData : [type]
         [description]
     """
-    def __init__(self, dbtupel):
-        """Construct all the necessary attributes for the IDBPi1ValPosition object.
-
-        Parameters
-        ----------
-        dbtupel : `dict`
-            all named parameters from the db query
-        """
-        super().__init__(dbtupel)
 
     @property
     def offset(self):
@@ -83,15 +63,6 @@ class IDBPacketTypeInfo(IDBData):
         [description]
     """
 
-    def __init__(self, dbtupel):
-        """Construct all the necessary attributes for the IDBPacketTypeInfo object.
-
-        Parameters
-        ----------
-        dbtupel : `dict`
-            all named parameters from the db query
-        """
-        super().__init__(dbtupel)
 
     @property
     def PID_SPID(self):
@@ -245,15 +216,6 @@ class IDBCalibrationCurve(IDBData):
 class IDBParameter(IDBData):
     """A base class to represent a parameter of a SCOS-2000 Telemetry Packet."""
 
-    def __init__(self, dbtupel):
-        """Construct all the necessary attributes for the IDBParameter object.
-
-        Parameters
-        ----------
-        dbtupel : `dict`
-            all named parameters from the db query
-        """
-        super().__init__(dbtupel)
 
     @property
     def bin_format(self):
@@ -393,16 +355,6 @@ class IDBParameter(IDBData):
 class IDBStaticParameter(IDBParameter):
     """A class to represent a parameter of a static SCOS-2000 Telemetry Packet."""
 
-    def __init__(self, dbtupel):
-        """Construct all the necessary attributes for the IDBStaticParameter object.
-
-        Parameters
-        ----------
-        dbtupel : `dict`
-            all named parameters from the db query
-        """
-        super().__init__(dbtupel)
-
     @property
     def PLF_OFFBY(self):
         """Location of first occurrence of parameter value in octets, relative to the
@@ -440,16 +392,6 @@ class IDBStaticParameter(IDBParameter):
 
 class IDBVariableParameter(IDBParameter):
     """A class to represent a parameter of a variable SCOS-2000 Telemetry Packet."""
-
-    def __init__(self, dbtupel):
-        """Construct all the necessary attributes for the IDBVariableParameter object.
-
-        Parameters
-        ----------
-        dbtupel : `dict`
-            all named parameters from the db query
-        """
-        super().__init__(dbtupel)
 
     @property
     def VPD_POS(self):
@@ -502,15 +444,7 @@ class IDBVariableParameter(IDBParameter):
 class IDBCalibrationParameter(IDBParameter):
     """A class to represent a parameter for calibration."""
 
-    def __init__(self, dbtupel):
-        """Construct all the necessary attributes for the IDBCalibrationParameter object.
 
-        Parameters
-        ----------
-        dbtupel : `dict`
-            all named parameters from the db query
-        """
-        super().__init__(dbtupel)
 
     @property
     def PCF_NAME(self):
@@ -862,7 +796,7 @@ class IDB:
         args = (service_type, service_subtype)
         res = self._execute(sql, args, result_type='dict')
         if res:
-            return IDBPi1ValPosition(res[0])
+            return IDBPi1ValPosition(**res[0])
 
         return None
 
@@ -922,7 +856,7 @@ class IDB:
             args = (packet_type, packet_subtype, pi1_val)
         rows = self._execute(sql, args, 'dict')
         if rows:
-            resObj = IDBPacketTypeInfo(rows[0])
+            resObj = IDBPacketTypeInfo(**rows[0])
             self.packet_info[(packet_type, packet_subtype, pi1_val)] = resObj
             return resObj
 
@@ -1221,7 +1155,7 @@ class IDB:
 
         parent = IDBPacketTree()
         for par in parameters:
-            parObj = IDBStaticParameter(par)
+            parObj = IDBStaticParameter(**par)
             node = self._create_parse_node(parObj.PCF_NAME, parObj, 0, [])
             parent.children.append(node)
 
@@ -1256,7 +1190,7 @@ class IDB:
             args = args + (sp1_val,)
 
         params = self._execute(sql, args, 'dict')
-        return [IDBCalibrationParameter(p) for p in params]
+        return [IDBCalibrationParameter(**p) for p in params]
 
     def get_variable_structure(self, service_type, service_subtype, sp1_val=None):
         """Create a dynamic parse tree for the specified TM packet.
@@ -1303,7 +1237,7 @@ class IDB:
         repeater = [{'node': IDBPacketTree(), 'counter': 1024}]
 
         for par in param_pcf_structures:
-            parObj = IDBVariableParameter(par)
+            parObj = IDBVariableParameter(**par)
             if repeater:
                 for e in reversed(repeater):
                     e['counter'] -= 1

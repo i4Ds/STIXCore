@@ -45,7 +45,8 @@ class ScienceProduct(BaseProduct):
         data_ind = np.isin(data['control_index'], control['index'])
         data = data[data_ind]
 
-        return type(self)(control, data)
+        return type(self)(service_type=self.service_type, service_subtype=self.service_subtype,
+                          ssid=self.ssid, data=data, ctronrol=control)
 
     def __repr__(self):
         return f'<{self.__class__.__name__}\n' \

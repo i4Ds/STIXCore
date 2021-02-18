@@ -72,9 +72,9 @@ class Level0:
             next_lb = Product(file)
             next_complete, next_incomplete = next_lb.extract_sequences()
 
-            if cur_incomplete is not None and next_incomplete is not None:
+            if cur_incomplete and next_incomplete:
                 incomplete_combined, incomplete_remaining = \
-                    (cur_incomplete[0] + next_incomplete[0]).extract_sequences()
+                    (cur_incomplete + next_incomplete).extract_sequences()
 
                 if incomplete_combined is not None:
                     complete = cur_complete
@@ -88,13 +88,15 @@ class Level0:
             cur_complete = next_complete
             cur_incomplete = next_incomplete
 
-            if complete is not None:
-                tmp = Product._check_registered_widget(level='L0', service_type=cur_lb.service_type,
-                                                       service_subtype=cur_lb.service_subtype,
-                                                       ssid=cur_lb.ssid, data=None, control=None)
+            if complete:
+                for comp in complete:
+                    tmp = Product._check_registered_widget(
+                        level='L0', service_type=cur_lb.service_type,
+                        service_subtype=cur_lb.service_subtype, ssid=cur_lb.ssid, data=None,
+                        control=None)
 
-                level0 = tmp.from_levelb(complete)
-                self.processor.write_fits(level0)
+                    level0 = tmp.from_levelb(comp)
+                    self.processor.write_fits(level0)
 
             # if incomplete:
             #     tmp = Product._check_registered_widget(level='L0',

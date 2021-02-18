@@ -183,25 +183,16 @@ class LevelB(BaseProduct):
         if cur_seq:
             sequences.append(cur_seq)
 
-        complete = None
-        incomplete = None
+        complete = []
+        incomplete = []
 
         for seq in sequences:
             if len(seq) == 1 and flags[seq[0]] == SequenceFlag.STANDALONE:
-                if complete is None:
-                    complete = self[seq]
-                else:
-                    complete = complete + self[seq]
+                complete.append(self[seq])
             elif flags[seq[0]] == SequenceFlag.FIRST and flags[seq[-1]] == SequenceFlag.LAST:
-                if complete is None:
-                    complete = self[seq]
-                else:
-                    complete = complete + self[seq]
+                complete.append(self[seq])
             else:
-                if incomplete is None:
-                    incomplete = self[seq]
-                else:
-                    incomplete = incomplete + self[seq]
+                incomplete.append(self[seq])
                 logger.warning('Incomplete sequence')
 
         return complete, incomplete

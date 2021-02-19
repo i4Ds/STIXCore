@@ -65,7 +65,7 @@ def apply_raw_to_engineering(raw, args):
     param, idb = args
     en = None
     if param.PCF_CATEG == 'S':
-        en = idb.textual_interpret(param.PCF_CURTX, raw)
+        en = idb.textual_interpret(param.PCF_CURTX, raw.name)
         if en is None:
             logger.error(f'Missing textual calibration info for: {param.PCF_NAME} / \
                             {param.PCF_CURTX} value={raw}')
@@ -79,7 +79,7 @@ def apply_raw_to_engineering(raw, args):
                                {param.PCF_CURTX} due to bad coefficients {curve}')
         elif prefix == 'CIX':
             poly = idb.get_calibration_polynomial(param.PCF_CURTX)
-            en = poly(raw)
+            en = poly(raw.value)
             if en is None:
                 logger.error(f'Failed polynomial calibrate {param.PCF_NAME} / \
                                {param.PCF_CURTX} due to bad coefficients {poly}')

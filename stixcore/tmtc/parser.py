@@ -1,3 +1,4 @@
+from itertools import chain
 from collections import defaultdict
 
 import numpy as np
@@ -40,8 +41,9 @@ class PacketData:
         obj = PacketData()
 
         for parameter in parameters:
+            parameter = parameter.merge_children()
             if parameter.name == 'NIXD0159':
-                obj.__dict__[parameter.name] =  PacketData.unpack_NIX00065(parameter)
+                obj.__dict__[parameter.name] = PacketData.unpack_NIX00065(parameter)
             else:
                 if parameter.children:
                     new_entry = [PacketData.parameter_list_2_PacketData(list(child))
@@ -96,22 +98,23 @@ class PacketData:
         elif param.value == 1:
             NIX00065 = param.children[0].value
         elif param.value == 2:
-            hb = param.children[0].value
-            lb = param.children[1].value
-            NIX00065 = int.from_bytes((lb+1).to_bytes(2, 'big')
-                                      + hb.to_bytes(1, 'big'), 'big')
+            tmp = list(chain.from_iterable(*param.children[0].value))
+            hb = tmp[0]
+            lb = tmp[1]
+            NIX00065 = (hb << 8) + lb
         else:
             raise ValueError(f'Continuation bits value of {param.value} \
             not allowed (0, 1, 2)')
 
-        return NIX00065
+        param.value = NIX00065
+        return param
 
     def _flatten(self, new_root):
         for attr, value in self.__dict__.items():
             if isinstance(value, PacketData):
                 # just a single subpacket
                 if attr == SUBPACKET_NIX:
-                    print(SUBPACKET_NIX)
+                    logger.debug(SUBPACKET_NIX)
                     subpacket = PacketData()
                     value._flatten(subpacket)
                     setattr(new_root, SUBPACKET_NIX, [subpacket])
@@ -205,7 +208,7 @@ class PacketData:
         """
         write_nix = addnix if addnix else nix
         counter = 0
-        val = self.get(nix, aslist=True)
+        val = self.get(nix)
         if val is not None:
             if isinstance(val, list):
                 w_val = [callback(v, args) for v in val]
@@ -260,8 +263,32 @@ class Parameter:
 
     def __repr__(self):
         return f'{self.__class__.__name__}(name={self.name}, value={self.value}, ' \
-               f'idb_info={self.idb_info}, ' \
-               f'children={len(self.children) if self.children else None})'
+               f'children={len(self.children) if self.children else None}'
+
+    def merge_children(self):
+        """
+        Merge children into single parameter if same NIX
+
+        Returns
+        -------
+        """
+        if self.children:
+            if all([False if child.children else True for child in self.children]):
+                params = {child.name: child for child in self.children}
+                values = defaultdict(list)
+                for param in self.children:
+                    values[param.name].append(param.value)
+
+                children = [Parameter(name, values[name], param.idb_info)
+                            for name, param in params.items()]
+
+                return Parameter(self.name, self.value, self.idb_info, children=children)
+            else:
+                return Parameter(self.name, self.value, self.idb_info,
+                                 children=[c.merge_children() for c in self.children])
+        else:
+            return Parameter(self.name, self.value, self.idb_info)
+
 
 def _parse_tree(bitstream, parent, fields):
     """Recursive parsing of TM data.
@@ -331,7 +358,9 @@ def parse_variable(bitstream, tree):
     """
     fields = []
     _parse_tree(bitstream, tree, fields)
-    return PacketData.parameter_list_2_PacketData(fields).flatten()
+    pd = PacketData.parameter_list_2_PacketData(fields)
+    flat = pd.flatten()
+    return flat
 
 
 def parse_bitstream(bitstream, structure):

@@ -63,7 +63,6 @@ class IDBPacketTypeInfo(IDBData):
         [description]
     """
 
-
     @property
     def PID_SPID(self):
         """SCOS-2000 Telemetry Packet Number.
@@ -202,11 +201,11 @@ class IDBCalibrationCurve(IDBData):
         if len(self) == 2:
             return ((self.y[1] - self.y[0]) /
                     (self.x[1] - self.x[0]) *
-                    (raw - self.x[0]) + self.y[0])
+                    (raw.value - self.x[0]) + self.y[0])
 
         try:
             tck = interpolate.splrep(self.x, self.y)
-            val = interpolate.splev(raw, tck)
+            val = interpolate.splev(raw.value, tck)
             return float(val)
         except Exception as e:
             logger.error(f'Failed to curve calibrate {self.param.PCF_NAME} / \
@@ -215,7 +214,6 @@ class IDBCalibrationCurve(IDBData):
 
 class IDBParameter(IDBData):
     """A base class to represent a parameter of a SCOS-2000 Telemetry Packet."""
-
 
     @property
     def bin_format(self):
@@ -443,8 +441,6 @@ class IDBVariableParameter(IDBParameter):
 
 class IDBCalibrationParameter(IDBParameter):
     """A class to represent a parameter for calibration."""
-
-
 
     @property
     def PCF_NAME(self):

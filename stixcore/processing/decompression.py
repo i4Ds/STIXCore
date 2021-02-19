@@ -62,7 +62,7 @@ def apply_decompress(raw, skm):
     [type]
         [description]
     """
-    decompressed, error = algo_decompress(raw, s=skm[0], k=skm[1], m=skm[2],
+    decompressed, error = algo_decompress(raw.value, s=skm[0].value, k=skm[1].value, m=skm[2].value,
                                           return_variance=True)
     return CompressedParameter(raw=raw.value, decompressed=decompressed, error=error, skm=skm)
 

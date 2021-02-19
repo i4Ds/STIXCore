@@ -290,7 +290,7 @@ def test_decompress(data_dir, idbm, packets):
     assert isinstance(packet, cl)
     c = decompress(packet)
 
-    if (nstr > 1):
+    if nstr > 1:
         assert len(packet.data.get_subpackets()) == nstr
 
     decompression_parameter = packet.get_decompression_parameter()
@@ -322,7 +322,7 @@ def test_engineering(data_dir, idbm, packets):
 
     c = raw_to_engineering(packet)
 
-    if (nstr > 1):
+    if nstr > 1:
         assert len(packet.data.get_subpackets()) == nstr
 
     e_parameter = packet.get_calibration_params()

@@ -15,7 +15,7 @@ from astropy.time import Time
 
 from stixcore.datetime.datetime import DateTime
 
-__all__ = ['BaseProduct', 'ProductFactory', 'Product']
+__all__ = ['BaseProduct', 'ProductFactory', 'Product', 'ControlSci', 'Control']
 
 from stixcore.products.common import _get_compression_scheme
 

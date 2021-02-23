@@ -18,6 +18,8 @@ from stixcore.tmtc.packets import PacketSequence
 ENERGY_CHANNELS = read_energy_channels(Path(__file__).parent.parent.parent / "config" / "data" /
                                        "common" / "detector" / "ScienceEnergyChannels_1000.csv")
 
+__all__ = ['ScienceProduct', 'XrayL0']
+
 
 class ScienceProduct(BaseProduct):
     def __init__(self, *, service_type, service_subtype, ssid, control, data, **kwargs):
@@ -46,7 +48,7 @@ class ScienceProduct(BaseProduct):
         data = data[data_ind]
 
         return type(self)(service_type=self.service_type, service_subtype=self.service_subtype,
-                          ssid=self.ssid, data=data, ctronrol=control)
+                          ssid=self.ssid, data=data, control=control)
 
     def __repr__(self):
         return f'<{self.__class__.__name__}\n' \
@@ -164,6 +166,10 @@ class XrayL0(ScienceProduct):
                                         data['num_pixel_sets'][0].sum())
         # t x e x d x p -> t x d x p x e
         counts = counts.transpose((0, 2, 3, 1))
+
+        out_counts = None
+        out_var = None
+
         counts_var = np.sqrt(counts_var.transpose((0, 2, 3, 1)))
         if ssid == 21:
             out_counts = np.zeros((unique_times.size, 32, 12, 32))
@@ -260,7 +266,6 @@ class XrayL0(ScienceProduct):
         data['counts'] = out_counts * u.ct
         data['counts_err'] = out_var * u.ct
         data['control_index'] = control['index'][0]
-        data.remove_columns(['delta_time', 'integration_time'])
 
         data = data['time', 'timedel', 'rcr', 'pixel_masks', 'detector_masks', 'num_pixel_sets',
                     'num_energy_groups', 'triggers', 'triggers_err', 'counts', 'counts_err']

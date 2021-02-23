@@ -149,7 +149,7 @@ class LightCurve(QLProduct):
                                                                     'NIXD0106']}
         control['num_energies'] = _get_num_energies(packets)
         control['num_energies'].meta = {'NIXS': 'NIX00270'}
-        control['num_samples'] = np.array(packets.get('NIX00271')).flatten()[
+        control['num_samples'] = np.array(packets.get_value('NIX00271')).flatten()[
             np.cumsum(control['num_energies']) - 1]
         control['num_samples'].meta = {'NIXS': 'NIX00271'}
 
@@ -159,11 +159,11 @@ class LightCurve(QLProduct):
                                      control[['num_samples', 'index']]])
 
         # cs, ck, cm = control['compression_scheme_counts_skm'][0]
-        counts = np.hstack(packets.get('NIX00272'))
+        counts = np.hstack(packets.get_value('NIX00272'))
         # counts, counts_var = decompress(counts, s=cs, k=ck, m=cm, return_variance=True)
 
         # ts, tk, tm = control['compression_scheme_triggers_skm'][0]
-        triggers = np.hstack(packets.get('NIX00274'))
+        triggers = np.hstack(packets.get_value('NIX00274'))
         # triggers, triggers_var = decompress(triggers, s=ts, k=tk, m=tm, return_variance=True)
         # this may no longer be needed
         # flat_indices = np.hstack((0, np.cumsum([*control['num_samples']]) *

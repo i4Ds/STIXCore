@@ -3,7 +3,9 @@ from enum import Enum
 from stixcore.datetime.datetime import DateTime
 from stixcore.idb.idb import IDB
 from stixcore.idb.manager import IDBManager
-from stixcore.tmtc.parser import parse_binary, parse_bitstream, parse_variable
+from stixcore.processing.decompression import CompressedParameter
+from stixcore.processing.engineering import EngineeringParameter
+from stixcore.tmtc.parser import Parameter, parse_binary, parse_bitstream, parse_variable
 
 __all__ = ['TMTC', 'SourcePacketHeader', 'TMDataHeader', 'TCDataHeader', 'GenericPacket',
            'TMPacket', 'TCPacket', 'GenericTMPacket']
@@ -480,7 +482,7 @@ class GenericTMPacket:
                                             self.pi1_val)
 
         self.data = parse_variable(self.source_packet_header.bitstream, tree)
-        # self.group_repeaters()
+        self.group_repeaters()
 
     def group_repeaters(self):
         """Combine the flattend data array of nested repeaters into a nested list.
@@ -578,3 +580,15 @@ class PacketSequence:
                 return [data.__getattribute__(name) for data in self.data]
         except KeyError:
             logger.debug('Key %s not found', name)
+
+    def get_value(self, name):
+        if isinstance(self.data[0].__getattribute__(name), Parameter):
+            attr = 'value'
+        elif isinstance(self.data[0].__getattribute__(name), EngineeringParameter):
+            attr = 'engineering'
+        elif isinstance(self.data[0].__getattribute__(name), CompressedParameter):
+            attr = 'decompressed'
+        else:
+            return [data.__getattribute__(name) for data in self.data]
+
+        return [data.__getattribute__(name).__getattribute__(attr) for data in self.data]

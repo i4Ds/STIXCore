@@ -1,7 +1,13 @@
 import bitstring
 import pytest
 
-from stixcore.tmtc.parser import PacketData, parse_binary, parse_repeated, split_into_length
+from stixcore.tmtc.parser import (
+    PacketData,
+    Parameter,
+    parse_binary,
+    parse_repeated,
+    split_into_length,
+)
 
 
 def test_parse_binary():
@@ -17,29 +23,34 @@ def test_parse_binary():
 def test_parse_unpack_NIX00065():
     hb = 5
     lb = 10
-    res = 256 + (hb << 8) + lb
-    NIXD0159 = 'NIXD0159'
-    NIX00065 = 'NIX00065'
+    comb = (hb << 8) + lb
 
-    rname, v = PacketData.unpack_NIX00065({'name': NIXD0159, 'value': 0})
-    assert rname == NIX00065
-    assert v == 1
+    NIXD0159 = Parameter(name='NIXD0159', value=0, idb_info='')
 
+    res = PacketData.unpack_NIX00065(NIXD0159)
+    assert res.name == 'NIX00065'
+    assert res.value == 1
+
+    NIXD0159.value = 1
     with pytest.raises(TypeError) as e:
-        rname, v = PacketData.unpack_NIX00065([{'name': NIXD0159, 'value': 1}])
+        res = PacketData.unpack_NIX00065(NIXD0159)
         assert e is not None
 
-    rname, v = PacketData.unpack_NIX00065({'name': NIXD0159, 'value': 1, 'children':
-                                          [{'name': NIX00065, 'value': lb}]})
-    assert v == lb
+    NIX00065 = Parameter(name='NIX00065', value=lb, idb_info='')
+    NIXD0159.children = [NIX00065]
+    res = PacketData.unpack_NIX00065(NIXD0159)
+    assert res.value == lb
 
-    rname, v = PacketData.unpack_NIX00065({'name': NIXD0159, 'value': 2, 'children':
-                                          [{'name': NIX00065, 'value': lb},
-                                           {'name': NIX00065, 'value': hb}]})
-    assert v == res
+    NIX00065 = Parameter(name='NIX00065', value=[[[hb], [lb]]], idb_info='')
+    NIXD0159.children = [NIX00065]
+    NIXD0159.value = 2
 
+    res = PacketData.unpack_NIX00065(NIXD0159)
+    assert res.value == comb
+
+    NIXD0159.value = 3
     with pytest.raises(ValueError) as e:
-        rname, v = PacketData.unpack_NIX00065({'name': NIXD0159, 'value': 3})
+        PacketData.unpack_NIX00065(NIXD0159)
         assert e is not None
 
 

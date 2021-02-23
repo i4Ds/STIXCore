@@ -8,7 +8,7 @@ from stixcore.util.logging import get_logger
 
 logger = get_logger(__name__)
 
-__all__ = ['PacketData']
+__all__ = ['PacketData', 'Parameter']
 
 SUBPACKET_NIX = "NIX00403"
 
@@ -106,7 +106,7 @@ class PacketData:
             raise ValueError(f'Continuation bits value of {param.value} \
             not allowed (0, 1, 2)')
 
-        param.value = NIX00065
+        param = Parameter(name='NIX00065', value=NIX00065, idb_info='')
         return param
 
     def _flatten(self, new_root):
@@ -255,6 +255,17 @@ def parse_binary(binary, structure):
 
 
 class Parameter:
+    """Generic Parameter Class
+
+    Attributes
+    _________
+    name : `str`
+        Parameter name
+    value :
+        The value of the parameter
+    children : `list` optional
+        Children of this parameter
+    """
     def __init__(self, name, value, idb_info, children=None):
         self.name = name
         self.value = value
@@ -263,7 +274,7 @@ class Parameter:
 
     def __repr__(self):
         return f'{self.__class__.__name__}(name={self.name}, value={self.value}, ' \
-               f'children={len(self.children) if self.children else None}'
+               f'children={len(self.children) if self.children else None})'
 
     def merge_children(self):
         """
@@ -271,6 +282,8 @@ class Parameter:
 
         Returns
         -------
+        Parameter
+            A new parameter with where are children are merged.
         """
         if self.children:
             if all([False if child.children else True for child in self.children]):

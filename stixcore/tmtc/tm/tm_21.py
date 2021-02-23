@@ -1,6 +1,7 @@
 """Service 21 – Science Data Transfer"""
+import numpy as np
+
 from stixcore.tmtc.packets import GenericTMPacket
-from stixcore.tmtc.parser import split_into_length
 
 __all__ = ['TM_21_6_20', 'TM_21_6_21', 'TM_21_6_22', 'TM_21_6_23', 'TM_21_6_24', 'TM_21_6_30',
            'TM_21_6_31', 'TM_21_6_32', 'TM_21_6_33', 'TM_21_6_34', 'TM_21_6_41', 'TM_21_6_42',
@@ -27,7 +28,10 @@ class TM_21_6_21(GenericTMPacket):
 
     def group_repeaters(self):
         for subpacket in self.data.get_subpackets():
-            subpacket.NIX00260 = split_into_length(subpacket.NIX00260, subpacket.NIX00259)
+            grouped = np.hstack([p.value for p in subpacket.NIX00260])
+            param = subpacket.NIX00260[0]
+            param.value = grouped
+            subpacket.NIX00260 = param
 
     def get_decompression_parameter(self):
         # https://github.com/i4Ds/STIX-FSW/issues/953
@@ -48,7 +52,9 @@ class TM_21_6_22(GenericTMPacket):
 
     def group_repeaters(self):
         for subpacket in self.data.get_subpackets():
-            subpacket.NIX00260 = split_into_length(subpacket.NIX00260, subpacket.NIX00259)
+            p = subpacket.NIX00260[0]
+            p.value = np.hstack([p.value for p in subpacket.NIX00260]).squeeze()
+            subpacket.NIX00260 = p
 
 
 class TM_21_6_23(GenericTMPacket):
@@ -61,9 +67,10 @@ class TM_21_6_23(GenericTMPacket):
 
     def group_repeaters(self):
         for subpacket in self.data.get_subpackets():
-            subpacket.NIX00100 = split_into_length(subpacket.NIX00100, subpacket.NIX00262)
-            subpacket.NIX00263 = split_into_length(subpacket.NIX00263, subpacket.NIX00262)
-            subpacket.NIX00264 = split_into_length(subpacket.NIX00264, subpacket.NIX00262)
+            for nix in ['NIX00100', 'NIX00263', 'NIX00264']:
+                p = getattr(subpacket, nix)[0]
+                p.value = np.hstack([p.value for p in getattr(subpacket, nix)]).squeeze()
+                setattr(subpacket, nix, p)
 
 
 class TM_21_6_24(GenericTMPacket):
@@ -76,7 +83,9 @@ class TM_21_6_24(GenericTMPacket):
 
     def group_repeaters(self):
         for subpacket in self.data.get_subpackets():
-            subpacket.NIX00268 = split_into_length(subpacket.NIX00268, subpacket.NIX00270)
+            p = subpacket.NIX00268[0]
+            p.value = np.hstack([p.value for p in subpacket.NIX00268]).squeeze()
+            subpacket.NIX00268 = p
 
 
 class TM_21_6_30(GenericTMPacket):
@@ -88,7 +97,9 @@ class TM_21_6_30(GenericTMPacket):
         return dh.service_type == 21 and dh.service_subtype == 6 and tm_packet.pi1_val == 30
 
     def group_repeaters(self):
-        self.data.NIX00272 = split_into_length(self.data.NIX00272, self.data.NIX00271)
+        grouped = self.data.NIX00272[0]
+        grouped.value = np.array([p.value for p in self.data.NIX00272]).squeeze()
+        self.data.NIX00272 = grouped
 
 
 class TM_21_6_31(GenericTMPacket):
@@ -100,7 +111,9 @@ class TM_21_6_31(GenericTMPacket):
         return dh.service_type == 21 and dh.service_subtype == 6 and tm_packet.pi1_val == 31
 
     def group_repeaters(self):
-        self.data.NIX00278 = split_into_length(self.data.NIX00278, self.data.NIX00277)
+        grouped = self.data.NIX00278[0]
+        grouped.value = np.array([p.value for p in self.data.NIX00278]).squeeze()
+        self.data.NIX00282 = grouped
 
 
 class TM_21_6_32(GenericTMPacket):
@@ -139,7 +152,9 @@ class TM_21_6_41(GenericTMPacket):
         return dh.service_type == 21 and dh.service_subtype == 6 and tm_packet.pi1_val == 41
 
     def group_repeaters(self):
-        self.data.NIX00158 = split_into_length(self.data.NIX00158, self.data.NIX00146)
+        grouped = self.data.NIX00158[0]
+        grouped.value = np.array([p.value for p in self.data.NIX00158]).squeeze()
+        self.data.NIX00158 = grouped
 
 
 class TM_21_6_42(GenericTMPacket):

@@ -339,6 +339,7 @@ def test_engineering(data_dir, idbm, packets):
         assert c == 0
 
 
+@pytest.mark.skip(reason='Broken on py3.6')
 def test_parallel(data_dir, idbm):
     packet_data = []
     root = Path("")

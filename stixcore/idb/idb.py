@@ -7,45 +7,26 @@ from scipy import interpolate
 
 from stixcore.util.logging import get_logger
 
-__all__ = ['IDB', 'IDBData', 'IDBPacketTypeInfo', 'IDBParameter', 'IDBStaticParameter',
+__all__ = ['IDB', 'IDBPacketTypeInfo', 'IDBParameter', 'IDBStaticParameter',
            'IDBVariableParameter', 'IDBPacketTree', 'IDBPi1ValPosition',
            'IDBPolynomialCalibration', 'IDBCalibrationCurve', 'IDBCalibrationParameter']
 
 logger = get_logger(__name__)
 
 
-class IDBData(SimpleNamespace):
-    """A base class to represent the query results from the IDB."""
+class IDBPi1ValPosition(SimpleNamespace):
+    """A class to represent parsing information for optional PI1_Val identifier.
 
-    def __init__(self, dbtupel):
-        """Construct all the necessary attributes for the IDBData object and stores all
-        entries given in the dbtupel internally.
-
-        Parameters
-        ----------
-        dbtupel : `dict`
-            all named parameters from the db query
-        """
-        self.__dict__.update(dbtupel)
-
-
-class IDBPi1ValPosition(IDBData):
-    """A class to represent parthing information for optional PI1_Val identifier.
-
-    Parameters
+    Attributes
     ----------
-    IDBData : [type]
-        [description]
-    """
-    def __init__(self, dbtupel):
-        """Construct all the necessary attributes for the IDBPi1ValPosition object.
+    PIC_PI1_OFF : `int`
+       PIC_PI1_OFF
 
-        Parameters
-        ----------
-        dbtupel : `dict`
-            all named parameters from the db query
-        """
-        super().__init__(dbtupel)
+    PIC_PI1_WID : `int`
+        PIC_PI1_WID
+    """
+    def __init__(self, *, PIC_PI1_OFF, PIC_PI1_WID):
+        super().__init__(PIC_PI1_OFF=PIC_PI1_OFF, PIC_PI1_WID=PIC_PI1_WID)
 
     @property
     def offset(self):
@@ -58,7 +39,7 @@ class IDBPi1ValPosition(IDBData):
         `int`
             Unsigned integer number of bits
         """
-        return (int(self.__dict__['PIC_PI1_OFF']) - 16) * 8
+        return (int(self.PIC_PI1_OFF) - 16) * 8
 
     @property
     def width(self):
@@ -71,64 +52,33 @@ class IDBPi1ValPosition(IDBData):
         `int`
             bits
         """
-        return self.__dict__['PIC_PI1_WID']
+        return self.PIC_PI1_WID
 
 
-class IDBPacketTypeInfo(IDBData):
+class IDBPacketTypeInfo(SimpleNamespace):
     """A class to represent descriptive information for a idb packet type.
 
-    Parameters
+    Attributes
     ----------
-    IDBData : [type]
-        [description]
+    PID_SPID : `int`
+        SCOS-2000 Telemetry Packet Number. Unsigned integer number in the range (1....2^32-1)
+        (note that zero is not allowed).
+
+    PID_DESCR : `str`
+        Textual description of the SCOS-2000 telemetry packet (max 64 characters).
+
+    PID_TPSD : `int`:
+        SCOS-2000 Telemetry Packet Structure Definition. This field is only used by the Variable
+        Packets Display application. It has to be set to `-1` for packets which are not defined in
+        the VPD table and thus are not required to be processed by the Variable PacketsDisplay. If
+        not set to –1, unsigned integer number in the range (1....2^31-1) (note that zero is not
+        allowed).
+
     """
 
-    def __init__(self, dbtupel):
-        """Construct all the necessary attributes for the IDBPacketTypeInfo object.
-
-        Parameters
-        ----------
-        dbtupel : `dict`
-            all named parameters from the db query
-        """
-        super().__init__(dbtupel)
-
-    @property
-    def PID_SPID(self):
-        """SCOS-2000 Telemetry Packet Number.
-
-        Returns
-        -------
-        `int`
-            Unsigned integer number in the range (1....2^32-1) (note that zero is not allowed).
-        """
-        return self.__dict__['PID_SPID']
-
-    @property
-    def PID_DESCR(self):
-        """Textual description of the SCOS-2000 telemetry packet.
-
-        Returns
-        -------
-        `str`
-            max 64 charactars
-        """
-        return self.__dict__['PID_DESCR']
-
-    @property
-    def PID_TPSD(self):
-        """SCOS-2000 Telemetry Packet Structure Definition. This field is only used by the
-        Variable Packets Display application. It has to be set to ‘-1’ for packets which are
-        not defined in the VPD table and thus are not required to be processed by the
-        Variable PacketsDisplay.
-
-        Returns
-        -------
-        `int`
-            If not set to –1, unsigned integer number in the range (1....2^31-1)
-            (note that zero is not allowed).
-        """
-        return self.__dict__['PID_TPSD']
+    def __init__(self, *, PID_SPID, PID_DESCR, PID_TPSD):
+        super(IDBPacketTypeInfo, self).__init__(PID_SPID=PID_SPID, PID_DESCR=PID_DESCR,
+                                                PID_TPSD=PID_TPSD)
 
     def is_variable(self):
         """Is the telemetry packet of variable length.
@@ -141,7 +91,7 @@ class IDBPacketTypeInfo(IDBData):
         return self.PID_TPSD != -1
 
 
-class IDBPolynomialCalibration(IDBData):
+class IDBPolynomialCalibration:
     """A class to represent a 4th order polynomial calibration defined in the IDB."""
     def __init__(self, rows):
         """Construct all the necessary attributes for the IDBPolynomialCalibration object.
@@ -181,7 +131,7 @@ class IDBPolynomialCalibration(IDBData):
                 self.A[4] * x**4) if self.valid else None
 
 
-class IDBCalibrationCurve(IDBData):
+class IDBCalibrationCurve:
     """A class to represent a calibration curve for a LUT based interpolation defined in the IDB."""
     def __init__(self, rows, param):
         """Construct all the necessary attributes for the IDBCalibrationCurve object.
@@ -218,8 +168,8 @@ class IDBCalibrationCurve(IDBData):
 
         Parameters
         ----------
-        x : `number`
-            the raw value
+        raw : `number`
+            The raw value to apply to
 
         Returns
         -------
@@ -242,253 +192,131 @@ class IDBCalibrationCurve(IDBData):
                         {self.param.PCF_CURTX} due to {e}')
 
 
-class IDBParameter(IDBData):
-    """A base class to represent a parameter of a SCOS-2000 Telemetry Packet."""
+class IDBParameter(IDBPacketTypeInfo):
+    """A base class to represent a parameter of a SCOS-2000 Telemetry Packet.
 
-    def __init__(self, dbtupel):
-        """Construct all the necessary attributes for the IDBParameter object.
+    Attributes
+    ----------
+    PID_SPID : `int`
+        SCOS-2000 Telemetry Packet Number the parameter belongs to. Unsigned integer number in the
+        range (1....2^32-1) (note that zero is not allowed).
 
-        Parameters
-        ----------
-        dbtupel : `dict`
-            all named parameters from the db query
-        """
-        super().__init__(dbtupel)
+    PID_DESCR : `str`
+        Textual description of the SCOS-2000 telemetry packet the parameter belongs to max 64
+        charactars.
 
-    @property
-    def bin_format(self):
-        """Read instruction format of the specific parameter for processing the bit stream.
-        See `bitstream.ConstBitStream.read`.
-
-        Returns
-        -------
-        `str`
-            The format containing the data type and number of bits to read like "int:8".
-        """
-        return self._bin_format
-
-    @bin_format.setter
-    def bin_format(self, value):
-        self._bin_format = value
-
-    @property
-    def PID_SPID(self):
-        """SCOS-2000 Telemetry Packet Number the parameter belongs to.
-
-        Returns
-        -------
-        `int`
-            Unsigned integer number in the range (1....2^32-1) (note that zero is not allowed).
-        """
-        return self.__dict__['PID_SPID']
-
-    @property
-    def PID_DESCR(self):
-        """Textual description of the SCOS-2000 telemetry packet the parameter belongs to.
-
-        Returns
-        -------
-        `str`
-            max 64 charactars
-        """
-        return self.__dict__['PID_DESCR']
-
-    @property
-    def PID_TPSD(self):
-        """SCOS-2000 Telemetry Packet Structure Definition. This field is only used by the
+    PID_TPSD : `int`
+        SCOS-2000 Telemetry Packet Structure Definition. This field is only used by the
         Variable Packets Display application. It has to be set to ‘-1’ for packets which are
         not defined in the VPD table and thus are not required to be processed by the Variable
-        PacketsDisplay.
+        PacketsDisplay. If not set to –1, unsigned integer number in the range (1....2^31-1)
+        (note that zero is not allowed).
 
-        Returns
-        -------
-        `int`
-            If not set to –1, unsigned integer number in the range (1....2^31-1)
-            (note that zero is not allowed).
-        """
-        return self.__dict__['PID_TPSD']
+    PCF_NAME : `str`
+        Name of the parameter. Alphanumeric string uniquely identifying the monitoring
+        parameter  (max 8 characters).
 
-    @property
-    def PCF_DESCR(self):
-        """Parameter Description.
+    PCF_DESCR : `str`
+        Parameter Description - free textual description of the parameter.
 
-        Returns
-        -------
-        `str`
-            Free textual description of the parameter.
-        """
-        return self.__dict__['PCF_DESCR']
+    PCF_WIDTH : `int`
+        'Padded' width of this parameter expressed in number of bits. This field is only used when
+        extracting parameter samples using the VPD definition to identify the bitposition where the
+        next telemetry parameter starts
 
-    @property
-    def PCF_NAME(self):
-        """Name of the parameter. Alphanumeric string uniquely identifying the monitoring
-        parameter.
+    PCF_PFC : `int`
+        Parameter Format Code. Along with the Parameter Type Code (PCF_PTC) this field controls the
+        length of the parameter. Integer value in a range compatible with the specified PCF_PTC
 
-        Returns
-        -------
-        `str`
-            max 8 characters.
-        """
-        return self.__dict__['PCF_NAME']
+    PCF_PTC : `int`
+        Parameter Type Code. This controls the encoding format of the parameter. Integer value in
+        the range (1..13).
 
-    @property
-    def PCF_WIDTH(self):
-        """'Padded' width of this parameter expressed in number of bits. This field is only
-        used when extracting parameter samples using the VPD definition.
+    PCF_CURTX : `int`
+        Parameter calibration identification name. Depending  on  parameter  category,  this  field
+         stores  the  numerical calibration or the textual calibration identification name.
 
-        Returns
-        -------
-        `int`
-            to identify the bitposition where the next telemetry parameter starts
-        """
-        return self.__dict__['PCF_WIDTH']
+    2K_TYPE : `str`
+        TBD.
 
-    @property
-    def PCF_PFC(self):
-        """Parameter Format Code. Along with the Parameter Type Code (PCF_PTC) this
-        field controls the length of the parameter.
-
-        Returns
-        -------
-        `int`
-            Integer value in a range compatible with the specified PCF_PTC
-        """
-        return self.__dict__['PCF_PFC']
-
-    @property
-    def PCF_PTC(self):
-        """Parameter Type Code. This controls the encoding format of the parameter.
-
-        Returns
-        -------
-        `int`
-            Integer value in the range (1..13)
-        """
-        return self.__dict__['PCF_PTC']
-
-    @property
-    def PCF_CURTX(self):
-        """Parameter calibration identification name.
-
-        Returns
-        -------
-        `str`
-            Depending  on  parameter  category,  this  field  stores  the  numerical
-            calibration or the textual calibration identification name.
-        """
-        return self.__dict__['PCF_CURTX']
-
-    @property
-    def S2K_TYPE(self):
-        """TBD.
-
-        Returns
-        -------
-        `str`
-            TBD
-        """
-        return self.__dict__['S2K_TYPE']
+    bin_format : `str`
+        Read instruction format of the specific parameter for processing the bit stream e.g.
+        "int:8". See `bitstream.ConstBitStream.read` for more information.
+    """
+    def __init__(self, *, PID_SPID, PID_DESCR, PID_TPSD, PCF_NAME, PCF_DESCR, PCF_WIDTH,
+                 PCF_PFC, PCF_PTC, PCF_CURTX, S2K_TYPE, bin_format=''):
+        super(IDBPacketTypeInfo, self).__init__(PID_SPID=PID_SPID, PID_DESCR=PID_DESCR,
+                                                PID_TPSD=PID_TPSD)
+        self.PCF_NAME = PCF_NAME
+        self.PCF_DESCR = PCF_DESCR
+        self.PCF_WIDTH = PCF_WIDTH
+        self.PCF_PFC = PCF_PFC
+        self.PCF_PTC = PCF_PTC
+        self.PCF_CURTX = PCF_CURTX
+        self.S2K_TYPE = S2K_TYPE
+        self.bin_format = bin_format
 
 
 class IDBStaticParameter(IDBParameter):
-    """A class to represent a parameter of a static SCOS-2000 Telemetry Packet."""
+    """A class to represent a parameter of a static SCOS-2000 Telemetry Packet.
 
-    def __init__(self, dbtupel):
-        """Construct all the necessary attributes for the IDBStaticParameter object.
+    Attributes
+    ----------
+    PLF_OFFBY : `int`
+        Location of first occurrence of parameter value in octets, relative to the end of the
+        SCOS-2000 TM header. Integer value starting from 0 (negative values are not allowed).
 
-        Parameters
-        ----------
-        dbtupel : `dict`
-            all named parameters from the db query
-        """
-        super().__init__(dbtupel)
+    PLF_OFFBI : `int`
+        Bit number, within an octet, of the first bit of the first occurrence of the parameter
+        value. Bit 0 corresponds to the most left bit withinthe byte. Integer value in the range
+        (0..7).
 
-    @property
-    def PLF_OFFBY(self):
-        """Location of first occurrence of parameter value in octets, relative to the
-        end of the SCOS-2000 TM header.
+    """
+    def __init__(self, *, PLF_OFFBY, PLF_OFFBI, **kwargs):
+        super(IDBStaticParameter, self).__init__(**kwargs)
+        self.PLF_OFFBY = PLF_OFFBY
+        self.PLF_OFFBI = PLF_OFFBI
 
-        Returns
-        -------
-        `int`
-            Integer value starting from 0 (negative values are not allowed).
-        """
-        return self.__dict__['PLF_OFFBY']
-
-    @property
-    def PLF_OFFBI(self):
-        """Bit number, within an octet, of the first bit of the first occurrence of
-        the parameter value. Bit 0 corresponds to the most left bit withinthe byte.
-
-        Returns
-        -------
-        `int`
-            Integer value in the range (0..7).
-        """
-        return self.__dict__['PLF_OFFBI']
-
-    def is_variable(self):
+    @staticmethod
+    def is_variable():
         """Is the parameter for a variable telemetry packet.
 
         Returns
         -------
         `bool`
-            Always False for this class
+            Always False for static parameters
         """
         return False
 
 
 class IDBVariableParameter(IDBParameter):
-    """A class to represent a parameter of a variable SCOS-2000 Telemetry Packet."""
+    """A class to represent a parameter of a variable SCOS-2000 Telemetry Packet.
 
-    def __init__(self, dbtupel):
-        """Construct all the necessary attributes for the IDBVariableParameter object.
+    Attributes
+    ----------
+    VPD_POS : `int`
+        Ordinal position of this parameter inside the packet definition in ascending order.
 
-        Parameters
-        ----------
-        dbtupel : `dict`
-            all named parameters from the db query
-        """
-        super().__init__(dbtupel)
+    VPD_OFFSET : `int`
+        Number of bits between the start position of this parameter and the end bit of
+        the previous parameter in the packet. A positive offset enables the introduction of
+        a ‘gap’ between the previous parameter and this one. A negative offset enables the
+        ‘overlap’ of the bits contributing to this parameter with the ones contributing to
+        the previous parameter(s). Integer value in the range (-32768..32767).
 
-    @property
-    def VPD_POS(self):
-        """Ordinal position of this parameter inside the packet definition
+    VPD_GRPSIZE : `int`
+        This value should only be set for parameters which identify a repeat counter N
 
-        Returns
-        -------
-        `int`
-            ascending order
-        """
-        return self.__dict__['VPD_POS']
+    """
 
-    @property
-    def VPD_OFFSET(self):
-        """Number of bits between the start position of this parameter and the end bit of
-        the previous parameter in the packet. A positive offsetenables the introduction of
-        a ‘gap’ between the previous parameterand this one. A negative offset enables the
-        ‘overlap’ of the bitscontributing to this parameter with the ones contributing to
-        the previous parameter(s).
+    def __init__(self, *, VPD_POS, VPD_OFFSET, VPD_GRPSIZE, **kwargs):
+        super(IDBVariableParameter, self).__init__(**kwargs)
+        self.VPD_POS = VPD_POS
+        self.VPD_OFFSET = VPD_OFFSET
+        self.VPD_GRPSIZE = VPD_GRPSIZE
 
-        Returns
-        -------
-        `int`
-            Integer value in the range (-32768..32767)
-        """
-        return self.__dict__['VPD_OFFSET']
-
-    @property
-    def VPD_GRPSIZE(self):
-        """This value should only be set for parameters which identify a repeat counter.
-
-        Returns
-        -------
-        `int`
-            N repetitions
-        """
-        return self.__dict__['VPD_GRPSIZE']
-
-    def is_variable(self):
+    @staticmethod
+    def is_variable():
         """Is the parameter for a variable telemetry packet.
 
         Returns
@@ -500,66 +328,27 @@ class IDBVariableParameter(IDBParameter):
 
 
 class IDBCalibrationParameter(IDBParameter):
-    """A class to represent a parameter for calibration."""
+    """A class to represent a parameter for calibration.
 
-    def __init__(self, dbtupel):
-        """Construct all the necessary attributes for the IDBCalibrationParameter object.
+    PCF_NAME': 'NIXD0167', 'PCF_CURTX': 'CAAT0033TM', 'PCF_CATEG': 'S', 'PCF_UNIT': None
 
-        Parameters
-        ----------
-        dbtupel : `dict`
-            all named parameters from the db query
-        """
-        super().__init__(dbtupel)
+    Attributes
+    ----------
+    PCF_CATEG : `str`
+        Calibration category of the parameter one of N|S|T|R|D|P|H|S|C. STIX only uses (N)umeric and
+         (S)tring at the moment.
 
-    @property
-    def PCF_NAME(self):
-        """Name of the parameter. Alphanumeric string uniquely identifying the monitoring
-        parameter.
+    PCF_UNIT : `str`
+        Engineering unit mnemonic of the parameter values e.g. ‘VOLT’ (max length 4).
+    """
 
-        Returns
-        -------
-        `str`
-            max 8 characters.
-        """
-        return self.__dict__['PCF_NAME']
-
-    @property
-    def PCF_CURTX(self):
-        """Parameter calibration identification name.
-
-        Returns
-        -------
-        `str`
-            the decalibration action
-        """
-        return self.__dict__['PCF_CURTX']
-
-    @property
-    def PCF_CATEG(self):
-        """Calibration category of the parameter.
-
-        Returns
-        -------
-        `str`
-            N|S|T|R|D|P|H|S|C
-            STIX only uses (N)umeric and (S)tring at the moment.
-        """
-        return self.__dict__['PCF_CATEG']
-
-    @property
-    def PCF_UNIT(self):
-        """Engineering unit mnemonic of the parameter values e.g. ‘VOLT’.
-
-        Returns
-        -------
-        `str`
-            max length = 4
-        """
-        return self.__dict__['PCF_UNIT']
+    def __init__(self, *, PCF_CATEG, PCF_UNIT, **kwargs):
+        super(IDBCalibrationParameter, self).__init__(**kwargs)
+        self.PCF_CATEG = PCF_CATEG
+        self.PCF_UNIT = PCF_UNIT
 
 
-class IDBPacketTree():
+class IDBPacketTree:
     """Class representing a dynamic telemetry packet of variable length in a tree structure
     with nested repeaters."""
 
@@ -729,7 +518,7 @@ class IDB:
 
     def __getstate__(self):
         """Return state values to be pickled."""
-        return (self.filename)
+        return self.filename
 
     def __setstate__(self, state):
         """Restore state from the unpickled state values."""
@@ -760,14 +549,13 @@ class IDB:
     def generate_calibration_name(cls, prefix, id, suffix="TM"):
         zeros = 10-len(prefix)-len(suffix)-len(str(id))
         name = prefix + ("0" * zeros) + str(id) + suffix
-        return (name, id + 1)
+        return name, id + 1
 
     def _execute(self, sql, arguments=None, result_type='list'):
         """Execute sql and return results in a list or a dictionary."""
         if not self.cur:
             raise Exception('IDB is not initialized!')
         else:
-            rows = None
             if arguments:
                 self.cur.execute(sql, arguments)
             else:
@@ -846,7 +634,8 @@ class IDB:
         return self._execute(sql, (spid, ))
 
     def get_packet_pi1_val_position(self, service_type, service_subtype):
-        """Get offset and width for optional PI1_VAL for the packet defined by service type and subtype.
+        """Get offset and width for optional PI1_VAL for the packet defined by service type and
+        subtype.
 
         Parameters
         ----------
@@ -862,7 +651,7 @@ class IDB:
         args = (service_type, service_subtype)
         res = self._execute(sql, args, result_type='dict')
         if res:
-            return IDBPi1ValPosition(res[0])
+            return IDBPi1ValPosition(**res[0])
 
         return None
 
@@ -910,7 +699,6 @@ class IDB:
         if (packet_type, packet_subtype, pi1_val) in self.packet_info:
             return self.packet_info[(packet_type, packet_subtype, pi1_val)]
 
-        args = None
         if pi1_val is None:
             sql = ('select pid_spid, pid_descr, pid_tpsd from PID '
                    'where PID_TYPE=? and PID_STYPE=? limit 1')
@@ -922,7 +710,7 @@ class IDB:
             args = (packet_type, packet_subtype, pi1_val)
         rows = self._execute(sql, args, 'dict')
         if rows:
-            resObj = IDBPacketTypeInfo(rows[0])
+            resObj = IDBPacketTypeInfo(**rows[0])
             self.packet_info[(packet_type, packet_subtype, pi1_val)] = resObj
             return resObj
 
@@ -1055,7 +843,6 @@ class IDB:
         except (TypeError, IndexError):
             logger.warning("nothing found in IDB table: PAS")
             return ''
-        return ''
 
     def get_calibration_curve(self, param):
         """calibration curve defined in CAP database
@@ -1141,7 +928,7 @@ class IDB:
             version label like "1.1.3"
         """
         try:
-            sql = ('select version from IDB limit 1')
+            sql = 'select version from IDB limit 1'
             rows = self._execute(sql, None, 'list')
             return rows[0][0]
         except (sqlite3.OperationalError, IndexError):
@@ -1221,7 +1008,7 @@ class IDB:
 
         parent = IDBPacketTree()
         for par in parameters:
-            parObj = IDBStaticParameter(par)
+            parObj = IDBStaticParameter(**par)
             node = self._create_parse_node(parObj.PCF_NAME, parObj, 0, [])
             parent.children.append(node)
 
@@ -1239,9 +1026,11 @@ class IDB:
 
     def get_params_for_calibration(self, service_type, service_subtype, sp1_val=None):
         sql = (f'''SELECT
-                        PCF.PCF_NAME, PCF.PCF_CURTX, PCF.PCF_CATEG, PCF.PCF_UNIT
+                        PID_SPID, PID_DESCR, PID_TPSD, PCF.PCF_NAME, PCF.PCF_DESCR, PCF.PCF_WIDTH,
+                        PCF.PCF_PFC, PCF.PCF_PTC, PCF.PCF_CURTX, PCF.PCF_CATEG, PCF.PCF_UNIT,
+                        S2K_TYPE
                     FROM
-                        PID
+                        PID, tblConfigS2KParameterTypes as PTYPE
                     LEFT JOIN PLF ON PLF.PLF_SPID = PID.PID_SPID
                     LEFT JOIN VPD ON VPD.VPD_TPSD = PID.PID_SPID
                     LEFT JOIN PCF ON PLF.PLF_NAME = PCF.PCF_NAME or VPD.VPD_NAME = PCF.PCF_NAME
@@ -1249,6 +1038,9 @@ class IDB:
                         PCF.PCF_CURTX not NULL
                         AND PID_TYPE = ?
                         AND PID_STYPE = ?
+                        AND PTYPE.PTC = PCF.PCF_PTC
+                        AND PTYPE.PFC_UB >= PCF.PCF_PFC
+                        AND PCF.PCF_PFC >= PTYPE.PFC_LB
                         {"AND PID_PI1_VAL = ? " if sp1_val is not None else " "}
                     ''')
         args = (service_type, service_subtype)
@@ -1256,7 +1048,7 @@ class IDB:
             args = args + (sp1_val,)
 
         params = self._execute(sql, args, 'dict')
-        return [IDBCalibrationParameter(p) for p in params]
+        return [IDBCalibrationParameter(**p) for p in params]
 
     def get_variable_structure(self, service_type, service_subtype, sp1_val=None):
         """Create a dynamic parse tree for the specified TM packet.
@@ -1303,7 +1095,7 @@ class IDB:
         repeater = [{'node': IDBPacketTree(), 'counter': 1024}]
 
         for par in param_pcf_structures:
-            parObj = IDBVariableParameter(par)
+            parObj = IDBVariableParameter(**par)
             if repeater:
                 for e in reversed(repeater):
                     e['counter'] -= 1

@@ -132,17 +132,17 @@ class Control(QTable):
         control = cls()
         # self.energy_bin_mask = None
         # self.samples = None
-        control['scet_coarse'] = np.array(packets.get('NIX00445'), np.uint32)
+        control['scet_coarse'] = np.array(packets.get_value('NIX00445'), np.uint32)
         control['scet_coarse'].meta = {'NIXS': 'NIX00445'}
         # Not all QL data have fine time in TM default to 0 if no present
-        scet_fine = packets.get('NIX00446')
+        scet_fine = packets.get_value('NIX00446')
         if scet_fine:
             control['scet_fine'] = np.array(scet_fine, np.uint32)
         else:
             control['scet_fine'] = np.zeros_like(control['scet_coarse'], np.uint32)
         control['scet_fine'].meta = {'NIXS': 'NIX00446'}
 
-        integration_time = packets.get('NIX00405')
+        integration_time = packets.get_value('NIX00405')
         if integration_time:
             control['integration_time'] = (np.array(integration_time, np.float) + 1) * 0.1 * u.s
         else:

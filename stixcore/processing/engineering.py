@@ -1,6 +1,7 @@
 """Processing module for converting raw to engineering values."""
 import re
 
+from stixcore.tmtc.parser import Parameter
 from stixcore.util.logging import get_logger
 
 __all__ = ['EngineeringParameter', 'raw_to_engineering']
@@ -8,52 +9,50 @@ __all__ = ['EngineeringParameter', 'raw_to_engineering']
 logger = get_logger(__name__)
 
 
-class EngineeringParameter:
+class EngineeringParameter(Parameter):
     """A class to combine the raw and engineering values and settings of a parameter.
 
     Attributes
     ----------
-    raw : `int`|`list`
-        The raw values before the decompression.
+    value : `int`|`list`
+        The original or raw values before the calibration.
     engineering : `int`|`list`
         The Engineering values.
-    error : `int`|`list`
-        TODO tbd
-    settings : `tuple`
-        TODO tbd
+    unit : `str`
+        The unit for the engineering values
     """
 
-    def __init__(self, *, raw, engineering, unit):
+    def __init__(self, *, name, value, idb_info, engineering, unit):
         """Create a EngineeringParameter object.
 
         Parameters
         ----------
-        raw : `int`|`list`
+        value : `int`|`list`
             The raw values.
         engineering : `int`|`list`
             The engineering values.
         """
-        self.raw = raw
+        super(EngineeringParameter, self).__init__(name=name, value=value, idb_info=idb_info)
         self.engineering = engineering
         self.unit = unit
 
     def __repr__(self):
-        return f'{self.__class__.__name__}(raw={self.raw}, engineering={self.engineering}, ' + \
+        return f'{self.__class__.__name__}(raw={self.value}, engineering={self.engineering}, ' + \
                f'unit={self.unit})'
 
     def __str__(self):
-        return f'{self.__class__.__name__}(raw: len({len(self.raw)}), engineering: ' + \
+        return f'{self.__class__.__name__}(raw: len({len(self.value)}), engineering: ' + \
                f'len({len(self.engineering)}), unit={self.unit})'
 
 
-# TODO deside on raw as array input
+# TODO decide on raw as array input
 def apply_raw_to_engineering(raw, args):
     """Wrap the raw to engineering converting algorithm into a callback.
 
     Parameters
     ----------
-    raw : `int`|`list`
-        will be the original parameter value (input)
+    raw : `stixcore.tmtc.parser.Parameter
+        The the original parameter value
     args : `tuple`
         (IDBCalibrationParameter, IDB)
 
@@ -65,7 +64,7 @@ def apply_raw_to_engineering(raw, args):
     param, idb = args
     en = None
     if param.PCF_CATEG == 'S':
-        en = idb.textual_interpret(param.PCF_CURTX, raw)
+        en = idb.textual_interpret(param.PCF_CURTX, raw.name)
         if en is None:
             logger.error(f'Missing textual calibration info for: {param.PCF_NAME} / \
                             {param.PCF_CURTX} value={raw}')
@@ -73,13 +72,13 @@ def apply_raw_to_engineering(raw, args):
         prefix = re.split(r'\d+', param.PCF_CURTX)[0]
         if prefix == 'CIXP':
             curve = idb.get_calibration_curve(param)
-            en = curve(raw)
+            en = curve(raw.value)
             if en is None:
                 logger.error(f'Failed curve calibrate {param.PCF_NAME} / \
                                {param.PCF_CURTX} due to bad coefficients {curve}')
         elif prefix == 'CIX':
             poly = idb.get_calibration_polynomial(param.PCF_CURTX)
-            en = poly(raw)
+            en = poly(raw.value)
             if en is None:
                 logger.error(f'Failed polynomial calibrate {param.PCF_NAME} / \
                                {param.PCF_CURTX} due to bad coefficients {poly}')
@@ -89,11 +88,12 @@ def apply_raw_to_engineering(raw, args):
         logger.error(er)
         raise ValueError(er)
 
-    return EngineeringParameter(raw=raw, engineering=en, unit=param.PCF_UNIT)
+    return EngineeringParameter(name=raw.name, value=raw.value, idb_info=raw.idb_info,
+                                engineering=en, unit=param.PCF_UNIT)
 
 
 def raw_to_engineering(packet):
-    """Apply parameter raw to engineering convertion for the entire packet.
+    """Apply parameter raw to engineering conversion for the entire packet.
 
     Parameters
     ----------

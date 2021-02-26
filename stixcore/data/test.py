@@ -1,32 +1,36 @@
-import tarfile
+"""Wrap all test files into data object."""
+import os
 from pathlib import Path
-from urllib.request import urlopen
+from collections import defaultdict
+
+
+def nested_dict():
+    return defaultdict(nested_dict)
+
 
 data_dir = Path(__file__).parent
 test_dir = data_dir.joinpath('test')
 
-__all__ = ['data_dir', 'test_dir']
-
-# TODO update to production server when ready
-TEST_DATA_BASE_URL = 'https://homepages.dias.ie/smaloney/stix-data/'
-TEST_DATA_NAME = 'test_data.tar.gz'
+TEST_DATA_FILES = nested_dict()
 
 
-def _download_test_tar(overwrite=False):
-    destination = data_dir / TEST_DATA_NAME
-    if destination.exists() and overwrite is False:
-        return
-    with urlopen(TEST_DATA_BASE_URL+TEST_DATA_NAME) as req:
-        with destination.open(mode='wb') as file:
-            file.write(req.read())
+def _read_test_data():
+    doc = ''
+    start = len(test_dir.parts)
+    for path, subdirs, files in os.walk(test_dir):
+        for name in files:
+            f = Path(os.path.join(path, name))
+            c = TEST_DATA_FILES
+            for i in range(start, len(f.parts)-1):
+                c = c[f.parts[i]]
+                doc += f'{f.parts[i]} > '
+            c[name] = f
+            fp = str(f).replace('\\', '\\\\')
+            doc += f"{name} : {fp}\n\n"
+    return doc
 
 
-def _unzip_test_tar():
-    data_tar = data_dir / TEST_DATA_NAME
-    if data_tar.exists():
-        with tarfile.open(data_tar.as_posix(), 'r:gz') as tar:
-            tar.extractall(test_dir.absolute())
+__doc__ = _read_test_data()
 
 
-_download_test_tar()
-_unzip_test_tar()
+__all__ = ['TEST_DATA_FILES', 'data_dir', 'test_dir']

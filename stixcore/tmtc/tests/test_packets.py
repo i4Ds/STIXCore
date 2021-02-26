@@ -18,7 +18,7 @@ from stixcore.tmtc.tm.tm_1 import TM_1_1
 
 @pytest.fixture
 def idb():
-    return IDBManager(Path(__file__).parent.parent.parent / "idb" / "tests" / "data") \
+    return IDBManager(Path(__file__).parent.parent.parent / "data" / "test" / "idb") \
         .get_idb("2.26.34")
 
 

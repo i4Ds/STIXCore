@@ -10,7 +10,8 @@ from stixcore.idb.manager import IDBManager
 
 @pytest.fixture
 def idb_manager():
-    return IDBManager(Path(os.path.abspath(__file__)).parent / 'data')
+    return IDBManager(Path(__file__).parent.parent.
+                      parent / "data" / "test" / "idb")
 
 
 def teardown_function():
@@ -20,7 +21,8 @@ def teardown_function():
 
 
 def test_idb_manager(idb_manager):
-    assert str(idb_manager.data_root) == str((Path(os.path.abspath(__file__)).parent / 'data'))
+    assert str(idb_manager.data_root) ==\
+           str(Path(__file__).parent.parent.parent / "data" / "test" / "idb")
 
 
 def test_root_not_found_error():

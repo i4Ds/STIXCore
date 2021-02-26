@@ -11,7 +11,7 @@ from stixcore.ephemeris.manager import Position
 
 @pytest.fixture
 def spicemanager():
-    return Position(meta_kernel_path=test_dir / 'mk' / 'test_position_20201001_V01.mk')
+    return Position(meta_kernel_path=test_dir / 'ephemeris' / 'test_position_20201001_V01.mk')
 
 
 def test_get_position(spicemanager):

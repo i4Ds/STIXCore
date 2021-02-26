@@ -27,18 +27,18 @@ from stixcore.tmtc.tm import tm_1, tm_3, tm_5, tm_6, tm_17, tm_21, tm_236, tm_23
 
 @pytest.fixture
 def idbm():
-    return IDBManager(Path(__file__).parent.parent.parent / "idb" / "tests" / "data")
+    return IDBManager(Path(__file__).parent.parent.parent / "data" / "test" / "idb")
 
 
 @pytest.fixture
 def idb():
-    return IDBManager(Path(__file__).parent.parent.parent / "idb" / "tests" / "data")\
+    return IDBManager(Path(__file__).parent.parent.parent / "data" / "test" / "idb")\
         .get_idb("2.26.34")
 
 
 @pytest.fixture()
 def data_dir():
-    return Path(__file__).parent / 'data'
+    return Path(__file__).parent.parent.parent / "data" / "test" / "tmtc" / "tm"
 
 
 def _get_bin_from_file(data_dir, filename):

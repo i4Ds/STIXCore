@@ -17,7 +17,8 @@ VERSION = "2.26.34"
 
 @pytest.fixture
 def idb():
-    return IDBManager(Path(os.path.abspath(__file__)).parent / 'data').get_idb(VERSION)
+    return IDBManager(Path(__file__).parent.parent.
+                      parent / "data" / "test" / "idb").get_idb(VERSION)
 
 
 def test_idb_setup(idb):

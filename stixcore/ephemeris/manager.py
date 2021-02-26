@@ -47,7 +47,7 @@ class SpiceManager:
 
         with self.meta_kernel_path.open('r') as mk:
             original_mk = mk.read()
-            kernel_dir = str(self.meta_kernel_path.parent.parent.resolve())
+            kernel_dir = str(self.meta_kernel_path.parent.resolve())
             kernel_dir = kernel_dir.replace('\\', '\\\\')
             # spice meta kernel seems to have a max variable length of 80 characters
             # https://naif.jpl.nasa.gov/pub/naif/toolkit_docs/C/req/kernel.html#Additional%20Meta-kernel%20Specifications # noqa

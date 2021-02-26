@@ -12,20 +12,19 @@ from stixcore.tmtc.packets import TMTC
 
 @pytest.fixture
 def soc_manager():
-    return SOCManager(Path(os.path.abspath(__file__)).parent.parent.parent /
-                      "io" / "tests" / "data")
+    return SOCManager(Path(__file__).parent.parent.parent / "data" / "test" / "io")
 
 
 @pytest.fixture
 def out_dir():
-    out_dir = Path(os.path.abspath(__file__)).parent.parent.parent / "io" / "tests" / "data" / "out"
+    out_dir = Path(__file__).parent.parent.parent / "io" / "tests" / "data" / "out"
     if not out_dir.exists():
         os.makedirs(out_dir)
     return out_dir
 
 
 def teardown_function():
-    out_dir = Path(os.path.abspath(__file__)).parent.parent.parent / "io" / "tests" / "data" / "out"
+    out_dir = Path(__file__).parent.parent.parent / "io" / "tests" / "data" / "out"
     if out_dir.exists():
         shutil.rmtree(str(out_dir))
 

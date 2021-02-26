@@ -1,13 +1,13 @@
 import re
-from pathlib import Path
 from unittest.mock import patch
 
+from stixcore.data.test import TEST_DATA_FILES
 from stixcore.products.level0.quicklook import LightCurve
 
 
 @patch('stixcore.products.levelb.binary.LevelB')
 def test_lightcurve(levelb):
-    hex_file = Path(__file__).parent.parent.parent / 'tmtc' / 'tests' / 'data' / '21_6_30.hex'
+    hex_file = TEST_DATA_FILES['tmtc']['tm']['21_6_30.hex']
     with hex_file.open('r') as file:
         hex = file.read()
 

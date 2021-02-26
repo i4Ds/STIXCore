@@ -2,10 +2,10 @@ import numpy as np
 
 import astropy.units as u
 
-from stixcore.data import test
+from stixcore.data.test import TEST_DATA_FILES
 from stixcore.ephemeris.manager import Time
 
-mk_path = test.TEST_DATA_FILES['ephemeris']['test_time_20201001_V01.mk']
+mk_path = TEST_DATA_FILES['ephemeris']['test_time_20201001_V01.mk']
 
 SPICE_TIME = Time(meta_kernel_path=mk_path)
 

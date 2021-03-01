@@ -145,7 +145,7 @@ def _get_unique(packets, param_name, dtype):
     np.ndarray
         First value even if not unique
     """
-    param = np.array(packets[param_name], dtype)
+    param = np.array(packets.get_value(param_name), dtype)
     if not np.all(param == param[0]):
         logger.warning('%s has changed in complete packet sequence', param_name)
     return param[0]

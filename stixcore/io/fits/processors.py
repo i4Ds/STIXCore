@@ -13,7 +13,7 @@ from stixcore.products.common import _get_energies_from_mask
 from stixcore.products.product import Product
 from stixcore.util.logging import get_logger
 
-__all__ = ['SEC_IN_DAY', 'FitsProcessor', 'FitsLBProcessor']
+__all__ = ['SEC_IN_DAY', 'FitsProcessor', 'FitsLBProcessor', 'FitsL0Processor', 'FitsL1Processor']
 
 
 logger = get_logger(__name__, level=logging.DEBUG)

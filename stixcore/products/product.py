@@ -191,14 +191,14 @@ class ControlSci(QTable):
         control = cls()
 
         # Control
-        control['tc_packet_id_ref'] = np.array(packets.get('NIX00001'), np.int32)
-        control['tc_packet_seq_control'] = np.array(packets.get('NIX00002'), np.int32)
-        control['request_id'] = np.array(packets.get('NIX00037'), np.uint32)
+        control['tc_packet_id_ref'] = np.array(packets.get_value('NIX00001'), np.int32)
+        control['tc_packet_seq_control'] = np.array(packets.get_value('NIX00002'), np.int32)
+        control['request_id'] = np.array(packets.get_value('NIX00037'), np.uint32)
         control['compression_scheme_counts_skm'] = _get_compression_scheme(packets, 'NIXD0007',
                                                                            'NIXD0008', 'NIXD0009')
         control['compression_scheme_triggers_skm'] = _get_compression_scheme(packets, 'NIXD0010',
                                                                              'NIXD0011', 'NIXD0012')
-        control['time_stamp'] = np.array(packets.get('NIX00402'))
+        control['time_stamp'] = np.array(packets.get_value('NIX00402'))
 
         # control['num_structures'] = np.array(packets.get('NIX00403'), np.int32)
 

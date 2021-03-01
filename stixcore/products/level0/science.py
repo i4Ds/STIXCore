@@ -1,6 +1,5 @@
 from pathlib import Path
 from binascii import unhexlify
-from collections import defaultdict
 
 import numpy as np
 
@@ -10,7 +9,12 @@ from astropy.table.operations import unique, vstack
 from stixcore.calibration.compression import decompress
 from stixcore.config.reader import read_energy_channels
 from stixcore.datetime.datetime import DateTime
-from stixcore.products.common import _get_detector_mask, _get_pixel_mask, rebin_proportional
+from stixcore.products.common import (
+    _get_detector_mask,
+    _get_pixel_mask,
+    _get_unique,
+    rebin_proportional,
+)
 from stixcore.products.product import BaseProduct, ControlSci, Data
 from stixcore.tmtc.packet_factory import Packet
 from stixcore.tmtc.packets import PacketSequence
@@ -110,52 +114,41 @@ class XrayL0(ScienceProduct):
 
         control['index'] = 0
 
-        structure = defaultdict(list)
-        subc_nixs = packets.get('NIX00403')[0][0].__dict__.keys()
-        for substructures in packets.get('NIX00403'):
-            for substructure in substructures:
-                for name in subc_nixs:
-                    val = getattr(substructure, name)
-                    try:
-                        structure[name].extend(val)
-                    except TypeError:
-                        structure[name].append(val)
-
         data = Data()
-        data['delta_time'] = (np.array(structure['NIX00441'], np.int32)) * 0.1 * u.s
+        data['delta_time'] = (np.array(packets.get_value('NIX00441'), np.int32)) * 0.1 * u.s
         unique_times = np.unique(data['delta_time'])
 
-        data['rcr'] = np.array(structure['NIX00401'], np.ubyte)
-        data['num_pixel_sets'] = np.array(structure['NIX00442'], np.ubyte)
-        pixel_masks = _get_pixel_mask(structure, 'NIXD0407')
+        data['rcr'] = np.array(packets.get_value('NIX00401'), np.ubyte)
+        data['num_pixel_sets'] = np.atleast_1d(_get_unique(packets, 'NIX00442', np.byte))
+        pixel_masks = _get_pixel_mask(packets, 'NIXD0407')
         pixel_masks = pixel_masks.reshape(-1, data['num_pixel_sets'][0], 12)
         if ssid == 21 and data['num_pixel_sets'][0] != 12:
             pixel_masks = np.pad(pixel_masks, ((0, 0), (0, 12 - data['num_pixel_sets'][0]), (0, 0)))
         data['pixel_masks'] = pixel_masks
-        data['detector_masks'] = _get_detector_mask(structure)
-        data['integration_time'] = (np.array(structure.get('NIX00405'), np.uint16)) * 0.1 * u.s
+        data['detector_masks'] = _get_detector_mask(packets)
+        data['integration_time'] = (np.array(1, np.uint16)) * 0.1 * u.s
 
         # TODO change once FSW fixed
         ts, tk, tm = control['compression_scheme_counts_skm'][0]
-        triggers, triggers_var = decompress([structure.get(f'NIX00{i}') for i in range(242, 258)],
-                                            s=ts, k=tk, m=tm,
-                                            return_variance=True)
+        triggers, triggers_var = decompress(
+            [packets.get_value(f'NIX00{i}') for i in range(242, 258)], s=ts, k=tk, m=tm,
+            return_variance=True)
 
         data['triggers'] = triggers.T
         data['triggers_err'] = np.sqrt(triggers_var).T
-        data['num_energy_groups'] = np.array(structure['NIX00258'], np.ubyte)
+        data['num_energy_groups'] = np.array(packets.get_value('NIX00258'), np.ubyte)
 
         tmp = dict()
-        tmp['e_low'] = np.array(structure['NIXD0016'], np.ubyte)
-        tmp['e_high'] = np.array(structure['NIXD0017'], np.ubyte)
-        tmp['num_data_elements'] = np.array(structure['NIX00259'])
+        tmp['e_low'] = np.array(packets.get_value('NIXD0016'), np.ubyte)
+        tmp['e_high'] = np.array(packets.get_value('NIXD0017'), np.ubyte)
+        tmp['num_data_elements'] = np.array(packets.get_value('NIX00259'))
         unique_energies_low = np.unique(tmp['e_low'])
         unique_energies_high = np.unique(tmp['e_high'])
 
         # counts = np.array(eng_packets['NIX00260'], np.uint32)
 
         cs, ck, cm = control['compression_scheme_counts_skm'][0]
-        counts, counts_var = decompress(structure.get('NIX00260'), s=cs, k=ck, m=cm,
+        counts, counts_var = decompress(packets.get_value('NIX00260'), s=cs, k=ck, m=cm,
                                         return_variance=True)
 
         counts = counts.reshape(unique_times.size, unique_energies_low.size,

@@ -291,18 +291,14 @@ def test_decompress(data_dir, idbm, packets):
     c = decompress(packet)
 
     if nstr > 1:
-        assert len(packet.data.get_subpackets()) == nstr
+        assert packet.data.NIX00403.value == nstr
 
     decompression_parameter = packet.get_decompression_parameter()
     if decompression_parameter is not None:
         assert c > 0
         for param_name, (sn, kn, mn) in decompression_parameter.items():
             params = packet.data.get(param_name)
-            if isinstance(params, list):
-                for rep in params:
-                    assert isinstance(rep, CompressedParameter)
-            else:
-                isinstance(params, CompressedParameter)
+            assert isinstance(params, CompressedParameter)
     else:
         assert c == 0
 
@@ -323,7 +319,7 @@ def test_engineering(data_dir, idbm, packets):
     c = raw_to_engineering(packet)
 
     if nstr > 1:
-        assert len(packet.data.get_subpackets()) == nstr
+        assert packet.data.NIX00403.value == nstr
 
     e_parameter = packet.get_calibration_params()
     if len(e_parameter) > 0:

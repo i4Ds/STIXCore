@@ -1,5 +1,5 @@
-STIXCore processing
-*******************
+STIXCore Products
+*****************
 
 The ``products`` submodule contains processing classes representing high level
 data products create from multiple packets with additional checks.

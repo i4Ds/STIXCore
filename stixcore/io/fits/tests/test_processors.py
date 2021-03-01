@@ -1,4 +1,3 @@
-from datetime import datetime
 from unittest.mock import patch
 
 from stixcore.datetime.datetime import DateTime
@@ -10,34 +9,40 @@ def test_level0_processor_init():
     assert pro.archive_path == 'some/path'
 
 
-@patch('stixcore.products.level0.quicklook.QLProduct')
-def test_level0_processor_generate_filename(product):
-    processor = FitsL0Processor('some/path')
-    product.control.colnames = []
-    product.type = 'ql'
-    product.obs_avg.coarse = 0
-    product.level = 'LB'
-    product.name = 'a_name'
-    filename = processor.generate_filename(product, version=1)
-    assert filename == 'solo_LB_stix-ql-a-name_0000000000_V01.fits'
+def test_level0_processor_generate_filename():
+    with patch('stixcore.products.level0.quicklook.QLProduct') as product:
+        processor = FitsL0Processor('some/path')
+        product.control.colnames = []
+        product.type = 'ql'
+        product.obs_avg.coarse = 0
+        product.level = 'LB'
+        product.name = 'a_name'
+        filename = processor.generate_filename(product, version=1)
+        assert filename == 'solo_LB_stix-ql-a-name_0000000000_V01.fits'
 
-    product.type = 'sci'
-    product.obs_beg.to_datetime.return_value = datetime(2020, 1, 2, 3, 4, 5, 6)
-    product.obs_end.to_datetime.return_value = datetime(2020, 4, 5, 6, 7, 8, 9)
-    filename = processor.generate_filename(product, version=1)
-    assert filename == 'solo_LB_stix-sci-a-name_20200102T030405-20200405T060708_V01.fits'
+    with patch('stixcore.products.level0.science.ScienceProduct') as product:
+        product.type = 'sci'
+        product.control.colnames = []
+        product.obs_avg.coarse = 0
+        product.level = 'LB'
+        product.name = 'a_name'
+        product.obs_beg = DateTime(12345, 6789)
+        product.obs_end = DateTime(98765, 4321)
+        filename = processor.generate_filename(product, version=1)
+        assert filename == 'solo_LB_stix-sci-a-name_0000012345:06789-0000098765:04321_V01.fits'
 
-    dummy_control_data = {'request_id': [123456], 'tc_packet_seq_control': [98765]}
+        dummy_control_data = {'request_id': [123456], 'tc_packet_seq_control': [98765]}
 
-    product.control.__getitem__.side_effect = dummy_control_data.__getitem__
-    product.control.colnames = ['request_id']
-    filename = processor.generate_filename(product, version=1)
-    assert filename == 'solo_LB_stix-sci-a-name-123456_20200102T030405-20200405T060708_V01.fits'
+        product.control.__getitem__.side_effect = dummy_control_data.__getitem__
+        product.control.colnames = ['request_id']
+        filename = processor.generate_filename(product, version=1)
+        assert filename == 'solo_LB_stix-sci-a-name-123456_' \
+                           '0000012345:06789-0000098765:04321_V01.fits'
 
-    product.control.colnames = ['request_id', 'tc_packet_seq_control']
-    filename = processor.generate_filename(product, version=1)
-    assert filename == 'solo_LB_stix-sci-a-name-123456_' \
-                       '20200102T030405-20200405T060708_V01_98765.fits'
+        product.control.colnames = ['request_id', 'tc_packet_seq_control']
+        filename = processor.generate_filename(product, version=1)
+        assert filename == 'solo_LB_stix-sci-a-name-123456_' \
+                           '0000012345:06789-0000098765:04321_V01_98765.fits'
 
 
 @patch('stixcore.products.level0.quicklook.QLProduct')

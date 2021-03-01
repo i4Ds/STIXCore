@@ -160,7 +160,7 @@ class FitsLBProcessor(FitsProcessor):
 
 class FitsL0Processor:
     """
-    FITS level 1 processor
+    FITS level 0 processor
     """
     def __init__(self, archive_path):
         """
@@ -178,7 +178,7 @@ class FitsL0Processor:
 
         Parameters
         ----------
-        product : ``
+        product : `stixcore.product.level0`
 
         Returns
         -------
@@ -440,7 +440,7 @@ class FitsL1Processor:
         ----------
         filename : `str`
             Filename
-        product : `stixcore.products.product.BaseProduct
+        product : `stixcore.products.product.BaseProduct`
             QLProduct
 
         Returns

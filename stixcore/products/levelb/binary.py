@@ -88,12 +88,13 @@ class LevelB(BaseProduct):
         control = unique(control, ['scet_coarse', 'scet_fine', 'sequence_count'])
 
         orig_indices = control['index']
-        new_index = range(len(control))
+        # some BS for windows!
+        new_index = np.array(range(len(control)), dtype=np.int64)
         control['index'] = new_index
 
         data = vstack((self.data, other.data))
         data = data[np.nonzero(orig_indices[:, None] == data['control_index'].data)[1]]
-        data['control_index'] = range(len(data))
+        data['control_index'] = np.array(range(len(data)), dtype=np.int64)
 
         if np.abs([((len(data['data'][i]) / 2) - (control['data_length'][i] + 7))
                    for i in range(len(data))]).sum() > 0:
@@ -224,10 +225,10 @@ class LevelB(BaseProduct):
                 headers.append({**sh, **dh})
 
             control = Table(headers)
-            control['index'] = np.arange(len(control))
+            control['index'] = np.arange(len(control), dtype=np.int64)
 
             data = Table()
-            data['control_index'] = control['index']
+            data['control_index'] = np.array(control['index'], dtype=np.int64)
             data['data'] = hex_data
             service_type, service_subtype, ssid = prod_key
             product = LevelB(service_type=service_type, service_subtype=service_subtype,

@@ -61,7 +61,7 @@ class PacketData:
             if param.children:
                 for child in param.children:
                     child.flatten(root=self)
-                getattr(self, child.name).children = None
+                    getattr(self, child.name).children = None
 
         return self
 
@@ -165,15 +165,15 @@ class PacketData:
         if val is not None:
             if isinstance(val, list):
                 w_val = [callback(v, args) for v in val]
-                counter = len(w_val)
+                counter = len(w_val.value)
             else:
                 w_val = callback(val, args)
                 counter += 1
             self.set(write_nix, w_val)
 
-        if self.has_subpackets():
-            for subpacket in self.get_subpackets():
-                counter += subpacket.apply(nix, callback, args, addnix)
+        # if self.has_subpackets():
+        #     for subpacket in self.get_subpackets():
+        #         counter += subpacket.apply(nix, callback, args, addnix)
 
         return counter
 

@@ -3,6 +3,7 @@ import sys
 import sqlite3
 from types import SimpleNamespace
 
+import numpy as np
 from scipy import interpolate
 
 from stixcore.util.logging import get_logger
@@ -124,11 +125,14 @@ class IDBPolynomialCalibration:
         `float`
             polynomial function value
         """
-        return (self.A[0] * x**0 +
-                self.A[1] * x**1 +
-                self.A[2] * x**2 +
-                self.A[3] * x**3 +
-                self.A[4] * x**4) if self.valid else None
+        x = np.array(x)
+        res = (self.A[0] * x ** 0
+               + self.A[1] * x ** 1
+               + self.A[2] * x ** 2
+               + self.A[3] * x ** 3
+               + self.A[4] * x ** 4)
+
+        return res.tolist() if self.valid else None
 
 
 class IDBCalibrationCurve:

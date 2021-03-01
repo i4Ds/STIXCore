@@ -57,10 +57,11 @@ class PacketData:
         -------
 
         """
-        if self.NIX00403:
-            for sub in self.NIX00403.children:
-                sub.flatten(root=self)
-            self.NIX00403.children = None
+        for param in list(self.__dict__.values()):
+            if param.children:
+                for child in param.children:
+                    child.flatten(root=self)
+                getattr(self, child.name).children = None
 
         return self
 

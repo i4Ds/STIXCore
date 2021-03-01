@@ -126,7 +126,7 @@ def _get_num_energies(packets):
     int
         Number of energies
     """
-    return packets.get('NIX00270')
+    return packets.get_value('NIX00270')
 
 
 def _get_unique(packets, param_name, dtype):

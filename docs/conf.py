@@ -110,17 +110,17 @@ graphviz_dot_args = [
 import os
 on_rtd = os.environ.get('READTHEDOCS', None) == 'True'
 if on_rtd and not os.path.exists('./git-lfs'):
-    # os.system('wget https://github.com/git-lfs/git-lfs/releases/download/v2.7.1/git-lfs-linux-amd64-v2.7.1.tar.gz')
-    # os.system('tar xvfz git-lfs-linux-amd64-v2.7.1.tar.gz')
-    # os.system('./git-lfs install')  # make lfs available in current repository
-    # os.system('./git-lfs fetch')  # download content from remote
-    # os.system('./git-lfs checkout')  # make local files to have the real content on them
-    os.system('echo "git install lfs"')  # echo test
-    os.system('git lfs install')  # report any errors
-    os.system('echo "git pull after lfs"')  # echo test
-    os.system('git checkout master')  # report any errors
-    os.system('git pull')  # report any errors
-    os.system('echo "git lfs done"')  # echo test
+    os.system('wget https://github.com/git-lfs/git-lfs/releases/download/v2.13.2/git-lfs-linux-amd64-v2.13.2.tar.gz')
+    os.system('tar xvfz git-lfs-linux-amd64-v2.7.1.tar.gz')
+    os.system('./git-lfs install')  # make lfs available in current repository
+    os.system('./git-lfs fetch')  # download content from remote
+    os.system('./git-lfs checkout')  # make local files to have the real content on them
+    os.system('git lfs logs last')  # echo test
+    # os.system('git lfs install')  # report any errors
+    # os.system('echo "git pull after lfs"')  # echo test
+    # os.system('git checkout master')  # report any errors
+    # os.system('git pull')  # report any errors
+    # os.system('echo "git lfs done"')  # echo test
 
 """
 Write the latest changelog into the documentation.

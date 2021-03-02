@@ -18,6 +18,15 @@ class IDBTestData:
         self.__doc__ = "\n".join([f'{str(k)}: {repr(v)}\n\n' for k, v in self.__dict__.items()])
 
 
+class IDBTestProduct:
+    def __init__(self, data_dir):
+        self.DIR = data_dir / "products"
+        self.L0_LightCurve_fits = self.DIR / "solo_L0_stix-ql-LightCurve_0664070400_V01.fits"
+        self.L1_LightCurve_fits = self.DIR / "solo_L1_stix-ql-LightCurve_20210117_V01.fits"
+        self.LB_21_6_30_fits = self.DIR / "solo_LB_stix-21-6-30_0664156800_V01.fits"
+        self.__doc__ = "\n".join([f'{str(k)}: {repr(v)}\n\n' for k, v in self.__dict__.items()])
+
+
 class TMTCTestData:
     def __init__(self, data_dir):
         self.TM_DIR = data_dir / "tmtc" / "tm"
@@ -33,6 +42,7 @@ class TestData:
         self.ephemeris = EphemerisTestData(data_dir)
         self.idb = IDBTestData(data_dir)
         self.tmtc = TMTCTestData(data_dir)
+        self.products = IDBTestProduct(data_dir)
 
         self.__doc__ = "\n".join([f"{k}\n******************\n\n{v.__doc__}\n\n\n"
                                   for k, v in self.__dict__.items()])

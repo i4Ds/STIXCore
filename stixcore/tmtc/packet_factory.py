@@ -116,6 +116,6 @@ class ValidationFunctionError(AttributeError):
 
 
 # Main packet class
-idbm = IDBManager(Path(__file__).parent.parent / "data" / "test" / "idb")
+idbm = IDBManager(Path(__file__).parent.parent / "data" / "idb")
 GenericPacket.idb_manager = idbm
 Packet = TMTCPacketFactory(registry=GenericPacket._registry)

@@ -115,6 +115,7 @@ if on_rtd and not os.path.exists('./git-lfs'):
     os.system('./git-lfs install')  # make lfs available in current repository
     os.system('./git-lfs fetch')  # download content from remote
     os.system('./git-lfs checkout')  # make local files to have the real content on them
+    os.system('git lfs logs last')  # report any errors
 
 """
 Write the latest changelog into the documentation.

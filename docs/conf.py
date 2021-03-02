@@ -116,8 +116,9 @@ if on_rtd and not os.path.exists('./git-lfs'):
     # os.system('./git-lfs fetch')  # download content from remote
     # os.system('./git-lfs checkout')  # make local files to have the real content on them
     os.system('echo "git install lfs"')  # echo test
-    os.system('git install lfs')  # report any errors
+    os.system('git lfs install')  # report any errors
     os.system('echo "git pull after lfs"')  # echo test
+    os.system('git checkout master')  # report any errors
     os.system('git pull')  # report any errors
     os.system('echo "git lfs done"')  # echo test
 

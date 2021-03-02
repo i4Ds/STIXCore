@@ -1,4 +1,5 @@
 from pathlib import Path
+from itertools import chain
 
 import numpy as np
 from sunpy.util.datatype_factory_base import (
@@ -14,7 +15,9 @@ from astropy.time import Time
 
 from stixcore.datetime.datetime import DateTime
 
-__all__ = ['BaseProduct', 'ProductFactory', 'Product']
+__all__ = ['BaseProduct', 'ProductFactory', 'Product', 'ControlSci', 'Control']
+
+from stixcore.products.common import _get_compression_scheme
 
 
 class BaseProduct:
@@ -151,6 +154,53 @@ class Control(QTable):
 
         # control = unique(control)
         control['index'] = np.arange(len(control))
+
+        return control
+
+
+class ControlSci(QTable):
+    def __repr__(self):
+        return f'<{self.__class__.__name__} \n {super().__repr__()}>'
+
+    def _get_time(self):
+        # Replicate packet time for each sample
+        base_times = Time(list(chain(
+            *[[DateTime(coarse=self["scet_coarse"][i], fine=self["scet_fine"][i])]
+              * n for i, n in enumerate(self['num_samples'])])))
+        # For each sample generate sample number and multiply by duration and apply unit
+        start_delta = np.hstack(
+            [(np.arange(ns) * it) for ns, it in self[['num_samples', 'integration_time']]])
+        # hstack op loses unit
+        start_delta = start_delta.value * self['integration_time'].unit
+
+        duration = np.hstack([np.ones(num_sample) * int_time for num_sample, int_time in
+                              self[['num_samples', 'integration_time']]])
+        duration = duration.value * self['integration_time'].unit
+
+        # TODO Write out and simplify
+        end_delta = start_delta + duration
+
+        # Add the delta time to base times and convert to relative from start time
+        times = base_times + start_delta + (end_delta - start_delta) / 2
+        # times -= times[0]
+        return times, duration
+
+    @classmethod
+    def from_packets(cls, packets):
+
+        control = cls()
+
+        # Control
+        control['tc_packet_id_ref'] = np.array(packets.get_value('NIX00001'), np.int32)
+        control['tc_packet_seq_control'] = np.array(packets.get_value('NIX00002'), np.int32)
+        control['request_id'] = np.array(packets.get_value('NIX00037'), np.uint32)
+        control['compression_scheme_counts_skm'] = _get_compression_scheme(packets, 'NIXD0007',
+                                                                           'NIXD0008', 'NIXD0009')
+        control['compression_scheme_triggers_skm'] = _get_compression_scheme(packets, 'NIXD0010',
+                                                                             'NIXD0011', 'NIXD0012')
+        control['time_stamp'] = np.array(packets.get_value('NIX00402'))
+
+        # control['num_structures'] = np.array(packets.get('NIX00403'), np.int32)
 
         return control
 

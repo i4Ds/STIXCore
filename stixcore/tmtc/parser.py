@@ -18,13 +18,13 @@ class PacketData:
 
     @classmethod
     def parameter_list_2_PacketData(cls, parameters):
-        """Convert the nested lists of the parameter parsing into a PacketData object.
+        """Convert the list nested parameters into a PacketData object.
 
         Unpacks/decodes the NIXD0159 counts from TM(21,6,20) by eliminating this repeater level.
 
         Parameters
         ----------
-        d : `list`
+        parameters : `list`
             The parse result of the TM data block.
 
         Returns
@@ -45,26 +45,25 @@ class PacketData:
             if parameter.name == 'NIXD0159':
                 obj.__dict__[parameter.name] = PacketData.unpack_NIX00065(parameter)
             else:
-                if parameter.children:
-                    new_entry = [PacketData.parameter_list_2_PacketData(list(child))
-                                 for child in np.array_split(parameter.children, parameter.value)]
-                else:
-                    new_entry = PacketData.parameter_list_2_PacketData(parameter)
-                obj.__dict__[parameter.name] = new_entry
+                obj.__dict__[parameter.name] = parameter
 
         return obj
 
-    def flatten(self):
-        """Flatten the tree structure after parsing into a structure with all NIXs on the root level.
+    def merge(self):
+        """
+        Merge sub structures
 
         Returns
         -------
-        `PacketData`
-            a flattend copy
+
         """
-        new_root = PacketData()
-        self._flatten(new_root)
-        return new_root
+        for param in list(self.__dict__.values()):
+            if param.children:
+                for child in param.children:
+                    child.flatten(root=self)
+                    getattr(self, child.name).children = None
+
+        return self
 
     @staticmethod
     def unpack_NIX00065(param):
@@ -108,52 +107,6 @@ class PacketData:
 
         param = Parameter(name='NIX00065', value=NIX00065, idb_info='')
         return param
-
-    def _flatten(self, new_root):
-        for attr, value in self.__dict__.items():
-            if isinstance(value, PacketData):
-                # just a single subpacket
-                if attr == SUBPACKET_NIX:
-                    logger.debug(SUBPACKET_NIX)
-                    subpacket = PacketData()
-                    value._flatten(subpacket)
-                    setattr(new_root, SUBPACKET_NIX, [subpacket])
-                else:
-                    value._flatten(new_root)
-            elif isinstance(value, list):
-                # multible subpackets
-                if attr == SUBPACKET_NIX:
-                    subpackets = []
-                    for index, list_elem in enumerate(value):
-                        subpacket = PacketData()
-                        list_elem._flatten(subpacket)
-                        subpackets.append(subpacket)
-                    setattr(new_root, SUBPACKET_NIX, subpackets)
-                    # skip the following loop
-                else:
-                    for index, list_elem in enumerate(value):
-                        if index == 0:
-                            if hasattr(new_root, attr):
-                                old_val = getattr(new_root, attr)
-                                if not isinstance(old_val, list):
-                                    old_val = [old_val, len(value)]
-                                else:
-                                    old_val.append(len(value))
-                                setattr(new_root, attr, old_val)
-                            else:
-                                setattr(new_root, attr, len(value))
-                        list_elem._flatten(new_root)
-
-            else:
-                if hasattr(new_root, attr):
-                    old_val = getattr(new_root, attr)
-                    if not isinstance(old_val, list):
-                        old_val = [old_val, value]
-                    else:
-                        old_val.append(value)
-                    setattr(new_root, attr, old_val)
-                else:
-                    setattr(new_root, attr, value)
 
     def set(self, nix, value):
         """Set the paremeter vale by the NIX name.
@@ -212,15 +165,15 @@ class PacketData:
         if val is not None:
             if isinstance(val, list):
                 w_val = [callback(v, args) for v in val]
-                counter = len(w_val)
+                counter = len(w_val.value)
             else:
                 w_val = callback(val, args)
                 counter += 1
             self.set(write_nix, w_val)
 
-        if self.has_subpackets():
-            for subpacket in self.get_subpackets():
-                counter += subpacket.apply(nix, callback, args, addnix)
+        # if self.has_subpackets():
+        #     for subpacket in self.get_subpackets():
+        #         counter += subpacket.apply(nix, callback, args, addnix)
 
         return counter
 
@@ -290,7 +243,10 @@ class Parameter:
                 params = {child.name: child for child in self.children}
                 values = defaultdict(list)
                 for param in self.children:
-                    values[param.name].append(param.value)
+                    if isinstance(param.value, list):
+                        values[param.name].extend(param.value)
+                    else:
+                        values[param.name].append(param.value)
 
                 children = [Parameter(name, values[name], param.idb_info)
                             for name, param in params.items()]
@@ -302,6 +258,48 @@ class Parameter:
         else:
             return Parameter(self.name, self.value, self.idb_info)
 
+    def flatten(self, root):
+        """
+        Flatten repeated substructures into root object
+
+        Parameters
+        ----------
+        root : `object`
+
+        Returns
+        -------
+
+        """
+        if self.children:
+            for child in self.children:
+                if child.children:
+                    child.flatten(root=root)
+                else:
+                    if hasattr(root, child.name):
+                        cur = getattr(root, child.name)
+                        if isinstance(child.value, list):
+                            cur.value.extend(child.value)
+                        else:
+                            cur.value.append(child.value)
+                    else:
+                        if not isinstance(child.value, list):
+                            child.value = [child.value]
+                        setattr(root, child.name, child)
+            self.children = None
+
+        if hasattr(root, self.name):
+            old = getattr(root, self.name)
+            if not isinstance(old.value, list):
+                old.value = [old.value]
+
+            if isinstance(self.value, list):
+                old.value.extend(self.value)
+            else:
+                old.value.append(self.value)
+        else:
+            self.value = [self.value]
+            setattr(root, self.name, self)
+
 
 def _parse_tree(bitstream, parent, fields):
     """Recursive parsing of TM data.
@@ -312,7 +310,7 @@ def _parse_tree(bitstream, parent, fields):
         Input binary data
     parent : `~stixcore/idb/idb/IDBPacketTree`
         the dynamic parse tree defined by the IDB
-    fields : `dict`
+    fields : `list[stixcore.tmtc.parser.Parameter]`
         The parsed parameters - mutable out data.
     """
     if not parent:
@@ -372,8 +370,8 @@ def parse_variable(bitstream, tree):
     fields = []
     _parse_tree(bitstream, tree, fields)
     pd = PacketData.parameter_list_2_PacketData(fields)
-    flat = pd.flatten()
-    return flat
+    merged = pd.merge()
+    return merged
 
 
 def parse_bitstream(bitstream, structure):

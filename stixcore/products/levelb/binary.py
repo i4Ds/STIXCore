@@ -1,3 +1,4 @@
+from enum import IntEnum
 from collections import defaultdict
 
 import numpy as np
@@ -13,6 +14,13 @@ from stixcore.util.logging import get_logger
 __all__ = ['LevelB']
 
 logger = get_logger(__name__)
+
+
+class SequenceFlag(IntEnum):
+    STANDALONE = 3
+    FIRST = 1
+    MIDDLE = 0
+    LAST = 2
 
 
 class LevelB(BaseProduct):
@@ -72,19 +80,21 @@ class LevelB(BaseProduct):
         if not isinstance(other, type(self)):
             raise TypeError(f'Products must of same type not {type(self)} and {type(other)}')
 
-        other.control['index'] = other.control['index'] + self.control['index'].max() + 1
+        other = other[:]
+        other.control['index'] = other.control['index'].data + self.control['index'].data.max() + 1
         other.data['control_index'] = other.data['control_index'] + self.control['index'].max() + 1
 
         control = vstack((self.control, other.control))
         control = unique(control, ['scet_coarse', 'scet_fine', 'sequence_count'])
 
         orig_indices = control['index']
-        new_index = range(len(control))
+        # some BS for windows!
+        new_index = np.array(range(len(control)), dtype=np.int64)
         control['index'] = new_index
 
         data = vstack((self.data, other.data))
         data = data[np.nonzero(orig_indices[:, None] == data['control_index'].data)[1]]
-        data['control_index'] = range(len(data))
+        data['control_index'] = np.array(range(len(data)), dtype=np.int64)
 
         if np.abs([((len(data['data'][i]) / 2) - (control['data_length'][i] + 7))
                    for i in range(len(data))]).sum() > 0:
@@ -123,6 +133,71 @@ class LevelB(BaseProduct):
             yield type(self)(service_type=self.service_type, service_subtype=self.service_subtype,
                              ssid=self.ssid, control=control, data=data)
 
+    def __getitem__(self, key):
+        if isinstance(key, slice):
+            start, stop, step = key.indices(len(self.data))
+            data = self.data[start:stop:step]
+        elif isinstance(key, list):
+            data = self.data[key]
+        elif isinstance(key, int):
+            data = self.data[key]
+
+        control_ids = np.unique(data['control_index'])
+        control = self.control[np.isin(self.control['index'], control_ids)]
+
+        return type(self)(service_type=self.service_type, service_subtype=self.service_subtype,
+                          ssid=self.ssid, control=control, data=data)
+
+    def extract_sequences(self):
+        """
+        Extract complete and incomplete packet sequences.
+
+        Returns
+        -------
+        tuple
+            LevelB products for the complete and incomplete sequences
+        """
+        sequences = []
+        flags = self.control['sequence_flag']
+        cur_seq = None
+        for i, f in enumerate(flags):
+            if f == SequenceFlag.STANDALONE:
+                sequences.append([i])
+            elif f == SequenceFlag.FIRST:
+                cur_seq = [i]
+
+            if f == SequenceFlag.MIDDLE:
+                if cur_seq:
+                    cur_seq.append(i)
+                else:
+                    cur_seq = [i]
+
+            if f == SequenceFlag.LAST:
+                if cur_seq:
+                    cur_seq.append(i)
+                    sequences.append(cur_seq)
+                else:
+                    sequences.append([i])
+
+                cur_seq = None
+
+        if cur_seq:
+            sequences.append(cur_seq)
+
+        complete = []
+        incomplete = []
+
+        for seq in sequences:
+            if len(seq) == 1 and flags[seq[0]] == SequenceFlag.STANDALONE:
+                complete.append(self[seq])
+            elif flags[seq[0]] == SequenceFlag.FIRST and flags[seq[-1]] == SequenceFlag.LAST:
+                complete.append(self[seq])
+            else:
+                incomplete.append(self[seq])
+                logger.warning('Incomplete sequence')
+
+        return complete, incomplete
+
     @classmethod
     def from_tm(cls, tmfile):
         """Process the given SOCFile and creates LevelB FITS files.
@@ -135,7 +210,8 @@ class LevelB(BaseProduct):
         packet_data = defaultdict(list)
         for binary in tmfile.get_packet_binaries():
             packet = TMPacket(binary)
-            packet_data[packet.key].append(packet)
+            if packet.key == (21, 6, 21):
+                packet_data[packet.key].append(packet)
 
         for prod_key, packets in packet_data.items():
             headers = []
@@ -149,10 +225,10 @@ class LevelB(BaseProduct):
                 headers.append({**sh, **dh})
 
             control = Table(headers)
-            control['index'] = np.arange(len(control))
+            control['index'] = np.arange(len(control), dtype=np.int64)
 
             data = Table()
-            data['control_index'] = control['index']
+            data['control_index'] = np.array(control['index'], dtype=np.int64)
             data['data'] = hex_data
             service_type, service_subtype, ssid = prod_key
             product = LevelB(service_type=service_type, service_subtype=service_subtype,

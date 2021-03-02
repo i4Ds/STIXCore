@@ -13,7 +13,7 @@ from stixcore.products.common import _get_energies_from_mask
 from stixcore.products.product import Product
 from stixcore.util.logging import get_logger
 
-__all__ = ['SEC_IN_DAY', 'FitsProcessor', 'FitsLBProcessor']
+__all__ = ['SEC_IN_DAY', 'FitsProcessor', 'FitsLBProcessor', 'FitsL0Processor', 'FitsL1Processor']
 
 
 logger = get_logger(__name__, level=logging.DEBUG)
@@ -160,7 +160,7 @@ class FitsLBProcessor(FitsProcessor):
 
 class FitsL0Processor:
     """
-    FITS level 1 processor
+    FITS level 0 processor
     """
     def __init__(self, archive_path):
         """
@@ -178,7 +178,7 @@ class FitsL0Processor:
 
         Parameters
         ----------
-        product : ``
+        product : `stixcore.product.level0`
 
         Returns
         -------
@@ -273,8 +273,8 @@ class FitsL0Processor:
         if product.type == 'ql':
             date_range = f'{(product.obs_avg.coarse // (24 * 60 * 60) ) * 24 * 60 * 60:010d}'
         else:
-            start_obs = product.obs_beg.to_datetime().strftime("%Y%m%dT%H%M%S")
-            end_obs = product.obs_end.to_datetime().strftime("%Y%m%dT%H%M%S")
+            start_obs = str(product.obs_beg)
+            end_obs = str(product.obs_end)
             date_range = f'{start_obs}-{end_obs}'
         return f'solo_{product.level}_stix-{product.type}-' \
                f'{product.name.replace("_", "-")}{user_req}' \
@@ -440,7 +440,7 @@ class FitsL1Processor:
         ----------
         filename : `str`
             Filename
-        product : `stixcore.products.product.BaseProduct
+        product : `stixcore.products.product.BaseProduct`
             QLProduct
 
         Returns

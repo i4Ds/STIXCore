@@ -482,7 +482,7 @@ class GenericTMPacket:
                                             self.pi1_val)
 
         self.data = parse_variable(self.source_packet_header.bitstream, tree)
-        self.group_repeaters()
+        # self.group_repeaters()
 
     def group_repeaters(self):
         """Combine the flattend data array of nested repeaters into a nested list.
@@ -591,4 +591,11 @@ class PacketSequence:
         else:
             return [data.__getattribute__(name) for data in self.data]
 
-        return [data.__getattribute__(name).__getattribute__(attr) for data in self.data]
+        res = []
+        for d in self.data:
+            p = d.__getattribute__(name).__getattribute__(attr)
+            if isinstance(p, list):
+                res.extend(p)
+            else:
+                res.append(p)
+        return res

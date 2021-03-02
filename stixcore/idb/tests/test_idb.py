@@ -4,6 +4,7 @@ from pathlib import Path
 
 import pytest
 
+from stixcore.data.test import test_data
 from stixcore.idb.idb import (
     IDB,
     IDBCalibrationCurve,
@@ -17,7 +18,7 @@ VERSION = "2.26.34"
 
 @pytest.fixture
 def idb():
-    return IDBManager(Path(os.path.abspath(__file__)).parent / 'data').get_idb(VERSION)
+    return IDBManager(test_data.idb.DIR).get_idb(VERSION)
 
 
 def test_idb_setup(idb):

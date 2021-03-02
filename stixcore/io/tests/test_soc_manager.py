@@ -1,4 +1,3 @@
-import os
 from pathlib import Path
 
 import pytest
@@ -9,16 +8,17 @@ from stixcore.tmtc.packets import TMTC
 
 @pytest.fixture
 def soc_manager():
-    return SOCManager(Path(os.path.abspath(__file__)).parent / 'data')
+    return SOCManager(Path(__file__).parent.parent.parent / "data" / "test" / "io" / "soc")
 
 
 @pytest.fixture
 def base_dir():
-    return Path(os.path.abspath(__file__)).parent / 'data'
+    return Path(__file__).parent.parent.parent / "data" / "test" / "io" / "soc"
 
 
 def test_soc_manager(soc_manager):
-    assert str(soc_manager.data_root) == str((Path(os.path.abspath(__file__)).parent / 'data'))
+    assert str(soc_manager.data_root) ==\
+           str((Path(__file__).parent.parent.parent / "data" / "test" / "io" / "soc"))
 
 
 def test_root_not_found_error():

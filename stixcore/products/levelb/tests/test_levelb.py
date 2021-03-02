@@ -1,14 +1,13 @@
-from pathlib import Path
 
 import numpy as np
 
+from stixcore.data.test import test_data
 from stixcore.products import Product
 from stixcore.products.levelb.binary import LevelB
 
 
 def test_slice():
-    lb_fits = Path(__file__).parent.parent.parent / 'tests' / 'data' / \
-              'solo_LB_stix-21-6-30_0664156800_V01.fits'
+    lb_fits = test_data.products.LB_21_6_30_fits
     lb_prod = Product(lb_fits)
     assert isinstance(lb_prod, LevelB)
 
@@ -24,8 +23,7 @@ def test_slice():
 
 
 def test_add():
-    lb_fits = Path(__file__).parent.parent.parent / 'tests' / 'data' / \
-              'solo_LB_stix-21-6-30_0664156800_V01.fits'
+    lb_fits = test_data.products.LB_21_6_30_fits
     prod1 = Product(lb_fits)
     prod2 = Product(lb_fits)
     # Make sure equal to start

@@ -7,6 +7,7 @@ from concurrent.futures import ProcessPoolExecutor
 import bitstring
 import pytest
 
+from stixcore.data.test import test_data
 from stixcore.idb.manager import IDBManager
 from stixcore.processing.decompression import CompressedParameter, decompress
 from stixcore.processing.engineering import EngineeringParameter, raw_to_engineering
@@ -27,18 +28,17 @@ from stixcore.tmtc.tm import tm_1, tm_3, tm_5, tm_6, tm_17, tm_21, tm_236, tm_23
 
 @pytest.fixture
 def idbm():
-    return IDBManager(Path(__file__).parent.parent.parent / "idb" / "tests" / "data")
+    return IDBManager(test_data.idb.DIR)
 
 
 @pytest.fixture
 def idb():
-    return IDBManager(Path(__file__).parent.parent.parent / "idb" / "tests" / "data")\
-        .get_idb("2.26.34")
+    return IDBManager(test_data.idb.DIR).get_idb("2.26.34")
 
 
 @pytest.fixture()
 def data_dir():
-    return Path(__file__).parent / 'data'
+    return test_data.tmtc.TM_DIR
 
 
 def _get_bin_from_file(data_dir, filename):

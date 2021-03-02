@@ -9,7 +9,8 @@ from stixcore.products.product import Product
 
 
 def test_ql_lb():
-    lb_fits = Path(__file__).parent / 'data' / 'solo_LB_stix-21-6-30_0664156800_V01.fits'
+    lb_fits = Path(__file__).parent.parent.parent / 'data' / 'test' /\
+              'products' / 'solo_LB_stix-21-6-30_0664156800_V01.fits'
     lb_prod = Product(lb_fits)
     assert isinstance(lb_prod, LevelB)
     assert lb_prod.level == 'LB'
@@ -21,7 +22,8 @@ def test_ql_lb():
 
 
 def test_ql_l0():
-    l0_fits = Path(__file__).parent / 'data' / 'solo_L0_stix-ql-LightCurve_0664070400_V01.fits'
+    l0_fits = Path(__file__).parent.parent.parent / 'data' / 'test' /\
+              'products' / 'solo_L0_stix-ql-LightCurve_0664070400_V01.fits'
     l0_prod = Product(l0_fits)
     assert isinstance(l0_prod, LCL0)
     assert l0_prod.level == 'L0'
@@ -33,7 +35,8 @@ def test_ql_l0():
 
 
 def test_ql_l1():
-    l1_fits = Path(__file__).parent / 'data' / 'solo_L1_stix-ql-LightCurve_20210117_V01.fits'
+    l1_fits = Path(__file__).parent.parent.parent / 'data' / 'test' /\
+              'products' / 'solo_L1_stix-ql-LightCurve_20210117_V01.fits'
     l1_prod = Product(l1_fits)
     assert isinstance(l1_prod, LCL1)
     assert l1_prod.level == 'L1'

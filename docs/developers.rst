@@ -14,6 +14,12 @@ Working of your own forked version of the repository is the preferred approach. 
 repository visit the repository page at https://github.com/i4Ds/STIXCore (make sure you are logged
 into github) and click on the fork button at the to right of the page.
 
+Enable git Large File Support (lsf) for your user account if not done already.
+
+.. code:: bash
+
+    git lfs install
+
 Clone your forked version of the
 
 .. code:: bash

@@ -1,8 +1,8 @@
-from pathlib import Path
 
 import bitstring
 import pytest
 
+from stixcore.data.test import test_data
 from stixcore.idb.manager import IDBManager
 from stixcore.tmtc.packets import (
     SOURCE_PACKET_HEADER_STRUCTURE,
@@ -18,8 +18,7 @@ from stixcore.tmtc.tm.tm_1 import TM_1_1
 
 @pytest.fixture
 def idb():
-    return IDBManager(Path(__file__).parent.parent.parent / "data" / "test" / "idb") \
-        .get_idb("2.26.34")
+    return IDBManager(test_data.idb.DIR).get_idb("2.26.34")
 
 
 @pytest.mark.parametrize('class_header', [(SourcePacketHeader, SOURCE_PACKET_HEADER_STRUCTURE),

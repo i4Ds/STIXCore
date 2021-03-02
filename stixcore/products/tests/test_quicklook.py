@@ -1,13 +1,13 @@
 import re
 from unittest.mock import patch
 
-from stixcore.data.test import TEST_DATA_FILES
+from stixcore.data.test import test_data
 from stixcore.products.level0.quicklook import LightCurve
 
 
 @patch('stixcore.products.levelb.binary.LevelB')
 def test_lightcurve(levelb):
-    hex_file = TEST_DATA_FILES['tmtc']['tm']['21_6_30.hex']
+    hex_file = test_data.tmtc.TM_21_6_30
     with hex_file.open('r') as file:
         hex = file.read()
 

@@ -2,7 +2,7 @@ from datetime import datetime, timezone
 
 import pytest
 
-from stixcore.data.test import test_dir
+from stixcore.data.test import test_data
 from stixcore.ephemeris.manager import Time
 
 T0_UTC_ISO = '2000-01-01T00:00:00.000+00:00'
@@ -12,7 +12,7 @@ T0_DATETIME = datetime(2000, 1, 1, 0, 0, 0, 0, tzinfo=timezone.utc)
 
 @pytest.fixture
 def spicemanager():
-    return Time(meta_kernel_path=test_dir / 'ephemeris' / 'test_time_20201001_V01.mk')
+    return Time(meta_kernel_path=test_data.ephemeris.META_KERNEL)
 
 
 def test_spicemanager(spicemanager):

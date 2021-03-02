@@ -4,14 +4,14 @@ from pathlib import Path
 
 import pytest
 
+from stixcore.data.test import test_data
 from stixcore.datetime.datetime import DateTime as StixDateTime
 from stixcore.idb.manager import IDBManager
 
 
 @pytest.fixture
 def idb_manager():
-    return IDBManager(Path(__file__).parent.parent.
-                      parent / "data" / "test" / "idb")
+    return IDBManager(test_data.idb.DIR)
 
 
 def teardown_function():

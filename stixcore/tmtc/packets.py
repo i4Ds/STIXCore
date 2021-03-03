@@ -1,10 +1,10 @@
 from enum import Enum
 
+import stixcore.processing.decompression as decompression
+import stixcore.processing.engineering as engineering
 from stixcore.datetime.datetime import DateTime
 from stixcore.idb.idb import IDB
 from stixcore.idb.manager import IDBManager
-from stixcore.processing.decompression import CompressedParameter
-from stixcore.processing.engineering import EngineeringParameter
 from stixcore.tmtc.parser import Parameter, parse_binary, parse_bitstream, parse_variable
 
 __all__ = ['TMTC', 'SourcePacketHeader', 'TMDataHeader', 'TCDataHeader', 'GenericPacket',
@@ -581,15 +581,16 @@ class PacketSequence:
         except KeyError:
             logger.debug('Key %s not found', name)
 
-    def get_value(self, name):
-        if isinstance(self.data[0].__getattribute__(name), EngineeringParameter):
-            attr = 'engineering'
-        elif isinstance(self.data[0].__getattribute__(name), CompressedParameter):
-            attr = 'decompressed'
-        elif isinstance(self.data[0].__getattribute__(name), Parameter):
-            attr = 'value'
-        else:
-            return [data.__getattribute__(name) for data in self.data]
+    def get_value(self, name, attr=None):
+        if attr is None:
+            if isinstance(self.data[0].__getattribute__(name), engineering.EngineeringParameter):
+                attr = 'engineering'
+            elif isinstance(self.data[0].__getattribute__(name), decompression.CompressedParameter):
+                attr = 'decompressed'
+            elif isinstance(self.data[0].__getattribute__(name), Parameter):
+                attr = 'value'
+            else:
+                return [data.__getattribute__(name) for data in self.data]
 
         res = []
         for d in self.data:

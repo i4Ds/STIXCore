@@ -1,4 +1,5 @@
 from pathlib import Path
+from binascii import unhexlify
 from itertools import chain
 
 import numpy as np
@@ -13,11 +14,14 @@ from astropy.io import fits
 from astropy.table.table import QTable
 from astropy.time import Time
 
+import stixcore.processing.decompression as decompression
+import stixcore.processing.engineering as engineering
 from stixcore.datetime.datetime import DateTime
+from stixcore.products.common import _get_compression_scheme
+from stixcore.tmtc.packet_factory import Packet
+from stixcore.tmtc.packets import PacketSequence
 
 __all__ = ['BaseProduct', 'ProductFactory', 'Product', 'ControlSci', 'Control']
-
-from stixcore.products.common import _get_compression_scheme
 
 
 class BaseProduct:
@@ -37,6 +41,18 @@ class BaseProduct:
         super().__init_subclass__(**kwargs)
         if hasattr(cls, 'is_datasource_for'):
             cls._registry[cls] = cls.is_datasource_for
+
+    @classmethod
+    def from_levelb(cls, levelb):
+
+        packets = [Packet(unhexlify(d)) for d in levelb.data['data']]
+
+        for packet in packets:
+            decompression.decompress(packet)
+            engineering.raw_to_engineering(packet)
+
+        packets = PacketSequence(packets)
+        return packets
 
 
 class ProductFactory(BasicRegistrationFactory):
@@ -195,10 +211,14 @@ class ControlSci(QTable):
         control['tc_packet_id_ref'] = np.array(packets.get_value('NIX00001'), np.int32)
         control['tc_packet_seq_control'] = np.array(packets.get_value('NIX00002'), np.int32)
         control['request_id'] = np.array(packets.get_value('NIX00037'), np.uint32)
-        control['compression_scheme_counts_skm'] = _get_compression_scheme(packets, 'NIXD0007',
-                                                                           'NIXD0008', 'NIXD0009')
-        control['compression_scheme_triggers_skm'] = _get_compression_scheme(packets, 'NIXD0010',
-                                                                             'NIXD0011', 'NIXD0012')
+        control['compression_scheme_counts_skm'], \
+            control['compression_scheme_counts_skm'].meta = \
+            _get_compression_scheme(packets, 'NIX00260')
+
+        control['compression_scheme_triggers_skm'], \
+            control['compression_scheme_triggers_skm'].meta = \
+            _get_compression_scheme(packets, 'NIX00242')
+
         control['time_stamp'] = np.array(packets.get_value('NIX00402'))
 
         # control['num_structures'] = np.array(packets.get('NIX00403'), np.int32)

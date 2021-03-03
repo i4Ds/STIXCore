@@ -1,12 +1,10 @@
 from pathlib import Path
-from binascii import unhexlify
 
 import numpy as np
 
 import astropy.units as u
 from astropy.table.operations import unique, vstack
 
-from stixcore.calibration.compression import decompress
 from stixcore.config.reader import read_energy_channels
 from stixcore.datetime.datetime import DateTime
 from stixcore.products.common import (
@@ -16,13 +14,11 @@ from stixcore.products.common import (
     rebin_proportional,
 )
 from stixcore.products.product import BaseProduct, ControlSci, Data
-from stixcore.tmtc.packet_factory import Packet
-from stixcore.tmtc.packets import PacketSequence
 
 ENERGY_CHANNELS = read_energy_channels(Path(__file__).parent.parent.parent / "config" / "data" /
                                        "common" / "detector" / "ScienceEnergyChannels_1000.csv")
 
-__all__ = ['ScienceProduct', 'XrayL0']
+__all__ = ['ScienceProduct', 'CompressedPixelData', 'SummedPixelData']
 
 
 class ScienceProduct(BaseProduct):
@@ -88,17 +84,16 @@ class ScienceProduct(BaseProduct):
                              ssid=self.ssid, control=control, data=data)
 
 
-class XrayL0(ScienceProduct):
+class CompressedPixelData(ScienceProduct):
     def __init__(self, *, service_type, service_subtype, ssid, control, data, **kwargs):
         super().__init__(service_type=service_type, service_subtype=service_subtype,
                          ssid=ssid, control=control, data=data, **kwargs)
-        self.name = 'xray-l1'
+        self.name = 'xray-cpd'
         self.level = 'L1'
 
     @classmethod
     def from_levelb(cls, levelb):
-        packets = [Packet(unhexlify(d)) for d in levelb.data['data']]
-        packets = PacketSequence(packets)
+        packets = BaseProduct.from_levelb(levelb)
 
         service_type = packets.get('service_type')[0]
         service_subtype = packets.get('service_subtype')[0]
@@ -115,10 +110,11 @@ class XrayL0(ScienceProduct):
         control['index'] = 0
 
         data = Data()
+        # TODO remove after solved https://github.com/i4Ds/STIXCore/issues/59
         data['delta_time'] = (np.array(packets.get_value('NIX00441'), np.int32)) * 0.1 * u.s
         unique_times = np.unique(data['delta_time'])
 
-        data['rcr'] = np.array(packets.get_value('NIX00401'), np.ubyte)
+        data['rcr'] = np.array(packets.get_value('NIX00401', attr='value'), np.ubyte)
         data['num_pixel_sets'] = np.atleast_1d(_get_unique(packets, 'NIX00442', np.byte))
         pixel_masks = _get_pixel_mask(packets, 'NIXD0407')
         pixel_masks = pixel_masks.reshape(-1, data['num_pixel_sets'][0], 12)
@@ -128,13 +124,14 @@ class XrayL0(ScienceProduct):
         data['detector_masks'] = _get_detector_mask(packets)
         data['integration_time'] = (np.array(1, np.uint16)) * 0.1 * u.s
 
-        # TODO change once FSW fixed
-        ts, tk, tm = control['compression_scheme_counts_skm'][0]
-        triggers, triggers_var = decompress(
-            [packets.get_value(f'NIX00{i}') for i in range(242, 258)], s=ts, k=tk, m=tm,
-            return_variance=True)
+        triggers = []
+        triggers_var = []
+        for i in range(242, 258):
+            nix = f'NIX00{i}'
+            triggers.extend(packets.get_value(nix))
+            triggers_var.extend(packets.get_value(nix, attr='error'))
 
-        data['triggers'] = triggers.T
+        data['triggers'] = np.array(triggers).T
         data['triggers_err'] = np.sqrt(triggers_var).T
         data['num_energy_groups'] = np.array(packets.get_value('NIX00258'), np.ubyte)
 
@@ -145,11 +142,8 @@ class XrayL0(ScienceProduct):
         unique_energies_low = np.unique(tmp['e_low'])
         unique_energies_high = np.unique(tmp['e_high'])
 
-        # counts = np.array(eng_packets['NIX00260'], np.uint32)
-
-        cs, ck, cm = control['compression_scheme_counts_skm'][0]
-        counts, counts_var = decompress(packets.get_value('NIX00260'), s=cs, k=ck, m=cm,
-                                        return_variance=True)
+        counts = np.array(packets.get_value('NIX00260'))
+        counts_var = np.array(packets.get_value('NIX00260', attr='error'))
 
         counts = counts.reshape(unique_times.size, unique_energies_low.size,
                                 data['detector_masks'][0].sum(), data['num_pixel_sets'][0].sum())
@@ -271,3 +265,18 @@ class XrayL0(ScienceProduct):
     def is_datasource_for(cls, *, service_type, service_subtype, ssid, **kwargs):
         return (kwargs['level'] == 'L0' and service_type == 21
                 and service_subtype == 6 and ssid == 21)
+
+
+class SummedPixelData(CompressedPixelData):
+    """
+    X-ray Compression Level 2 data
+    """
+    def __init__(self, control, data):
+        super().__init__(control=control, data=data)
+        self.name = 'xray-spd'
+        self.level = 'L1'
+
+    @classmethod
+    def is_datasource_for(cls, *, service_type, service_subtype, ssid, **kwargs):
+        return (kwargs['level'] == 'L0' and service_type == 21
+                and service_subtype == 6 and ssid == 22)

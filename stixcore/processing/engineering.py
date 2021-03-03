@@ -37,11 +37,11 @@ class EngineeringParameter(Parameter):
         self.unit = unit
 
     def __repr__(self):
-        return f'{self.__class__.__name__}(raw={self.value}, engineering={self.engineering}, ' + \
+        return f'{self.__class__.__name__}(value={self.value}, engineering={self.engineering}, ' + \
                f'unit={self.unit})'
 
     def __str__(self):
-        return f'{self.__class__.__name__}(raw: len({len(self.value)}), engineering: ' + \
+        return f'{self.__class__.__name__}(value: len({len(self.value)}), engineering: ' + \
                f'len({len(self.engineering)}), unit={self.unit})'
 
 

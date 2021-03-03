@@ -1,15 +1,12 @@
 """
 High level STIX data products created from single stand alone packets or a sequence of packets.
 """
-from binascii import unhexlify
 
 import numpy as np
 
 import astropy.units as u
 from astropy.table import unique, vstack
 
-import stixcore.processing.decompression as decompression
-import stixcore.processing.engineering as engineering
 from stixcore.datetime.datetime import DateTime
 from stixcore.products.common import (
     _get_compression_scheme,
@@ -19,8 +16,6 @@ from stixcore.products.common import (
     _get_pixel_mask,
 )
 from stixcore.products.product import BaseProduct, Control, Data
-from stixcore.tmtc.packet_factory import Packet
-from stixcore.tmtc.packets import PacketSequence
 from stixcore.util.logging import get_logger
 
 __all__ = ['QLProduct', 'LightCurve']
@@ -53,18 +48,6 @@ class QLProduct(BaseProduct):
         self.obs_end = DateTime.from_float(self.data['time'][-1]
                                            + self.control['integration_time'][-1] / 2)
         self.obs_avg = self.obs_beg + (self.obs_end - self.obs_beg) / 2
-
-    @classmethod
-    def from_levelb(cls, levelb):
-
-        packets = [Packet(unhexlify(d)) for d in levelb.data['data']]
-
-        for packet in packets:
-            decompression.decompress(packet)
-            engineering.raw_to_engineering(packet)
-
-        packets = PacketSequence(packets)
-        return packets
 
     def __add__(self, other):
         """
@@ -138,7 +121,7 @@ class LightCurve(QLProduct):
     @classmethod
     def from_levelb(cls, levelb):
 
-        packets = QLProduct.from_levelb(levelb)
+        packets = BaseProduct.from_levelb(levelb)
 
         service_type = packets.get('service_type')[0]
         service_subtype = packets.get('service_subtype')[0]

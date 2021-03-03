@@ -16,7 +16,7 @@ ENERGY_CHANNELS = read_energy_channels(Path(__file__).parent.parent / "config" /
                                        "common" / "detector" / "ScienceEnergyChannels_1000.csv")
 
 
-def _get_compression_scheme(packets, nix1, nix2, nix3):
+def _get_compression_scheme(packets, nix):
     """
     Get the compression scheme parameters.
 
@@ -36,10 +36,13 @@ def _get_compression_scheme(packets, nix1, nix2, nix3):
     np.ndarray
         S,K,M compression scheme parameters
     """
-    comp_counts = np.array((packets.get_value(nix1), packets.get_value(nix2),
-                            packets.get_value(nix3)), np.ubyte).T
 
-    return comp_counts
+    param = packets.get(nix)
+    skm = param[0].skm
+    values = np.array((packets.get_value(skm[0].name), packets.get_value(skm[1].name),
+                       packets.get_value(skm[2].name)), np.ubyte).T
+
+    return values, {'NIXS': [skm[0].name, skm[1].name, skm[2].name]}
 
 
 def _get_energy_bins(packets, nixlower, nixuppper):

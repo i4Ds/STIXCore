@@ -8,6 +8,8 @@ import numpy as np
 import astropy.units as u
 from astropy.table import unique, vstack
 
+import stixcore.processing.decompression as decompression
+import stixcore.processing.engineering as engineering
 from stixcore.datetime.datetime import DateTime
 from stixcore.products.common import (
     _get_compression_scheme,
@@ -51,6 +53,18 @@ class QLProduct(BaseProduct):
         self.obs_end = DateTime.from_float(self.data['time'][-1]
                                            + self.control['integration_time'][-1] / 2)
         self.obs_avg = self.obs_beg + (self.obs_end - self.obs_beg) / 2
+
+    @classmethod
+    def from_levelb(cls, levelb):
+
+        packets = [Packet(unhexlify(d)) for d in levelb.data['data']]
+
+        for packet in packets:
+            decompression.decompress(packet)
+            engineering.raw_to_engineering(packet)
+
+        packets = PacketSequence(packets)
+        return packets
 
     def __add__(self, other):
         """
@@ -124,8 +138,7 @@ class LightCurve(QLProduct):
     @classmethod
     def from_levelb(cls, levelb):
 
-        packets = [Packet(unhexlify(d)) for d in levelb.data['data']]
-        packets = PacketSequence(packets)
+        packets = QLProduct.from_levelb(levelb)
 
         service_type = packets.get('service_type')[0]
         service_subtype = packets.get('service_subtype')[0]
@@ -139,14 +152,7 @@ class LightCurve(QLProduct):
         control['pixel_mask'].meta = {'NIXS': 'NIXD0407'}
         control['energy_bin_edge_mask'] = _get_energy_bins(packets, 'NIX00266', 'NIXD0107')
         control['energy_bin_edge_mask'].meta = {'NIXS': ['NIX00266', 'NIXD0107']}
-        control['compression_scheme_counts_skm'] = \
-            _get_compression_scheme(packets, 'NIXD0101', 'NIXD0102', 'NIXD0103')
-        control['compression_scheme_counts_skm'].meta = {'NIXS': ['NIXD0101', 'NIXD0102',
-                                                                  'NIXD0103']}
-        control['compression_scheme_triggers_skm'] = \
-            _get_compression_scheme(packets, 'NIXD0104', 'NIXD0105', 'NIXD0106')
-        control['compression_scheme_triggers_skm'].meta = {'NIXS': ['NIXD0104', 'NIXD0105',
-                                                                    'NIXD0106']}
+
         control['num_energies'] = _get_num_energies(packets)
         control['num_energies'].meta = {'NIXS': 'NIX00270'}
         control['num_samples'] = np.array(packets.get_value('NIX00271')).flatten()[
@@ -158,30 +164,16 @@ class LightCurve(QLProduct):
         control_indices = np.hstack([np.full(ns, cind) for ns, cind in
                                      control[['num_samples', 'index']]])
 
-        # cs, ck, cm = control['compression_scheme_counts_skm'][0]
+        control['compression_scheme_counts_skm'], control['compression_scheme_counts_skm'].meta =\
+            _get_compression_scheme(packets, 'NIX00272')
         counts = np.array(packets.get_value('NIX00272')).reshape(control['num_energies'][0],
                                                                  control['num_samples'][0])
-        # counts, counts_var = decompress(counts, s=cs, k=ck, m=cm, return_variance=True)
 
-        # ts, tk, tm = control['compression_scheme_triggers_skm'][0]
+        control['compression_scheme_triggers_skm'], \
+            control['compression_scheme_triggers_skm'].meta = \
+            _get_compression_scheme(packets, 'NIX00274')
+
         triggers = np.hstack(packets.get_value('NIX00274'))
-        # triggers, triggers_var = decompress(triggers, s=ts, k=tk, m=tm, return_variance=True)
-        # this may no longer be needed
-        # flat_indices = np.hstack((0, np.cumsum([*control['num_samples']]) *
-        #                           control['num_energies'])).astype(int)
-
-        # counts_reformed = np.hstack(c for c in counts).T
-        # counts_var_reformed = np.hstack(c for c in counts_var).T
-        # counts_reformed = [
-        #     np.array(counts[flat_indices[i]:flat_indices[i + 1]]).reshape(n_eng, n_sam)
-        #     for i, (n_sam, n_eng) in enumerate(control[['num_samples', 'num_energies']])]
-
-        # counts_var_reformed = [
-        #     np.array(counts_var[flat_indices[i]:flat_indices[i + 1]]).reshape(n_eng, n_sam)
-        #     for i, (n_sam, n_eng) in enumerate(control[['num_samples', 'num_energies']])]
-
-        # counts = np.hstack(counts_reformed).T
-        # counts_var = np.hstack(counts_var_reformed).T
 
         data = Data()
         data['control_index'] = control_indices

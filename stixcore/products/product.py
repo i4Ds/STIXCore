@@ -147,7 +147,8 @@ class Control(QTable):
 
         integration_time = packets.get_value('NIX00405')
         if integration_time:
-            control['integration_time'] = (np.array(integration_time, np.float) + 1) * 0.1 * u.s
+            # TODO remove 0.1 after solved https://github.com/i4Ds/STIXCore/issues/59
+            control['integration_time'] = (np.array(integration_time, np.float) + 0.1) * u.s
         else:
             control['integration_time'] = np.zeros_like(control['scet_coarse'], np.float) * u.s
         control['integration_time'].meta = {'NIXS': 'NIX00405'}

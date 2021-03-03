@@ -29,8 +29,8 @@ class CompressedParameter(Parameter):
             The decompressed values.
         error : `int`|`list`
             The estimated error of the decompression.
-        skm : `tuple`
-            (s, k, m) settings for the decompression algorithm.
+        skm : `numpy.array`
+            [s, k, m] settings for the decompression algorithm.
         """
         super(CompressedParameter, self).__init__(name=name, value=value, idb_info=idb_info)
         self.decompressed = decompressed
@@ -53,7 +53,7 @@ def apply_decompress(raw, skm):
     ----------
     raw : `stixcore.tmtc.parser.Parameter`
         will be the old parameter value (input)
-    skm : `list[stixcore.tmtc.parser.Parameter]`
+    skmp : `list[stixcore.tmtc.parser.Parameter]`
         list of compression settings [s, k, m]
 
     Returns
@@ -90,5 +90,5 @@ def decompress(packet):
         skm = (sn if isinstance(sn, int) else packet.data.get(sn),  # option to configure exceptions
                kn if isinstance(kn, int) else packet.data.get(kn),
                mn if isinstance(mn, int) else packet.data.get(mn))
-        c += packet.data.apply(param_name, apply_decompress, skm)
+        c += packet.data.apply(param_name, apply_decompress,  skm)
     return c

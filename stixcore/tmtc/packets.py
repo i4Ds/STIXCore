@@ -582,12 +582,12 @@ class PacketSequence:
             logger.debug('Key %s not found', name)
 
     def get_value(self, name):
-        if isinstance(self.data[0].__getattribute__(name), Parameter):
-            attr = 'value'
-        elif isinstance(self.data[0].__getattribute__(name), EngineeringParameter):
+        if isinstance(self.data[0].__getattribute__(name), EngineeringParameter):
             attr = 'engineering'
         elif isinstance(self.data[0].__getattribute__(name), CompressedParameter):
             attr = 'decompressed'
+        elif isinstance(self.data[0].__getattribute__(name), Parameter):
+            attr = 'value'
         else:
             return [data.__getattribute__(name) for data in self.data]
 

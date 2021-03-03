@@ -110,16 +110,17 @@ class Transmission:
             base_comps.append(self.components['attenuator'])
 
         base = Compound(base_comps)
-        base_trans = base.transmission(energies[:-1] + 0.5 * np.diff(energies))
+        base_trans = base.transmission(energies)
 
         fine = Compound(base_comps + [self.components['grid_covers']])
-        fine_trans = fine.transmission(energies[:-1] + 0.5 * np.diff(energies))
+        fine_trans = fine.transmission(energies)
 
         # TODO need to move to configuration db
         fine_grids = np.array([11, 13, 18, 12, 19, 17]) - 1
         transmission = Table()
         # transmission['sci_channel'] = range(1, 31)
-        for i in range(33):
+        transmission['energies'] = energies
+        for i in range(32):
             name = f'det-{i}'
             if np.isin(i, fine_grids):
                 transmission[name] = fine_trans
@@ -203,3 +204,29 @@ class Transmission:
 
         material.mass_attenuation_coefficient.func = material_func
         return material
+
+
+def generate_transmission_tables():
+    from datetime import datetime
+    cur_date = datetime.now().strftime('%Y%m%d')
+    datetime.now().strftime('%Y%m%d')
+    trans = Transmission()
+
+    energies = np.linspace(2, 150, 1001) * u.keV
+
+    norm_sci_energies = trans.get_transmission()
+    norm_sci_energies.write(f'stix_transmission_sci_energies_{cur_date}.csv')
+    norm_high_res = trans.get_transmission(energies=energies)
+    norm_high_res.write(f'stix_transmission_highres_{cur_date}.csv')
+
+    comps = trans.get_transmission_by_component()
+
+    comps_sci_energies = Table([c.transmission(trans.energies) for c in comps.values()],
+                               names=[k for k in comps.keys()])
+    comps_sci_energies['energy'] = trans.energies
+    comps_sci_energies.write(f'stix_transmission_by_component_sci_energies_{cur_date}.csv')
+
+    comps_highres = Table([c.transmission(energies) for c in comps.values()],
+                          names=[k for k in comps.keys()])
+    comps_highres['energy'] = energies
+    comps_highres.write(f'stix_transmission_by_component_highres_{cur_date}.csv')

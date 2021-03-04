@@ -124,14 +124,11 @@ class CompressedPixelData(ScienceProduct):
         data['detector_masks'] = _get_detector_mask(packets)
         data['integration_time'] = (np.array(1, np.uint16)) * 0.1 * u.s
 
-        triggers = []
-        triggers_var = []
-        for i in range(242, 258):
-            nix = f'NIX00{i}'
-            triggers.extend(packets.get_value(nix))
-            triggers_var.extend(packets.get_value(nix, attr='error'))
+        triggers = np.array([packets.get_value(f'NIX00{i}') for i in range(242, 258)])
+        triggers_var = np.array([packets.get_value(f'NIX00{i}', attr='error')
+                                 for i in range(242, 258)])
 
-        data['triggers'] = np.array(triggers).T
+        data['triggers'] = triggers.T
         data['triggers_err'] = np.sqrt(triggers_var).T
         data['num_energy_groups'] = np.array(packets.get_value('NIX00258'), np.ubyte)
 

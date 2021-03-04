@@ -1,5 +1,7 @@
 from enum import Enum
 
+import numpy as np
+
 import stixcore.processing.decompression as decompression
 import stixcore.processing.engineering as engineering
 from stixcore.datetime.datetime import DateTime
@@ -599,4 +601,4 @@ class PacketSequence:
                 res.extend(p)
             else:
                 res.append(p)
-        return res
+        return np.hstack(res)

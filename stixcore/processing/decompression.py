@@ -1,49 +1,8 @@
 """Processing module for applying the skm decompression for configured parameters."""
 from stixcore.calibration.compression import decompress as algo_decompress
-from stixcore.tmtc.parser import Parameter
+from stixcore.tmtc.parameter import CompressedParameter
 
-__all__ = ['CompressedParameter', 'decompress']
-
-
-class CompressedParameter(Parameter):
-    """A class to combine the raw and decompressed values and settings of a parameter.
-
-    Attributes
-    ----------
-    decompressed : `int`|`list`
-        The decompressed values.
-    error : `int`|`list`
-        The estimated error of the decompression.
-    skm : `tuple`
-        (s, k, m) settings for the decompression algorithm.
-    """
-
-    def __init__(self, *, name, value, idb_info, decompressed, error, skm):
-        """Create a CompressedParameter object.
-
-        Parameters
-        ----------
-        value : `int`|`list`
-            The compressed values.
-        decompressed : `int`|`list`
-            The decompressed values.
-        error : `int`|`list`
-            The estimated error of the decompression.
-        skm : `numpy.array`
-            [s, k, m] settings for the decompression algorithm.
-        """
-        super(CompressedParameter, self).__init__(name=name, value=value, idb_info=idb_info)
-        self.decompressed = decompressed
-        self.skm = skm
-        self.error = error
-
-    def __repr__(self):
-        return f'{self.__class__.__name__}(raw={self.value}, decompressed={self.decompressed}, \
-        error={self.error}, skm={self.skm})'
-
-    def __str__(self):
-        return f'{self.__class__.__name__}(raw: len({len(self.value)}), decompressed: \
-        len({len(self.decompressed)}), error: len({len(self.error)}), skm={self.skm})'
+__all__ = ['decompress']
 
 
 def apply_decompress(raw, skm):

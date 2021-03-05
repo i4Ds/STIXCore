@@ -2,12 +2,11 @@ from enum import Enum
 
 import numpy as np
 
-import stixcore.processing.decompression as decompression
-import stixcore.processing.engineering as engineering
 from stixcore.datetime.datetime import DateTime
 from stixcore.idb.idb import IDB
 from stixcore.idb.manager import IDBManager
-from stixcore.tmtc.parser import Parameter, parse_binary, parse_bitstream, parse_variable
+from stixcore.tmtc.parameter import CompressedParameter, EngineeringParameter, Parameter
+from stixcore.tmtc.parser import parse_binary, parse_bitstream, parse_variable
 
 __all__ = ['TMTC', 'SourcePacketHeader', 'TMDataHeader', 'TCDataHeader', 'GenericPacket',
            'TMPacket', 'TCPacket', 'GenericTMPacket']
@@ -585,9 +584,9 @@ class PacketSequence:
 
     def get_value(self, name, attr=None):
         if attr is None:
-            if isinstance(self.data[0].__getattribute__(name), engineering.EngineeringParameter):
+            if isinstance(self.data[0].__getattribute__(name), EngineeringParameter):
                 attr = 'engineering'
-            elif isinstance(self.data[0].__getattribute__(name), decompression.CompressedParameter):
+            elif isinstance(self.data[0].__getattribute__(name), CompressedParameter):
                 attr = 'decompressed'
             elif isinstance(self.data[0].__getattribute__(name), Parameter):
                 attr = 'value'

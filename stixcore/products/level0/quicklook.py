@@ -151,12 +151,15 @@ class LightCurve(QLProduct):
             _get_compression_scheme(packets, 'NIX00272')
         counts = np.array(packets.get_value('NIX00272')).reshape(control['num_energies'][0],
                                                                  control['num_samples'][0])
+        counts_var = np.array(packets.get_value('NIX00272', attr="error")).\
+            reshape(control['num_energies'][0], control['num_samples'][0])
 
         control['compression_scheme_triggers_skm'], \
             control['compression_scheme_triggers_skm'].meta = \
             _get_compression_scheme(packets, 'NIX00274')
 
         triggers = np.hstack(packets.get_value('NIX00274'))
+        triggers_var = np.hstack(packets.get_value('NIX00274', attr="error"))
 
         data = Data()
         data['control_index'] = control_indices
@@ -164,12 +167,12 @@ class LightCurve(QLProduct):
         data['timedel'] = duration
         data['triggers'] = triggers
         data['triggers'].meta = {'NIXS': 'NIX00274'}
-        # data['triggers_err'] = np.sqrt(triggers_var)
+        data['triggers_err'] = np.sqrt(triggers_var)
         data['rcr'] = np.hstack(packets.get_value('NIX00276')).flatten()
         data['rcr'].meta = {'NIXS': 'NIX00276'}
         data['counts'] = counts.T
         data['counts'].meta = {'NIXS': 'NIX00272'}
-        # data['counts_err'] = np.sqrt(counts_var).T * u.ct
+        data['counts_err'] = np.sqrt(counts_var).T * u.ct
 
         return cls(service_type=service_type, service_subtype=service_subtype, ssid=ssid,
                    control=control, data=data)

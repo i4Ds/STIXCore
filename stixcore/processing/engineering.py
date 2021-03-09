@@ -1,48 +1,12 @@
 """Processing module for converting raw to engineering values."""
 import re
 
-from stixcore.tmtc.parser import Parameter
+from stixcore.tmtc.parameter import EngineeringParameter
 from stixcore.util.logging import get_logger
 
 __all__ = ['EngineeringParameter', 'raw_to_engineering']
 
 logger = get_logger(__name__)
-
-
-class EngineeringParameter(Parameter):
-    """A class to combine the raw and engineering values and settings of a parameter.
-
-    Attributes
-    ----------
-    value : `int`|`list`
-        The original or raw values before the calibration.
-    engineering : `int`|`list`
-        The Engineering values.
-    unit : `str`
-        The unit for the engineering values
-    """
-
-    def __init__(self, *, name, value, idb_info, engineering, unit):
-        """Create a EngineeringParameter object.
-
-        Parameters
-        ----------
-        value : `int`|`list`
-            The raw values.
-        engineering : `int`|`list`
-            The engineering values.
-        """
-        super(EngineeringParameter, self).__init__(name=name, value=value, idb_info=idb_info)
-        self.engineering = engineering
-        self.unit = unit
-
-    def __repr__(self):
-        return f'{self.__class__.__name__}(raw={self.value}, engineering={self.engineering}, ' + \
-               f'unit={self.unit})'
-
-    def __str__(self):
-        return f'{self.__class__.__name__}(raw: len({len(self.value)}), engineering: ' + \
-               f'len({len(self.engineering)}), unit={self.unit})'
 
 
 # TODO decide on raw as array input

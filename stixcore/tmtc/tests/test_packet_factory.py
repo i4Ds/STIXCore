@@ -9,8 +9,8 @@ import pytest
 
 from stixcore.data.test import test_data
 from stixcore.idb.manager import IDBManager
-from stixcore.processing.decompression import CompressedParameter, decompress
-from stixcore.processing.engineering import EngineeringParameter, raw_to_engineering
+from stixcore.processing.decompression import decompress
+from stixcore.processing.engineering import raw_to_engineering
 from stixcore.tmtc import Packet
 from stixcore.tmtc.packet_factory import (
     BaseFactory,
@@ -23,6 +23,7 @@ from stixcore.tmtc.packets import (
     TM_DATA_HEADER_STRUCTURE,
     GenericPacket,
 )
+from stixcore.tmtc.parameter import CompressedParameter, EngineeringParameter
 from stixcore.tmtc.tm import tm_1, tm_3, tm_5, tm_6, tm_17, tm_21, tm_236, tm_237, tm_238, tm_239
 
 

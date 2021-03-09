@@ -1,11 +1,12 @@
 from enum import Enum
 
+import numpy as np
+
 from stixcore.datetime.datetime import DateTime
 from stixcore.idb.idb import IDB
 from stixcore.idb.manager import IDBManager
-from stixcore.processing.decompression import CompressedParameter
-from stixcore.processing.engineering import EngineeringParameter
-from stixcore.tmtc.parser import Parameter, parse_binary, parse_bitstream, parse_variable
+from stixcore.tmtc.parameter import CompressedParameter, EngineeringParameter, Parameter
+from stixcore.tmtc.parser import parse_binary, parse_bitstream, parse_variable
 
 __all__ = ['TMTC', 'SourcePacketHeader', 'TMDataHeader', 'TCDataHeader', 'GenericPacket',
            'TMPacket', 'TCPacket', 'GenericTMPacket']
@@ -581,15 +582,16 @@ class PacketSequence:
         except KeyError:
             logger.debug('Key %s not found', name)
 
-    def get_value(self, name):
-        if isinstance(self.data[0].__getattribute__(name), Parameter):
-            attr = 'value'
-        elif isinstance(self.data[0].__getattribute__(name), EngineeringParameter):
-            attr = 'engineering'
-        elif isinstance(self.data[0].__getattribute__(name), CompressedParameter):
-            attr = 'decompressed'
-        else:
-            return [data.__getattribute__(name) for data in self.data]
+    def get_value(self, name, attr=None):
+        if attr is None:
+            if isinstance(self.data[0].__getattribute__(name), EngineeringParameter):
+                attr = 'engineering'
+            elif isinstance(self.data[0].__getattribute__(name), CompressedParameter):
+                attr = 'decompressed'
+            elif isinstance(self.data[0].__getattribute__(name), Parameter):
+                attr = 'value'
+            else:
+                return [data.__getattribute__(name) for data in self.data]
 
         res = []
         for d in self.data:
@@ -598,4 +600,4 @@ class PacketSequence:
                 res.extend(p)
             else:
                 res.append(p)
-        return res
+        return np.hstack(res)

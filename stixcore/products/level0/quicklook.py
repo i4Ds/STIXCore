@@ -1,7 +1,6 @@
 """
 High level STIX data products created from single stand alone packets or a sequence of packets.
 """
-from binascii import unhexlify
 
 import numpy as np
 
@@ -17,8 +16,6 @@ from stixcore.products.common import (
     _get_pixel_mask,
 )
 from stixcore.products.product import BaseProduct, Control, Data
-from stixcore.tmtc.packet_factory import Packet
-from stixcore.tmtc.packets import PacketSequence
 from stixcore.util.logging import get_logger
 
 __all__ = ['QLProduct', 'LightCurve']
@@ -124,8 +121,7 @@ class LightCurve(QLProduct):
     @classmethod
     def from_levelb(cls, levelb):
 
-        packets = [Packet(unhexlify(d)) for d in levelb.data['data']]
-        packets = PacketSequence(packets)
+        packets = BaseProduct.from_levelb(levelb)
 
         service_type = packets.get('service_type')[0]
         service_subtype = packets.get('service_subtype')[0]
@@ -139,14 +135,7 @@ class LightCurve(QLProduct):
         control['pixel_mask'].meta = {'NIXS': 'NIXD0407'}
         control['energy_bin_edge_mask'] = _get_energy_bins(packets, 'NIX00266', 'NIXD0107')
         control['energy_bin_edge_mask'].meta = {'NIXS': ['NIX00266', 'NIXD0107']}
-        control['compression_scheme_counts_skm'] = \
-            _get_compression_scheme(packets, 'NIXD0101', 'NIXD0102', 'NIXD0103')
-        control['compression_scheme_counts_skm'].meta = {'NIXS': ['NIXD0101', 'NIXD0102',
-                                                                  'NIXD0103']}
-        control['compression_scheme_triggers_skm'] = \
-            _get_compression_scheme(packets, 'NIXD0104', 'NIXD0105', 'NIXD0106')
-        control['compression_scheme_triggers_skm'].meta = {'NIXS': ['NIXD0104', 'NIXD0105',
-                                                                    'NIXD0106']}
+
         control['num_energies'] = _get_num_energies(packets)
         control['num_energies'].meta = {'NIXS': 'NIX00270'}
         control['num_samples'] = np.array(packets.get_value('NIX00271')).flatten()[
@@ -158,30 +147,19 @@ class LightCurve(QLProduct):
         control_indices = np.hstack([np.full(ns, cind) for ns, cind in
                                      control[['num_samples', 'index']]])
 
-        # cs, ck, cm = control['compression_scheme_counts_skm'][0]
+        control['compression_scheme_counts_skm'], control['compression_scheme_counts_skm'].meta =\
+            _get_compression_scheme(packets, 'NIX00272')
         counts = np.array(packets.get_value('NIX00272')).reshape(control['num_energies'][0],
                                                                  control['num_samples'][0])
-        # counts, counts_var = decompress(counts, s=cs, k=ck, m=cm, return_variance=True)
+        counts_var = np.array(packets.get_value('NIX00272', attr="error")).\
+            reshape(control['num_energies'][0], control['num_samples'][0])
 
-        # ts, tk, tm = control['compression_scheme_triggers_skm'][0]
+        control['compression_scheme_triggers_skm'], \
+            control['compression_scheme_triggers_skm'].meta = \
+            _get_compression_scheme(packets, 'NIX00274')
+
         triggers = np.hstack(packets.get_value('NIX00274'))
-        # triggers, triggers_var = decompress(triggers, s=ts, k=tk, m=tm, return_variance=True)
-        # this may no longer be needed
-        # flat_indices = np.hstack((0, np.cumsum([*control['num_samples']]) *
-        #                           control['num_energies'])).astype(int)
-
-        # counts_reformed = np.hstack(c for c in counts).T
-        # counts_var_reformed = np.hstack(c for c in counts_var).T
-        # counts_reformed = [
-        #     np.array(counts[flat_indices[i]:flat_indices[i + 1]]).reshape(n_eng, n_sam)
-        #     for i, (n_sam, n_eng) in enumerate(control[['num_samples', 'num_energies']])]
-
-        # counts_var_reformed = [
-        #     np.array(counts_var[flat_indices[i]:flat_indices[i + 1]]).reshape(n_eng, n_sam)
-        #     for i, (n_sam, n_eng) in enumerate(control[['num_samples', 'num_energies']])]
-
-        # counts = np.hstack(counts_reformed).T
-        # counts_var = np.hstack(counts_var_reformed).T
+        triggers_var = np.hstack(packets.get_value('NIX00274', attr="error"))
 
         data = Data()
         data['control_index'] = control_indices
@@ -189,12 +167,12 @@ class LightCurve(QLProduct):
         data['timedel'] = duration
         data['triggers'] = triggers
         data['triggers'].meta = {'NIXS': 'NIX00274'}
-        # data['triggers_err'] = np.sqrt(triggers_var)
+        data['triggers_err'] = np.sqrt(triggers_var)
         data['rcr'] = np.hstack(packets.get_value('NIX00276')).flatten()
         data['rcr'].meta = {'NIXS': 'NIX00276'}
         data['counts'] = counts.T
         data['counts'].meta = {'NIXS': 'NIX00272'}
-        # data['counts_err'] = np.sqrt(counts_var).T * u.ct
+        data['counts_err'] = np.sqrt(counts_var).T * u.ct
 
         return cls(service_type=service_type, service_subtype=service_subtype, ssid=ssid,
                    control=control, data=data)

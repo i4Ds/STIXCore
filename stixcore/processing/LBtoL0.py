@@ -8,51 +8,6 @@ from stixcore.util.logging import get_logger
 
 logger = get_logger(__name__)
 
-# def extract_sequences(packets):
-#     """
-#     Extract complete and incomplete sequences of packets.
-#
-#     Packets can be either stand-alone, first ,continuation or last when TM is downloaded maybe
-#     missing some packets so we we try to extract complete and incomplete sequences.
-#
-#     Parameters
-#     ----------
-#     packets : list
-#         List of packets
-#
-#     Returns
-#     -------
-#     list
-#         A list of packet packets
-#     """
-#     out = []
-#     i = 0
-#     cur_seq = None
-#     while i < len(packets):
-#         cur_packet = packets.pop(i)
-#         cur_flag = cur_packet.source_packet_header.sequence_flag
-#         if cur_flag == SequenceFlag.STANDALONE:
-#             out.append([cur_packet])
-#         elif cur_flag == SequenceFlag.FIRST:
-#             cur_seq = [cur_packet]
-#         if cur_flag == SequenceFlag.MIDDLE:
-#             if cur_seq:
-#                 cur_seq.append(cur_packet)
-#             else:
-#                 cur_seq = [cur_packet]
-#         if cur_flag == SequenceFlag.LAST:
-#             if cur_seq:
-#                 cur_seq.append(cur_packet)
-#                 out.append(cur_seq)
-#             else:
-#                 out.append([cur_packet])
-#             cur_seq = None
-#
-#     if cur_seq:
-#         out.append(cur_seq)
-#
-#     return out
-
 
 class Level0:
     """
@@ -95,7 +50,14 @@ class Level0:
                         service_subtype=cur_lb.service_subtype, ssid=cur_lb.ssid, data=None,
                         control=None)
 
-                    level0 = tmp.from_levelb(comp)
+                    # TODO need to carry better information for logging like index from oginianl
+                    # files and file names
+                    try:
+                        level0 = tmp.from_levelb(comp)
+                    except Exception as e:
+                        logger.error('%s', e)
+                        continue
+
                     self.processor.write_fits(level0)
 
             # if incomplete:
@@ -110,7 +72,7 @@ class Level0:
 if __name__ == '__main__':
     tstart = perf_counter()
 
-    fits_path = Path('/Users/shane/Projects/stix/dataview/data/asdfadsf/LB/21/6/21')
+    fits_path = Path('/Users/shane/Projects/stix/dataview/data/asdfadsf/LB/21/6/42')
     bd = Path('/Users/shane/Projects/STIX/dataview/data/asdfadsf')
 
     l0processor = Level0(fits_path, bd)

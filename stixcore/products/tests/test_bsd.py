@@ -4,12 +4,14 @@ from unittest.mock import patch
 import pytest
 
 from stixcore.data.test import test_data
-from stixcore.products.level0.science import CompressedPixelData
+from stixcore.products.level0.science import Aspect, CompressedPixelData
 
 testpackets = [(test_data.tmtc.TM_21_6_21, CompressedPixelData, 'xray-cpd',
                 '43180392185945:52223', '43180392185945:58367', 1),
                (test_data.tmtc.TM_21_6_21_complete, CompressedPixelData, 'xray-cpd',
-                '41961022488579:06655', '41961022488659:12799', 5)]
+                '41961022488579:06655', '41961022488659:12799', 5),
+               (test_data.tmtc.TM_21_6_42_complete, Aspect, 'burst-aspect',
+                '0645932472:05485', '0645933120:33750', 2105)]
 
 
 @patch('stixcore.products.levelb.binary.LevelB')

@@ -14,11 +14,14 @@ from stixcore.products.common import (
     rebin_proportional,
 )
 from stixcore.products.product import BaseProduct, ControlSci, Data
+from stixcore.util.logging import get_logger
+
+logger = get_logger(__name__)
 
 ENERGY_CHANNELS = read_energy_channels(Path(__file__).parent.parent.parent / "config" / "data" /
                                        "common" / "detector" / "ScienceEnergyChannels_1000.csv")
 
-__all__ = ['ScienceProduct', 'CompressedPixelData', 'SummedPixelData']
+__all__ = ['ScienceProduct', 'CompressedPixelData', 'SummedPixelData', 'Aspect']
 
 
 class ScienceProduct(BaseProduct):
@@ -277,3 +280,96 @@ class SummedPixelData(CompressedPixelData):
     def is_datasource_for(cls, *, service_type, service_subtype, ssid, **kwargs):
         return (kwargs['level'] == 'L0' and service_type == 21
                 and service_subtype == 6 and ssid == 22)
+
+
+class Visibility(ScienceProduct):
+    @classmethod
+    def is_datasource_for(cls, *, service_type, service_subtype, ssid, **kwargs):
+        return (kwargs['level'] == 'L0' and service_type == 21
+                and service_subtype == 6 and ssid == 23)
+
+
+class Spectrogram(ScienceProduct):
+    @classmethod
+    def is_datasource_for(cls, *, service_type, service_subtype, ssid, **kwargs):
+        return (kwargs['level'] == 'L0' and service_type == 21
+                and service_subtype == 6 and ssid == 24)
+
+
+class Aspect(ScienceProduct):
+    """
+    Aspect
+    """
+    def __init__(self, *, service_type, service_subtype, ssid, control, data, **kwargs):
+        super().__init__(service_type=service_type, service_subtype=service_subtype,
+                         ssid=ssid, control=control, data=data, **kwargs)
+        self.name = 'burst-aspect'
+        self.level = 'L1'
+
+    @classmethod
+    def from_levelb(cls, levelb):
+        packets = BaseProduct.from_levelb(levelb)
+
+        service_type = packets.get('service_type')[0]
+        service_subtype = packets.get('service_subtype')[0]
+        ssid = packets.get('pi1_val')[0]
+
+        control = ControlSci()
+        scet_coarse = packets.get_value('NIX00445')
+        scet_fine = packets.get_value('NIX00446')
+        start_times = [DateTime(c, f) for c, f in zip(scet_coarse, scet_fine)]
+
+        # TODO add cuase for older IDB
+        control['summing_value'] = packets.get_value('NIX00088')
+        control['averaging_value'] = packets.get_value('NIX00490')
+        control['index'] = range(len(control))
+
+        delta_time = ((control['summing_value'] * control['averaging_value']) / 1000.0)
+        samples = packets.get_value('NIX00089')
+
+        offsets = [delta_time[i] * 0.5 * np.arange(ns) * u.s for i, ns in enumerate(samples)]
+        time = np.hstack([start_times[i].as_float() + offsets[i] for i in range(len(offsets))])
+        timedel = np.hstack(offsets)
+
+        # Data
+        try:
+            data = Data()
+            data['time'] = time
+            data['timedel'] = timedel
+            data['cha_diode0'] = packets.get_value('NIX00090')
+            data['cha_diode1'] = packets.get_value('NIX00091')
+            data['chb_diode0'] = packets.get_value('NIX00092')
+            data['chb_diode1'] = packets.get_value('NIX00093')
+            data['control_index'] = np.hstack([np.full(ns, i) for i, ns in enumerate(samples)])
+        except ValueError as e:
+            logger.warning(e)
+            return None
+
+        return cls(service_type=service_type, service_subtype=service_subtype, ssid=ssid,
+                   control=control, data=data)
+
+    def to_days(self):
+        min_day = np.floor((self.data['time'] / (1 * u.day).to('s')).min())
+        max_day = np.ceil((self.data['time'] / (1 * u.day).to('s')).max())
+
+        days = np.arange(min_day, max_day) * u.day
+        date_ranges = [(day, day+1*u.day) for day in days]
+        for dstart, dend in date_ranges:
+            i = np.where((self.data['time'] >= dstart) &
+                         (self.data['time'] < dend))
+
+            # Implement slice on parent or add mixin
+            data = self.data[i]
+            control_indices = np.unique(data['control_index'])
+            control = self.control[np.isin(self.control['index'], control_indices)]
+            control_index_min = control_indices.min()
+
+            data['control_index'] = data['control_index'] - control_index_min
+            control['index'] = control['index'] - control_index_min
+            yield type(self)(service_type=self.service_type, service_subtype=self.service_subtype,
+                             ssid=self.ssid, control=control, data=data)
+
+    @classmethod
+    def is_datasource_for(cls, *, service_type, service_subtype, ssid, **kwargs):
+        return (kwargs['level'] == 'L0' and service_type == 21
+                and service_subtype == 6 and ssid == 42)

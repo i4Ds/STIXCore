@@ -22,7 +22,9 @@ logger = get_logger(__name__)
 ENERGY_CHANNELS = read_energy_channels(Path(__file__).parent.parent.parent / "config" / "data" /
                                        "common" / "detector" / "ScienceEnergyChannels_1000.csv")
 
+
 __all__ = ['ScienceProduct', 'CompressedPixelData', 'SummedPixelData', 'Spectrogram', 'Aspect']
+
 
 
 class ScienceProduct(BaseProduct):

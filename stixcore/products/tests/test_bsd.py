@@ -4,18 +4,26 @@ from unittest.mock import patch
 import pytest
 
 from stixcore.data.test import test_data
+<<<<<<< HEAD
 from stixcore.products.level0.science import Aspect, CompressedPixelData, Spectrogram, Visibility
+=======
+from stixcore.products.level0.science import CompressedPixelData, Spectrogram
+>>>>>>> 42dbd51 (Add spectrogram bsd)
 
 testpackets = [(test_data.tmtc.TM_21_6_21, CompressedPixelData, 'xray-cpd',
                 '43180392185945:52223', '43180392185945:58367', 1),
                (test_data.tmtc.TM_21_6_21_complete, CompressedPixelData, 'xray-cpd',
                 '41961022488579:06655', '41961022488659:12799', 5),
                (test_data.tmtc.TM_21_6_24, Spectrogram, 'xray-spectrogram',
+<<<<<<< HEAD
                 '43214571372558:38911', '43214571373473:32767', 54),
                (test_data.tmtc.TM_21_6_23_complete, Visibility, 'xray-visibility',
                 '42076627730432:06655', '42076627730448:33279', 5),
                (test_data.tmtc.TM_21_6_42_complete, Aspect, 'burst-aspect',
                 '0645932472:05485', '0645933120:33750', 2105)]
+=======
+                '43214571372558:38911', '43214571373473:32767', 54)]
+>>>>>>> 42dbd51 (Add spectrogram bsd)
 
 
 @patch('stixcore.products.levelb.binary.LevelB')

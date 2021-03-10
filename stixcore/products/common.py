@@ -24,17 +24,13 @@ def _get_compression_scheme(packets, nix):
     ----------
     packets : dict
         Packets
-    nix1 : str
-        Parameter name for S value
-    nix2 : str
-        Parameter name for K value
-    nix3 : str
-        Parameter name for M value
+    nix : `str`
+        The parameter to look up the compression shceme values for
 
     Returns
     -------
     np.ndarray
-        S,K,M compression scheme parameters
+        S,K,M compression scheme parameters and names
     """
 
     param = packets.get(nix)

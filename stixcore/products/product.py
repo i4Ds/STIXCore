@@ -214,11 +214,11 @@ class ControlSci(QTable):
         control['request_id'] = np.array(packets.get_value('NIX00037'), np.uint32)
         control['compression_scheme_counts_skm'], \
             control['compression_scheme_counts_skm'].meta = \
-            _get_compression_scheme(packets, 'NIX00260')
+            _get_compression_scheme(packets, ['NIXD0007', 'NIXD0008', 'NIXD0009'])
 
         control['compression_scheme_triggers_skm'], \
             control['compression_scheme_triggers_skm'].meta = \
-            _get_compression_scheme(packets, 'NIX00242')
+            _get_compression_scheme(packets, ['NIXD0010', 'NIXD0011', 'NIXD0012'])
 
         control['time_stamp'] = np.array(packets.get_value('NIX00402'))
 

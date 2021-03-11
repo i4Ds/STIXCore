@@ -21,7 +21,7 @@ from stixcore.products.common import _get_compression_scheme
 from stixcore.tmtc.packet_factory import Packet
 from stixcore.tmtc.packets import PacketSequence
 
-__all__ = ['BaseProduct', 'ProductFactory', 'Product', 'ControlSci', 'Control']
+__all__ = ['BaseProduct', 'ProductFactory', 'Product', 'ControlSci', 'Control', 'Data']
 
 
 class BaseProduct:

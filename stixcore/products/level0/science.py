@@ -269,7 +269,7 @@ class CompressedPixelData(ScienceProduct):
 
 class SummedPixelData(CompressedPixelData):
     """
-    X-ray Compression Level 2 data
+    X-ray Summed Pixels or compression Level 2 data
     """
     def __init__(self, *, service_type, service_subtype, ssid, control, data, **kwargs):
         super().__init__(service_type=service_type, service_subtype=service_subtype,
@@ -284,6 +284,111 @@ class SummedPixelData(CompressedPixelData):
 
 
 class Visibility(ScienceProduct):
+    """
+    X-ray Visibilities or compression Level 3 data
+    """
+    def __init__(self, *, service_type, service_subtype, ssid, control, data, **kwargs):
+        super().__init__(service_type=service_type, service_subtype=service_subtype,
+                         ssid=ssid, control=control, data=data, **kwargs)
+        self.name = 'xray-visibility'
+        self.level = 'L1'
+
+    @classmethod
+    def from_levelb(cls, levelb):
+        packets = BaseProduct.from_levelb(levelb)
+
+        service_type = packets.get('service_type')[0]
+        service_subtype = packets.get('service_subtype')[0]
+        ssid = packets.get('pi1_val')[0]
+
+        control = ControlSci.from_packets(packets)
+
+        # control.remove_column('num_structures')
+        control = unique(control)
+
+        if len(control) != 1:
+            raise ValueError('Creating a science product form packets from multiple products')
+
+        control['index'] = range(len(control))
+
+        data = Data()
+        data['control_index'] = np.full(len(packets.get_value('NIX00441')), 0)
+        data['delta_time'] = (np.array(packets.get_value('NIX00441'), np.uint16)) * 0.1 * u.s
+        unique_times = np.unique(data['delta_time'])
+
+        # time = np.array([])
+        # for dt in set(self.delta_time):
+        #     i, = np.where(self.delta_time == dt)
+        #     nt = sum(np.array(packets['NIX00258'])[i])
+        #     time = np.append(time, np.repeat(dt, nt))
+        # self.time = time
+
+        data['rcr'] = packets.get_value('NIX00401', attr='value')
+        data['pixel_mask1'] = _get_pixel_mask(packets, 'NIXD0407')
+        data['pixel_mask2'] = _get_pixel_mask(packets, 'NIXD0444')
+        data['pixel_mask3'] = _get_pixel_mask(packets, 'NIXD0445')
+        data['pixel_mask4'] = _get_pixel_mask(packets, 'NIXD0446')
+        data['pixel_mask5'] = _get_pixel_mask(packets, 'NIXD0447')
+        data['detector_masks'] = _get_detector_mask(packets)
+        data['integration_time'] = (np.array(packets.get_value('NIX00405'))) * 0.1 * u.s
+
+        triggers = []
+        triggers_var = []
+        for i in range(242, 258):
+            triggers.extend(packets.get_value(f'NIX00{i}'))
+            triggers_var.extend(packets.get_value(f'NIX00{i}', attr='error'))
+
+        data['triggers'] = np.array(triggers).reshape(-1, 16)
+        data['triggers_err'] = np.sqrt(triggers_var).reshape(-1, 16)
+
+        tids = np.searchsorted(data['delta_time'], unique_times)
+        data = data[tids]
+
+        sum(packets.get_value('NIX00258'))
+
+        # Data
+        vis = np.zeros((unique_times.size, 32, 32), dtype=complex)
+        vis_err = np.zeros((unique_times.size, 32, 32), dtype=complex)
+        e_low = np.array(packets.get_value('NIXD0016'))
+        e_high = np.array(packets.get_value('NIXD0017'))
+
+        # TODO create energy bin mask
+        control['energy_bin_mask'] = np.full((1, 32), False, np.ubyte)
+        all_energies = set(np.hstack([e_low, e_high]))
+        control['energy_bin_mask'][:, list(all_energies)] = True
+
+        data['flux'] = np.array(packets.get_value('NIX00261')).reshape(unique_times.size, -1)
+        num_detectors = packets.get_value('NIX00262')[0]
+        detector_id = np.array(packets.get_value('NIX00100')).reshape(unique_times.size, -1,
+                                                                      num_detectors)
+
+        # vis[:, detector_id[0], e_low.reshape(unique_times.size, -1)[0]] = (
+        #         np.array(packets['NIX00263']) + np.array(packets['NIX00264'])
+        #         * 1j).reshape(unique_times.size, num_detectors, -1)
+
+        real = packets.get_value('NIX00263')
+        real_var = packets.get_value('NIX00263', attr='error')
+        imaginary = packets.get_value('NIX00264')
+        imaginary_var = packets.get_value('NIX00264', attr='error')
+
+        mesh = np.ix_(np.arange(unique_times.size), detector_id[0][0],
+                      e_low.reshape(unique_times.size, -1)[0])
+        vis[mesh] = (real + imaginary * 1j).reshape(unique_times.size, num_detectors, -1)
+
+        # TODO this doesn't seem correct prob need combine in a better
+        vis_err[mesh] = (np.sqrt(real_var) + np.sqrt(imaginary_var) * 1j).reshape(unique_times.size,
+                                                                                  num_detectors, -1)
+
+        data['visibility'] = vis
+        data['visibility_err'] = vis_err
+
+        data['time'] = DateTime(int(control["time_stamp"][0]), 0).as_float()\
+            + data['delta_time'] + data['integration_time'] / 2
+        data['timedel'] = data['integration_time']
+
+        return cls(service_type=service_type, service_subtype=service_subtype, ssid=ssid,
+                   control=control, data=data)
+
     @classmethod
     def is_datasource_for(cls, *, service_type, service_subtype, ssid, **kwargs):
         return (kwargs['level'] == 'L0' and service_type == 21
@@ -292,8 +397,7 @@ class Visibility(ScienceProduct):
 
 class Spectrogram(ScienceProduct):
     """
-    X-ray Spectrogram or X-ray Level 2 data
-
+    X-ray Spectrogram or compression Level 2 data
     """
     def __init__(self, *, service_type, service_subtype, ssid, control, data, **kwargs):
         super().__init__(service_type=service_type, service_subtype=service_subtype,

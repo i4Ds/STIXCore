@@ -210,8 +210,9 @@ class LevelB(BaseProduct):
         packet_data = defaultdict(list)
         for binary in tmfile.get_packet_binaries():
             packet = TMPacket(binary)
-            if packet.key == (21, 6, 21):
-                packet_data[packet.key].append(packet)
+            # TODO remove
+            # if packet.key == (21, 6, 42):
+            packet_data[packet.key].append(packet)
 
         for prod_key, packets in packet_data.items():
             headers = []

@@ -208,6 +208,7 @@ class ControlSci(QTable):
         control = cls()
 
         # Control
+
         control['tc_packet_id_ref'] = np.array(packets.get_value('NIX00001'), np.int32)
         control['tc_packet_seq_control'] = np.array(packets.get_value('NIX00002'), np.int32)
         control['request_id'] = np.array(packets.get_value('NIX00037'), np.uint32)

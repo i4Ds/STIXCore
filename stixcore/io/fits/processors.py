@@ -270,7 +270,7 @@ class FitsL0Processor:
         if 'tc_packet_seq_control' in product.control.colnames and user_req != '':
             tc_control = f'_{product.control["tc_packet_seq_control"][0]}'
 
-        if product.type == 'ql':
+        if product.type == 'ql' or product.name == 'burst-aspect':
             date_range = f'{(product.obs_avg.coarse // (24 * 60 * 60) ) * 24 * 60 * 60:010d}'
         else:
             start_obs = str(product.obs_beg)

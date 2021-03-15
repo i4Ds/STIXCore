@@ -337,9 +337,13 @@ class Aspect(ScienceProduct):
             data['time'] = time
             data['timedel'] = timedel
             data['cha_diode0'] = packets.get_value('NIX00090')
+            data['cha_diode0'].meta = {'NIXS': 'NIX00090'}
             data['cha_diode1'] = packets.get_value('NIX00091')
+            data['cha_diode1'].meta = {'NIXS': 'NIX00091'}
             data['chb_diode0'] = packets.get_value('NIX00092')
+            data['chb_diode0'].meta = {'NIXS': 'NIX00092'}
             data['chb_diode1'] = packets.get_value('NIX00093')
+            data['chb_diode1'].meta = {'NIXS': 'NIX00093'}
             data['control_index'] = np.hstack([np.full(ns, i) for i, ns in enumerate(samples)])
         except ValueError as e:
             logger.warning(e)

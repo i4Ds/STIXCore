@@ -31,8 +31,10 @@ def test_transmission_get_transmission():
     trans = Transmission()
     res = trans.get_transmission()
     assert len(res.columns) == 33
-    assert len(res) == 30
-    assert np.allclose(res['det-0'][0], 0.00025103135564652447)
-    assert np.allclose(res['det-0'][-1], 0.9198644990189039)
-    assert np.allclose(res['det-10'][0], 9.04643725817307e-05)
-    assert np.allclose(res['det-10'][-1], 0.9160543835499365)
+    assert len(res) == 31
+    assert res['energies'][0] == 4.0
+    assert res['energies'][-1] == 150.0
+    assert np.allclose(res['det-0'][0], 1.8336015973227205e-05)
+    assert np.allclose(res['det-0'][-1], 0.9221062206036968)
+    assert np.allclose(res['det-10'][0], 4.272413967499508e-06)
+    assert np.allclose(res['det-10'][-1], 0.918403362796517)

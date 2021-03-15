@@ -1,13 +1,7 @@
 import bitstring
 import pytest
 
-from stixcore.tmtc.parser import (
-    PacketData,
-    Parameter,
-    parse_binary,
-    parse_repeated,
-    split_into_length,
-)
+from stixcore.tmtc.parser import Parameter, parse_binary, parse_repeated, split_into_length
 
 
 def test_parse_binary():
@@ -25,32 +19,36 @@ def test_parse_unpack_NIX00065():
     lb = 10
     comb = (hb << 8) + lb
 
-    NIXD0159 = Parameter(name='NIXD0159', value=0, idb_info='')
+    NIXD0159 = Parameter(name='NIXD0159', value=0, idb_info='',)
 
-    res = PacketData.unpack_NIX00065(NIXD0159)
-    assert res.name == 'NIX00065'
-    assert res.value == 1
+    res = NIXD0159.unpack_NIX00065()
+
+    assert res.name == 'NIXD0159'
+    assert res.value == 0
+    assert res.children[0].name == 'NIX00065'
+    assert res.children[0].value == 1
 
     NIXD0159.value = 1
     with pytest.raises(TypeError) as e:
-        res = PacketData.unpack_NIX00065(NIXD0159)
+        res = NIXD0159.unpack_NIX00065()
         assert e is not None
 
     NIX00065 = Parameter(name='NIX00065', value=lb, idb_info='')
     NIXD0159.children = [NIX00065]
-    res = PacketData.unpack_NIX00065(NIXD0159)
-    assert res.value == lb
+    res = NIXD0159.unpack_NIX00065()
+    assert res.children[0].value == lb
 
-    NIX00065 = Parameter(name='NIX00065', value=[[[hb], [lb]]], idb_info='')
-    NIXD0159.children = [NIX00065]
+    children = [Parameter(name='NIX00065', value=hb, idb_info=''),
+                Parameter(name='NIX00065', value=lb, idb_info='')]
+    NIXD0159.children = children
     NIXD0159.value = 2
 
-    res = PacketData.unpack_NIX00065(NIXD0159)
-    assert res.value == comb
+    res = NIXD0159.unpack_NIX00065()
+    assert res.children[0].value == comb
 
     NIXD0159.value = 3
     with pytest.raises(ValueError) as e:
-        PacketData.unpack_NIX00065(NIXD0159)
+        NIXD0159.unpack_NIX00065()
         assert e is not None
 
 

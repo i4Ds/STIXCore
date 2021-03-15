@@ -146,7 +146,7 @@ class LightCurve(QLProduct):
     def __init__(self, *, service_type, service_subtype, ssid, control, data, **kwargs):
         super().__init__(service_type=service_type, service_subtype=service_subtype, ssid=ssid,
                          control=control, data=data, **kwargs)
-        self.name = 'LightCurve'
+        self.name = 'ql-lightcurve'
         self.level = 'L1'
 
     def __repr__(self):

@@ -151,7 +151,7 @@ class LightCurve(QLProduct):
                                      control[['num_samples', 'index']]])
 
         control['compression_scheme_counts_skm'], control['compression_scheme_counts_skm'].meta =\
-            _get_compression_scheme(packets, 'NIX00272')
+            _get_compression_scheme(packets, ['NIXD0101', 'NIXD0102', 'NIXD0103'])
         counts = np.array(packets.get_value('NIX00272')).reshape(control['num_energies'][0],
                                                                  control['num_samples'][0])
         counts_var = np.array(packets.get_value('NIX00272', attr="error")).\
@@ -159,7 +159,7 @@ class LightCurve(QLProduct):
 
         control['compression_scheme_triggers_skm'], \
             control['compression_scheme_triggers_skm'].meta = \
-            _get_compression_scheme(packets, 'NIX00274')
+            _get_compression_scheme(packets, ['NIXD0104', 'NIXD0105', 'NIXD0104'])
 
         triggers = np.hstack(packets.get_value('NIX00274'))
         triggers_var = np.hstack(packets.get_value('NIX00274', attr="error"))

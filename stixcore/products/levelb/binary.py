@@ -157,6 +157,9 @@ class LevelB(BaseProduct):
         tuple
             LevelB products for the complete and incomplete sequences
         """
+        if self.service_type == 3 and self.service_subtype == 25 and self.ssid in {1, 2}:
+            return [self], []
+
         sequences = []
         flags = self.control['sequence_flag']
         cur_seq = None
@@ -211,8 +214,8 @@ class LevelB(BaseProduct):
         for binary in tmfile.get_packet_binaries():
             packet = TMPacket(binary)
             # TODO remove
-            # if packet.key == (21, 6, 42):
-            packet_data[packet.key].append(packet)
+            if packet.key == (3, 25, 2):
+                packet_data[packet.key].append(packet)
 
         for prod_key, packets in packet_data.items():
             headers = []

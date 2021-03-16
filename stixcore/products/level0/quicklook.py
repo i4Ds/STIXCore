@@ -92,8 +92,11 @@ class QLProduct(BaseProduct):
                f'>'
 
     def to_days(self):
-        days = range(int((self.obs_beg.as_float() / u.d).decompose().value),
-                     int((self.obs_end.as_float() / u.d).decompose().value))
+        start_day = int((self.obs_beg.as_float() / u.d).decompose().value)
+        end_day = int((self.obs_end.as_float() / u.d).decompose().value)
+        if start_day == end_day:
+            end_day += 1
+        days = range(start_day, end_day)
         # days = set([(t.year, t.month, t.day) for t in self.data['time'].to_datetime()])
         # date_ranges = [(datetime(*day), datetime(*day) + timedelta(days=1)) for day in days]
         for day in days:

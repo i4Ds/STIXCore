@@ -8,6 +8,7 @@ from astropy.table.operations import unique, vstack
 from stixcore.config.reader import read_energy_channels
 from stixcore.datetime.datetime import DateTime
 from stixcore.products.common import (
+    _get_compression_scheme,
     _get_detector_mask,
     _get_pixel_mask,
     _get_unique,
@@ -103,6 +104,14 @@ class CompressedPixelData(ScienceProduct):
         ssid = packets.get('pi1_val')[0]
 
         control = ControlSci.from_packets(packets)
+
+        control['compression_scheme_counts_skm'], \
+            control['compression_scheme_counts_skm'].meta = \
+            _get_compression_scheme(packets, 'NIX00260')
+
+        control['compression_scheme_triggers_skm'], \
+            control['compression_scheme_triggers_skm'].meta = \
+            _get_compression_scheme(packets, 'NIX00242')
 
         # control.remove_column('num_structures')
         control = unique(control)
@@ -303,7 +312,14 @@ class Visibility(ScienceProduct):
 
         control = ControlSci.from_packets(packets)
 
-        # control.remove_column('num_structures')
+        control['compression_scheme_counts_skm'], \
+            control['compression_scheme_counts_skm'].meta = \
+            _get_compression_scheme(packets, 'NIX00263')
+
+        control['compression_scheme_triggers_skm'], \
+            control['compression_scheme_triggers_skm'].meta = \
+            _get_compression_scheme(packets, 'NIX00242')
+
         control = unique(control)
 
         if len(control) != 1:
@@ -416,7 +432,14 @@ class Spectrogram(ScienceProduct):
 
         control = ControlSci.from_packets(packets)
 
-        # control.remove_column('num_structures')
+        control['compression_scheme_counts_skm'], \
+            control['compression_scheme_counts_skm'].meta = \
+            _get_compression_scheme(packets, 'NIX00268')
+
+        control['compression_scheme_triggers_skm'], \
+            control['compression_scheme_triggers_skm'].meta = \
+            _get_compression_scheme(packets, 'NIX00267')
+
         control = unique(control)
 
         if len(control) != 1:

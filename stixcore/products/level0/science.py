@@ -93,7 +93,7 @@ class CompressedPixelData(ScienceProduct):
         super().__init__(service_type=service_type, service_subtype=service_subtype,
                          ssid=ssid, control=control, data=data, **kwargs)
         self.name = 'xray-cpd'
-        self.level = 'L1'
+        self.level = 'L0'
 
     @classmethod
     def from_levelb(cls, levelb):
@@ -284,7 +284,7 @@ class SummedPixelData(CompressedPixelData):
         super().__init__(service_type=service_type, service_subtype=service_subtype,
                          ssid=ssid, control=control, data=data, **kwargs)
         self.name = 'xray-spd'
-        self.level = 'L1'
+        self.level = 'L0'
 
     @classmethod
     def is_datasource_for(cls, *, service_type, service_subtype, ssid, **kwargs):
@@ -300,7 +300,7 @@ class Visibility(ScienceProduct):
         super().__init__(service_type=service_type, service_subtype=service_subtype,
                          ssid=ssid, control=control, data=data, **kwargs)
         self.name = 'xray-visibility'
-        self.level = 'L1'
+        self.level = 'L0'
 
     @classmethod
     def from_levelb(cls, levelb):
@@ -429,7 +429,6 @@ class Spectrogram(ScienceProduct):
         service_subtype = packets.get('service_subtype')[0]
         ssid = packets.get('pi1_val')[0]
 
-
         control = ControlSci.from_packets(packets)
 
         control['compression_scheme_counts_skm'], \
@@ -544,11 +543,11 @@ class Spectrogram(ScienceProduct):
         return (kwargs['level'] == 'L0' and service_type == 21
                 and service_subtype == 6 and ssid == 24)
 
+
 class Aspect(ScienceProduct):
     """
     Aspect
     """
-
     def __init__(self, *, service_type, service_subtype, ssid, control, data, **kwargs):
         super().__init__(service_type=service_type, service_subtype=service_subtype,
                          ssid=ssid, control=control, data=data, **kwargs)

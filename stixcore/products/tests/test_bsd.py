@@ -4,7 +4,7 @@ from unittest.mock import patch
 import pytest
 
 from stixcore.data.test import test_data
-from stixcore.products.level0.science import CompressedPixelData, Spectrogram, Visibility, Aspect
+from stixcore.products.level0.science import Aspect, CompressedPixelData, Spectrogram, Visibility
 
 testpackets = [(test_data.tmtc.TM_21_6_21, CompressedPixelData, 'xray-cpd',
                 '43180392185945:52223', '43180392185945:58367', 1),
@@ -29,7 +29,7 @@ def test_xray(levelb, packets):
 
     xray_L0 = cl.from_levelb(levelb)
 
-    assert xray_L0.level == 'L1'
+    assert xray_L0.level == 'L0'
     assert xray_L0.name == name
     assert str(xray_L0.obs_beg) == beg
     assert str(xray_L0.obs_end) == end

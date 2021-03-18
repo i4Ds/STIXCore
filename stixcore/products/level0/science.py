@@ -26,6 +26,9 @@ __all__ = ['ScienceProduct', 'CompressedPixelData', 'SummedPixelData', 'Spectrog
 
 
 class ScienceProduct(BaseProduct):
+    """
+
+    """
     def __init__(self, *, service_type, service_subtype, ssid, control, data, **kwargs):
         self.service_type = service_type
         self.service_subtype = service_subtype

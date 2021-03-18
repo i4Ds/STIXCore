@@ -20,10 +20,11 @@ class Level0:
         self.processor = FitsL0Processor(output_dir)
 
     def process_fits_files(self):
-        cur_lb = Product(self.levelb_files[0])
-        cur_complete, cur_incomplete = cur_lb.extract_sequences()
+        for i, file in enumerate(self.levelb_files):
+            if i == 0:
+                cur_lb = Product(self.levelb_files[0])
+                cur_complete, cur_incomplete = cur_lb.extract_sequences()
 
-        for file in self.levelb_files[1:]:
             next_lb = Product(file)
             next_complete, next_incomplete = next_lb.extract_sequences()
 

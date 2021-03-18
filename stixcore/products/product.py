@@ -17,11 +17,10 @@ from astropy.time import Time
 import stixcore.processing.decompression as decompression
 import stixcore.processing.engineering as engineering
 from stixcore.datetime.datetime import DateTime
-from stixcore.products.common import _get_compression_scheme
 from stixcore.tmtc.packet_factory import Packet
 from stixcore.tmtc.packets import PacketSequence
 
-__all__ = ['BaseProduct', 'ProductFactory', 'Product', 'ControlSci', 'Control']
+__all__ = ['BaseProduct', 'ProductFactory', 'Product', 'ControlSci', 'Control', 'Data']
 
 
 class BaseProduct:
@@ -212,16 +211,7 @@ class ControlSci(QTable):
         control['tc_packet_id_ref'] = np.array(packets.get_value('NIX00001'), np.int32)
         control['tc_packet_seq_control'] = np.array(packets.get_value('NIX00002'), np.int32)
         control['request_id'] = np.array(packets.get_value('NIX00037'), np.uint32)
-        control['compression_scheme_counts_skm'], \
-            control['compression_scheme_counts_skm'].meta = \
-            _get_compression_scheme(packets, 'NIX00260')
-
-        control['compression_scheme_triggers_skm'], \
-            control['compression_scheme_triggers_skm'].meta = \
-            _get_compression_scheme(packets, 'NIX00242')
-
         control['time_stamp'] = np.array(packets.get_value('NIX00402'))
-
         # control['num_structures'] = np.array(packets.get('NIX00403'), np.int32)
 
         return control

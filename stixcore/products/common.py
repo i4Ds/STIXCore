@@ -39,8 +39,7 @@ def _get_compression_scheme(packets, nix):
 
     param = packets.get(nix)
     skm = param[0].skm
-    values = np.array((packets.get_value(skm[0].name), packets.get_value(skm[1].name),
-                       packets.get_value(skm[2].name)), np.ubyte).T
+    values = np.array((skm[0].value, skm[1].value, skm[2].value), np.ubyte).reshape(1, -1)
 
     return values, {'NIXS': [skm[0].name, skm[1].name, skm[2].name]}
 

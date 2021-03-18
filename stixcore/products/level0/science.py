@@ -8,6 +8,7 @@ from astropy.table.operations import unique, vstack
 from stixcore.config.reader import read_energy_channels
 from stixcore.datetime.datetime import DateTime
 from stixcore.products.common import (
+    _get_compression_scheme,
     _get_detector_mask,
     _get_pixel_mask,
     _get_unique,
@@ -21,7 +22,7 @@ logger = get_logger(__name__)
 ENERGY_CHANNELS = read_energy_channels(Path(__file__).parent.parent.parent / "config" / "data" /
                                        "common" / "detector" / "ScienceEnergyChannels_1000.csv")
 
-__all__ = ['ScienceProduct', 'CompressedPixelData', 'SummedPixelData', 'Aspect']
+__all__ = ['ScienceProduct', 'CompressedPixelData', 'SummedPixelData', 'Spectrogram', 'Aspect']
 
 
 class ScienceProduct(BaseProduct):
@@ -92,7 +93,7 @@ class CompressedPixelData(ScienceProduct):
         super().__init__(service_type=service_type, service_subtype=service_subtype,
                          ssid=ssid, control=control, data=data, **kwargs)
         self.name = 'xray-cpd'
-        self.level = 'L1'
+        self.level = 'L0'
 
     @classmethod
     def from_levelb(cls, levelb):
@@ -103,6 +104,14 @@ class CompressedPixelData(ScienceProduct):
         ssid = packets.get('pi1_val')[0]
 
         control = ControlSci.from_packets(packets)
+
+        control['compression_scheme_counts_skm'], \
+            control['compression_scheme_counts_skm'].meta = \
+            _get_compression_scheme(packets, 'NIX00260')
+
+        control['compression_scheme_triggers_skm'], \
+            control['compression_scheme_triggers_skm'].meta = \
+            _get_compression_scheme(packets, 'NIX00242')
 
         # control.remove_column('num_structures')
         control = unique(control)
@@ -269,12 +278,13 @@ class CompressedPixelData(ScienceProduct):
 
 class SummedPixelData(CompressedPixelData):
     """
-    X-ray Compression Level 2 data
+    X-ray Summed Pixels or compression Level 2 data
     """
-    def __init__(self, control, data):
-        super().__init__(control=control, data=data)
+    def __init__(self, *, service_type, service_subtype, ssid, control, data, **kwargs):
+        super().__init__(service_type=service_type, service_subtype=service_subtype,
+                         ssid=ssid, control=control, data=data, **kwargs)
         self.name = 'xray-spd'
-        self.level = 'L1'
+        self.level = 'L0'
 
     @classmethod
     def is_datasource_for(cls, *, service_type, service_subtype, ssid, **kwargs):
@@ -283,6 +293,118 @@ class SummedPixelData(CompressedPixelData):
 
 
 class Visibility(ScienceProduct):
+    """
+    X-ray Visibilities or compression Level 3 data
+    """
+    def __init__(self, *, service_type, service_subtype, ssid, control, data, **kwargs):
+        super().__init__(service_type=service_type, service_subtype=service_subtype,
+                         ssid=ssid, control=control, data=data, **kwargs)
+        self.name = 'xray-visibility'
+        self.level = 'L0'
+
+    @classmethod
+    def from_levelb(cls, levelb):
+        packets = BaseProduct.from_levelb(levelb)
+
+        service_type = packets.get('service_type')[0]
+        service_subtype = packets.get('service_subtype')[0]
+        ssid = packets.get('pi1_val')[0]
+
+        control = ControlSci.from_packets(packets)
+
+        control['compression_scheme_counts_skm'], \
+            control['compression_scheme_counts_skm'].meta = \
+            _get_compression_scheme(packets, 'NIX00263')
+
+        control['compression_scheme_triggers_skm'], \
+            control['compression_scheme_triggers_skm'].meta = \
+            _get_compression_scheme(packets, 'NIX00242')
+
+        control = unique(control)
+
+        if len(control) != 1:
+            raise ValueError('Creating a science product form packets from multiple products')
+
+        control['index'] = range(len(control))
+
+        data = Data()
+        data['control_index'] = np.full(len(packets.get_value('NIX00441')), 0)
+        data['delta_time'] = (np.array(packets.get_value('NIX00441'), np.uint16)) * 0.1 * u.s
+        unique_times = np.unique(data['delta_time'])
+
+        # time = np.array([])
+        # for dt in set(self.delta_time):
+        #     i, = np.where(self.delta_time == dt)
+        #     nt = sum(np.array(packets['NIX00258'])[i])
+        #     time = np.append(time, np.repeat(dt, nt))
+        # self.time = time
+
+        data['rcr'] = packets.get_value('NIX00401', attr='value')
+        data['pixel_mask1'] = _get_pixel_mask(packets, 'NIXD0407')
+        data['pixel_mask2'] = _get_pixel_mask(packets, 'NIXD0444')
+        data['pixel_mask3'] = _get_pixel_mask(packets, 'NIXD0445')
+        data['pixel_mask4'] = _get_pixel_mask(packets, 'NIXD0446')
+        data['pixel_mask5'] = _get_pixel_mask(packets, 'NIXD0447')
+        data['detector_masks'] = _get_detector_mask(packets)
+        data['integration_time'] = (np.array(packets.get_value('NIX00405'))) * 0.1 * u.s
+
+        triggers = []
+        triggers_var = []
+        for i in range(242, 258):
+            triggers.extend(packets.get_value(f'NIX00{i}'))
+            triggers_var.extend(packets.get_value(f'NIX00{i}', attr='error'))
+
+        data['triggers'] = np.array(triggers).reshape(-1, 16)
+        data['triggers_err'] = np.sqrt(triggers_var).reshape(-1, 16)
+
+        tids = np.searchsorted(data['delta_time'], unique_times)
+        data = data[tids]
+
+        sum(packets.get_value('NIX00258'))
+
+        # Data
+        vis = np.zeros((unique_times.size, 32, 32), dtype=complex)
+        vis_err = np.zeros((unique_times.size, 32, 32), dtype=complex)
+        e_low = np.array(packets.get_value('NIXD0016'))
+        e_high = np.array(packets.get_value('NIXD0017'))
+
+        # TODO create energy bin mask
+        control['energy_bin_mask'] = np.full((1, 32), False, np.ubyte)
+        all_energies = set(np.hstack([e_low, e_high]))
+        control['energy_bin_mask'][:, list(all_energies)] = True
+
+        data['flux'] = np.array(packets.get_value('NIX00261')).reshape(unique_times.size, -1)
+        num_detectors = packets.get_value('NIX00262')[0]
+        detector_id = np.array(packets.get_value('NIX00100')).reshape(unique_times.size, -1,
+                                                                      num_detectors)
+
+        # vis[:, detector_id[0], e_low.reshape(unique_times.size, -1)[0]] = (
+        #         np.array(packets['NIX00263']) + np.array(packets['NIX00264'])
+        #         * 1j).reshape(unique_times.size, num_detectors, -1)
+
+        real = packets.get_value('NIX00263')
+        real_var = packets.get_value('NIX00263', attr='error')
+        imaginary = packets.get_value('NIX00264')
+        imaginary_var = packets.get_value('NIX00264', attr='error')
+
+        mesh = np.ix_(np.arange(unique_times.size), detector_id[0][0],
+                      e_low.reshape(unique_times.size, -1)[0])
+        vis[mesh] = (real + imaginary * 1j).reshape(unique_times.size, num_detectors, -1)
+
+        # TODO this doesn't seem correct prob need combine in a better
+        vis_err[mesh] = (np.sqrt(real_var) + np.sqrt(imaginary_var) * 1j).reshape(unique_times.size,
+                                                                                  num_detectors, -1)
+
+        data['visibility'] = vis
+        data['visibility_err'] = vis_err
+
+        data['time'] = DateTime(int(control["time_stamp"][0]), 0).as_float()\
+            + data['delta_time'] + data['integration_time'] / 2
+        data['timedel'] = data['integration_time']
+
+        return cls(service_type=service_type, service_subtype=service_subtype, ssid=ssid,
+                   control=control, data=data)
+
     @classmethod
     def is_datasource_for(cls, *, service_type, service_subtype, ssid, **kwargs):
         return (kwargs['level'] == 'L0' and service_type == 21
@@ -290,6 +412,132 @@ class Visibility(ScienceProduct):
 
 
 class Spectrogram(ScienceProduct):
+    """
+    X-ray Spectrogram or compression Level 2 data
+    """
+    def __init__(self, *, service_type, service_subtype, ssid, control, data, **kwargs):
+        super().__init__(service_type=service_type, service_subtype=service_subtype,
+                         ssid=ssid, control=control, data=data, **kwargs)
+        self.name = 'xray-spectrogram'
+        self.level = 'L0'
+
+    @classmethod
+    def from_levelb(cls, levelb):
+        packets = BaseProduct.from_levelb(levelb)
+
+        service_type = packets.get('service_type')[0]
+        service_subtype = packets.get('service_subtype')[0]
+        ssid = packets.get('pi1_val')[0]
+
+        control = ControlSci.from_packets(packets)
+
+        control['compression_scheme_counts_skm'], \
+            control['compression_scheme_counts_skm'].meta = \
+            _get_compression_scheme(packets, 'NIX00268')
+
+        control['compression_scheme_triggers_skm'], \
+            control['compression_scheme_triggers_skm'].meta = \
+            _get_compression_scheme(packets, 'NIX00267')
+
+        control = unique(control)
+
+        if len(control) != 1:
+            raise ValueError('Creating a science product form packets from multiple products')
+
+        control['pixel_mask'] = np.unique(_get_pixel_mask(packets), axis=0)
+        control['detector_mask'] = np.unique(_get_detector_mask(packets), axis=0)
+        control['rcr'] = np.unique(packets.get_value('NIX00401', attr='value')).astype(np.int16)
+        control['index'] = range(len(control))
+
+        e_min = np.array(packets.get_value('NIXD0442'))
+        e_max = np.array(packets.get_value('NIXD0443'))
+        energy_unit = np.array(packets.get_value('NIXD0019')) + 1
+        num_times = np.array(packets.get_value('NIX00089'))
+        total_num_times = num_times.sum()
+
+        counts = np.array(packets.get_value('NIX00268'))
+        counts_var = np.array(packets.get_value('NIX00268', attr='error'))
+
+        counts = counts.reshape(total_num_times, -1)
+        counts_var = counts_var.reshape(total_num_times, -1)
+
+        full_counts = np.zeros((total_num_times, 32))
+        full_counts_var = np.zeros((total_num_times, 32))
+
+        cids = [np.arange(emin, emax + 1, eunit) for (emin, emax, eunit)
+                in zip(e_min, e_max, energy_unit)]
+
+        control['energy_bin_mask'] = np.full((1, 32), False, np.ubyte)
+        control['energy_bin_mask'][:, cids] = True
+
+        dl_energies = np.array([[ENERGY_CHANNELS[ch].e_lower for ch in chs]
+                                + [ENERGY_CHANNELS[chs[-1]].e_upper] for chs in cids][0])
+
+        sci_energies = np.hstack([[ENERGY_CHANNELS[ch].e_lower for ch in range(32)],
+                                  ENERGY_CHANNELS[31].e_upper])
+        ind = 0
+        for nt in num_times:
+            e_ch_start = 0
+            e_ch_end = counts.shape[1]
+            if dl_energies[0] == 0:
+                full_counts[ind:ind + nt, 0] = counts[ind:ind + nt, 0]
+                full_counts_var[ind:ind + nt, 0] = counts_var[ind:ind + nt, 0]
+                e_ch_start = 1
+            if dl_energies[-1] == np.inf:
+                full_counts[ind:ind + nt, -1] = counts[ind:ind + nt, -1]
+                full_counts_var[ind:ind + nt, -1] = counts[ind:ind + nt, -1]
+                e_ch_end -= 1
+
+            torebin = np.where((dl_energies >= 4.0) & (dl_energies <= 150.0))
+            full_counts[ind:ind + nt, 1:-1] = np.apply_along_axis(
+                rebin_proportional, 1, counts[ind:ind + nt, e_ch_start:e_ch_end],
+                dl_energies[torebin], sci_energies[1:-1])
+
+            full_counts_var[ind:ind + nt, 1:-1] = np.apply_along_axis(
+                rebin_proportional, 1, counts_var[ind:ind + nt, e_ch_start:e_ch_end],
+                dl_energies[torebin], sci_energies[1:-1])
+
+            ind += nt
+
+        if counts.sum() != full_counts.sum():
+            raise ValueError('Original and reformatted count totals do not match')
+
+        delta_time = (np.array(packets.get_value('NIX00441'), np.uint16)) * 0.1 * u.s
+        closing_time_offset = (np.array(packets.get_value('NIX00269'), np.uint16)) * 0.1 * u.s
+
+        # TODO incorporate into main loop above
+        centers = []
+        deltas = []
+        last = 0
+        for i, nt in enumerate(num_times):
+            edge = np.hstack(
+                [delta_time[last:last + nt], delta_time[last + nt - 1] + closing_time_offset[i]])
+            delta = np.diff(edge)
+            center = edge[:-1] + delta / 2
+            centers.append(center)
+            deltas.append(delta)
+            last = last + nt
+
+        centers = np.hstack(centers)
+        deltas = np.hstack(deltas)
+
+        # Data
+        data = Data()
+        data['time'] = DateTime(control["time_stamp"][0], 0).as_float() + centers
+        data['timedel'] = deltas
+
+        triggers = packets.get_value('NIX00267')
+        triggers_var = packets.get_value('NIX00267', attr='error')
+
+        data['triggers'] = triggers
+        data['triggers_err'] = np.sqrt(triggers_var)
+        data['counts'] = full_counts * u.ct
+        data['counts_err'] = np.sqrt(full_counts_var) * u.ct
+        data['control_index'] = 0
+
+        return cls(service_type=service_type, service_subtype=service_subtype, ssid=ssid,
+                   control=control, data=data)
+
     @classmethod
     def is_datasource_for(cls, *, service_type, service_subtype, ssid, **kwargs):
         return (kwargs['level'] == 'L0' and service_type == 21
@@ -304,7 +552,7 @@ class Aspect(ScienceProduct):
         super().__init__(service_type=service_type, service_subtype=service_subtype,
                          ssid=ssid, control=control, data=data, **kwargs)
         self.name = 'burst-aspect'
-        self.level = 'L1'
+        self.level = 'L0'
 
     @classmethod
     def from_levelb(cls, levelb):

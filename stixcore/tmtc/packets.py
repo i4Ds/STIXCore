@@ -9,7 +9,7 @@ from stixcore.tmtc.parameter import CompressedParameter, EngineeringParameter, P
 from stixcore.tmtc.parser import parse_binary, parse_bitstream, parse_variable
 
 __all__ = ['TMTC', 'SourcePacketHeader', 'TMDataHeader', 'TCDataHeader', 'GenericPacket',
-           'TMPacket', 'TCPacket', 'GenericTMPacket']
+           'TMPacket', 'TCPacket', 'GenericTMPacket', 'PacketSequence']
 
 from stixcore.util.logging import get_logger
 
@@ -309,7 +309,7 @@ class GenericTMPacket:
     # TODO move that struct(s) to a global configuration?
     _SKM_GROUPS = {
             'EACC':     ("NIXD0007", "NIXD0008", "NIXD0009"),
-            'VIS':      (1,          "NIXD0008", "NIXD0009"),  # hard coded s=1 for negative values
+            'VIS':      ("NIXD0007", "NIXD0008", "NIXD0009"),  # hard coded s=1 for negative values
             'ETRIG':    ("NIXD0010", "NIXD0011", "NIXD0012"),
             'LC':       ("NIXD0101", "NIXD0102", "NIXD0103"),
             'TriggerSSID30': ("NIXD0104", "NIXD0105", "NIXD0106"),

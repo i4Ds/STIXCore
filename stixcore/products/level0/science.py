@@ -22,7 +22,9 @@ logger = get_logger(__name__)
 ENERGY_CHANNELS = read_energy_channels(Path(__file__).parent.parent.parent / "config" / "data" /
                                        "common" / "detector" / "ScienceEnergyChannels_1000.csv")
 
-__all__ = ['ScienceProduct', 'CompressedPixelData', 'SummedPixelData', 'Spectrogram', 'Aspect']
+
+__all__ = ['ScienceProduct', 'RawPixelData', 'CompressedPixelData', 'SummedPixelData',
+           'Visibility', 'Spectrogram', 'Aspect']
 
 
 class ScienceProduct(BaseProduct):
@@ -89,6 +91,109 @@ class ScienceProduct(BaseProduct):
 
             yield type(self)(service_type=self.service_type, service_subtype=self.service_subtype,
                              ssid=self.ssid, control=control, data=data)
+
+
+class RawPixelData(ScienceProduct):
+    def __init__(self, *, service_type, service_subtype, ssid, control, data, **kwargs):
+        super().__init__(service_type=service_type, service_subtype=service_subtype,
+                         ssid=ssid, control=control, data=data, **kwargs)
+        self.name = 'xray-rpd'
+        self.level = 'L0'
+
+    @classmethod
+    def from_levelb(cls, levelb):
+        packets = BaseProduct.from_levelb(levelb)
+
+        service_type = packets.get('service_type')[0]
+        service_subtype = packets.get('service_subtype')[0]
+        ssid = packets.get('pi1_val')[0]
+
+        control = ControlSci.from_packets(packets)
+
+        # control.remove_column('num_structures')
+        control = unique(control)
+
+        if len(control) != 1:
+            raise ValueError('Creating a science product form packets from multiple products')
+
+        control['index'] = 0
+
+        data = Data()
+        data['start_time'] = (np.array(packets.get_value('NIX00404'), np.uint16)) * 0.1 * u.s
+        data['rcr'] = np.array(packets.get_value('NIX00401', attr='value'), np.ubyte)
+        data['integration_time'] = (np.array(packets.get_value('NIX00405'), np.int16)) * 0.1 * u.s
+        data['pixel_masks'] = _get_pixel_mask(packets, 'NIXD0407')
+        data['detector_masks'] = _get_detector_mask(packets)
+        data['triggers'] = np.array([packets.get_value(f'NIX00{i}') for i in range(408, 424)],
+                                    np.int64).T
+        data['num_samples'] = np.array(packets.get_value('NIX00406'), np.int16)
+
+        num_detectors = 32
+        num_energies = 32
+        num_pixels = 12
+
+        # Data
+        tmp = dict()
+        tmp['pixel_id'] = np.array(packets.get_value('NIXD0158'), np.ubyte)
+        tmp['detector_id'] = np.array(packets.get_value('NIXD0153'), np.ubyte)
+        tmp['channel'] = np.array(packets.get_value('NIXD0154'), np.ubyte)
+        tmp['continuation_bits'] = np.array(packets.get_value('NIXD0159'), np.ubyte)
+
+        control['energy_bin_mask'] = np.full((1, 32), False, np.ubyte)
+        all_energies = set(tmp['channel'])
+        control['energy_bin_mask'][:, list(all_energies)] = True
+
+        # Find contiguous time indices
+        unique_times = np.unique(data['start_time'])
+        time_indices = np.searchsorted(unique_times, data['start_time'])
+
+        counts_1d = packets.get_value('NIX00065')
+
+        end_inds = np.cumsum(data['num_samples'])
+        start_inds = np.hstack([0, end_inds[:-1]])
+        dd = [(tmp['pixel_id'][s:e], tmp['detector_id'][s:e], tmp['channel'][s:e], counts_1d[s:e])
+              for s, e in zip(start_inds.astype(int), end_inds)]
+
+        counts = np.zeros((len(unique_times), num_detectors, num_pixels, num_energies), np.uint32)
+        for i, (pid, did, cid, cc) in enumerate(dd):
+            counts[time_indices[i], did, pid, cid] = cc
+
+        # Create final count array with 4 dimensions: unique times, 32 det, 32 energies, 12 pixels
+
+        # for i in range(self.num_samples):
+        #     tid = np.argwhere(self.raw_counts == unique_times)
+
+        # start_index = 0
+        # for i, time_index in enumerate(time_indices):
+        #     end_index = np.uint32(start_index + np.sum(data['num_samples'][time_index]))
+        #
+        #     for did, cid, pid in zip(tmp['detector_id'], tmp['channel'], tmp['pixel_id']):
+        #         index_1d = ((tmp['detector_id'] == did) & (tmp['channel'] == cid)
+        #                     & (tmp['pixel_id'] == pid))
+        #         cur_count = counts_1d[start_index:end_index][index_1d[start_index:end_index]]
+        #         # If we have a count assign it other wise do nothing as 0
+        #         if cur_count:
+        #             counts[i, did, cid, pid] = cur_count[0]
+        #
+        #     start_index = end_index
+
+        sub_index = np.searchsorted(data['start_time'], unique_times)
+        data = data[sub_index]
+        data['time'] = DateTime(control["time_stamp"][0], 0).as_float() \
+            + data['start_time'] + data['integration_time'] / 2
+        data['timedel'] = data['integration_time']
+        data['counts'] = counts * u.ct
+        data['control_index'] = control['index'][0]
+
+        data.remove_columns(['start_time', 'integration_time', 'num_samples'])
+
+        return cls(service_type=service_type, service_subtype=service_subtype, ssid=ssid,
+                   control=control, data=data)
+
+    @classmethod
+    def is_datasource_for(cls, *, service_type, service_subtype, ssid, **kwargs):
+        return (kwargs['level'] == 'L0' and service_type == 21
+                and service_subtype == 6 and ssid == 20)
 
 
 class CompressedPixelData(ScienceProduct):

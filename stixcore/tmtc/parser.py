@@ -1,4 +1,3 @@
-from itertools import chain
 from collections import defaultdict
 
 import numpy as np
@@ -43,10 +42,7 @@ class PacketData:
 
         for parameter in parameters:
             parameter = parameter.merge_children()
-            if parameter.name == 'NIXD0159':
-                obj.__dict__[parameter.name] = PacketData.unpack_NIX00065(parameter)
-            else:
-                obj.__dict__[parameter.name] = parameter
+            obj.__dict__[parameter.name] = parameter
 
         return obj
 
@@ -65,49 +61,6 @@ class PacketData:
                     getattr(self, child.name).children = None
 
         return self
-
-    @staticmethod
-    def unpack_NIX00065(param):
-        """Unpack the NIX00065 values.
-
-        Continuation bits (NIXD0159) define number of subsequent bytes used to define counts for
-        given Detector / Pixel / Energy combination, i.e. value 0 denotes no following bytes and
-        count equal to 1, value 1 denotes 1 byte for “Counts” parameter with value between 2-255
-        and continuation bits equal to 2 are used for 2 successive bytes for “Counts” parameter
-        with value between 256 and 65535.
-
-        Parameters
-        ----------
-        param : ´dict´
-            parse entry
-
-        Returns
-        -------
-        `tuple` (name, value)
-            the name of the parameter to replace
-            the unpacked value
-
-        Raises
-        ------
-        ValueError
-            if unpacking schema is not supported
-        """
-        NIX00065 = None
-        if param.value == 0:
-            NIX00065 = 1
-        elif param.value == 1:
-            NIX00065 = param.children[0].value
-        elif param.value == 2:
-            tmp = list(chain.from_iterable(*param.children[0].value))
-            hb = tmp[0]
-            lb = tmp[1]
-            NIX00065 = (hb << 8) + lb
-        else:
-            raise ValueError(f'Continuation bits value of {param.value} \
-            not allowed (0, 1, 2)')
-
-        param = Parameter(name='NIX00065', value=NIX00065, idb_info='')
-        return param
 
     def set(self, nix, value):
         """Set the paremeter vale by the NIX name.

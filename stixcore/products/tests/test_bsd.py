@@ -4,9 +4,17 @@ from unittest.mock import patch
 import pytest
 
 from stixcore.data.test import test_data
-from stixcore.products.level0.science import Aspect, CompressedPixelData, Spectrogram, Visibility
+from stixcore.products.level0.science import (
+    Aspect,
+    CompressedPixelData,
+    RawPixelData,
+    Spectrogram,
+    Visibility,
+)
 
-testpackets = [(test_data.tmtc.TM_21_6_21, CompressedPixelData, 'xray-cpd',
+testpackets = [(test_data.tmtc.TM_21_6_20_complete, RawPixelData, 'xray-rpd',
+                '42006729850898:00000', '42006729851000:00000', 6),
+               (test_data.tmtc.TM_21_6_21, CompressedPixelData, 'xray-cpd',
                 '43180392185945:52223', '43180392185945:58367', 1),
                (test_data.tmtc.TM_21_6_21_complete, CompressedPixelData, 'xray-cpd',
                 '41961022488579:06655', '41961022488659:12799', 5),

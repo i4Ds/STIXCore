@@ -25,7 +25,7 @@ def _get_compression_scheme(packets, nix):
     packets : dict
         Packets
     nix : `str`
-        The parameter to look up the compression shceme values for
+        The parameter to look up the compression scheme values for
 
     Returns
     -------

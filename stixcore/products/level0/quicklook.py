@@ -151,7 +151,7 @@ class LightCurve(QLProduct):
                                      control[['num_samples', 'index']]])
 
         control['compression_scheme_counts_skm'], control['compression_scheme_counts_skm'].meta =\
-            _get_compression_scheme(packets, ['NIXD0101', 'NIXD0102', 'NIXD0103'])
+            _get_compression_scheme(packets, 'NIX00272')
         counts = np.array(packets.get_value('NIX00272')).reshape(control['num_energies'][0],
                                                                  control['num_samples'][0])
         counts_var = np.array(packets.get_value('NIX00272', attr="error")).\
@@ -159,7 +159,7 @@ class LightCurve(QLProduct):
 
         control['compression_scheme_triggers_skm'], \
             control['compression_scheme_triggers_skm'].meta = \
-            _get_compression_scheme(packets, ['NIXD0104', 'NIXD0105', 'NIXD0104'])
+            _get_compression_scheme(packets, 'NIX00274')
 
         triggers = np.hstack(packets.get_value('NIX00274'))
         triggers_var = np.hstack(packets.get_value('NIX00274', attr="error"))
@@ -222,7 +222,7 @@ class Background(QLProduct):
                                      control[['num_samples', 'index']]])
 
         control['compression_scheme_counts_skm'], control['compression_scheme_counts_skm'].meta =\
-            _get_compression_scheme(packets, ['NIXD0108', 'NIXD0109', 'NIXD0110'])
+            _get_compression_scheme(packets, 'NIX00278')
 
         counts = np.array(packets.get_value('NIX00278')).reshape(control['num_energies'][0],
                                                                  control['num_samples'].sum())
@@ -231,7 +231,7 @@ class Background(QLProduct):
 
         control['compression_scheme_triggers_skm'], \
             control['compression_scheme_triggers_skm'].meta = \
-            _get_compression_scheme(packets, ['NIXD0112', 'NIXD0113', 'NIXD0114'])
+            _get_compression_scheme(packets, 'NIX00274')
 
         triggers = packets.get_value('NIX00274')
         triggers_var = packets.get_value('NIX00274', attr="error")
@@ -277,10 +277,10 @@ class Spectra(QLProduct):
         control = Control.from_packets(packets)
         control['pixel_mask'] = _get_pixel_mask(packets)
         control['compression_scheme_spectra_skm'], control['compression_scheme_spectra_skm'].meta =\
-            _get_compression_scheme(packets, ['NIXD0115', 'NIXD0116', 'NIXD0117'])
+            _get_compression_scheme(packets, 'NIX00452')
         control['compression_scheme_triggers_skm'], \
             control['compression_scheme_triggers_skm'].meta = \
-            _get_compression_scheme(packets, ['NIXD0112', 'NIXD0113', 'NIXD0114'])
+            _get_compression_scheme(packets, 'NIX00484')
 
         # Fixed for spectra
         num_energies = 32
@@ -396,7 +396,7 @@ class Variance(QLProduct):
         control['pixel_mask'] = _get_pixel_mask(packets)
         control['detector_mask'] = _get_detector_mask(packets)
         control['compression_scheme_variance_skm'], control['compression_scheme_variance_skm'].meta\
-            = _get_compression_scheme(packets, ['NIXD0118', 'NIXD0119', 'NIXD0120'])
+            = _get_compression_scheme(packets, 'NIX00281')
 
         energy_masks = np.array([
             [bool(int(x)) for x in format(packets.get_value('NIX00282')[i], '032b')]
@@ -506,7 +506,7 @@ class EnergyCalibration(QLProduct):
         control['pixel_mask'] = _get_pixel_mask(packets)
         control['subspectrum_mask'] = _get_sub_spectrum_mask(packets)
         control['compression_scheme_counts_skm'], control['compression_scheme_counts_skm'].meta \
-            = _get_compression_scheme(packets, ['NIXD0126', 'NIXD0127', 'NIXD0128'])
+            = _get_compression_scheme(packets, 'NIX00158')
         subspec_data = {}
         j = 129
         for subspec, i in enumerate(range(300, 308)):

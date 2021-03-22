@@ -23,7 +23,7 @@ testpackets = [(test_data.tmtc.TM_21_6_20_complete, RawPixelData, 'xray-rpd',
                (test_data.tmtc.TM_21_6_23_complete, Visibility, 'xray-visibility',
                 '42076627730432:06655', '42076627730448:33279', 5),
                (test_data.tmtc.TM_21_6_42_complete, Aspect, 'burst-aspect',
-                '0645932472:05485', '0645933120:33750', 2105)]
+                '0645932472:05485', '0645933132:52624', 2105)]
 
 
 @patch('stixcore.products.levelb.binary.LevelB')

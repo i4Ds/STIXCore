@@ -119,9 +119,10 @@ class RawPixelData(ScienceProduct):
         control['index'] = 0
 
         data = Data()
-        data['start_time'] = (np.array(packets.get_value('NIX00404'), np.uint16)) * 0.1 * u.s
+        data['start_time'] = packets.get_value('NIX00404').astype(np.uint16)
         data['rcr'] = np.array(packets.get_value('NIX00401', attr='value'), np.ubyte)
-        data['integration_time'] = (np.array(packets.get_value('NIX00405'), np.int16)) * 0.1 * u.s
+        # TODO check +/- 0.1
+        data['integration_time'] = packets.get_value('NIX00405').astype(np.uint16)
         data['pixel_masks'] = _get_pixel_mask(packets, 'NIXD0407')
         data['detector_masks'] = _get_detector_mask(packets)
         data['triggers'] = np.array([packets.get_value(f'NIX00{i}') for i in range(408, 424)],
@@ -231,7 +232,7 @@ class CompressedPixelData(ScienceProduct):
 
         data = Data()
         # TODO remove after solved https://github.com/i4Ds/STIXCore/issues/59
-        data['delta_time'] = (np.array(packets.get_value('NIX00441'), np.int32)) * 0.1 * u.s
+        data['delta_time'] = packets.get_value('NIX00441').astype(np.int32)
         unique_times = np.unique(data['delta_time'])
 
         data['rcr'] = np.array(packets.get_value('NIX00401', attr='value'), np.ubyte)
@@ -437,7 +438,7 @@ class Visibility(ScienceProduct):
 
         data = Data()
         data['control_index'] = np.full(len(packets.get_value('NIX00441')), 0)
-        data['delta_time'] = (np.array(packets.get_value('NIX00441'), np.uint16)) * 0.1 * u.s
+        data['delta_time'] = packets.get_value('NIX00441').astype(np.uint16)
         unique_times = np.unique(data['delta_time'])
 
         # time = np.array([])
@@ -454,7 +455,8 @@ class Visibility(ScienceProduct):
         data['pixel_mask4'] = _get_pixel_mask(packets, 'NIXD0446')
         data['pixel_mask5'] = _get_pixel_mask(packets, 'NIXD0447')
         data['detector_masks'] = _get_detector_mask(packets)
-        data['integration_time'] = (np.array(packets.get_value('NIX00405'))) * 0.1 * u.s
+        # TODO check +/- 0.1
+        data['integration_time'] = packets.get_value('NIX00405').astype(np.uint16)
 
         triggers = []
         triggers_var = []
@@ -610,8 +612,8 @@ class Spectrogram(ScienceProduct):
         if counts.sum() != full_counts.sum():
             raise ValueError('Original and reformatted count totals do not match')
 
-        delta_time = (np.array(packets.get_value('NIX00441'), np.uint16)) * 0.1 * u.s
-        closing_time_offset = (np.array(packets.get_value('NIX00269'), np.uint16)) * 0.1 * u.s
+        delta_time = np.array(packets.get_value('NIX00441'), np.uint16)
+        closing_time_offset = np.array(packets.get_value('NIX00269'), np.uint16)
 
         # TODO incorporate into main loop above
         centers = []

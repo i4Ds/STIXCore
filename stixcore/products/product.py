@@ -163,11 +163,12 @@ class Control(QTable):
         except AttributeError:
             control['scet_fine'] = np.zeros_like(control['scet_coarse'], np.uint32)
 
-        try:
-            # TODO remove 0.1 after solved https://github.com/i4Ds/STIXCore/issues/59
-            control['integration_time'] = (packets.get_value('NIX00405') + 0.1) * u.s
+        integration_time = packets.get_value('NIX00405')
+        if integration_time:
+            # TODO check +/- 0.1 https://github.com/i4Ds/STIXCore/issues/59
+            control['integration_time'] = integration_time
             control['integration_time'].meta = {'NIXS': 'NIX00405'}
-        except AttributeError:
+        else:
             control['integration_time'] = np.zeros_like(control['scet_coarse'], np.float) * u.s
 
         # control = unique(control)

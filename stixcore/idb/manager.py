@@ -237,27 +237,37 @@ class IDBManager:
                         nextID = nr
                 nextID += 1
 
-                # NIX00405
-                nix = 'NIX00405'
-                count,  = cur.execute("select count(*) from PCF where PCF_NAME = ? " +
-                                      "AND PCF_CURTX not NULL", (nix,))\
-                             .fetchone()
-                if count == 0:
-                    pname, nextID = IDB.generate_calibration_name("CIX", nextID)
-                    cur.execute('''update PCF set
-                                    PCF_CURTX = ?,
-                                    PCF_CATEG = 'N',
-                                    PCF_UNIT = 's'
-                                   where PCF_NAME = ?''', (pname, nix))
+                # inject polynomial calibrations
 
-                    cur.execute('''insert into MCF (MCF_IDENT, MCF_DESCR, MCF_POL1,
-                                    MCF_POL2, MCF_POL3, MCF_POL4, MCF_POL5, SDB_IMPORTED)
-                                   values
-                                    (?,?,?,?,?,?,?, 0)''', (pname, "Duration", 0, 0.1, 0, 0, 0))
+                duration = ("duration", 0, 0.1, 0, 0, 0)
+                duration_p1 = ("duration + 0.1", 0.1, 0.1, 0, 0, 0)
+                binary_seconds = ("binary seconds", 0, 1.0 / 65536, 0, 0, 0)
 
-                else:
-                    logger.info(f"Skip calib injection for {nix}: allready present")
-                print(nix)
+                for nix, config, unit in [('NIX00269', duration, "s"),
+                                          ('NIX00441', duration, "s"),
+                                          ('NIX00122', duration, "s"),
+                                          ('NIX00124', duration, "s"),
+                                          ('NIX00404', duration_p1, "s"),
+                                          ('NIX00405', duration_p1, "s"),
+                                          ('NIX00123', binary_seconds, "s")]:
+                    count,  = cur.execute("select count(*) from PCF where PCF_NAME = ? " +
+                                          "AND PCF_CURTX not NULL", (nix,)).fetchone()
+                    if count == 0:
+                        pname, nextID = IDB.generate_calibration_name("CIX", nextID)
+                        cur.execute('''update PCF set
+                                        PCF_CURTX = ?,
+                                        PCF_CATEG = 'N',
+                                        PCF_UNIT = ?
+                                    where PCF_NAME = ?''', (pname, unit, nix))
+
+                        cur.execute('''insert into MCF (MCF_IDENT, MCF_DESCR, MCF_POL1,
+                                        MCF_POL2, MCF_POL3, MCF_POL4, MCF_POL5, SDB_IMPORTED)
+                                    values
+                                        (?,?,?,?,?,?,?, 0)''', ((pname, ) + config))
+                        logger.info(f"calibration injection for {nix}: {((pname, ) + config)}")
+
+                    else:
+                        logger.info(f"Skip calibration injection for {nix}: allready present")
 
         finally:
             conn.commit()

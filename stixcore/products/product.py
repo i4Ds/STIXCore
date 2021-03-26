@@ -153,20 +153,18 @@ class Control(QTable):
         control['scet_coarse'] = np.array(packets.get_value('NIX00445'), np.uint32)
         control['scet_coarse'].meta = {'NIXS': 'NIX00445'}
         # Not all QL data have fine time in TM default to 0 if no present
-        scet_fine = packets.get_value('NIX00446')
-        if scet_fine:
-            control['scet_fine'] = np.array(scet_fine, np.uint32)
-        else:
+        try:
+            control['scet_fine'] = packets.get_value('NIX00446')
+            control['scet_fine'].meta = {'NIXS': 'NIX00446'}
+        except AttributeError:
             control['scet_fine'] = np.zeros_like(control['scet_coarse'], np.uint32)
-        control['scet_fine'].meta = {'NIXS': 'NIX00446'}
 
-        integration_time = packets.get_value('NIX00405')
-        if integration_time:
+        try:
             # TODO remove 0.1 after solved https://github.com/i4Ds/STIXCore/issues/59
-            control['integration_time'] = (np.array(integration_time, np.float) + 0.1) * u.s
-        else:
+            control['integration_time'] = (packets.get_value('NIX00405') + 0.1) * u.s
+            control['integration_time'].meta = {'NIXS': 'NIX00405'}
+        except AttributeError:
             control['integration_time'] = np.zeros_like(control['scet_coarse'], np.float) * u.s
-        control['integration_time'].meta = {'NIXS': 'NIX00405'}
 
         # control = unique(control)
         control['index'] = np.arange(len(control))

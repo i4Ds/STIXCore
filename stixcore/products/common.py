@@ -32,7 +32,6 @@ def _get_compression_scheme(packets, nix):
     np.ndarray
         S,K,M compression scheme parameters and names
     """
-
     param = packets.get(nix)
     skm = param[0].skm
     values = np.array((skm[0].value, skm[1].value, skm[2].value), np.ubyte).reshape(1, -1)
@@ -164,8 +163,8 @@ def _get_sub_spectrum_mask(packets):
         Bool array of mask
     """
     sub_spectrum_masks = np.array([
-        [bool(int(x)) for x in format(packets.get('NIX00160')[i], '08b')][::-1]
-        for i in range(len(packets.get('NIX00160')))], np.ubyte)
+        [bool(int(x)) for x in format(packets.get_value('NIX00160')[i], '08b')][::-1]
+        for i in range(len(packets.get_value('NIX00160')))], np.ubyte)
 
     return sub_spectrum_masks
 

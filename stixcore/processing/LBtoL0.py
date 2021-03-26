@@ -30,14 +30,15 @@ class Level0:
 
             if cur_incomplete and next_incomplete:
                 incomplete_combined, incomplete_remaining = \
-                    (cur_incomplete + next_incomplete).extract_sequences()
+                    (cur_incomplete[0] + next_incomplete[0]).extract_sequences()
 
-                if incomplete_combined is not None:
+                if incomplete_combined:
                     complete = cur_complete
                     complete = complete + incomplete_combined
-                    next_incomplete = incomplete_remaining
                 else:
                     complete = cur_complete
+
+                next_incomplete = incomplete_remaining
             else:
                 complete = cur_complete
 
@@ -73,7 +74,7 @@ class Level0:
 if __name__ == '__main__':
     tstart = perf_counter()
 
-    fits_path = Path('/Users/shane/Projects/stix/dataview/data/asdfadsf/LB/21/6/42')
+    fits_path = Path('/Users/shane/Projects/stix/dataview/data/asdfadsf/LB/21/6/43')
     bd = Path('/Users/shane/Projects/STIX/dataview/data/asdfadsf')
 
     l0processor = Level0(fits_path, bd)

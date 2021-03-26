@@ -283,7 +283,7 @@ class Spectra(QLProduct):
             _get_compression_scheme(packets, 'NIX00484')
 
         # Fixed for spectra
-        num_energies = 32
+        num_energies = np.unique(packets.get_value('NIX00100')).size
         control['num_energies'] = num_energies
         control['num_samples'] = packets.get_value('NIX00089')
 
@@ -460,11 +460,12 @@ class FlareFlag(QLProduct):
         data['control_index'] = control_indices
         data['time'] = time
         data['duration'] = duration
-        data['loc_z'] = packets.get_value('NIX00283').astype(np.int16)
-        data['loc_y'] = packets.get_value('NIX00284').astype(np.int16)
-        data['thermal_index'] = packets.get_value('NIXD0061', attr='value').astype(np.uint16)
-        data['non_thermal_index'] = packets.get_value('NIXD0060', attr='value').astype(np.uint16)
-        data['location_status'] = packets.get_value('NIXD0059', attr='value').astype(np.uint16)
+        data['loc_z'] = packets.get_value('NIX00283').astype(np.byte)
+        data['loc_y'] = packets.get_value('NIX00284').astype(np.byte)
+        data['thermal_index'] = packets.get_value('NIXD0061', attr='value').astype(np.byte)
+        data['non_thermal_index'] = packets.get_value('NIXD0060', attr='value').astype(np.byte)
+        data['location_status'] = packets.get_value('NIXD0059', attr='value').astype(np.byte)
+        data['flare_progress'] = packets.get_value('NIXD0449').astype(np.byte)
 
         return cls(service_type=service_type, service_subtype=service_subtype, ssid=ssid,
                    control=control, data=data)
@@ -606,11 +607,11 @@ class TMStatusFlareList(QLProduct):
             data['end_scet_coarse'] = packets.get_value('NIX00287')
 
             data['time'] = DateTime(packets.get_value('NIX00287'), packets.get_value('NIX00287'))
-            data['highest_flareflag'] = packets.get_value('NIX00289')
-            data['tm_byte_volume'] = packets.get('NIX00290')
-            data['average_z_loc'] = packets.get('NIX00291')
-            data['average_y_loc'] = packets.get('NIX00292')
-            data['processing_mask'] = packets.get('NIX00293')
+            data['highest_flareflag'] = packets.get_value('NIX00289').astype(np.byte)
+            data['tm_byte_volume'] = packets.get('NIX00290').astype(np.int32)
+            data['average_z_loc'] = packets.get('NIX00291').astype(np.byte)
+            data['average_y_loc'] = packets.get('NIX00292').astype(np.byte)
+            data['processing_mask'] = packets.get('NIX00293').astype(np.byte)
 
         return cls(service_type=service_type, service_subtype=service_subtype, ssid=ssid,
                    control=control, data=data)

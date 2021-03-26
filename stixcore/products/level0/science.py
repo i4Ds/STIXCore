@@ -235,9 +235,12 @@ class CompressedPixelData(ScienceProduct):
         control['index'] = 0
 
         data = Data()
-
-        data['delta_time'] = packets.get_value('NIX00441')
-        data.add_meta(name='delta_time', nix='NIX00441', packets=packets)
+        try:
+            data['delta_time'] = packets.get_value('NIX00441')
+            data.add_meta(name='delta_time', nix='NIX00441', packets=packets)
+        except AttributeError:
+            data['delta_time'] = packets.get_value('NIX00404')
+            data.add_meta(name='delta_time', nix='NIX00404', packets=packets)
         unique_times = np.unique(data['delta_time'])
 
         data.add_basic(name='rcr', nix='NIX00401', attr='value', packets=packets, dtype=np.ubyte)
@@ -252,6 +255,7 @@ class CompressedPixelData(ScienceProduct):
         # NIX00405 in BSD is 1 indexed
         data['integration_time'] = packets.get_value('NIX00405')
         data.add_meta(name='integration_time', nix='NIX00405', packets=packets)
+
 
         triggers = np.array([packets.get_value(f'NIX00{i}') for i in range(242, 258)])
         triggers_var = np.array([packets.get_value(f'NIX00{i}', attr='error')
@@ -446,8 +450,12 @@ class Visibility(ScienceProduct):
 
         data = Data()
         data['control_index'] = np.full(len(packets.get_value('NIX00441')), 0)
-        data['delta_time'] = packets.get_value('NIX00441')
-        data.add_meta(name='delta_time', nix='NIX00441', packets=packets)
+        try:
+            data['delta_time'] = packets.get_value('NIX00441')
+            data.add_meta(name='delta_time', nix='NIX00441', packets=packets)
+        except AttributeError:
+            data['delta_time'] = packets.get_value('NIX00404')
+            data.add_meta(name='delta_time', nix='NIX00404', packets=packets)
         unique_times = np.unique(data['delta_time'])
 
         # time = np.array([])
@@ -619,7 +627,11 @@ class Spectrogram(ScienceProduct):
         if counts.sum() != full_counts.sum():
             raise ValueError('Original and reformatted count totals do not match')
 
-        delta_time = packets.get_value('NIX00441')
+        try:
+            delta_time = packets.get_value('NIX00441')
+        except AttributeError:
+            delta_time = packets.get_value('NIX00404')
+
         closing_time_offset = packets.get_value('NIX00269')
 
         # TODO incorporate into main loop above

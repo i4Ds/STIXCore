@@ -171,6 +171,7 @@ class LightCurve(QLProduct):
         data['control_index'] = control_indices
         data['time'] = time
         data['timedel'] = duration
+        data['timedel'].meta = {'NIXS': 'NIX00405'}
         data['triggers'] = triggers
         data['triggers'].meta = {'NIXS': 'NIX00274'}
         data['triggers_err'] = np.sqrt(triggers_var)
@@ -243,6 +244,7 @@ class Background(QLProduct):
         data['control_index'] = control_indices
         data['time'] = time
         data['timedel'] = duration
+        data['timedel'].meta = {'NIXS': 'NIX00405'}
         data['triggers'] = triggers
         data['triggers'].meta = {'NIXS': 'NIX00274'}
         data['triggers_err'] = np.sqrt(triggers_var)
@@ -336,12 +338,17 @@ class Spectra(QLProduct):
         data['control_index'] = control_indices[:, 0]
         data['time'] = time[:, 0]
         data['timedel'] = duration[:, 0]
+        data['timedel'].meta = {'NIXS': 'NIX00405'}
         data['detector_index'] = detector_index.reshape(-1, 32) * u.ct
+        data['detector_index'].meta = {'NIXS': 'NIX00100'}
         data['spectra'] = counts.reshape(-1, 32, num_energies) * u.ct
+        data['spectra'].meta = {'NIXS': [f'NIX00{i}' for i in range(452, 484)]}
         data['spectra_err'] = np.sqrt(counts_var.reshape(-1, 32, num_energies))
         data['triggers'] = triggers.reshape(-1, num_energies)
+        data['triggers'].meta = {'NIXS': 'NIX00484'}
         data['triggers_err'] = np.sqrt(triggers_var.reshape(-1, num_energies))
         data['num_integrations'] = num_integrations.reshape(-1, num_energies)
+        data['num_integrations'].meta = {'NIXS': 'NIX00485'}
 
         return cls(service_type=service_type, service_subtype=service_subtype, ssid=ssid,
                    control=control, data=data)
@@ -396,8 +403,11 @@ class Variance(QLProduct):
 
         # Control
         control['samples_per_variance'] = np.array(packets.get_value('NIX00279'), np.ubyte)
+        control['samples_per_variance'].meta = {'NIXS': 'NIX00279'}
         control['pixel_mask'] = _get_pixel_mask(packets)
+        control['pixel_mask'].meta = {'NIXS': 'NIXD0407'}
         control['detector_mask'] = _get_detector_mask(packets)
+        control['detector_mask'].meta = {'NIXS': 'NIX00407'}
         control['compression_scheme_variance_skm'], control['compression_scheme_variance_skm'].meta\
             = _get_compression_scheme(packets, 'NIX00281')
 
@@ -406,8 +416,10 @@ class Variance(QLProduct):
             for i in range(len(packets.get_value('NIX00282')))])
 
         control['energy_bin_mask'] = energy_masks
+        control['energy_bin_mask'].meta = {'NIXS': 'NIX00282'}
         control['num_energies'] = 1
         control['num_samples'] = packets.get_value('NIX00280')
+        control['num_samples'].meta = {'NIXS': 'NIX00280'}
 
         time, duration = control._get_time()
         # Map a given entry back to the control info through index
@@ -421,8 +433,10 @@ class Variance(QLProduct):
         data = Data()
         data['time'] = time
         data['timedel'] = duration
+        data['timedel'].meta = {'NIXS': 'NIX00405'}
         data['control_index'] = control_indices
         data['variance'] = variance
+        data['variance'].meta = {'NIXS': 'NIX00281'}
         data['variance_err'] = np.sqrt(variance_var)
 
         return cls(service_type=service_type, service_subtype=service_subtype, ssid=ssid,
@@ -452,6 +466,7 @@ class FlareFlag(QLProduct):
         control = Control.from_packets(packets)
 
         control['num_samples'] = packets.get_value('NIX00089')
+        control['num_samples'].meta = {'NIXS': 'NIX00089'}
 
         control_indices = np.hstack([np.full(ns, cind) for ns, cind in
                                      control[['num_samples', 'index']]])
@@ -463,12 +478,19 @@ class FlareFlag(QLProduct):
         data['control_index'] = control_indices
         data['time'] = time
         data['duration'] = duration
+        data['duration'].meta = {'NIXS': 'NIX00405'}
         data['loc_z'] = packets.get_value('NIX00283').astype(np.byte)
+        data['loc_z'].meta = {'NIXS': 'NIX00283'}
         data['loc_y'] = packets.get_value('NIX00284').astype(np.byte)
+        data['loc_y'].meta = {'NIXS': 'NIX00284'}
         data['thermal_index'] = packets.get_value('NIXD0061', attr='value').astype(np.byte)
+        data['thermal_index'].meta = {'NIXS': 'NIXD0061'}
         data['non_thermal_index'] = packets.get_value('NIXD0060', attr='value').astype(np.byte)
+        data['non_thermal_index'].meta = {'NIXS': 'NIXD0060'}
         data['location_status'] = packets.get_value('NIXD0059', attr='value').astype(np.byte)
+        data['location_status'].meta = {'NIXS': 'NIXD0059'}
         data['flare_progress'] = packets.get_value('NIXD0449').astype(np.byte)
+        data['flare_progress'].meta = {'NIXS': 'NIXD00449'}
 
         return cls(service_type=service_type, service_subtype=service_subtype, ssid=ssid,
                    control=control, data=data)
@@ -497,6 +519,7 @@ class EnergyCalibration(QLProduct):
         control = Control.from_packets(packets)
 
         control['integration_time'] = (packets.get_value('NIX00122') + 1) * 0.1 * u.s
+        control['integration_time'].meta = {'NIXs': 'NIX00122'}
         # control['obs_beg'] = control['obs_utc']
         # control['.obs_end'] = control['obs_beg'] + timedelta(seconds=control[
         # 'duration'].astype('float'))
@@ -504,11 +527,17 @@ class EnergyCalibration(QLProduct):
 
         # Control
         control['quiet_time'] = packets.get_value('NIX00123').astype(np.uint16)
+        control['quiet_time'].meta = {'NIXS': 'NIX00123'}
         control['live_time'] = packets.get_value('NIX00124').astype(np.uint32)
+        control['live_time'].meta = {'NIXS': 'NIX00124'}
         control['average_temperature'] = packets.get_value('NIX00125').astype(np.uint16)
+        control['average_temperature'].meta = {'NIXS': 'NIX00125'}
         control['detector_mask'] = _get_detector_mask(packets)
+        control['detector_mask'].meta = {'NIXS': 'NIX00407'}
         control['pixel_mask'] = _get_pixel_mask(packets)
+        control['pixel_mask'].meta = {'NIXS': 'NIXD0407'}
         control['subspectrum_mask'] = _get_sub_spectrum_mask(packets)
+        control['subspectrum_mask'].meta = {'NIXS': 'NIX00160'}
         control['compression_scheme_counts_skm'], control['compression_scheme_counts_skm'].meta \
             = _get_compression_scheme(packets, 'NIX00158')
         subspec_data = {}
@@ -548,7 +577,7 @@ class EnergyCalibration(QLProduct):
         # data['detector_id'] = np.array(packets.get('NIXD0155'), np.ubyte)
         # data['pixel_id'] = np.array(packets.get('NIXD0156'), np.ubyte)
         # data['subspec_id'] = np.array(packets.get('NIXD0157'), np.ubyte)
-        np.array(packets.get('NIX00146'))
+        # np.array(packets.get('NIX00146'))
 
         counts = packets.get_value('NIX00158')
         counts_var = packets.get_value('NIX00158', attr='error')
@@ -571,6 +600,7 @@ class EnergyCalibration(QLProduct):
         full_counts_var = np.zeros((32, 12, 1024))
         full_counts_var[dids, pids] = counts_var_rebinned
         data['counts'] = full_counts.reshape((1, *full_counts.shape))
+        data['counts'].meta = {'NIXS': 'NIX000158'}
         data['counts_err'] = np.sqrt(full_counts_var).reshape((1, *full_counts_var.shape))
 
         return cls(service_type=service_type, service_subtype=service_subtype, ssid=ssid,
@@ -601,20 +631,30 @@ class TMStatusFlareList(QLProduct):
         control['scet_coarse'] = packets.get('scet_coarse')
         control['scet_fine'] = packets.get('scet_fine')
         control['ubsd_counter'] = packets.get_value('NIX00285')
+        control['ubsd_counter'].meta = {'NIXS': 'NIX00285'}
         control['pald_counter'] = packets.get_value('NIX00286')
+        control['pald_counter'].meta = {'NIXS': 'NIX00286'}
         control['num_flares'] = packets.get_value('NIX00294')
+        control['num_flares'].meta = {'NIXS': 'NIX00294'}
 
         data = Data()
         if control['num_flares'].sum() > 0:
             data['start_scet_coarse'] = packets.get_value('NIX00287')
-            data['end_scet_coarse'] = packets.get_value('NIX00287')
+            data['start_scet_coarse'].meta = {'NIX': 'NIX00287'}
+            data['end_scet_coarse'] = packets.get_value('NIX00288')
+            data['end_scet_coarse'].meta = {'NIX': 'NIX00288'}
 
-            data['time'] = SCETime(packets.get_value('NIX00287'), packets.get_value('NIX00287'))
+            data['time'] = SCETime(packets.get_value('NIX00287'), 0)
             data['highest_flareflag'] = packets.get_value('NIX00289').astype(np.byte)
+            data['highest_flareflag'].meta = {'NIXS': 'NIX00290'}
             data['tm_byte_volume'] = packets.get('NIX00290').astype(np.int32)
+            data['tm_byte_volume'].meta = {'NIXS': 'NIX00290'}
             data['average_z_loc'] = packets.get('NIX00291').astype(np.byte)
+            data['average_z_loc'].meta = {'NIXS': 'NIX00292'}
             data['average_y_loc'] = packets.get('NIX00292').astype(np.byte)
+            data['average_y_loc'].meta = {'NIXS': 'NIX00292'}
             data['processing_mask'] = packets.get('NIX00293').astype(np.byte)
+            data['processing_mask'].meta = {'NIXS': 'NIX00293'}
 
         return cls(service_type=service_type, service_subtype=service_subtype, ssid=ssid,
                    control=control, data=data)

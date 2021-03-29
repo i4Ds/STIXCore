@@ -125,17 +125,21 @@ class Parameter:
         NIX00065 = None
         if self.value == 0:
             NIX00065 = 1
+            child_idb_info = None
         elif self.value == 1:
             NIX00065 = self.children[0].value
+            child_idb_info = self.children[0].idb_info
         elif self.value == 2:
             high_bit, low_bit = [c.value for c in self.children]
             NIX00065 = (high_bit << 8) + low_bit
+            child_idb_info = self.children[0].idb_info
         else:
             raise ValueError(f'Continuation bits value of {self.value} \
             not allowed (0, 1, 2)')
 
         param = Parameter(name=self.name, value=self.value, idb_info=self.idb_info,
-                          children=[Parameter(name='NIX00065', value=NIX00065, idb_info=None)])
+                          children=[Parameter(name='NIX00065', value=NIX00065,
+                                              idb_info=child_idb_info)])
         return param
 
 

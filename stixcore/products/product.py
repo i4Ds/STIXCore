@@ -209,8 +209,11 @@ class ControlSci(QTable):
         control = cls()
 
         control['tc_packet_id_ref'] = np.array(packets.get_value('NIX00001'), np.int32)
+        control['tc_packet_id_ref'].meta = {'NIXS': 'NIX00001'}
         control['tc_packet_seq_control'] = np.array(packets.get_value('NIX00002'), np.int32)
+        control['tc_packet_seq_control'].meta = {'NIXS': 'NIX00002'}
         control['request_id'] = np.array(packets.get_value('NIX00037'), np.uint32)
+        control['request_id'].meta = {'NIXS': 'NIX00037'}
         control['time_stamp'] = np.array(packets.get_value('NIX00402'))
         if np.any(control['time_stamp'] > 2 ** 32 - 1):
             coarse = control['time_stamp'] >> 16
@@ -219,7 +222,7 @@ class ControlSci(QTable):
             coarse = control['time_stamp']
             fine = 0
         control['time_stamp'] = [SCETime(c, f) for c, f in zip(coarse, fine)]
-
+        control['time_stamp'].meta = {'NIXS': 'NIX00402'}
         try:
             control['num_substructures'] = np.array(packets.get_value('NIX00403'),
                                                     np.int32).reshape(1, -1)

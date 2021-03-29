@@ -116,7 +116,17 @@ class NotInSpiceContext(Exception):
 
 class Time(SpiceManager):
     """
-    Convert between spacecraft elapsed times (SCET), UTC strings and datetimes
+    Convert between spacecraft elapsed times (SCET), UTC strings and datetime objects
+
+    Examples
+    --------
+    >>> from stixcore.ephemeris.manager import Time
+    >>> import stixcore.data.test
+    >>> with Time(meta_kernel_path=stixcore.data.test.test_data.ephemeris.META_KERNEL_TIME) as time:
+    ...     converted = time.scet_to_datetime('625237315:44104')
+    >>> str(converted)
+    '2019-10-24 13:01:50.672974+00:00'
+
     """
     spice_context = SpiceManager.spice_context
 
@@ -214,6 +224,19 @@ class Time(SpiceManager):
 class Position(SpiceManager):
     """
     Obtain spacecraft position and orientation, convert to and from instrument coordinate system
+
+    Examples
+    --------
+    >>> from datetime import datetime
+    >>> from stixcore.ephemeris.manager import Position
+    >>> import stixcore.data.test
+    >>> with Position(
+    ...     meta_kernel_path=stixcore.data.test.test_data.ephemeris.META_KERNEL_POS) as pos:
+    ...     x, y, z = pos.get_position(date=datetime(2020, 10, 1), frame='SOLO_HEE')
+    >>> x, y, z
+    (<Quantity -92089164.00717261 km>,
+    <Quantity 1.05385302e+08 km>,
+    <Quantity 44917232.72028707 km>)
     """
     spice_context = SpiceManager.spice_context
 

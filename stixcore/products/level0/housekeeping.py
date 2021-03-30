@@ -1,7 +1,7 @@
 """
 House Keeping data products
 """
-from stixcore.datetime.datetime import DateTime
+from stixcore.datetime.datetime import SCETime
 from stixcore.products.level0.quicklook import QLProduct
 from stixcore.products.product import Control, Data
 
@@ -34,7 +34,7 @@ class MiniReport(QLProduct):
         control['index'] = range(len(control))
 
         # Create array of times as dt from date_obs
-        times = [DateTime(ct, ft).as_float() for ct, ft in control['scet_coarse', 'scet_fine']]
+        times = [SCETime(ct, ft).as_float() for ct, ft in control['scet_coarse', 'scet_fine']]
 
         # Data
         data = Data()
@@ -111,7 +111,7 @@ class MaxiReport(QLProduct):
         control['index'] = range(len(control))
 
         # Create array of times as dt from date_obs
-        times = [DateTime(ct, ft).as_float() for ct, ft in control['scet_coarse', 'scet_fine']]
+        times = [SCETime(ct, ft).as_float() for ct, ft in control['scet_coarse', 'scet_fine']]
 
         # Data
         data = Data()

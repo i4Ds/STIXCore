@@ -6,7 +6,7 @@ import numpy as np
 from astropy.table.operations import unique, vstack
 from astropy.table.table import Table
 
-from stixcore.datetime.datetime import DateTime
+from stixcore.datetime.datetime import SCETime
 from stixcore.products.product import BaseProduct
 from stixcore.tmtc.packets import TMPacket
 from stixcore.util.logging import get_logger
@@ -46,13 +46,13 @@ class LevelB(BaseProduct):
         self.data = data
 
         # TODO better encapsulated time handling?
-        times = [DateTime(c, f) for c, f in self.control[['scet_coarse', 'scet_fine']]]
+        times = [SCETime(c, f) for c, f in self.control[['scet_coarse', 'scet_fine']]]
         self.control['scet_coarse'] = [t.coarse for t in times]
         self.control['time_sync'] = [t.time_sync for t in times]
 
         # TODO check if need to sort before this
-        self.obt_beg = DateTime(self.control['scet_coarse'][0], self.control['scet_fine'][0])
-        self.obt_end = DateTime(self.control['scet_coarse'][-1], self.control['scet_fine'][-1])
+        self.obt_beg = SCETime(self.control['scet_coarse'][0], self.control['scet_fine'][0])
+        self.obt_end = SCETime(self.control['scet_coarse'][-1], self.control['scet_fine'][-1])
         self.obt_avg = self.obt_beg + (self.obt_end - self.obt_beg)/2
 
     def __repr__(self):

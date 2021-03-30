@@ -6,7 +6,7 @@ import astropy.units as u
 from astropy.table.operations import unique, vstack
 
 from stixcore.config.reader import read_energy_channels
-from stixcore.datetime.datetime import DateTime
+from stixcore.datetime.datetime import SCETime
 from stixcore.products.common import (
     _get_compression_scheme,
     _get_detector_mask,
@@ -39,8 +39,8 @@ class ScienceProduct(BaseProduct):
         self.control = control
         self.data = data
 
-        self.obs_beg = DateTime.from_float(self.data['time'][0] - self.data['timedel'][0] / 2)
-        self.obs_end = DateTime.from_float(self.data['time'][-1] + self.data['timedel'][-1] / 2)
+        self.obs_beg = SCETime.from_float(self.data['time'][0] - self.data['timedel'][0] / 2)
+        self.obs_end = SCETime.from_float(self.data['time'][-1] + self.data['timedel'][-1] / 2)
         self.obs_avg = self.obs_beg + (self.obs_end - self.obs_beg) / 2
 
     def __add__(self, other):
@@ -179,7 +179,7 @@ class RawPixelData(ScienceProduct):
 
         sub_index = np.searchsorted(data['start_time'], unique_times)
         data = data[sub_index]
-        data['time'] = DateTime(control["time_stamp"][0], 0).as_float() \
+        data['time'] = control["time_stamp"][0].as_float() \
             + data['start_time'] + data['integration_time'] / 2
         data['timedel'] = data['integration_time']
         data['counts'] = counts * u.ct
@@ -364,7 +364,7 @@ class CompressedPixelData(ScienceProduct):
         sub_index = np.searchsorted(data['delta_time'], unique_times)
         data = data[sub_index]
 
-        data['time'] = (DateTime(coarse=int(control["time_stamp"]), fine=0).as_float()
+        data['time'] = (control["time_stamp"][0].as_float()
                         + data['delta_time'] + data['integration_time']/2)
         data['timedel'] = data['integration_time']
         data['counts'] = out_counts * u.ct
@@ -506,8 +506,8 @@ class Visibility(ScienceProduct):
         data['visibility'] = vis
         data['visibility_err'] = vis_err
 
-        data['time'] = DateTime(int(control["time_stamp"][0]), 0).as_float()\
-            + data['delta_time'] + data['integration_time'] / 2
+        data['time'] = (control["time_stamp"][0].as_float()
+                        + data['delta_time'] + data['integration_time'] / 2)
         data['timedel'] = data['integration_time']
 
         return cls(service_type=service_type, service_subtype=service_subtype, ssid=ssid,
@@ -631,7 +631,7 @@ class Spectrogram(ScienceProduct):
 
         # Data
         data = Data()
-        data['time'] = DateTime(control["time_stamp"][0], 0).as_float() + centers
+        data['time'] = control["time_stamp"][0].as_float() + centers
         data['timedel'] = deltas
 
         triggers = packets.get_value('NIX00267')
@@ -673,7 +673,7 @@ class Aspect(ScienceProduct):
         control = ControlSci()
         scet_coarse = packets.get_value('NIX00445')
         scet_fine = packets.get_value('NIX00446')
-        start_times = [DateTime(c, f) for c, f in zip(scet_coarse, scet_fine)]
+        start_times = [SCETime(c, f) for c, f in zip(scet_coarse, scet_fine)]
 
         # TODO add cuase for older IDB
         control['summing_value'] = packets.get_value('NIX00088')

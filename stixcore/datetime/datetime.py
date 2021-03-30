@@ -7,12 +7,16 @@ from stixcore.ephemeris.manager import Time
 
 SPICE_TIME = Time(meta_kernel_path=test_data.ephemeris.META_KERNEL)
 
-__all__ = ['DateTime']
+__all__ = ['SCETime']
 
 
-class DateTime:
+class SCETime:
     """
-    SolarOrbiter / STIX Datetime
+    SolarOrbiter Spacecraft Elapse Time (SCET) or Onboard Time (OBT).
+
+    The mission clock time compose of a coarse time in seconds in 32bit field and fine time in 16bit
+    field fractions of second 1s/(2**16 -1) can be represented as a single 48bit field or a float.
+    The top most bit is used to indicate time sync issues.
 
     Attributes
     ----------
@@ -32,9 +36,13 @@ class DateTime:
         coarse : `int`
             Coarse time stamp (seconds)
         fine : `int`
-            Fine time stamp fraction of seconds 1/2**31 -1
+            Fine time stamp fraction of seconds 1/2**16 -1
         """
         # Convention if top bit is set means times are not synchronised
+        if coarse > (2**32)-1:
+            ValueError('Course time cannot exceed 2**32-1')
+        if fine > (2**16)-1:
+            ValueError('Course time cannot exceed 2**16-1')
         self.time_sync = (coarse >> 31) != 1
         self.coarse = coarse if self.time_sync else coarse ^ 2**31
         self.fine = fine
@@ -56,25 +64,25 @@ class DateTime:
     def from_float(cls, scet_float):
         sub_seconds, seconds = np.modf(scet_float.to_value('s'))
         fine = int((2**16 - 1) * sub_seconds)
-        return DateTime(coarse=int(seconds), fine=fine)
+        return SCETime(coarse=int(seconds), fine=fine)
 
     @classmethod
     def from_string(cls, scet_str):
         coarse, fine = [int(p) for p in scet_str.split(':')]
-        return DateTime(coarse=coarse, fine=fine)
+        return SCETime(coarse=coarse, fine=fine)
 
     def __add__(self, other):
         delta_coarse, new_fine = divmod(self.fine + other.fine, 2**16)
         new_coarse = self.coarse + other.coarse + delta_coarse
-        return DateTime(coarse=new_coarse, fine=new_fine)
+        return SCETime(coarse=new_coarse, fine=new_fine)
 
     def __sub__(self, other):
         delta_coarse, new_fine = divmod(self.fine - other.fine, 2 ** 16)
         new_coarse = self.coarse - other.coarse + delta_coarse
-        return DateTime(coarse=new_coarse, fine=new_fine)
+        return SCETime(coarse=new_coarse, fine=new_fine)
 
     def __truediv__(self, other):
-        return DateTime.from_float(self.as_float()/other)
+        return SCETime.from_float(self.as_float() / other)
 
     # TODO check v spice
     def as_float(self):
@@ -87,30 +95,30 @@ class DateTime:
         return f'{self.coarse:010d}:{self.fine:05d}'
 
     def __gt__(self, other):
-        if(self.coarse > other.coarse):
+        if self.coarse > other.coarse:
             return True
-        if(self.coarse == other.coarse and self.fine > other.fine):
+        if self.coarse == other.coarse and self.fine > other.fine:
             return True
         return False
 
     def __ge__(self, other):
-        if(self.coarse > other.coarse):
+        if self.coarse > other.coarse:
             return True
-        if(self.coarse == other.coarse and self.fine >= other.fine):
+        if self.coarse == other.coarse and self.fine >= other.fine:
             return True
         return False
 
     def __lt__(self, other):
-        if(self.coarse < other.coarse):
+        if self.coarse < other.coarse:
             return True
-        if(self.coarse == other.coarse and self.fine < other.fine):
+        if self.coarse == other.coarse and self.fine < other.fine:
             return True
         return False
 
     def __le__(self, other):
-        if(self.coarse < other.coarse):
+        if self.coarse < other.coarse:
             return True
-        if(self.coarse == other.coarse and self.fine <= other.fine):
+        if self.coarse == other.coarse and self.fine <= other.fine:
             return True
         return False
 

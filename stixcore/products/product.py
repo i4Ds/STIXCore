@@ -16,11 +16,15 @@ from astropy.time import Time
 
 import stixcore.processing.decompression as decompression
 import stixcore.processing.engineering as engineering
-from stixcore.datetime.datetime import DateTime
+from stixcore.datetime.datetime import SCETime
 from stixcore.tmtc.packet_factory import Packet
 from stixcore.tmtc.packets import PacketSequence
 
 __all__ = ['BaseProduct', 'ProductFactory', 'Product', 'ControlSci', 'Control', 'Data']
+
+from stixcore.util.logging import get_logger
+
+logger = get_logger(__name__)
 
 
 class BaseProduct:
@@ -70,7 +74,7 @@ class ProductFactory(BasicRegistrationFactory):
 
                 if level != 'LB':
                     if timesys == 'OBT':
-                        obs_beg = DateTime.from_string(header['OBT_BEG'])
+                        obs_beg = SCETime.from_string(header['OBT_BEG'])
                         offset = obs_beg.as_float()
                     elif timesys == 'UTC':
                         offset = Time(header['OBT_BEG'])
@@ -131,7 +135,7 @@ class Control(QTable):
     def _get_time(self):
         # Replicate integration time for each sample in each packet
         base_times = np.hstack(
-            [np.full(ns, DateTime(coarse=ct, fine=ft).as_float().value)
+            [np.full(ns, SCETime(coarse=ct, fine=ft).as_float().value)
              for ns, ct, ft in self[['num_samples', 'scet_coarse', 'scet_fine']]]) * u.s
         start_delta = np.hstack(
             [(np.arange(ns) * it) for ns, it in self[['num_samples', 'integration_time']]])
@@ -179,7 +183,7 @@ class ControlSci(QTable):
     def _get_time(self):
         # Replicate packet time for each sample
         base_times = Time(list(chain(
-            *[[DateTime(coarse=self["scet_coarse"][i], fine=self["scet_fine"][i])]
+            *[[SCETime(coarse=self["scet_coarse"][i], fine=self["scet_fine"][i])]
               * n for i, n in enumerate(self['num_samples'])])))
         # For each sample generate sample number and multiply by duration and apply unit
         start_delta = np.hstack(
@@ -204,13 +208,23 @@ class ControlSci(QTable):
 
         control = cls()
 
-        # Control
-
         control['tc_packet_id_ref'] = np.array(packets.get_value('NIX00001'), np.int32)
         control['tc_packet_seq_control'] = np.array(packets.get_value('NIX00002'), np.int32)
         control['request_id'] = np.array(packets.get_value('NIX00037'), np.uint32)
         control['time_stamp'] = np.array(packets.get_value('NIX00402'))
-        # control['num_structures'] = np.array(packets.get('NIX00403'), np.int32)
+        if np.any(control['time_stamp'] > 2 ** 32 - 1):
+            coarse = control['time_stamp'] >> 16
+            fine = control['time_stamp'] & (1 << 16) - 1
+        else:
+            coarse = control['time_stamp']
+            fine = 0
+        control['time_stamp'] = [SCETime(c, f) for c, f in zip(coarse, fine)]
+
+        try:
+            control['num_substructures'] = np.array(packets.get_value('NIX00403'),
+                                                    np.int32).reshape(1, -1)
+        except AttributeError:
+            logger.debug('NIX00403 not found')
 
         return control
 

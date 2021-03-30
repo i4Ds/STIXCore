@@ -99,7 +99,7 @@ class QLProduct(BaseProduct):
     #     data = QTable.read(fitspath, hdu='DATA')
     #     energies = QTable.read(fitspath, hdu='ENERGIES')
     #     if header['level'] == 'L0':
-    #         obs_beg = Time(DateTime.from_string(header['DATE_OBS']).to_datetime())
+    #         obs_beg = Time(SCETime.from_string(header['DATE_OBS']).to_datetime())
     #     elif header['level'] == 'L1':
     #         obs_beg = Time(header['DATE_OBS'])
     #     data['time'] = (obs_beg + data['time'])

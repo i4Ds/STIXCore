@@ -1,6 +1,6 @@
 from unittest.mock import patch
 
-from stixcore.datetime.datetime import DateTime
+from stixcore.datetime.datetime import SCETime
 from stixcore.io.fits.processors import FitsL0Processor
 
 
@@ -26,8 +26,8 @@ def test_level0_processor_generate_filename():
         product.obs_avg.coarse = 0
         product.level = 'LB'
         product.name = 'a_name'
-        product.obs_beg = DateTime(12345, 6789)
-        product.obs_end = DateTime(98765, 4321)
+        product.obs_beg = SCETime(12345, 6789)
+        product.obs_end = SCETime(98765, 4321)
         filename = processor.generate_filename(product, version=1)
         assert filename == 'solo_LB_stix-sci-a-name_0000012345:06789-0000098765:04321_V01.fits'
 
@@ -51,9 +51,9 @@ def test_level0_processor_generate_primary_header(datetime, product):
     processor = FitsL0Processor('some/path')
     datetime.now().isoformat.return_value = '1234-05-07T01:02:03.346'
 
-    product.obs_beg = DateTime(coarse=0, fine=0)
-    product.obs_avg = DateTime(coarse=0, fine=2**15)
-    product.obs_end = DateTime(coarse=1, fine=2**15)
+    product.obs_beg = SCETime(coarse=0, fine=0)
+    product.obs_avg = SCETime(coarse=0, fine=2 ** 15)
+    product.obs_end = SCETime(coarse=1, fine=2 ** 15)
     product.service_type = 1
     product.service_subtype = 2
     product.ssid = 3

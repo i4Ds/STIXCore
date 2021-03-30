@@ -10,7 +10,7 @@ from pathlib import Path
 
 from dateutil import parser as dtparser
 
-from stixcore.datetime.datetime import DateTime as StixDateTime
+from stixcore.datetime.datetime import SCETime as StixDateTime
 from stixcore.idb.idb import IDB
 from stixcore.util.logging import get_logger
 

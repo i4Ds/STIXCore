@@ -679,11 +679,12 @@ class Aspect(ScienceProduct):
         control['summing_value'] = packets.get_value('NIX00088')
         control['averaging_value'] = packets.get_value('NIX00490')
         control['index'] = range(len(control))
+        control['samples'] = packets.get_value('NIX00089')
 
         delta_time = ((control['summing_value'] * control['averaging_value']) / 1000.0)
         samples = packets.get_value('NIX00089')
 
-        offsets = [delta_time[i] * 0.5 * np.arange(ns) * u.s for i, ns in enumerate(samples)]
+        offsets = [delta_time[i] * np.arange(ns) * u.s for i, ns in enumerate(samples)]
         time = np.hstack([start_times[i].as_float() + offsets[i] for i in range(len(offsets))])
         timedel = np.hstack(offsets)
 

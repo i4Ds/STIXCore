@@ -2,7 +2,7 @@ from enum import Enum
 
 import numpy as np
 
-from stixcore.datetime.datetime import DateTime
+from stixcore.datetime.datetime import SCETime
 from stixcore.idb.idb import IDB
 from stixcore.idb.manager import IDBManager
 from stixcore.tmtc.parameter import CompressedParameter, EngineeringParameter, Parameter
@@ -132,7 +132,7 @@ class TMDataHeader:
         [setattr(self, key, value)
             for key, value in res['fields'].items() if not key.startswith('spare')]
 
-        self.datetime = DateTime(coarse=self.scet_coarse, fine=self.scet_fine)
+        self.datetime = SCETime(coarse=self.scet_coarse, fine=self.scet_fine)
 
     def __repr__(self):
         param_names_values = [f'{k}={v}' for k, v in self.__dict__.items() if k != 'bitstream']

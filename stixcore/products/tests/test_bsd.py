@@ -13,15 +13,15 @@ from stixcore.products.level0.science import (
 )
 
 testpackets = [(test_data.tmtc.TM_21_6_20_complete, RawPixelData, 'xray-rpd',
-                '42006729850898:00000', '42006729851000:00000', 6),
+                '0640971848:00000', '0640971950:00000', 6),
                (test_data.tmtc.TM_21_6_21, CompressedPixelData, 'xray-cpd',
-                '43180392185945:52223', '43180392185945:58367', 1),
+                '0658880585:52427', '0658880585:58981', 1),
                (test_data.tmtc.TM_21_6_21_complete, CompressedPixelData, 'xray-cpd',
-                '41961022488579:06655', '41961022488659:12799', 5),
+                '0640274394:06553', '0640274474:13106', 5),
                (test_data.tmtc.TM_21_6_24, Spectrogram, 'xray-spectrogram',
-                '43214571372558:38911', '43214571373473:32767', 54),
+                '0659402043:39320', '0659402958:32767', 54),
                (test_data.tmtc.TM_21_6_23_complete, Visibility, 'xray-visibility',
-                '42076627730432:06655', '42076627730448:33279', 5),
+                '0642038387:06553', '0642038403:32767', 5),
                (test_data.tmtc.TM_21_6_42_complete, Aspect, 'burst-aspect',
                 '0645932472:05485', '0645933120:33750', 2105)]
 

@@ -8,7 +8,7 @@ import numpy as np
 import astropy.units as u
 from astropy.table import unique, vstack
 
-from stixcore.datetime.datetime import DateTime
+from stixcore.datetime.datetime import SCETime
 from stixcore.products.common import (
     _get_compression_scheme,
     _get_detector_mask,
@@ -46,10 +46,10 @@ class QLProduct(BaseProduct):
         self.control = control
         self.data = data
 
-        self.obs_beg = DateTime.from_float(self.data['time'][0]
-                                           - self.control['integration_time'][0] / 2)
-        self.obs_end = DateTime.from_float(self.data['time'][-1]
-                                           + self.control['integration_time'][-1] / 2)
+        self.obs_beg = SCETime.from_float(self.data['time'][0]
+                                          - self.control['integration_time'][0] / 2)
+        self.obs_end = SCETime.from_float(self.data['time'][-1]
+                                          + self.control['integration_time'][-1] / 2)
         self.obs_avg = self.obs_beg + (self.obs_end - self.obs_beg) / 2
 
     def __add__(self, other):
@@ -353,7 +353,7 @@ class Spectra(QLProduct):
         start = 0
         for i, (ns, it) in enumerate(control['num_samples', 'integration_time']):
             off_sets = np.array(packets.get_value('NIX00485')[start:start + ns]) * it
-            base_time = DateTime(control["scet_coarse"][i], control["scet_fine"][i])
+            base_time = SCETime(control["scet_coarse"][i], control["scet_fine"][i])
             start_times = base_time.as_float() + off_sets
             end_times = base_time.as_float() + off_sets + it
             cur_time = start_times + (end_times - start_times) / 2
@@ -542,7 +542,7 @@ class EnergyCalibration(QLProduct):
         # Data
         data = Data()
         data['control_index'] = [0]
-        data['time'] = (DateTime(control['scet_coarse'][0], control['scet_fine'][0]).as_float()
+        data['time'] = (SCETime(control['scet_coarse'][0], control['scet_fine'][0]).as_float()
                         + control['integration_time'][0] / 2).reshape(1)
         data['timedel'] = control['integration_time'][0]
         # data['detector_id'] = np.array(packets.get('NIXD0155'), np.ubyte)
@@ -609,7 +609,7 @@ class TMStatusFlareList(QLProduct):
             data['start_scet_coarse'] = packets.get_value('NIX00287')
             data['end_scet_coarse'] = packets.get_value('NIX00287')
 
-            data['time'] = DateTime(packets.get_value('NIX00287'), packets.get_value('NIX00287'))
+            data['time'] = SCETime(packets.get_value('NIX00287'), packets.get_value('NIX00287'))
             data['highest_flareflag'] = packets.get_value('NIX00289').astype(np.byte)
             data['tm_byte_volume'] = packets.get('NIX00290').astype(np.int32)
             data['average_z_loc'] = packets.get('NIX00291').astype(np.byte)

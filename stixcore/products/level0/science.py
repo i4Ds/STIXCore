@@ -120,20 +120,18 @@ class RawPixelData(ScienceProduct):
 
         data = Data()
         data['start_time'] = (np.array(packets.get_value('NIX00404'), np.uint16)) * 0.1 * u.s
-        data['start_time'].meta = {'NIXS': 'NIX00404'}
-        data['rcr'] = np.array(packets.get_value('NIX00401', attr='value'), np.ubyte)
-        data['rcr'].meta = {'NIXS': 'NIX00401'}
+        data.add_meta(name='start_time', nix='NIX00404', packets=packets)
+        data.add_basic(name='rcr', nix='NIX00401', attr='value', packets=packets, dtype=np.ubyte)
         data['integration_time'] = (np.array(packets.get_value('NIX00405'), np.int16)) * 0.1 * u.s
-        data['integration_time'].meta = {'NIXS': 'NIX00405'}
-        data['pixel_masks'] = _get_pixel_mask(packets, 'NIXD0407')
-        data['pixel_masks'].meta = {'NIXS': 'NIX00405'}
-        data['detector_masks'] = _get_detector_mask(packets)
-        data['detector_masks'].meta = {'NIXS': 'NIX00407'}
+        data.add_meta(name='integration_time', nix='NIX00405', packets=packets)
+        data.add_data('pixel_masks', _get_pixel_mask(packets, 'NIXD0407'))
+        data.add_data('detector_masks', _get_detector_mask(packets))
         data['triggers'] = np.array([packets.get_value(f'NIX00{i}') for i in range(408, 424)],
                                     np.int64).T
-        data['triggers'].meta = {'NIXS': [f'NIX00{i}' for i in range(408, 424)]}
-        data['num_samples'] = np.array(packets.get_value('NIX00406'), np.int16)
-        data['num_samples'].meta = {'NIXS': 'NIX00406'}
+        data['triggers'].meta = {'NIXS': [f'NIX00{i}' for i in range(408, 424)],
+                                 'PCF_CURTX': [packets.get(f'NIX00{i}')[0].idb_info.PCF_CURTX
+                                               for i in range(408, 424)]}
+        data.add_basic(name='num_samples', nix='NIX00406', packets=packets, dtype=np.int16)
 
         num_detectors = 32
         num_energies = 32
@@ -190,7 +188,7 @@ class RawPixelData(ScienceProduct):
             + data['start_time'] + data['integration_time'] / 2
         data['timedel'] = data['integration_time']
         data['counts'] = counts * u.ct
-        data['counts'].meta = {'NIXS': 'NIX00065'}
+        # data.add_meta(name='counts', nix='NIX00065', packets=packets)
         data['control_index'] = control['index'][0]
 
         data.remove_columns(['start_time', 'integration_time', 'num_samples'])
@@ -221,13 +219,11 @@ class CompressedPixelData(ScienceProduct):
 
         control = ControlSci.from_packets(packets)
 
-        control['compression_scheme_counts_skm'], \
-            control['compression_scheme_counts_skm'].meta = \
-            _get_compression_scheme(packets, 'NIX00260')
+        control.add_data('compression_scheme_counts_skm',
+                         _get_compression_scheme(packets, 'NIX00260'))
 
-        control['compression_scheme_triggers_skm'], \
-            control['compression_scheme_triggers_skm'].meta = \
-            _get_compression_scheme(packets, 'NIX00242')
+        control.add_data('compression_scheme_triggers_skm',
+                         _get_compression_scheme(packets, 'NIX00242'))
 
         # control.remove_column('num_structures')
         control = unique(control)
@@ -240,23 +236,20 @@ class CompressedPixelData(ScienceProduct):
         data = Data()
         # TODO remove after solved https://github.com/i4Ds/STIXCore/issues/59
         data['delta_time'] = (np.array(packets.get_value('NIX00441'), np.int32)) * 0.1 * u.s
-        data['delta_time'].meta = {'NIXS': 'NIX00441'}
+        data.add_meta(name='delta_time', nix='NIX00441', packets=packets)
         unique_times = np.unique(data['delta_time'])
 
-        data['rcr'] = np.array(packets.get_value('NIX00401', attr='value'), np.ubyte)
-        data['rcr'].meta = {'NIXS': 'NIX00401'}
+        data.add_basic(name='rcr', nix='NIX00401', attr='value', packets=packets, dtype=np.ubyte)
         data['num_pixel_sets'] = np.atleast_1d(_get_unique(packets, 'NIX00442', np.byte))
-        data['num_pixel_sets'].meta = {'NIXS': 'NIX00442'}
-        pixel_masks = _get_pixel_mask(packets, 'NIXD0407')
+        data.add_meta(name='num_pixel_sets', nix='NIX00442', packets=packets)
+        pixel_masks, pm_meta = _get_pixel_mask(packets, 'NIXD0407')
         pixel_masks = pixel_masks.reshape(-1, data['num_pixel_sets'][0], 12)
         if ssid == 21 and data['num_pixel_sets'][0] != 12:
             pixel_masks = np.pad(pixel_masks, ((0, 0), (0, 12 - data['num_pixel_sets'][0]), (0, 0)))
-        data['pixel_masks'] = pixel_masks
-        data['pixel_masks'].meta = {'NIXS': 'NIX00407'}
-        data['detector_masks'] = _get_detector_mask(packets)
-        data['detector_masks'].meta = {'NIXS': 'NIX00407'}
+        data.add_data('pixel_masks', (pixel_masks, pm_meta))
+        data.add_data('detector_masks', _get_detector_mask(packets))
         data['integration_time'] = (np.array(packets.get_value('NIX00405'), np.uint16)) * 0.1 * u.s
-        data['integration_time'].meta = {'NIXS': 'NIX00405'}
+        data.add_meta(name='integration_time', nix='NIX00405', packets=packets)
 
         triggers = np.array([packets.get_value(f'NIX00{i}') for i in range(242, 258)])
         triggers_var = np.array([packets.get_value(f'NIX00{i}', attr='error')
@@ -265,8 +258,7 @@ class CompressedPixelData(ScienceProduct):
         data['triggers'] = triggers.T
         data['triggers'].meta = {'NIXS': [f'NIX00{i}' for i in range(242, 258)]}
         data['triggers_err'] = np.sqrt(triggers_var).T
-        data['num_energy_groups'] = np.array(packets.get_value('NIX00258'), np.ubyte)
-        data['num_energy_groups'].meta = {'NIXS': 'NIX00258'}
+        data.add_basic(name='num_energy_groups', nix='NIX00258', packets=packets, dtype=np.ubyte)
 
         tmp = dict()
         tmp['e_low'] = np.array(packets.get_value('NIXD0016'), np.ubyte)
@@ -380,11 +372,11 @@ class CompressedPixelData(ScienceProduct):
         sub_index = np.searchsorted(data['delta_time'], unique_times)
         data = data[sub_index]
 
-        data['time'] = (control["time_stamp"][0].as_float()
+        data['time'] = (control['time_stamp'][0].as_float()
                         + data['delta_time'] + data['integration_time']/2)
         data['timedel'] = data['integration_time']
         data['counts'] = out_counts * u.ct
-        data['counts'].meta = {'NIX': 'NIX00260'}
+        data.add_meta(name='counts', nix='NIX00260', packets=packets)
         data['counts_err'] = out_var * u.ct
         data['control_index'] = control['index'][0]
 
@@ -437,13 +429,11 @@ class Visibility(ScienceProduct):
 
         control = ControlSci.from_packets(packets)
 
-        control['compression_scheme_counts_skm'], \
-            control['compression_scheme_counts_skm'].meta = \
-            _get_compression_scheme(packets, 'NIX00263')
+        control.add_data('compression_scheme_counts_skm',
+                         _get_compression_scheme(packets, 'NIX00263'))
 
-        control['compression_scheme_triggers_skm'], \
-            control['compression_scheme_triggers_skm'].meta = \
-            _get_compression_scheme(packets, 'NIX00242')
+        control.add_data('compression_scheme_triggers_skm',
+                         _get_compression_scheme(packets, 'NIX00242'))
 
         control = unique(control)
 
@@ -455,7 +445,7 @@ class Visibility(ScienceProduct):
         data = Data()
         data['control_index'] = np.full(len(packets.get_value('NIX00441')), 0)
         data['delta_time'] = (np.array(packets.get_value('NIX00441'), np.uint16)) * 0.1 * u.s
-        data['delta_time'].meta = {'NIX': 'NIX00441'}
+        data.add_meta(name='delta_time', nix='NIX00441', packets=packets)
         unique_times = np.unique(data['delta_time'])
 
         # time = np.array([])
@@ -465,23 +455,16 @@ class Visibility(ScienceProduct):
         #     time = np.append(time, np.repeat(dt, nt))
         # self.time = time
 
-        data['rcr'] = packets.get_value('NIX00401', attr='value')
-        data['rcr'].meta = {'NIX': 'NIX00401'}
+        data.add_basic(name='rcr', nix='NIX00401', attr='value', packets=packets)
 
-        data['pixel_mask1'] = _get_pixel_mask(packets, 'NIXD0407')
-        data['pixel_mask1'].meta = {'NIX': 'NIXD0407'}
-        data['pixel_mask2'] = _get_pixel_mask(packets, 'NIXD0444')
-        data['pixel_mask2'].meta = {'NIX': 'NIXD0444'}
-        data['pixel_mask3'] = _get_pixel_mask(packets, 'NIXD0445')
-        data['pixel_mask3'].meta = {'NIX': 'NIXD0445'}
-        data['pixel_mask4'] = _get_pixel_mask(packets, 'NIXD0446')
-        data['pixel_mask4'].meta = {'NIX': 'NIXD0446'}
-        data['pixel_mask5'] = _get_pixel_mask(packets, 'NIXD0447')
-        data['pixel_mask5'].meta = {'NIX': 'NIXD0447'}
-        data['detector_masks'] = _get_detector_mask(packets)
-        data['detector_masks'].meta = {'NIXS': 'NIX00407'}
+        data.add_data('pixel_mask1', _get_pixel_mask(packets, 'NIXD0407'))
+        data.add_data('pixel_mask2', _get_pixel_mask(packets, 'NIXD0444'))
+        data.add_data('pixel_mask3', _get_pixel_mask(packets, 'NIXD0445'))
+        data.add_data('pixel_mask4', _get_pixel_mask(packets, 'NIXD0446'))
+        data.add_data('pixel_mask5', _get_pixel_mask(packets, 'NIXD0447'))
+        data.add_data('detector_masks', _get_detector_mask(packets))
         data['integration_time'] = (np.array(packets.get_value('NIX00405'))) * 0.1 * u.s
-        data['integration_time'].meta = {'NIXS': 'NIX00405'}
+        data.add_meta(name='integration_time', nix='NIX00405', packets=packets)
 
         triggers = []
         triggers_var = []
@@ -490,7 +473,9 @@ class Visibility(ScienceProduct):
             triggers_var.extend(packets.get_value(f'NIX00{i}', attr='error'))
 
         data['triggers'] = np.array(triggers).reshape(-1, 16)
-        data['triggers'].meta = {'NIXS': [f'NIX00{i}' for i in range(242, 258)]}
+        data['triggers'].meta = {'NIXS': [f'NIX00{i}' for i in range(242, 258)],
+                                 'PCF_CURTX': [packets.get(f'NIX00{i}')[0].idb_info.PCF_CURTX
+                                               for i in range(242, 258)]}
         data['triggers_err'] = np.sqrt(triggers_var).reshape(-1, 16)
 
         tids = np.searchsorted(data['delta_time'], unique_times)
@@ -499,8 +484,6 @@ class Visibility(ScienceProduct):
         sum(packets.get_value('NIX00258'))
 
         # Data
-        vis = np.zeros((unique_times.size, 32, 32), dtype=complex)
-        vis_err = np.zeros((unique_times.size, 32, 32), dtype=complex)
         e_low = np.array(packets.get_value('NIXD0016'))
         e_high = np.array(packets.get_value('NIXD0017'))
 
@@ -510,30 +493,24 @@ class Visibility(ScienceProduct):
         control['energy_bin_mask'][:, list(all_energies)] = True
 
         data['flux'] = np.array(packets.get_value('NIX00261')).reshape(unique_times.size, -1)
+        data.add_meta(name='flux', nix='NIX00261', packets=packets)
         num_detectors = packets.get_value('NIX00262')[0]
-        detector_id = np.array(packets.get_value('NIX00100')).reshape(unique_times.size, -1,
-                                                                      num_detectors)
+        data['detector_id'] = np.array(packets.get_value('NIX00100')).reshape(unique_times.size, -1,
+                                                                              num_detectors)
 
-        # vis[:, detector_id[0], e_low.reshape(unique_times.size, -1)[0]] = (
-        #         np.array(packets['NIX00263']) + np.array(packets['NIX00264'])
-        #         * 1j).reshape(unique_times.size, num_detectors, -1)
-
-        real = packets.get_value('NIX00263')
-        real_var = packets.get_value('NIX00263', attr='error')
-        imaginary = packets.get_value('NIX00264')
-        imaginary_var = packets.get_value('NIX00264', attr='error')
-
-        mesh = np.ix_(np.arange(unique_times.size), detector_id[0][0],
-                      e_low.reshape(unique_times.size, -1)[0])
-        vis[mesh] = (real + imaginary * 1j).reshape(unique_times.size, num_detectors, -1)
-
-        # TODO this doesn't seem correct prob need combine in a better
-        vis_err[mesh] = (np.sqrt(real_var) + np.sqrt(imaginary_var) * 1j).reshape(unique_times.size,
-                                                                                  num_detectors, -1)
-
-        data['visibility'] = vis
-        data['visibility'].meta = {'NXIS': ['NIX00263', 'NIX00264']}
-        data['visibility_err'] = vis_err
+        data['real'] = packets.get_value('NIX00263').reshape(unique_times.size, num_detectors, -1)
+        data.add_meta(name='real', nix='NIX00263', packets=packets)
+        data['real_err'] = np.sqrt(
+            packets.get_value('NIX00263', attr='error').reshape(unique_times.size,
+                                                                num_detectors, -1))
+        data.add_meta(name='real_err', nix='NIX00263', packets=packets)
+        data['imaginary'] = packets.get_value('NIX00264').reshape(unique_times.size,
+                                                                  num_detectors, -1)
+        data.add_meta(name='imaginary', nix='NIX00264', packets=packets)
+        data['imaginary_err'] = np.sqrt(
+            packets.get_value('NIX00264', attr='error').reshape(unique_times.size,
+                                                                num_detectors, -1))
+        data.add_meta(name='imaginary', nix='NIX00264', packets=packets)
 
         data['time'] = (control["time_stamp"][0].as_float()
                         + data['delta_time'] + data['integration_time'] / 2)
@@ -568,25 +545,22 @@ class Spectrogram(ScienceProduct):
 
         control = ControlSci.from_packets(packets)
 
-        control['compression_scheme_counts_skm'], \
-            control['compression_scheme_counts_skm'].meta = \
-            _get_compression_scheme(packets, 'NIX00268')
+        control.add_data('compression_scheme_counts_skm',
+                         _get_compression_scheme(packets, 'NIX00268'))
 
-        control['compression_scheme_triggers_skm'], \
-            control['compression_scheme_triggers_skm'].meta = \
-            _get_compression_scheme(packets, 'NIX00267')
+        control.add_data('compression_scheme_triggers_skm',
+                         _get_compression_scheme(packets, 'NIX00267'))
 
         control = unique(control)
 
         if len(control) != 1:
             raise ValueError('Creating a science product form packets from multiple products')
 
-        control['pixel_mask'] = np.unique(_get_pixel_mask(packets), axis=0)
-        control['pixel_mask'].meta = {'NIXS': 'NIXD0407'}
-        control['detector_mask'] = np.unique(_get_detector_mask(packets), axis=0)
-        control['detector_mask'].meta = {'NIXS': 'NIX00407'}
-        control['rcr'] = np.unique(packets.get_value('NIX00401', attr='value')).astype(np.int16)
-        control['rcr'].meta = {'NIXS': 'NIX00401'}
+        control['pixel_mask'] = np.unique(_get_pixel_mask(packets)[0], axis=0)
+        control.add_meta(name='pixel_mask', nix='NIXD0407', packets=packets)
+        control['detector_mask'] = np.unique(_get_detector_mask(packets)[0], axis=0)
+        control.add_meta(name='detector_mask', nix='NIX00407', packets=packets)
+        control.add_basic(name='rcr', nix='NIX00401', attr='value', packets=packets, dtype=np.int16)
         control['index'] = range(len(control))
 
         e_min = np.array(packets.get_value('NIXD0442'))
@@ -666,15 +640,10 @@ class Spectrogram(ScienceProduct):
         data['time'] = control["time_stamp"][0].as_float() + centers
         data['timedel'] = deltas
         data['timedel'].meta = {'NIXS': ['NIX00441', 'NIX00269']}
-
-        triggers = packets.get_value('NIX00267')
-        triggers_var = packets.get_value('NIX00267', attr='error')
-
-        data['triggers'] = triggers
-        data['triggers'].meta = {'NIXS': 'NIX00267'}
-        data['triggers_err'] = np.sqrt(triggers_var)
+        data.add_basic(name='triggers', nix='NIX00267', packets=packets)
+        data.add_basic(name='triggers', nix='NIX00267', attr='error', packets=packets)
         data['counts'] = full_counts * u.ct
-        data['counts'].meta = {'NIXS': 'NIX00268'}
+        data.add_meta(name='counts', nix='NIX00268', packets=packets)
         data['counts_err'] = np.sqrt(full_counts_var) * u.ct
         data['control_index'] = 0
 
@@ -710,13 +679,11 @@ class Aspect(ScienceProduct):
         scet_fine = packets.get_value('NIX00446')
         start_times = [SCETime(c, f) for c, f in zip(scet_coarse, scet_fine)]
 
-        # TODO add cuase for older IDB
-        control['summing_value'] = packets.get_value('NIX00088')
-        control['summing_value'].meta = {'NIXS': 'NIX00088'}
-        control['averaging_value'] = packets.get_value('NIX00490')
-        control['averaging_value'].meta = {'NIXS': 'NIX00490'}
+        # TODO add case for older IDB
+        control.add_basic(name='summing_value', nix='NIX00088', packets=packets)
+        control.add_basic(name='averaging_value', nix='NIX00490', packets=packets)
+        control.add_basic(name='samples', nix='NIX00089', packets=packets)
         control['index'] = range(len(control))
-        control['samples'] = packets.get_value('NIX00089')
 
         delta_time = ((control['summing_value'] * control['averaging_value']) / 1000.0)
         samples = packets.get_value('NIX00089')
@@ -730,15 +697,10 @@ class Aspect(ScienceProduct):
             data = Data()
             data['time'] = time
             data['timedel'] = timedel
-            data['cha_diode0'] = packets.get_value('NIX00090')
-
-            data['cha_diode0'].meta = {'NIXS': 'NIX00090'}
-            data['cha_diode1'] = packets.get_value('NIX00091')
-            data['cha_diode1'].meta = {'NIXS': 'NIX00091'}
-            data['chb_diode0'] = packets.get_value('NIX00092')
-            data['chb_diode0'].meta = {'NIXS': 'NIX00092'}
-            data['chb_diode1'] = packets.get_value('NIX00093')
-            data['chb_diode1'].meta = {'NIXS': 'NIX00093'}
+            data.add_basic(name='cha_diode0', nix='NIX00090', packets=packets)
+            data.add_basic(name='cha_diode1', nix='NIX00091', packets=packets)
+            data.add_basic(name='chb_diode0', nix='NIX00092', packets=packets)
+            data.add_basic(name='chb_diode1', nix='NIX00093', packets=packets)
             data['control_index'] = np.hstack([np.full(ns, i) for i, ns in enumerate(samples)])
         except ValueError as e:
             logger.warning(e)

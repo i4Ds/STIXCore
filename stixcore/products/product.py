@@ -181,7 +181,7 @@ class Control(QTable, AddParametersMixin):
         try:
             # TODO remove 0.1 after solved https://github.com/i4Ds/STIXCore/issues/59
             control['integration_time'] = (packets.get_value('NIX00405') + 0.1) * u.s
-            control['integration_time'].meta = {'NIXS': 'NIX00405'}
+            control.add_meta(name='integration_time', nix='NIX00405', packets=packets)
         except AttributeError:
             control['integration_time'] = np.zeros_like(control['scet_coarse'], np.float) * u.s
 

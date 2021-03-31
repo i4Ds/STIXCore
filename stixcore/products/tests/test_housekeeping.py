@@ -28,3 +28,20 @@ def test_housekeeping(levelb, packets):
     assert str(hk.obs_beg) == beg
     assert str(hk.obs_end) == end
     assert len(hk.data) == size
+
+
+@patch('stixcore.products.levelb.binary.LevelB')
+@pytest.mark.parametrize('packets', testpackets, ids=[f[0].stem for f in testpackets])
+def test_calibration(levelb, packets):
+    hex_file, cl, name, beg, end, size = packets
+    with hex_file.open('r') as file:
+        hex = file.readlines()
+
+    levelb.data.__getitem__.return_value = [re.sub(r"\s+", "", h) for h in hex]
+
+    hk = cl.from_levelb(levelb)
+    setattr(hk, "idb", {"2.26.34": (6.60258882e+08, 6.60258882e+08)})
+    setattr(hk.data['hk_dpu_pcb_t'], "meta", {"NIXS": "NIXD0025", "PCF_CURTX": "CIXP0024TM"})
+    setattr(hk.data['hk_dpu_2v5_c'], "meta", {"NIXS": "NIXD0028", "PCF_CURTX": "CIXP0026TM"})
+
+    hk.data

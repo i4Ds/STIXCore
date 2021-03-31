@@ -27,6 +27,23 @@ from stixcore.util.logging import get_logger
 logger = get_logger(__name__)
 
 
+class AddParametersMixin:
+    def add_basic(self, *, name, nix, packets, attr=None, dtype=None):
+        value = packets.get_value(nix, attr=attr)
+        self[name] = value if dtype is None else value.astype(dtype)
+        self.add_meta(name=name, nix=nix, packets=packets)
+
+    def add_data(self, name, data_meta):
+        data, meta = data_meta
+        self[name] = data
+        self[name].meta = meta
+
+    def add_meta(self, *, name, nix, packets):
+        param = packets.get(nix)
+        idb_info = param[0].idb_info
+        self[name].meta = {'NIXS': nix, 'PCF_CURTX': idb_info.PCF_CURTX}
+
+
 class BaseProduct:
     """
     Base QLProduct that all other product inherit from contains the registry for the factory pattern
@@ -127,7 +144,7 @@ class ProductFactory(BasicRegistrationFactory):
 Product = ProductFactory(registry=BaseProduct._registry)
 
 
-class Control(QTable):
+class Control(QTable, AddParametersMixin):
 
     def __repr__(self):
         return f'<{self.__class__.__name__} \n {super().__repr__()}>'
@@ -176,7 +193,7 @@ class Control(QTable):
         return control
 
 
-class ControlSci(QTable):
+class ControlSci(QTable, AddParametersMixin):
     def __repr__(self):
         return f'<{self.__class__.__name__} \n {super().__repr__()}>'
 
@@ -232,7 +249,7 @@ class ControlSci(QTable):
         return control
 
 
-class Data(QTable):
+class Data(QTable, AddParametersMixin):
     def __repr__(self):
         return f'<{self.__class__.__name__} \n {super().__repr__()}>'
 

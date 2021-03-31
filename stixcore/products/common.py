@@ -36,7 +36,8 @@ def _get_compression_scheme(packets, nix):
     skm = param[0].skm
     values = np.array((skm[0].value, skm[1].value, skm[2].value), np.ubyte).reshape(1, -1)
 
-    return values, {'NIXS': [skm[0].name, skm[1].name, skm[2].name]}
+    return values, {'NIXS': [skm[0].name, skm[1].name, skm[2].name],
+                    'PCF_CURTX': [p.idb_info.PCF_CURTX for p in skm]}
 
 
 def _get_energy_bins(packets, nixlower, nixuppper):
@@ -63,7 +64,11 @@ def _get_energy_bins(packets, nixlower, nixuppper):
                         zip(energy_bin_mask, energy_bin_mask_upper)]
     full_energy_mask = [list(map(int, m)) for m in full_energy_mask]
     full_energy_mask = np.array(full_energy_mask).astype(np.ubyte)
-    return full_energy_mask
+
+    meta = {'NIXS': [nixlower, nixuppper],
+            'PCF_CURTX': [packets.get(n)[0].idb_info.PCF_CURTX for n in [nixlower, nixuppper]]}
+
+    return full_energy_mask, meta
 
 
 def _get_detector_mask(packets):
@@ -84,7 +89,10 @@ def _get_detector_mask(packets):
          for x in format(packets.get_value('NIX00407')[i], '032b')][::-1]  # reverse ind
         for i in range(len(packets.get_value('NIX00407')))], np.ubyte)
 
-    return detector_masks
+    param = packets.get('NIX00407')[0]
+    meta = {'NIXS': 'NIX00407', 'PCF_CURTX': param.idb_info.PCF_CURTX}
+
+    return detector_masks, meta
 
 
 def _get_pixel_mask(packets, param_name='NIXD0407'):
@@ -106,7 +114,10 @@ def _get_pixel_mask(packets, param_name='NIXD0407'):
          for x in format(packets.get_value(param_name)[i], '012b')][::-1]  # reverse ind
         for i in range(len(packets.get_value(param_name)))], np.ubyte)
 
-    return pixel_masks
+    param = packets.get(param_name)[0]
+    meta = {'NIXS': param_name, 'PCF_CURTX': param.idb_info.PCF_CURTX}
+
+    return pixel_masks, meta
 
 
 def _get_num_energies(packets):
@@ -162,11 +173,14 @@ def _get_sub_spectrum_mask(packets):
     numpy.ndarray
         Bool array of mask
     """
+    nix = 'NIX00160'
     sub_spectrum_masks = np.array([
-        [bool(int(x)) for x in format(packets.get_value('NIX00160')[i], '08b')][::-1]
-        for i in range(len(packets.get_value('NIX00160')))], np.ubyte)
+        [bool(int(x)) for x in format(packets.get_value(nix)[i], '08b')][::-1]
+        for i in range(len(packets.get_value(nix)))], np.ubyte)
 
-    return sub_spectrum_masks
+    param = packets.get(nix)[0]
+    meta = {'NIXS': nix, 'PCF_CURTX': param.idb_info.PCF_CURTX}
+    return sub_spectrum_masks, meta
 
 
 def _get_energies_from_mask(mask=None):

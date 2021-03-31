@@ -171,12 +171,10 @@ class Control(QTable, AddParametersMixin):
         control = cls()
         # self.energy_bin_mask = None
         # self.samples = None
-        control['scet_coarse'] = np.array(packets.get_value('NIX00445'), np.uint32)
-        control['scet_coarse'].meta = {'NIXS': 'NIX00445'}
+        control.add_basic(name='scet_coarse', nix='NIX00445', packets=packets, dtype=np.uint32)
         # Not all QL data have fine time in TM default to 0 if no present
         try:
-            control['scet_fine'] = packets.get_value('NIX00446')
-            control['scet_fine'].meta = {'NIXS': 'NIX00446'}
+            control.add_basic(name='scet_fine', nix='NIX00446', packets=packets)
         except AttributeError:
             control['scet_fine'] = np.zeros_like(control['scet_coarse'], np.uint32)
 
@@ -225,13 +223,12 @@ class ControlSci(QTable, AddParametersMixin):
 
         control = cls()
 
-        control['tc_packet_id_ref'] = np.array(packets.get_value('NIX00001'), np.int32)
-        control['tc_packet_id_ref'].meta = {'NIXS': 'NIX00001'}
-        control['tc_packet_seq_control'] = np.array(packets.get_value('NIX00002'), np.int32)
-        control['tc_packet_seq_control'].meta = {'NIXS': 'NIX00002'}
-        control['request_id'] = np.array(packets.get_value('NIX00037'), np.uint32)
-        control['request_id'].meta = {'NIXS': 'NIX00037'}
-        control['time_stamp'] = np.array(packets.get_value('NIX00402'))
+        control.add_basic(name='tc_packet_id_ref', nix='NIX00001', packets=packets, dtype=np.int32)
+        control.add_basic(name='tc_packet_seq_control', nix='NIX00002', packets=packets,
+                          dtype=np.int32)
+        control.add_basic(name='request_id', nix='NIX00037', packets=packets,
+                          dtype=np.int32)
+        control.add_basic(name='time_stamp', nix='NIX00402', packets=packets)
         if np.any(control['time_stamp'] > 2 ** 32 - 1):
             coarse = control['time_stamp'] >> 16
             fine = control['time_stamp'] & (1 << 16) - 1
@@ -239,10 +236,10 @@ class ControlSci(QTable, AddParametersMixin):
             coarse = control['time_stamp']
             fine = 0
         control['time_stamp'] = [SCETime(c, f) for c, f in zip(coarse, fine)]
-        control['time_stamp'].meta = {'NIXS': 'NIX00402'}
         try:
             control['num_substructures'] = np.array(packets.get_value('NIX00403'),
                                                     np.int32).reshape(1, -1)
+            control.add_meta(name='num_substructures', nix='NIX00403', packets=packets)
         except AttributeError:
             logger.debug('NIX00403 not found')
 

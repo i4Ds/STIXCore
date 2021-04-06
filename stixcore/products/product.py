@@ -27,6 +27,23 @@ from stixcore.util.logging import get_logger
 logger = get_logger(__name__)
 
 
+class AddParametersMixin:
+    def add_basic(self, *, name, nix, packets, attr=None, dtype=None):
+        value = packets.get_value(nix, attr=attr)
+        self[name] = value if dtype is None else value.astype(dtype)
+        self.add_meta(name=name, nix=nix, packets=packets)
+
+    def add_data(self, name, data_meta):
+        data, meta = data_meta
+        self[name] = data
+        self[name].meta = meta
+
+    def add_meta(self, *, name, nix, packets):
+        param = packets.get(nix)
+        idb_info = param[0].idb_info
+        self[name].meta = {'NIXS': nix, 'PCF_CURTX': idb_info.PCF_CURTX}
+
+
 class BaseProduct:
     """
     Base QLProduct that all other product inherit from contains the registry for the factory pattern
@@ -127,7 +144,7 @@ class ProductFactory(BasicRegistrationFactory):
 Product = ProductFactory(registry=BaseProduct._registry)
 
 
-class Control(QTable):
+class Control(QTable, AddParametersMixin):
 
     def __repr__(self):
         return f'<{self.__class__.__name__} \n {super().__repr__()}>'
@@ -154,19 +171,17 @@ class Control(QTable):
         control = cls()
         # self.energy_bin_mask = None
         # self.samples = None
-        control['scet_coarse'] = np.array(packets.get_value('NIX00445'), np.uint32)
-        control['scet_coarse'].meta = {'NIXS': 'NIX00445'}
+        control.add_basic(name='scet_coarse', nix='NIX00445', packets=packets, dtype=np.uint32)
         # Not all QL data have fine time in TM default to 0 if no present
         try:
-            control['scet_fine'] = packets.get_value('NIX00446')
-            control['scet_fine'].meta = {'NIXS': 'NIX00446'}
+            control.add_basic(name='scet_fine', nix='NIX00446', packets=packets)
         except AttributeError:
             control['scet_fine'] = np.zeros_like(control['scet_coarse'], np.uint32)
 
         try:
             # TODO remove 0.1 after solved https://github.com/i4Ds/STIXCore/issues/59
             control['integration_time'] = (packets.get_value('NIX00405') + 0.1) * u.s
-            control['integration_time'].meta = {'NIXS': 'NIX00405'}
+            control.add_meta(name='integration_time', nix='NIX00405', packets=packets)
         except AttributeError:
             control['integration_time'] = np.zeros_like(control['scet_coarse'], np.float) * u.s
 
@@ -176,7 +191,7 @@ class Control(QTable):
         return control
 
 
-class ControlSci(QTable):
+class ControlSci(QTable, AddParametersMixin):
     def __repr__(self):
         return f'<{self.__class__.__name__} \n {super().__repr__()}>'
 
@@ -208,10 +223,12 @@ class ControlSci(QTable):
 
         control = cls()
 
-        control['tc_packet_id_ref'] = np.array(packets.get_value('NIX00001'), np.int32)
-        control['tc_packet_seq_control'] = np.array(packets.get_value('NIX00002'), np.int32)
-        control['request_id'] = np.array(packets.get_value('NIX00037'), np.uint32)
-        control['time_stamp'] = np.array(packets.get_value('NIX00402'))
+        control.add_basic(name='tc_packet_id_ref', nix='NIX00001', packets=packets, dtype=np.int32)
+        control.add_basic(name='tc_packet_seq_control', nix='NIX00002', packets=packets,
+                          dtype=np.int32)
+        control.add_basic(name='request_id', nix='NIX00037', packets=packets,
+                          dtype=np.int32)
+        control.add_basic(name='time_stamp', nix='NIX00402', packets=packets)
         if np.any(control['time_stamp'] > 2 ** 32 - 1):
             coarse = control['time_stamp'] >> 16
             fine = control['time_stamp'] & (1 << 16) - 1
@@ -219,17 +236,17 @@ class ControlSci(QTable):
             coarse = control['time_stamp']
             fine = 0
         control['time_stamp'] = [SCETime(c, f) for c, f in zip(coarse, fine)]
-
         try:
             control['num_substructures'] = np.array(packets.get_value('NIX00403'),
                                                     np.int32).reshape(1, -1)
+            control.add_meta(name='num_substructures', nix='NIX00403', packets=packets)
         except AttributeError:
             logger.debug('NIX00403 not found')
 
         return control
 
 
-class Data(QTable):
+class Data(QTable, AddParametersMixin):
     def __repr__(self):
         return f'<{self.__class__.__name__} \n {super().__repr__()}>'
 

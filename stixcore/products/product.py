@@ -67,7 +67,7 @@ class BaseProduct:
 
         packets = [Packet(unhexlify(d)) for d in levelb.data['data']]
 
-        for packet in packets:
+        for i, packet in enumerate(packets):
             decompression.decompress(packet)
             engineering.raw_to_engineering(packet)
 

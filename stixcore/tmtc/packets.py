@@ -509,20 +509,19 @@ class GenericTMPacket:
         return self.__repr__()
 
     def get_idb(self):
-        idb = None
         if isinstance(self.idb, IDBManager):
-            idb = self.idb.get_idb(obt=self.data_header.datetime)
+            return self.idb.get_idb(obt=self.data_header.datetime)
         if isinstance(self.idb, IDB):
-            idb = self.idb
-        return idb
+            return self.idb
+        return None
 
     def get_calibration_params(self):
         idb = self.get_idb()
         if idb is not None:
-            return idb.get_params_for_calibration(self.data_header.service_type,
-                                                  self.data_header.service_subtype,
-                                                  self.pi1_val)
-        return []
+            return idb, idb.get_params_for_calibration(self.data_header.service_type,
+                                                       self.data_header.service_subtype,
+                                                       self.pi1_val)
+        return idb, []
 
     # @property
     # def idb_version(self):

@@ -241,12 +241,13 @@ class IDBManager:
 
                 duration = ("duration", 0, 0.1, 0, 0, 0)
                 duration_p1 = ("duration + 0.1", 0.1, 0.1, 0, 0, 0)
+                duration_ms = ("duration in ms", 0, 1, 0, 0, 0)
                 binary_seconds = ("binary seconds", 0, 1.0 / 65535, 0, 0, 0)
 
                 for nix, config, unit in [('NIX00269', duration, "s"),
                                           ('NIX00441', duration, "s"),
                                           ('NIX00122', duration, "s"),
-                                          ('NIX00124', duration, "s"),
+                                          ('NIX00124', duration_ms, "ms"),
                                           ('NIX00404', duration_p1, "s"),
                                           ('NIX00405', duration_p1, "s"),
                                           ('NIX00123', binary_seconds, "s")]:

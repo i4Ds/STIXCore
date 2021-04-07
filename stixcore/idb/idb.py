@@ -899,6 +899,17 @@ class IDB:
         args = (pcf_curtx, raw_value, raw_value)
         rows = self._execute(sql, args)
         val = rows[0][0] if rows else None
+
+        if val is None:
+            logger.error(f'Missing textual calibration info for: {pcf_curtx} value={raw_value}')
+            # TODO discuss this fallback
+            val = raw_value
+
+        if val == "True":
+            val = True
+        elif val == "False":
+            val = False
+
         self.textual_parameter_lut[(pcf_curtx, raw_value)] = val
         # lookup table
         return val

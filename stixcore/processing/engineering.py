@@ -1,5 +1,6 @@
 """Processing module for converting raw to engineering values."""
 import re
+from collections.abc import Iterable
 
 import numpy as np
 
@@ -7,6 +8,8 @@ import astropy.units as u
 
 from stixcore.tmtc.parameter import EngineeringParameter, Parameter
 from stixcore.util.logging import get_logger
+
+CCN = "__converted_column__"
 
 __all__ = ['EngineeringParameter', 'raw_to_engineering']
 
@@ -32,10 +35,15 @@ def apply_raw_to_engineering(raw, args):
     param, idb = args
     en = None
     if param.PCF_CATEG == 'S':
-        en = idb.textual_interpret(param.PCF_CURTX, raw.name)
-        # if en is None:
-        #   logger.error(f'Missing textual calibration info for: {param.PCF_NAME} / \
-        #               {param.PCF_CURTX} value={raw}')
+        if isinstance(raw.value, Iterable):
+            if isinstance(raw.value, list):
+                raw.value = np.array(raw.value)
+
+            en = np.array([idb.textual_interpret(param.PCF_CURTX, val.item())
+                           for val in np.ravel(raw.value)]).reshape(raw.value.shape)
+
+        else:
+            en = idb.textual_interpret(param.PCF_CURTX, raw.value)
     elif param.PCF_CATEG == 'N':
         prefix = re.split(r'\d+', param.PCF_CURTX)[0]
         if prefix == 'CIXP':
@@ -108,11 +116,14 @@ def raw_to_engineering_product(product, idbm):
             continue
         col_n += 1
         c = 0
+
+        # clone the current column into a new column as the content might be replaced chunk wise
+        product.data[CCN] = product.data[col]
+
         for idbversion, (starttime, endtime) in product.idb.items():
             starttime = starttime * u.s
             endtime = endtime * u.s
 
-            print(idbversion, starttime, endtime)
             idb = idbm.get_idb(idbversion)
             idb_time_period = np.where((starttime <= product.data['time']) &
                                        (product.data['time'] < endtime))[0]
@@ -132,19 +143,24 @@ def raw_to_engineering_product(product, idbm):
             eng = apply_raw_to_engineering(raw, (calib_param, idb))
 
             # cast the type of the column if needed
-            if product.data[col].dtype != eng.engineering.dtype:
-                product.data[col] = product.data[col].astype(eng.engineering.dtype)
+            if product.data[CCN].dtype != eng.engineering.dtype:
+                product.data[CCN] = product.data[CCN].astype(eng.engineering.dtype)
 
             # set the unit if needed
-            if product.data[col].unit != eng.engineering.unit:
+            if hasattr(eng.engineering, "unit") and \
+               product.data[CCN].unit != eng.engineering.unit:
                 meta = product.data[col].meta
-                product.data[col].unit = eng.engineering.unit
+                product.data[CCN].unit = eng.engineering.unit
                 # restore the meta info
-                setattr(product.data[col], "meta", meta)
+                setattr(product.data[CCN], "meta", meta)
 
-            # override the data
-            product.data[col][idb_time_period] = eng.engineering
+            # override the data into the new column
+            product.data[CCN][idb_time_period] = eng.engineering
 
+        # replace the old column with the converted
+        product.data[col] = product.data[CCN]
+        # delete the generic column for conversion
+        del product.data[CCN]
         assert c == len(product.data)
 
     return col_n

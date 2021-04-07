@@ -632,8 +632,8 @@ class Spectrogram(ScienceProduct):
             deltas.append(delta)
             last = last + nt
 
-        centers = np.hstack(centers)
-        deltas = np.hstack(deltas)
+        centers = np.hstack(centers) * u.s
+        deltas = np.hstack(deltas) * u.s
 
         # Data
         data = Data()

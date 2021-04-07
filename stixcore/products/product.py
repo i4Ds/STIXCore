@@ -31,17 +31,20 @@ class AddParametersMixin:
     def add_basic(self, *, name, nix, packets, attr=None, dtype=None):
         value = packets.get_value(nix, attr=attr)
         self[name] = value if dtype is None else value.astype(dtype)
-        self.add_meta(name=name, nix=nix, packets=packets)
+        self.add_meta(name=name, nix=nix, packets=packets, add_curtx=(attr == "value"))
 
     def add_data(self, name, data_meta):
         data, meta = data_meta
         self[name] = data
         self[name].meta = meta
 
-    def add_meta(self, *, name, nix, packets):
+    def add_meta(self, *, name, nix, packets, add_curtx=False):
         param = packets.get(nix)
         idb_info = param[0].idb_info
-        self[name].meta = {'NIXS': nix, 'PCF_CURTX': idb_info.PCF_CURTX}
+        meta = {'NIXS': nix}
+        if add_curtx:
+            meta['PCF_CURTX'] = idb_info.PCF_CURTX
+        self[name].meta = meta
 
 
 class BaseProduct:
@@ -180,7 +183,7 @@ class Control(QTable, AddParametersMixin):
 
         try:
             # TODO remove 0.1 after solved https://github.com/i4Ds/STIXCore/issues/59
-            control['integration_time'] = (packets.get_value('NIX00405') + 0.1)
+            control['integration_time'] = (packets.get_value('NIX00405') + (0.1 * u.s))
             control.add_meta(name='integration_time', nix='NIX00405', packets=packets)
         except AttributeError:
             control['integration_time'] = np.zeros_like(control['scet_coarse'], np.float) * u.s

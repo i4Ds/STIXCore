@@ -131,7 +131,7 @@ class IDBManager:
         ------
         ValueError
         """
-        if self.has_version(version_label) and force is False:
+        if force is False and self.has_version(version_label):
             raise ValueError(f'IDB version {version_label} already available locally. '
                              f'Use force=True if you would like to override')
 

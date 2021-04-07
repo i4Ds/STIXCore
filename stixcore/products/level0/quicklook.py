@@ -503,7 +503,7 @@ class EnergyCalibration(QLProduct):
 
         control = Control.from_packets(packets)
 
-        control['integration_time'] = (packets.get_value('NIX00122') + 1) * 0.1 * u.s
+        control['integration_time'] = packets.get_value('NIX00122')
         control.add_meta(name='integration_time', nix='NIX00122', packets=packets)
         # control['obs_beg'] = control['obs_utc']
         # control['.obs_end'] = control['obs_beg'] + timedelta(seconds=control[

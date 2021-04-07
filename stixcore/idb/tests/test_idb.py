@@ -185,14 +185,14 @@ def test_get_calibration_curve(idb):
 
 def test_textual_interpret(idb):
     info = idb.textual_interpret('CAAT0005TM', 0)
-    assert len(info) >= 1
+    assert info == 'Disconnected'
 
     # test twice for caching
     info = idb.textual_interpret('CAAT0005TM', 0)
-    assert len(info) >= 1
+    assert info == 'Disconnected'
 
     info = idb.textual_interpret('foobar', 1)
-    assert info is None
+    assert (info is None) or (info == 1)
 
 
 def test_get_calibration_polynomial(idb):

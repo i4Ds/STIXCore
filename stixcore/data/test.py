@@ -42,7 +42,8 @@ class IOTestData:
         self.SOC_DIR = data_dir / "io" / "soc"
         self.TM = self.SOC_DIR / "PktTmRaw.xml"
         self.TC = self.SOC_DIR / "PktTcReport.xml"
-        self.HK_MAXI = self.SOC_DIR / "PktTmHK_MAXI.xml"
+        self.HK_MAXI_P1 = self.SOC_DIR / "PktTmHK_MAXI_p1.xml"
+        self.HK_MAXI_P2 = self.SOC_DIR / "PktTmHK_MAXI_p2.xml"
         self.__doc__ = "\n".join([f'{str(k)}: {repr(v)}\n\n' for k, v in self.__dict__.items()])
 
 

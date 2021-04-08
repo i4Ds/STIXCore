@@ -1,7 +1,9 @@
 """
 House Keeping data products
 """
-from stixcore.datetime.datetime import SCETime
+from collections import defaultdict
+
+from stixcore.datetime.datetime import SCETime, SCETimeRange
 from stixcore.products.level0.quicklook import QLProduct
 from stixcore.products.product import Control, Data
 
@@ -21,7 +23,7 @@ class MiniReport(QLProduct):
 
     @classmethod
     def from_levelb(cls, levelb):
-        packets = super().from_levelb(levelb)
+        packets, idb = super().from_levelb(levelb)
 
         service_type = packets.get('service_type')[0]
         service_subtype = packets.get('service_subtype')[0]
@@ -91,16 +93,17 @@ class MaxiReport(QLProduct):
     """
     Maxi house keeping reported in all modes while the flight software is running.
     """
-    def __init__(self, *, service_type, service_subtype, ssid, control, data, **kwargs):
+    def __init__(self, *, service_type, service_subtype, ssid, control, data,
+                 idb=defaultdict(SCETimeRange), **kwargs):
         super().__init__(service_type=service_type, service_subtype=service_subtype,
-                         ssid=ssid, control=control, data=data, **kwargs)
+                         ssid=ssid, control=control, data=data, idb=idb, **kwargs)
         self.name = 'maxi'
         self.level = 'L0'
         self.type = 'hk'
 
     @classmethod
     def from_levelb(cls, levelb):
-        packets = super().from_levelb(levelb)
+        packets, idb = super().from_levelb(levelb)
 
         service_type = packets.get('service_type')[0]
         service_subtype = packets.get('service_subtype')[0]
@@ -201,7 +204,7 @@ class MaxiReport(QLProduct):
         data['control_index'] = range(len(control))
 
         return cls(service_type=service_type, service_subtype=service_subtype, ssid=ssid,
-                   control=control, data=data)
+                   control=control, data=data, idb=idb)
 
     @classmethod
     def is_datasource_for(cls, *, service_type, service_subtype, ssid, **kwargs):

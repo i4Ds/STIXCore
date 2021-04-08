@@ -16,11 +16,13 @@ from astropy.time import Time
 
 import stixcore.processing.decompression as decompression
 import stixcore.processing.engineering as engineering
-from stixcore.datetime.datetime import SCETime
+from stixcore.datetime.datetime import SCETime, SCETimeRange
 from stixcore.tmtc.packet_factory import Packet
 from stixcore.tmtc.packets import PacketSequence
 
 __all__ = ['BaseProduct', 'ProductFactory', 'Product', 'ControlSci', 'Control', 'Data']
+
+from collections import defaultdict
 
 from stixcore.util.logging import get_logger
 
@@ -70,12 +72,27 @@ class BaseProduct:
 
         packets = [Packet(unhexlify(d)) for d in levelb.data['data']]
 
+        idb = defaultdict(SCETimeRange)
+
         for i, packet in enumerate(packets):
             decompression.decompress(packet)
             engineering.raw_to_engineering(packet)
+            idb[packet.get_idb().version].expand(packet.data_header.datetime)
+
+        # not needed?
+        # max_entries = len(idb)
+        # sorted_versions = sorted(idb)
+        # for i, key in enumerate(sorted_versions):
+        #     if i == 0:
+        #         idb[key].start = SCETime.min_time()
+        #     elif i > 0 and i < (max_entries-1):
+        #         idb[key].end = idb[sorted_versions[i+1]].start
+
+        #     if i == max_entries-1:
+        #         idb[key].end = SCETime.max_time()
 
         packets = PacketSequence(packets)
-        return packets
+        return packets, idb
 
 
 class ProductFactory(BasicRegistrationFactory):

@@ -102,7 +102,7 @@ class RawPixelData(ScienceProduct):
 
     @classmethod
     def from_levelb(cls, levelb):
-        packets = BaseProduct.from_levelb(levelb)
+        packets, idb = BaseProduct.from_levelb(levelb)
 
         service_type = packets.get('service_type')[0]
         service_subtype = packets.get('service_subtype')[0]
@@ -211,7 +211,7 @@ class CompressedPixelData(ScienceProduct):
 
     @classmethod
     def from_levelb(cls, levelb):
-        packets = BaseProduct.from_levelb(levelb)
+        packets, idb = BaseProduct.from_levelb(levelb)
 
         service_type = packets.get('service_type')[0]
         service_subtype = packets.get('service_subtype')[0]
@@ -421,7 +421,7 @@ class Visibility(ScienceProduct):
 
     @classmethod
     def from_levelb(cls, levelb):
-        packets = BaseProduct.from_levelb(levelb)
+        packets, idb = BaseProduct.from_levelb(levelb)
 
         service_type = packets.get('service_type')[0]
         service_subtype = packets.get('service_subtype')[0]
@@ -537,7 +537,7 @@ class Spectrogram(ScienceProduct):
 
     @classmethod
     def from_levelb(cls, levelb):
-        packets = BaseProduct.from_levelb(levelb)
+        packets, idb = BaseProduct.from_levelb(levelb)
 
         service_type = packets.get('service_type')[0]
         service_subtype = packets.get('service_subtype')[0]
@@ -668,7 +668,7 @@ class Aspect(ScienceProduct):
 
     @classmethod
     def from_levelb(cls, levelb):
-        packets = BaseProduct.from_levelb(levelb)
+        packets, idb = BaseProduct.from_levelb(levelb)
 
         service_type = packets.get('service_type')[0]
         service_subtype = packets.get('service_subtype')[0]

@@ -7,7 +7,7 @@ from stixcore.ephemeris.manager import Time
 
 SPICE_TIME = Time(meta_kernel_path=test_data.ephemeris.META_KERNEL)
 
-__all__ = ['SCETime']
+__all__ = ['SCETime', 'SCETimeRange']
 
 
 class SCETime:
@@ -61,6 +61,14 @@ class SCETime:
             return utc
 
     @classmethod
+    def min_time(cls):
+        return SCETime(0, 0)
+
+    @classmethod
+    def max_time(cls):
+        return SCETime((2**32)-1, (2**16)-1)
+
+    @classmethod
     def from_float(cls, scet_float):
         sub_seconds, seconds = np.modf(scet_float.to_value('s'))
         fine = int((2**16 - 1) * sub_seconds)
@@ -68,7 +76,7 @@ class SCETime:
 
     @classmethod
     def from_string(cls, scet_str):
-        coarse, fine = [int(p) for p in scet_str.split(':')]
+        coarse, fine = [int(p) for p in scet_str.split('f')]
         return SCETime(coarse=coarse, fine=fine)
 
     def __add__(self, other):
@@ -92,7 +100,7 @@ class SCETime:
         return f'{self.__class__.__name__}(coarse={self.coarse}, fine={self.fine})'
 
     def __str__(self):
-        return f'{self.coarse:010d}:{self.fine:05d}'
+        return f'{self.coarse:010d}f{self.fine:05d}'
 
     def __gt__(self, other):
         if self.coarse > other.coarse:
@@ -124,3 +132,48 @@ class SCETime:
 
     def __eq__(self, other):
         return self.coarse == other.coarse and self.fine == other.fine
+
+
+class SCETimeRange:
+    """
+    SolarOrbiter Spacecraft Elapse Time (SCET) Range with start and end time.
+
+    Attributes
+    ----------
+    start : `SCETime`
+        start time of the range
+    end : `SCETime`
+        end time of the range
+    """
+    def __init__(self, *, start=SCETime.max_time(), end=SCETime.min_time()):
+        self.start = max(start, end)
+        self.end = min(start, end)
+
+    def expand(self, time):
+        """Enlarge the time range to include the given time.
+
+        Parameters
+        ----------
+        time : `SCETime` or `SCETimeRange`
+            The new time the range should include or an other time range.
+
+        Raises
+        ------
+        ValueError
+            if the given time is from a other class.
+        """
+        if isinstance(time, SCETime):
+            self.start = min(self.start, time)
+            self.end = max(self.end, time)
+        elif isinstance(time, SCETimeRange):
+            self.start = min(self.start, time.start)
+            self.end = max(self.end, time.end)
+        else:
+            raise ValueError("time must be 'SCETime' or 'SCETimeRange'")
+
+    def __repr__(self):
+        return f'{self.__class__.__name__}(start={str(self.start)}, end={str(self.end)})'
+
+    def __str__(self):
+        return (f'{self.start.coarse:010d}:{self.start.fine:05d} > ' +
+                f'{self.end.coarse:010d}:{self.end.fine:05d}')

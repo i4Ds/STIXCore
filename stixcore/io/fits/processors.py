@@ -219,6 +219,9 @@ class FitsL0Processor:
             # Convert time to be relative to start date
             data['time'] = (data['time'] - prod.obs_beg.as_float()).to(u.s)
 
+            # TODO persits the IDB lookup data
+            # maybe add a additional column to control with the version string for each time bin
+
             primary_header = self.generate_primary_header(filename, prod)
             primary_hdu = fits.PrimaryHDU()
             primary_hdu.header.update(primary_header)
@@ -295,6 +298,7 @@ class FitsL0Processor:
         tuple
             List of header cards as tuples (name, value, comment)
         """
+
         headers = (
             # Name, Value, Comment
             ('TELESCOP', 'SOLO/STIX', 'Telescope/Sensor name'),

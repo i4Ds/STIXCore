@@ -146,8 +146,8 @@ class SCETimeRange:
         end time of the range
     """
     def __init__(self, *, start=SCETime.max_time(), end=SCETime.min_time()):
-        self.start = max(start, end)
-        self.end = min(start, end)
+        self.start = start
+        self.end = end
 
     def expand(self, time):
         """Enlarge the time range to include the given time.
@@ -175,5 +175,13 @@ class SCETimeRange:
         return f'{self.__class__.__name__}(start={str(self.start)}, end={str(self.end)})'
 
     def __str__(self):
-        return (f'{self.start.coarse:010d}:{self.start.fine:05d} > ' +
-                f'{self.end.coarse:010d}:{self.end.fine:05d}')
+        return (f'{str(self.start)} to ' +
+                f'{str(self.end)}')
+
+    def __contains__(self, item):
+        if isinstance(item, SCETime):
+            return self.start <= item and self.end >= item
+        elif isinstance(item, SCETimeRange):
+            return self.start <= item.start and self.end >= item.end
+        else:
+            raise ValueError("time must be 'SCETime' or 'SCETimeRange'")

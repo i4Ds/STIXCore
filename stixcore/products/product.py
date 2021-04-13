@@ -121,6 +121,16 @@ class ProductFactory(BasicRegistrationFactory):
                 if level == 'L1':
                     energies = QTable.read(file_path, hdu='ENERGIES')
 
+                idb = defaultdict(SCETimeRange)
+                if level == 'L0':
+                    try:
+                        idbt = QTable.read(file_path, hdu='IDB')
+                        for row in idbt.iterrows():
+                            idb[row[0]] = SCETimeRange(start=SCETime.from_float(row[1]),
+                                                       end=SCETime.from_float(row[2]))
+                    except KeyError:
+                        logger.warn(f"no IDB data found in FITS: {file_path}")
+
                 Product = self._check_registered_widget(level=level, service_type=service_type,
                                                         service_subtype=service_subtype,
                                                         ssid=ssid, control=control,
@@ -129,7 +139,7 @@ class ProductFactory(BasicRegistrationFactory):
                 return Product(level=level, service_type=service_type,
                                service_subtype=service_subtype,
                                ssid=ssid, control=control,
-                               data=data, energies=energies)
+                               data=data, energies=energies, idb=idb)
 
     def _check_registered_widget(self, *args, **kwargs):
         """

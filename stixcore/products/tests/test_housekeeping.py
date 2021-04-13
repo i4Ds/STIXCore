@@ -13,6 +13,7 @@ from stixcore.io.soc.manager import SOCPacketFile
 from stixcore.processing.engineering import raw_to_engineering_product
 from stixcore.products.level0.housekeeping import MaxiReport, MiniReport
 from stixcore.products.levelb.binary import LevelB
+from stixcore.products.product import Product
 
 testpackets = [(test_data.tmtc.TM_3_25_1, MiniReport, 'mini',
                 '0660010031f51423', '0660010031f51423', 1),
@@ -71,7 +72,9 @@ def test_calibration_hk_many(idbm):
     hk_p1 = MaxiReport.from_levelb(prod_lb_p1)
 
     fits_proc = FitsL0Processor(Path(tempfile.gettempdir()))
-    fits_proc.write_fits(hk_p1)
+    filename = fits_proc.write_fits(hk_p1)[0]
+
+    hk_p1_io = Product(filename)
 
     prod_lb_p2 = LevelB.from_tm(SOCPacketFile(test_data.io.HK_MAXI_P2))
     hk_p2 = MaxiReport.from_levelb(prod_lb_p2)
@@ -80,10 +83,14 @@ def test_calibration_hk_many(idbm):
     hk_p2.idb["2.26.35"] = hk_p2.idb["2.26.34"]
     del hk_p2.idb["2.26.34"]
 
-    hk = hk_p1 + hk_p2
+    hk = hk_p1_io + hk_p2
 
     raw_to_engineering_product(hk, idbm)
 
     tend = perf_counter()
 
     print('Time taken %f', tend - tstart)
+
+
+if __name__ == '__main__':
+    test_calibration_hk_many(IDBManager(test_data.idb.DIR))

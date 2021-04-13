@@ -4,6 +4,9 @@ from collections.abc import Iterable
 
 import numpy as np
 
+from astropy.table.table import QTable
+
+from stixcore.datetime.datetime import SCETime
 from stixcore.tmtc.parameter import EngineeringParameter, Parameter
 from stixcore.util.logging import get_logger
 
@@ -104,6 +107,17 @@ def raw_to_engineering_product(product, idbm):
         How many columns where calibrated.
     """
     col_n = 0
+
+    idb_ranges = QTable(rows=[(version, range.start.as_float(), range.end.as_float())
+                              for version, range in product.idb.items()],
+                        names=["version", "obt_start", "obt_end"])
+    idb_ranges.sort("obt_start")
+
+    idb_ranges['obt_start'][0] = SCETime.min_time().as_float()
+    for i in range(0, len(idb_ranges)-1):
+        idb_ranges['obt_end'][i] = idb_ranges['obt_start'][i+1]
+    idb_ranges['obt_end'][-1] = SCETime.max_time().as_float()
+
     for col in product.data.colnames:
         if (not (hasattr(product.data[col], "meta")
                  and "PCF_CURTX" in product.data[col].meta
@@ -118,13 +132,10 @@ def raw_to_engineering_product(product, idbm):
         # clone the current column into a new column as the content might be replaced chunk wise
         product.data[CCN] = product.data[col]
 
-        for idbversion, time_range in product.idb.items():
-            starttime = time_range.start.as_float()
-            endtime = time_range.end.as_float()
-
+        for idbversion, starttime, endtime in idb_ranges.iterrows():
             idb = idbm.get_idb(idbversion)
             idb_time_period = np.where((starttime <= product.data['time']) &
-                                       (product.data['time'] <= endtime))[0]
+                                       (product.data['time'] < endtime))[0]
             if len(idb_time_period) < 1:
                 continue
             c += len(idb_time_period)

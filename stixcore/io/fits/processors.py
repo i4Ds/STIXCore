@@ -174,7 +174,7 @@ class FitsL0Processor:
 
     def write_fits(self, product):
         """
-        Write level 1 products into fits files.
+        Write level 0 products into fits files.
 
         Parameters
         ----------
@@ -182,8 +182,11 @@ class FitsL0Processor:
 
         Returns
         -------
+        list
+            of created file as `pathlib.Path`
 
         """
+        created_files = []
         if callable(getattr(product, 'to_days', None)):
             products = product.to_days()
         else:
@@ -209,6 +212,10 @@ class FitsL0Processor:
             control = prod.control
             data = prod.data
 
+            idb = QTable(rows=[(version, range.start.as_float(), range.end.as_float())
+                               for version, range in product.idb.items()],
+                         names=["version", "obt_start", "obt_end"])
+
             # elow, ehigh = prod.get_energies()
             #
             # energies = QTable()
@@ -233,14 +240,21 @@ class FitsL0Processor:
             data_enc = fits.connect._encode_mixins(data)
             data_hdu = table_to_hdu(data_enc)
             data_hdu.name = 'DATA'
+            idb_enc = fits.connect._encode_mixins(idb)
+            idb_hdu = table_to_hdu(idb_enc)
+            idb_hdu.name = 'IDB'
+
             # energy_enc = fits.connect._encode_mixins(energies)
             # energy_hdu = table_to_hdu(energy_enc)
             # energy_hdu.name = 'ENERGIES'
 
-            hdul = fits.HDUList([primary_hdu, control_hdu, data_hdu])  # , energy_hdu])
+            hdul = fits.HDUList([primary_hdu, control_hdu, data_hdu, idb_hdu])  # , energy_hdu])
 
-            logger.debug(f'Writing fits file to {path / filename}')
-            hdul.writeto(path / filename, overwrite=True, checksum=True)
+            filetowrite = path / filename
+            logger.debug(f'Writing fits file to {filetowrite}')
+            hdul.writeto(filetowrite, overwrite=True, checksum=True)
+            created_files.append(filetowrite)
+        return created_files
 
     @staticmethod
     def generate_filename(product=None, version=None, status=''):

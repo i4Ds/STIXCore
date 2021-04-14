@@ -256,7 +256,6 @@ class CompressedPixelData(ScienceProduct):
         data['integration_time'] = packets.get_value('NIX00405')
         data.add_meta(name='integration_time', nix='NIX00405', packets=packets)
 
-
         triggers = np.array([packets.get_value(f'NIX00{i}') for i in range(242, 258)])
         triggers_var = np.array([packets.get_value(f'NIX00{i}', attr='error')
                                  for i in range(242, 258)])

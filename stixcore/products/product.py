@@ -196,7 +196,22 @@ class Control(QTable, AddParametersMixin):
         return times, durations
 
     @classmethod
-    def from_packets(cls, packets):
+    def from_packets(cls, packets, NIX00405_offset=0):
+        """
+        Common generator method the create and prepare the control table.
+
+        ----------
+        packets : `PacketSequence`
+            The set of packets of same data type for what the data product will be created.
+        NIX00405_offset : int, optional
+            NIX00405 (integration time) is used in two ways (X * 0.1s) or ((X+1) * 0.1s),
+            by default 0
+
+        Returns
+        -------
+        `Control`
+            The Control object for the data product.
+        """
         # Header
         control = cls()
         # self.energy_bin_mask = None
@@ -209,8 +224,7 @@ class Control(QTable, AddParametersMixin):
             control['scet_fine'] = np.zeros_like(control['scet_coarse'], np.uint32)
 
         try:
-            # TODO remove 0.1 after solved https://github.com/i4Ds/STIXCore/issues/59
-            control['integration_time'] = (packets.get_value('NIX00405') + (0.1 * u.s))
+            control['integration_time'] = (packets.get_value('NIX00405') + (NIX00405_offset * u.s))
             control.add_meta(name='integration_time', nix='NIX00405', packets=packets)
         except AttributeError:
             control['integration_time'] = np.zeros_like(control['scet_coarse'], np.float) * u.s

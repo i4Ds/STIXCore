@@ -247,9 +247,9 @@ class IDBManager:
                 for nix, config, unit in [('NIX00269', duration, "s"),
                                           ('NIX00441', duration, "s"),
                                           ('NIX00122', duration, "s"),
+                                          ('NIX00405', duration, "s"),
                                           ('NIX00124', duration_ms, "ms"),
                                           ('NIX00404', duration_p1, "s"),
-                                          ('NIX00405', duration_p1, "s"),
                                           ('NIX00123', binary_seconds, "s")]:
                     count,  = cur.execute("select count(*) from PCF where PCF_NAME = ? " +
                                           "AND PCF_CURTX not NULL", (nix,)).fetchone()

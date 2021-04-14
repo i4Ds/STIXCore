@@ -25,6 +25,8 @@ __all__ = ['QLProduct', 'LightCurve', 'Background', 'Spectra']
 
 logger = get_logger(__name__)
 
+QLNIX00405_offset = 0.1
+
 
 class QLProduct(BaseProduct):
     def __init__(self, *, service_type, service_subtype, ssid, control, data,
@@ -137,7 +139,7 @@ class LightCurve(QLProduct):
         service_subtype = packets.get('service_subtype')[0]
         ssid = packets.get('pi1_val')[0]
 
-        control = Control.from_packets(packets)
+        control = Control.from_packets(packets, NIX00405_offset=QLNIX00405_offset)
         control.add_data('detector_mask', _get_detector_mask(packets))
         control.add_data('pixel_mask', _get_pixel_mask(packets))
         control.add_data('energy_bin_edge_mask', _get_energy_bins(packets, 'NIX00266', 'NIXD0107'))
@@ -209,7 +211,7 @@ class Background(QLProduct):
         service_subtype = packets.get('service_subtype')[0]
         ssid = packets.get('pi1_val')[0]
 
-        control = Control.from_packets(packets)
+        control = Control.from_packets(packets, NIX00405_offset=QLNIX00405_offset)
         control.add_data('energy_bin_edge_mask', _get_energy_bins(packets, 'NIX00266', 'NIXD0111'))
         control.add_basic(name='num_energies', nix='NIX00270', packets=packets)
 
@@ -275,7 +277,7 @@ class Spectra(QLProduct):
         service_subtype = packets.get('service_subtype')[0]
         ssid = packets.get('pi1_val')[0]
 
-        control = Control.from_packets(packets)
+        control = Control.from_packets(packets, NIX00405_offset=QLNIX00405_offset)
         control.add_data('pixel_mask', _get_pixel_mask(packets))
         control.add_data('compression_scheme_spectra_skm',
                          _get_compression_scheme(packets, 'NIX00452'))
@@ -394,7 +396,7 @@ class Variance(QLProduct):
         service_subtype = packets.get('service_subtype')[0]
         ssid = packets.get('pi1_val')[0]
 
-        control = Control.from_packets(packets)
+        control = Control.from_packets(packets, NIX00405_offset=QLNIX00405_offset)
 
         # Control
         control['samples_per_variance'] = np.array(packets.get_value('NIX00279'), np.ubyte)
@@ -456,7 +458,7 @@ class FlareFlag(QLProduct):
         service_subtype = packets.get('service_subtype')[0]
         ssid = packets.get('pi1_val')[0]
 
-        control = Control.from_packets(packets)
+        control = Control.from_packets(packets, NIX00405_offset=QLNIX00405_offset)
 
         control.add_basic(name='num_samples', nix='NIX00089', packets=packets)
 

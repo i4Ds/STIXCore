@@ -35,8 +35,8 @@ def test_quicklook(levelb, packets):
 
     assert ql.level == 'L0'
     assert ql.name == name
+    assert str(ql.obs_beg) == beg
     # TODO enable time tests again
-    # assert str(ql.obs_beg) == beg
     # assert str(ql.obs_end) == end
     assert len(ql.data) == size
 

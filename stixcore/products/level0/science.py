@@ -119,11 +119,11 @@ class RawPixelData(ScienceProduct):
         control['index'] = 0
 
         data = Data()
-        data['start_time'] = packets.get_value('NIX00404').astype(np.uint16)
+        data['start_time'] = packets.get_value('NIX00404')
         data.add_meta(name='start_time', nix='NIX00404', packets=packets)
         data.add_basic(name='rcr', nix='NIX00401', attr='value', packets=packets, dtype=np.ubyte)
         # NIX00405 in BSD is 1 indexed
-        data['integration_time'] = packets.get_value('NIX00405').astype(np.uint16)
+        data['integration_time'] = packets.get_value('NIX00405')
         data.add_meta(name='integration_time', nix='NIX00405', packets=packets)
         data.add_data('pixel_masks', _get_pixel_mask(packets, 'NIXD0407'))
         data.add_data('detector_masks', _get_detector_mask(packets))
@@ -250,7 +250,7 @@ class CompressedPixelData(ScienceProduct):
         data.add_data('pixel_masks', (pixel_masks, pm_meta))
         data.add_data('detector_masks', _get_detector_mask(packets))
         # NIX00405 in BSD is 1 indexed
-        data['integration_time'] = packets.get_value('NIX00405').astype(np.uint16)
+        data['integration_time'] = packets.get_value('NIX00405')
         data.add_meta(name='integration_time', nix='NIX00405', packets=packets)
 
         triggers = np.array([packets.get_value(f'NIX00{i}') for i in range(242, 258)])
@@ -446,7 +446,7 @@ class Visibility(ScienceProduct):
 
         data = Data()
         data['control_index'] = np.full(len(packets.get_value('NIX00441')), 0)
-        data['delta_time'] = packets.get_value('NIX00441').astype(np.uint16)
+        data['delta_time'] = packets.get_value('NIX00441')
         data.add_meta(name='delta_time', nix='NIX00441', packets=packets)
         unique_times = np.unique(data['delta_time'])
 
@@ -466,7 +466,7 @@ class Visibility(ScienceProduct):
         data.add_data('pixel_mask5', _get_pixel_mask(packets, 'NIXD0447'))
         data.add_data('detector_masks', _get_detector_mask(packets))
         # NIX00405 in BSD is 1 indexed
-        data['integration_time'] = packets.get_value('NIX00405').astype(np.uint16)
+        data['integration_time'] = packets.get_value('NIX00405')
         data.add_meta(name='integration_time', nix='NIX00405', packets=packets)
 
         triggers = []

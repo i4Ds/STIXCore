@@ -14,6 +14,9 @@ from stixcore.processing.engineering import raw_to_engineering_product
 from stixcore.products.level0.housekeeping import MaxiReport, MiniReport
 from stixcore.products.levelb.binary import LevelB
 from stixcore.products.product import Product
+from stixcore.util.logging import get_logger
+
+logger = get_logger(__name__)
 
 testpackets = [(test_data.tmtc.TM_3_25_1, MiniReport, 'mini',
                 '0660010031f51423', '0660010031f51423', 1),
@@ -59,8 +62,6 @@ def test_calibration_hk(levelb, idbm):
     # setattr(hk.data['hk_dpu_2v5_c'], "meta", {"NIXS": "NIXD0028", "PCF_CURTX": "CIXP0026TM"})
     raw_to_engineering_product(hk, idbm)
 
-    print(1)
-
 
 def test_calibration_hk_many(idbm):
 
@@ -89,7 +90,7 @@ def test_calibration_hk_many(idbm):
 
     tend = perf_counter()
 
-    print('Time taken %f', tend - tstart)
+    logger.info('Time taken %f', tend - tstart)
 
 
 if __name__ == '__main__':

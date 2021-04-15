@@ -102,7 +102,7 @@ class RawPixelData(ScienceProduct):
 
     @classmethod
     def from_levelb(cls, levelb):
-        packets = BaseProduct.from_levelb(levelb)
+        packets, idb = BaseProduct.from_levelb(levelb)
 
         service_type = packets.get('service_type')[0]
         service_subtype = packets.get('service_subtype')[0]
@@ -119,10 +119,11 @@ class RawPixelData(ScienceProduct):
         control['index'] = 0
 
         data = Data()
-        data['start_time'] = (np.array(packets.get_value('NIX00404'), np.uint16)) * 0.1 * u.s
+        data['start_time'] = packets.get_value('NIX00404')
         data.add_meta(name='start_time', nix='NIX00404', packets=packets)
         data.add_basic(name='rcr', nix='NIX00401', attr='value', packets=packets, dtype=np.ubyte)
-        data['integration_time'] = (np.array(packets.get_value('NIX00405'), np.int16)) * 0.1 * u.s
+        # NIX00405 in BSD is 1 indexed
+        data['integration_time'] = packets.get_value('NIX00405')
         data.add_meta(name='integration_time', nix='NIX00405', packets=packets)
         data.add_data('pixel_masks', _get_pixel_mask(packets, 'NIXD0407'))
         data.add_data('detector_masks', _get_detector_mask(packets))
@@ -211,7 +212,7 @@ class CompressedPixelData(ScienceProduct):
 
     @classmethod
     def from_levelb(cls, levelb):
-        packets = BaseProduct.from_levelb(levelb)
+        packets, idb = BaseProduct.from_levelb(levelb)
 
         service_type = packets.get('service_type')[0]
         service_subtype = packets.get('service_subtype')[0]
@@ -234,8 +235,8 @@ class CompressedPixelData(ScienceProduct):
         control['index'] = 0
 
         data = Data()
-        # TODO remove after solved https://github.com/i4Ds/STIXCore/issues/59
-        data['delta_time'] = (np.array(packets.get_value('NIX00441'), np.int32)) * 0.1 * u.s
+
+        data['delta_time'] = packets.get_value('NIX00441')
         data.add_meta(name='delta_time', nix='NIX00441', packets=packets)
         unique_times = np.unique(data['delta_time'])
 
@@ -248,7 +249,8 @@ class CompressedPixelData(ScienceProduct):
             pixel_masks = np.pad(pixel_masks, ((0, 0), (0, 12 - data['num_pixel_sets'][0]), (0, 0)))
         data.add_data('pixel_masks', (pixel_masks, pm_meta))
         data.add_data('detector_masks', _get_detector_mask(packets))
-        data['integration_time'] = (np.array(packets.get_value('NIX00405'), np.uint16)) * 0.1 * u.s
+        # NIX00405 in BSD is 1 indexed
+        data['integration_time'] = packets.get_value('NIX00405')
         data.add_meta(name='integration_time', nix='NIX00405', packets=packets)
 
         triggers = np.array([packets.get_value(f'NIX00{i}') for i in range(242, 258)])
@@ -421,7 +423,7 @@ class Visibility(ScienceProduct):
 
     @classmethod
     def from_levelb(cls, levelb):
-        packets = BaseProduct.from_levelb(levelb)
+        packets, idb = BaseProduct.from_levelb(levelb)
 
         service_type = packets.get('service_type')[0]
         service_subtype = packets.get('service_subtype')[0]
@@ -444,7 +446,7 @@ class Visibility(ScienceProduct):
 
         data = Data()
         data['control_index'] = np.full(len(packets.get_value('NIX00441')), 0)
-        data['delta_time'] = (np.array(packets.get_value('NIX00441'), np.uint16)) * 0.1 * u.s
+        data['delta_time'] = packets.get_value('NIX00441')
         data.add_meta(name='delta_time', nix='NIX00441', packets=packets)
         unique_times = np.unique(data['delta_time'])
 
@@ -463,7 +465,8 @@ class Visibility(ScienceProduct):
         data.add_data('pixel_mask4', _get_pixel_mask(packets, 'NIXD0446'))
         data.add_data('pixel_mask5', _get_pixel_mask(packets, 'NIXD0447'))
         data.add_data('detector_masks', _get_detector_mask(packets))
-        data['integration_time'] = (np.array(packets.get_value('NIX00405'))) * 0.1 * u.s
+        # NIX00405 in BSD is 1 indexed
+        data['integration_time'] = packets.get_value('NIX00405')
         data.add_meta(name='integration_time', nix='NIX00405', packets=packets)
 
         triggers = []
@@ -537,7 +540,7 @@ class Spectrogram(ScienceProduct):
 
     @classmethod
     def from_levelb(cls, levelb):
-        packets = BaseProduct.from_levelb(levelb)
+        packets, idb = BaseProduct.from_levelb(levelb)
 
         service_type = packets.get('service_type')[0]
         service_subtype = packets.get('service_subtype')[0]
@@ -616,8 +619,8 @@ class Spectrogram(ScienceProduct):
         if counts.sum() != full_counts.sum():
             raise ValueError('Original and reformatted count totals do not match')
 
-        delta_time = (np.array(packets.get_value('NIX00441'), np.uint16)) * 0.1 * u.s
-        closing_time_offset = (np.array(packets.get_value('NIX00269'), np.uint16)) * 0.1 * u.s
+        delta_time = packets.get_value('NIX00441')
+        closing_time_offset = packets.get_value('NIX00269')
 
         # TODO incorporate into main loop above
         centers = []
@@ -668,7 +671,7 @@ class Aspect(ScienceProduct):
 
     @classmethod
     def from_levelb(cls, levelb):
-        packets = BaseProduct.from_levelb(levelb)
+        packets, idb = BaseProduct.from_levelb(levelb)
 
         service_type = packets.get('service_type')[0]
         service_subtype = packets.get('service_subtype')[0]

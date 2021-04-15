@@ -16,11 +16,13 @@ from astropy.time import Time
 
 import stixcore.processing.decompression as decompression
 import stixcore.processing.engineering as engineering
-from stixcore.datetime.datetime import SCETime
+from stixcore.datetime.datetime import SCETime, SCETimeRange
 from stixcore.tmtc.packet_factory import Packet
 from stixcore.tmtc.packets import PacketSequence
 
 __all__ = ['BaseProduct', 'ProductFactory', 'Product', 'ControlSci', 'Control', 'Data']
+
+from collections import defaultdict
 
 from stixcore.util.logging import get_logger
 
@@ -31,17 +33,20 @@ class AddParametersMixin:
     def add_basic(self, *, name, nix, packets, attr=None, dtype=None):
         value = packets.get_value(nix, attr=attr)
         self[name] = value if dtype is None else value.astype(dtype)
-        self.add_meta(name=name, nix=nix, packets=packets)
+        self.add_meta(name=name, nix=nix, packets=packets, add_curtx=(attr == "value"))
 
     def add_data(self, name, data_meta):
         data, meta = data_meta
         self[name] = data
         self[name].meta = meta
 
-    def add_meta(self, *, name, nix, packets):
+    def add_meta(self, *, name, nix, packets, add_curtx=False):
         param = packets.get(nix)
         idb_info = param[0].idb_info
-        self[name].meta = {'NIXS': nix, 'PCF_CURTX': idb_info.PCF_CURTX}
+        meta = {'NIXS': nix}
+        if add_curtx:
+            meta['PCF_CURTX'] = idb_info.PCF_CURTX
+        self[name].meta = meta
 
 
 class BaseProduct:
@@ -67,12 +72,27 @@ class BaseProduct:
 
         packets = [Packet(unhexlify(d)) for d in levelb.data['data']]
 
-        for packet in packets:
+        idb = defaultdict(SCETimeRange)
+
+        for i, packet in enumerate(packets):
             decompression.decompress(packet)
             engineering.raw_to_engineering(packet)
+            idb[packet.get_idb().version].expand(packet.data_header.datetime)
+
+        # not needed?
+        # max_entries = len(idb)
+        # sorted_versions = sorted(idb)
+        # for i, key in enumerate(sorted_versions):
+        #     if i == 0:
+        #         idb[key].start = SCETime.min_time()
+        #     elif i > 0 and i < (max_entries-1):
+        #         idb[key].end = idb[sorted_versions[i+1]].start
+
+        #     if i == max_entries-1:
+        #         idb[key].end = SCETime.max_time()
 
         packets = PacketSequence(packets)
-        return packets
+        return packets, idb
 
 
 class ProductFactory(BasicRegistrationFactory):
@@ -101,6 +121,16 @@ class ProductFactory(BasicRegistrationFactory):
                 if level == 'L1':
                     energies = QTable.read(file_path, hdu='ENERGIES')
 
+                idb = defaultdict(SCETimeRange)
+                if level == 'L0':
+                    try:
+                        idbt = QTable.read(file_path, hdu='IDB')
+                        for row in idbt.iterrows():
+                            idb[row[0]] = SCETimeRange(start=SCETime.from_float(row[1]),
+                                                       end=SCETime.from_float(row[2]))
+                    except KeyError:
+                        logger.warn(f"no IDB data found in FITS: {file_path}")
+
                 Product = self._check_registered_widget(level=level, service_type=service_type,
                                                         service_subtype=service_subtype,
                                                         ssid=ssid, control=control,
@@ -109,7 +139,7 @@ class ProductFactory(BasicRegistrationFactory):
                 return Product(level=level, service_type=service_type,
                                service_subtype=service_subtype,
                                ssid=ssid, control=control,
-                               data=data, energies=energies)
+                               data=data, energies=energies, idb=idb)
 
     def _check_registered_widget(self, *args, **kwargs):
         """
@@ -166,7 +196,22 @@ class Control(QTable, AddParametersMixin):
         return times, durations
 
     @classmethod
-    def from_packets(cls, packets):
+    def from_packets(cls, packets, NIX00405_offset=0):
+        """
+        Common generator method the create and prepare the control table.
+
+        ----------
+        packets : `PacketSequence`
+            The set of packets of same data type for what the data product will be created.
+        NIX00405_offset : int, optional
+            NIX00405 (integration time) is used in two ways (X * 0.1s) or ((X+1) * 0.1s),
+            by default 0
+
+        Returns
+        -------
+        `Control`
+            The Control object for the data product.
+        """
         # Header
         control = cls()
         # self.energy_bin_mask = None
@@ -179,8 +224,7 @@ class Control(QTable, AddParametersMixin):
             control['scet_fine'] = np.zeros_like(control['scet_coarse'], np.uint32)
 
         try:
-            # TODO remove 0.1 after solved https://github.com/i4Ds/STIXCore/issues/59
-            control['integration_time'] = (packets.get_value('NIX00405') + 0.1) * u.s
+            control['integration_time'] = (packets.get_value('NIX00405') + (NIX00405_offset * u.s))
             control.add_meta(name='integration_time', nix='NIX00405', packets=packets)
         except AttributeError:
             control['integration_time'] = np.zeros_like(control['scet_coarse'], np.float) * u.s

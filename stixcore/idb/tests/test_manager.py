@@ -67,7 +67,7 @@ def test_get_versions(idb_manager):
     versions = idb_manager.get_versions()
     assert isinstance(versions, list)
     # zjust 3 not 4 as 2.26.2 contains no file
-    assert len(versions) == 3
+    assert len(versions) == 4
 
 
 def test_get_idb_not_found_error(idb_manager):

@@ -1,5 +1,7 @@
 from collections import defaultdict
 
+import astropy.units as u
+
 __all__ = ['Parameter']
 
 
@@ -167,8 +169,18 @@ class EngineeringParameter(Parameter):
             The engineering values.
         """
         super(EngineeringParameter, self).__init__(name=name, value=value, idb_info=idb_info)
-        self.engineering = engineering
+
         self.unit = unit
+
+        unit = 'deg_C' if unit == 'degC' else unit
+
+        if unit is not None and unit != '' and engineering is not None:
+            try:
+                engineering = engineering * u.Unit(unit)
+            except ValueError:
+                raise NotImplementedError(f"add unit suport: for {unit}")
+
+        self.engineering = engineering
 
     def __repr__(self):
         return f'{self.__class__.__name__}(value={self.value}, engineering={self.engineering}, ' + \

@@ -2,13 +2,14 @@
 High level STIX data products created from single stand alone packets or a sequence of packets.
 """
 from itertools import chain
+from collections import defaultdict
 
 import numpy as np
 
 import astropy.units as u
 from astropy.table import unique, vstack
 
-from stixcore.datetime.datetime import SCETime
+from stixcore.datetime.datetime import SCETime, SCETimeRange
 from stixcore.products.common import (
     _get_compression_scheme,
     _get_detector_mask,
@@ -24,9 +25,12 @@ __all__ = ['QLProduct', 'LightCurve', 'Background', 'Spectra']
 
 logger = get_logger(__name__)
 
+QLNIX00405_offset = 0.1
+
 
 class QLProduct(BaseProduct):
-    def __init__(self, *, service_type, service_subtype, ssid, control, data, **kwargs):
+    def __init__(self, *, service_type, service_subtype, ssid, control, data,
+                 idb=defaultdict(SCETimeRange), **kwargs):
         """
         Generic product composed of control and data
 
@@ -37,13 +41,13 @@ class QLProduct(BaseProduct):
         data : stix_parser.products.quicklook.Data
             Table containing data
         """
-
         self.service_type = service_type
         self.service_subtype = service_subtype
         self.ssid = ssid
         self.type = 'ql'
         self.control = control
         self.data = data
+        self.idb = idb
 
         self.obs_beg = SCETime.from_float(self.data['time'][0]
                                           - self.control['integration_time'][0] / 2)
@@ -81,8 +85,11 @@ class QLProduct(BaseProduct):
         unique_control_inds = np.unique(data['control_index'])
         control = control[np.isin(control['index'], unique_control_inds)]
 
+        for idb_key, date_range in other.idb.items():
+            self.idb[idb_key].expand(date_range)
+
         return type(self)(service_type=self.service_type, service_subtype=self.service_subtype,
-                          ssid=self.ssid, control=control, data=data)
+                          ssid=self.ssid, control=control, data=data, idb=self.idb)
 
     def __repr__(self):
         return f'<{self.__class__.__name__}\n' \
@@ -110,7 +117,7 @@ class QLProduct(BaseProduct):
             data['control_index'] = data['control_index'] - control_index_min
             control['index'] = control['index'] - control_index_min
             yield type(self)(service_type=self.service_type, service_subtype=self.service_subtype,
-                             ssid=self.ssid, control=control, data=data)
+                             ssid=self.ssid, control=control, data=data, idb=self.idb)
 
 
 class LightCurve(QLProduct):
@@ -126,13 +133,13 @@ class LightCurve(QLProduct):
     @classmethod
     def from_levelb(cls, levelb):
 
-        packets = BaseProduct.from_levelb(levelb)
+        packets, idb = BaseProduct.from_levelb(levelb)
 
         service_type = packets.get('service_type')[0]
         service_subtype = packets.get('service_subtype')[0]
         ssid = packets.get('pi1_val')[0]
 
-        control = Control.from_packets(packets)
+        control = Control.from_packets(packets, NIX00405_offset=QLNIX00405_offset)
         control.add_data('detector_mask', _get_detector_mask(packets))
         control.add_data('pixel_mask', _get_pixel_mask(packets))
         control.add_data('energy_bin_edge_mask', _get_energy_bins(packets, 'NIX00266', 'NIXD0107'))
@@ -198,13 +205,13 @@ class Background(QLProduct):
 
     @classmethod
     def from_levelb(cls, levelb):
-        packets = BaseProduct.from_levelb(levelb)
+        packets, idb = BaseProduct.from_levelb(levelb)
 
         service_type = packets.get('service_type')[0]
         service_subtype = packets.get('service_subtype')[0]
         ssid = packets.get('pi1_val')[0]
 
-        control = Control.from_packets(packets)
+        control = Control.from_packets(packets, NIX00405_offset=QLNIX00405_offset)
         control.add_data('energy_bin_edge_mask', _get_energy_bins(packets, 'NIX00266', 'NIXD0111'))
         control.add_basic(name='num_energies', nix='NIX00270', packets=packets)
 
@@ -264,13 +271,13 @@ class Spectra(QLProduct):
 
     @classmethod
     def from_levelb(cls, levelb):
-        packets = BaseProduct.from_levelb(levelb)
+        packets, idb = BaseProduct.from_levelb(levelb)
 
         service_type = packets.get('service_type')[0]
         service_subtype = packets.get('service_subtype')[0]
         ssid = packets.get('pi1_val')[0]
 
-        control = Control.from_packets(packets)
+        control = Control.from_packets(packets, NIX00405_offset=QLNIX00405_offset)
         control.add_data('pixel_mask', _get_pixel_mask(packets))
         control.add_data('compression_scheme_spectra_skm',
                          _get_compression_scheme(packets, 'NIX00452'))
@@ -383,13 +390,13 @@ class Variance(QLProduct):
 
     @classmethod
     def from_levelb(cls, levelb):
-        packets = BaseProduct.from_levelb(levelb)
+        packets, idb = BaseProduct.from_levelb(levelb)
 
         service_type = packets.get('service_type')[0]
         service_subtype = packets.get('service_subtype')[0]
         ssid = packets.get('pi1_val')[0]
 
-        control = Control.from_packets(packets)
+        control = Control.from_packets(packets, NIX00405_offset=QLNIX00405_offset)
 
         # Control
         control['samples_per_variance'] = np.array(packets.get_value('NIX00279'), np.ubyte)
@@ -445,13 +452,13 @@ class FlareFlag(QLProduct):
 
     @classmethod
     def from_levelb(cls, levelb):
-        packets = BaseProduct.from_levelb(levelb)
+        packets, idb = BaseProduct.from_levelb(levelb)
 
         service_type = packets.get('service_type')[0]
         service_subtype = packets.get('service_subtype')[0]
         ssid = packets.get('pi1_val')[0]
 
-        control = Control.from_packets(packets)
+        control = Control.from_packets(packets, NIX00405_offset=QLNIX00405_offset)
 
         control.add_basic(name='num_samples', nix='NIX00089', packets=packets)
 
@@ -495,7 +502,7 @@ class EnergyCalibration(QLProduct):
 
     @classmethod
     def from_levelb(cls, levelb):
-        packets = BaseProduct.from_levelb(levelb)
+        packets, idb = BaseProduct.from_levelb(levelb)
 
         service_type = packets.get('service_type')[0]
         service_subtype = packets.get('service_subtype')[0]
@@ -503,7 +510,7 @@ class EnergyCalibration(QLProduct):
 
         control = Control.from_packets(packets)
 
-        control['integration_time'] = (packets.get_value('NIX00122') + 1) * 0.1 * u.s
+        control['integration_time'] = packets.get_value('NIX00122')
         control.add_meta(name='integration_time', nix='NIX00122', packets=packets)
         # control['obs_beg'] = control['obs_utc']
         # control['.obs_end'] = control['obs_beg'] + timedelta(seconds=control[
@@ -511,8 +518,8 @@ class EnergyCalibration(QLProduct):
         # control['.obs_avg'] = control['obs_beg'] + (control['obs_end'] - control['obs_beg']) / 2
 
         # Control
-        control.add_basic(name='quiet_time', nix='NIX00123', packets=packets, dtype=np.uint16)
-        control.add_basic(name='live_time', nix='NIX00124', packets=packets, dtype=np.uint16)
+        control.add_basic(name='quiet_time', nix='NIX00123', packets=packets)
+        control.add_basic(name='live_time', nix='NIX00124', packets=packets)
         control.add_basic(name='average_temperature', nix='NIX00125', packets=packets,
                           dtype=np.uint16)
         control.add_data('detector_mask', _get_detector_mask(packets))
@@ -603,7 +610,7 @@ class TMStatusFlareList(QLProduct):
 
     @classmethod
     def from_levelb(cls, levelb):
-        packets = BaseProduct.from_levelb(levelb)
+        packets, idb = BaseProduct.from_levelb(levelb)
 
         service_type = packets.get('service_type')[0]
         service_subtype = packets.get('service_subtype')[0]

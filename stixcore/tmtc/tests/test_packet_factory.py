@@ -322,7 +322,7 @@ def test_engineering(data_dir, idbm, packets):
     if nstr > 1:
         assert packet.data.NIX00403.value == nstr
 
-    e_parameter = packet.get_calibration_params()
+    _, e_parameter = packet.get_calibration_params()
     if len(e_parameter) > 0:
         assert c > 0
         for cparam in e_parameter:

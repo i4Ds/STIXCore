@@ -190,7 +190,7 @@ class IDBCalibrationCurve:
         try:
             tck = interpolate.splrep(self.x, self.y)
             val = interpolate.splev(raw, tck)
-            return float(val)
+            return val
         except Exception as e:
             logger.error(f'Failed to curve calibrate {self.param.PCF_NAME} / \
                         {self.param.PCF_CURTX} due to {e}')
@@ -456,6 +456,7 @@ class IDB:
         self.packet_info = dict()
         self.parameter_units = dict()
         self.calibration_polynomial = dict()
+        self.calibration = dict()
         self.calibration_curves = dict()
         self.textual_parameter_lut = dict()
         self.soc_descriptions = dict()
@@ -532,6 +533,7 @@ class IDB:
         self.parameter_units = dict()
         self.packet_info = dict()
         self.calibration_polynomial = dict()
+        self.calibration = dict()
         self.calibration_curves = dict()
         self.textual_parameter_lut = dict()
         self.soc_descriptions = dict()
@@ -897,6 +899,17 @@ class IDB:
         args = (pcf_curtx, raw_value, raw_value)
         rows = self._execute(sql, args)
         val = rows[0][0] if rows else None
+
+        if val is None:
+            logger.error(f'Missing textual calibration info for: {pcf_curtx} value={raw_value}')
+            # TODO discuss this fallback
+            val = raw_value
+
+        if val == "True":
+            val = True
+        elif val == "False":
+            val = False
+
         self.textual_parameter_lut[(pcf_curtx, raw_value)] = val
         # lookup table
         return val
@@ -1028,31 +1041,44 @@ class IDB:
         node = IDBPacketTree(name=name, counter=counter, parameter=parameter, children=children)
         return node
 
-    def get_params_for_calibration(self, service_type, service_subtype, sp1_val=None):
-        sql = (f'''SELECT
-                        PID_SPID, PID_DESCR, PID_TPSD, PCF.PCF_NAME, PCF.PCF_DESCR, PCF.PCF_WIDTH,
-                        PCF.PCF_PFC, PCF.PCF_PTC, PCF.PCF_CURTX, PCF.PCF_CATEG, PCF.PCF_UNIT,
-                        S2K_TYPE
-                    FROM
-                        PID, tblConfigS2KParameterTypes as PTYPE
-                    LEFT JOIN PLF ON PLF.PLF_SPID = PID.PID_SPID
-                    LEFT JOIN VPD ON VPD.VPD_TPSD = PID.PID_SPID
-                    LEFT JOIN PCF ON PLF.PLF_NAME = PCF.PCF_NAME or VPD.VPD_NAME = PCF.PCF_NAME
-                    WHERE
-                        PCF.PCF_CURTX not NULL
-                        AND PID_TYPE = ?
-                        AND PID_STYPE = ?
-                        AND PTYPE.PTC = PCF.PCF_PTC
-                        AND PTYPE.PFC_UB >= PCF.PCF_PFC
-                        AND PCF.PCF_PFC >= PTYPE.PFC_LB
-                        {"AND PID_PI1_VAL = ? " if sp1_val is not None else " "}
-                    ''')
-        args = (service_type, service_subtype)
-        if sp1_val is not None:
-            args = args + (sp1_val,)
+    def get_params_for_calibration(self, service_type, service_subtype, sp1_val=None,
+                                   pcf_name=None, pcf_curtx=None):
 
-        params = self._execute(sql, args, 'dict')
-        return [IDBCalibrationParameter(**p) for p in params]
+        key = (service_type, service_type, service_subtype, sp1_val, pcf_name, pcf_curtx)
+        if key in self.calibration:
+            return self.calibration[key]
+        else:
+            sql = (f'''SELECT
+                            PID_SPID, PID_DESCR, PID_TPSD, PCF.PCF_NAME, PCF.PCF_DESCR,
+                            PCF.PCF_WIDTH, PCF.PCF_PFC, PCF.PCF_PTC, PCF.PCF_CURTX,
+                            PCF.PCF_CATEG, PCF.PCF_UNIT, S2K_TYPE
+                        FROM
+                            PID, tblConfigS2KParameterTypes as PTYPE
+                        LEFT JOIN PLF ON PLF.PLF_SPID = PID.PID_SPID
+                        LEFT JOIN VPD ON VPD.VPD_TPSD = PID.PID_SPID
+                        LEFT JOIN PCF ON PLF.PLF_NAME = PCF.PCF_NAME or VPD.VPD_NAME = PCF.PCF_NAME
+                        WHERE
+                            PCF.PCF_CURTX not NULL
+                            AND PID_TYPE = ?
+                            AND PID_STYPE = ?
+                            AND PTYPE.PTC = PCF.PCF_PTC
+                            AND PTYPE.PFC_UB >= PCF.PCF_PFC
+                            AND PCF.PCF_PFC >= PTYPE.PFC_LB
+                            {"AND PID_PI1_VAL = ? " if sp1_val is not None else " "}
+                            {"AND PCF.PCF_NAME = ? " if pcf_name is not None else " "}
+                            {"AND PCF.PCF_CURTX = ? " if pcf_curtx is not None else " "}
+                        ''')
+            args = (service_type, service_subtype)
+            if sp1_val is not None:
+                args = args + (sp1_val,)
+            if pcf_name is not None:
+                args = args + (pcf_name,)
+            if pcf_curtx is not None:
+                args = args + (pcf_curtx,)
+
+            params = self._execute(sql, args, 'dict')
+            self.calibration[key] = [IDBCalibrationParameter(**p) for p in params]
+            return self.calibration[key]
 
     def get_variable_structure(self, service_type, service_subtype, sp1_val=None):
         """Create a dynamic parse tree for the specified TM packet.

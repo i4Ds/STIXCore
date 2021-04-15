@@ -1,7 +1,9 @@
 """
 House Keeping data products
 """
-from stixcore.datetime.datetime import SCETime
+from collections import defaultdict
+
+from stixcore.datetime.datetime import SCETime, SCETimeRange
 from stixcore.products.level0.quicklook import QLProduct
 from stixcore.products.product import Control, Data
 
@@ -21,7 +23,7 @@ class MiniReport(QLProduct):
 
     @classmethod
     def from_levelb(cls, levelb):
-        packets = super().from_levelb(levelb)
+        packets, idb = super().from_levelb(levelb)
 
         service_type = packets.get('service_type')[0]
         service_subtype = packets.get('service_subtype')[0]
@@ -42,17 +44,17 @@ class MiniReport(QLProduct):
         data.add_basic(name='sw_running', nix='NIXD0021', attr='value', packets=packets)
         data.add_basic(name='instrument_number', nix='NIXD0022', attr='value', packets=packets)
         data.add_basic(name='instrument_mode', nix='NIXD0023', attr='value', packets=packets)
-        data.add_basic(name='hk_dpu_pcb_t', nix='NIXD0025', packets=packets)
-        data.add_basic(name='hk_dpu_fpga_t', nix='NIXD0026', packets=packets)
-        data.add_basic(name='hk_dpu_3v3_c', nix='NIXD0027', packets=packets)
-        data.add_basic(name='hk_dpu_2v5_c', nix='NIXD0028', packets=packets)
-        data.add_basic(name='hk_dpu_1v5_c', nix='NIXD0029', packets=packets)
-        data.add_basic(name='hk_dpu_spw_c', nix='NIXD0030', packets=packets)
-        data.add_basic(name='hk_dpu_spw0_v', nix='NIXD0031', packets=packets)
-        data.add_basic(name='hk_dpu_spw1_v', nix='NIXD0032', packets=packets)
+        data.add_basic(name='hk_dpu_pcb_t', nix='NIXD0025', attr='value', packets=packets)
+        data.add_basic(name='hk_dpu_fpga_t', nix='NIXD0026', attr='value', packets=packets)
+        data.add_basic(name='hk_dpu_3v3_c', nix='NIXD0027', attr='value', packets=packets)
+        data.add_basic(name='hk_dpu_2v5_c', nix='NIXD0028', attr='value', packets=packets)
+        data.add_basic(name='hk_dpu_1v5_c', nix='NIXD0029', attr='value', packets=packets)
+        data.add_basic(name='hk_dpu_spw_c', nix='NIXD0030', attr='value', packets=packets)
+        data.add_basic(name='hk_dpu_spw0_v', nix='NIXD0031', attr='value', packets=packets)
+        data.add_basic(name='hk_dpu_spw1_v', nix='NIXD0032', attr='value', packets=packets)
         data.add_basic(name='sw_version', nix='NIXD0001', packets=packets)
-        data.add_basic(name='cpu_load', nix='NIXD0002', packets=packets)
-        data.add_basic(name='archive_memory_usage', nix='NIXD0003', packets=packets)
+        data.add_basic(name='cpu_load', nix='NIXD0002', attr='value', packets=packets)
+        data.add_basic(name='archive_memory_usage', nix='NIXD0003', attr='value', packets=packets)
         data.add_basic(name='autonomous_asw_boot_stat', nix='NIXD0166', attr='value',
                        packets=packets)
         data.add_basic(name='memory_load_ena_flag', nix='NIXD0167', attr='value', packets=packets)
@@ -62,10 +64,10 @@ class MiniReport(QLProduct):
         data.add_basic(name='watchdog_state', nix='NIXD0169', attr='value', packets=packets)
         data.add_basic(name='received_spw_packets', nix='NIXD0079', packets=packets)
         data.add_basic(name='rejected_spw_packets', nix='NIXD0078', packets=packets)
-        data.add_basic(name='hk_dpu_1v5_v', nix='NIXD0035', packets=packets)
-        data.add_basic(name='hk_ref_2v5_v', nix='NIXD0036', packets=packets)
-        data.add_basic(name='hk_dpu_2v9_v', nix='NIXD0037', packets=packets)
-        data.add_basic(name='hk_psu_temp_t', nix='NIXD0024', packets=packets)
+        data.add_basic(name='hk_dpu_1v5_v', nix='NIXD0035', attr='value', packets=packets)
+        data.add_basic(name='hk_ref_2v5_v', nix='NIXD0036', attr='value', packets=packets)
+        data.add_basic(name='hk_dpu_2v9_v', nix='NIXD0037', attr='value', packets=packets)
+        data.add_basic(name='hk_psu_temp_t', nix='NIXD0024', attr='value', packets=packets)
         data.add_basic(name='fdir_status', nix='NIX00085', packets=packets)
         data.add_basic(name='fdir_status_mask_of_hk_temperature', nix='NIX00161', packets=packets)
         data.add_basic(name='fdir_status_mask_of_hk_voltage', nix='NIX00162', packets=packets)
@@ -91,16 +93,17 @@ class MaxiReport(QLProduct):
     """
     Maxi house keeping reported in all modes while the flight software is running.
     """
-    def __init__(self, *, service_type, service_subtype, ssid, control, data, **kwargs):
+    def __init__(self, *, service_type, service_subtype, ssid, control, data,
+                 idb=defaultdict(SCETimeRange), **kwargs):
         super().__init__(service_type=service_type, service_subtype=service_subtype,
-                         ssid=ssid, control=control, data=data, **kwargs)
+                         ssid=ssid, control=control, data=data, idb=idb, **kwargs)
         self.name = 'maxi'
         self.level = 'L0'
         self.type = 'hk'
 
     @classmethod
     def from_levelb(cls, levelb):
-        packets = super().from_levelb(levelb)
+        packets, idb = super().from_levelb(levelb)
 
         service_type = packets.get('service_type')[0]
         service_subtype = packets.get('service_subtype')[0]
@@ -118,44 +121,44 @@ class MaxiReport(QLProduct):
         # Data
         data = Data()
         data['time'] = times
-        data.add_basic(name='sw_running', nix='NIXD0021', attr='value', packets=packets)
-        data.add_basic(name='instrument_number', nix='NIXD0022', attr='value', packets=packets)
-        data.add_basic(name='instrument_mode', nix='NIXD0023', attr='value', packets=packets)
-        data.add_basic(name='hk_dpu_pcb_t', nix='NIXD0025', packets=packets)
-        data.add_basic(name='hk_dpu_fpga_t', nix='NIXD0026', packets=packets)
-        data.add_basic(name='hk_dpu_3v3_c', nix='NIXD0027', packets=packets)
-        data.add_basic(name='hk_dpu_2v5_c', nix='NIXD0028', packets=packets)
-        data.add_basic(name='hk_dpu_1v5_c', nix='NIXD0029', packets=packets)
-        data.add_basic(name='hk_dpu_spw_c', nix='NIXD0030', packets=packets)
-        data.add_basic(name='hk_dpu_spw0_v', nix='NIXD0031', packets=packets)
-        data.add_basic(name='hk_dpu_spw1_v', nix='NIXD0032', packets=packets)
-        data.add_basic(name='hk_asp_ref_2v5a_v', nix='NIXD0038', packets=packets)
-        data.add_basic(name='hk_asp_ref_2v5b_v', nix='NIXD0039', packets=packets)
-        data.add_basic(name='hk_asp_tim01_t', nix='NIXD0040', packets=packets)
-        data.add_basic(name='hk_asp_tim02_t', nix='NIXD0041', packets=packets)
-        data.add_basic(name='hk_asp_tim03_t', nix='NIXD0042', packets=packets)
-        data.add_basic(name='hk_asp_tim04_t', nix='NIXD0043', packets=packets)
-        data.add_basic(name='hk_asp_tim05_t', nix='NIXD0044', packets=packets)
-        data.add_basic(name='hk_asp_tim06_t', nix='NIXD0045', packets=packets)
-        data.add_basic(name='hk_asp_tim07_t', nix='NIXD0046', packets=packets)
-        data.add_basic(name='hk_asp_tim08_t', nix='NIXD0047', packets=packets)
-        data.add_basic(name='hk_asp_vsensa_v', nix='NIXD0048', packets=packets)
-        data.add_basic(name='hk_asp_vsensb_v', nix='NIXD0049', packets=packets)
-        data.add_basic(name='hk_att_v', nix='NIXD0050', packets=packets)
-        data.add_basic(name='hk_att_t', nix='NIXD0051', packets=packets)
-        data.add_basic(name='hk_hv_01_16_v', nix='NIXD0052', packets=packets)
-        data.add_basic(name='hk_hv_17_32_v', nix='NIXD0053', packets=packets)
-        data.add_basic(name='det_q1_t', nix='NIXD0054', packets=packets)
-        data.add_basic(name='det_q2_t', nix='NIXD0055', packets=packets)
-        data.add_basic(name='det_q3_t', nix='NIXD0056', packets=packets)
-        data.add_basic(name='det_q4_t', nix='NIXD0057', packets=packets)
-        data.add_basic(name='hk_dpu_1v5_v', nix='NIXD0035', packets=packets)
-        data.add_basic(name='hk_ref_2v5_v', nix='NIXD0036', packets=packets)
-        data.add_basic(name='hk_dpu_2v9_v', nix='NIXD0037', packets=packets)
-        data.add_basic(name='hk_psu_temp_t', nix='NIXD0024', packets=packets)
-        data.add_basic(name='sw_version', nix='NIXD0001', packets=packets)
-        data.add_basic(name='cpu_load', nix='NIXD0002', packets=packets)
-        data.add_basic(name='archive_memory_usage', nix='NIXD0003', packets=packets)
+        data.add_basic(name='sw_running', nix='NIXD0021', packets=packets)
+        data.add_basic(name='instrument_number', nix='NIXD0022', packets=packets)
+        data.add_basic(name='instrument_mode', nix='NIXD0023', packets=packets)
+        data.add_basic(name='hk_dpu_pcb_t', nix='NIXD0025', attr='value', packets=packets)
+        data.add_basic(name='hk_dpu_fpga_t', nix='NIXD0026', attr='value', packets=packets)
+        data.add_basic(name='hk_dpu_3v3_c', nix='NIXD0027', attr='value', packets=packets)
+        data.add_basic(name='hk_dpu_2v5_c', nix='NIXD0028', attr='value', packets=packets)
+        data.add_basic(name='hk_dpu_1v5_c', nix='NIXD0029', attr='value', packets=packets)
+        data.add_basic(name='hk_dpu_spw_c', nix='NIXD0030', attr='value', packets=packets)
+        data.add_basic(name='hk_dpu_spw0_v', nix='NIXD0031', attr='value', packets=packets)
+        data.add_basic(name='hk_dpu_spw1_v', nix='NIXD0032', attr='value', packets=packets)
+        data.add_basic(name='hk_asp_ref_2v5a_v', nix='NIXD0038', attr='value', packets=packets)
+        data.add_basic(name='hk_asp_ref_2v5b_v', nix='NIXD0039', attr='value', packets=packets)
+        data.add_basic(name='hk_asp_tim01_t', nix='NIXD0040', attr='value', packets=packets)
+        data.add_basic(name='hk_asp_tim02_t', nix='NIXD0041', attr='value', packets=packets)
+        data.add_basic(name='hk_asp_tim03_t', nix='NIXD0042', attr='value', packets=packets)
+        data.add_basic(name='hk_asp_tim04_t', nix='NIXD0043', attr='value', packets=packets)
+        data.add_basic(name='hk_asp_tim05_t', nix='NIXD0044', attr='value', packets=packets)
+        data.add_basic(name='hk_asp_tim06_t', nix='NIXD0045', attr='value', packets=packets)
+        data.add_basic(name='hk_asp_tim07_t', nix='NIXD0046', attr='value', packets=packets)
+        data.add_basic(name='hk_asp_tim08_t', nix='NIXD0047', attr='value', packets=packets)
+        data.add_basic(name='hk_asp_vsensa_v', nix='NIXD0048', attr='value', packets=packets)
+        data.add_basic(name='hk_asp_vsensb_v', nix='NIXD0049', attr='value', packets=packets)
+        data.add_basic(name='hk_att_v', nix='NIXD0050', attr='value', packets=packets)
+        data.add_basic(name='hk_att_t', nix='NIXD0051', attr='value', packets=packets)
+        data.add_basic(name='hk_hv_01_16_v', nix='NIXD0052', attr='value', packets=packets)
+        data.add_basic(name='hk_hv_17_32_v', nix='NIXD0053', attr='value', packets=packets)
+        data.add_basic(name='det_q1_t', nix='NIXD0054', attr='value', packets=packets)
+        data.add_basic(name='det_q2_t', nix='NIXD0055', attr='value', packets=packets)
+        data.add_basic(name='det_q3_t', nix='NIXD0056', attr='value', packets=packets)
+        data.add_basic(name='det_q4_t', nix='NIXD0057', attr='value', packets=packets)
+        data.add_basic(name='hk_dpu_1v5_v', nix='NIXD0035', attr='value', packets=packets)
+        data.add_basic(name='hk_ref_2v5_v', nix='NIXD0036', attr='value', packets=packets)
+        data.add_basic(name='hk_dpu_2v9_v', nix='NIXD0037', attr='value', packets=packets)
+        data.add_basic(name='hk_psu_temp_t', nix='NIXD0024', attr='value', packets=packets)
+        data.add_basic(name='sw_version', nix='NIXD0001', attr='value', packets=packets)
+        data.add_basic(name='cpu_load', nix='NIXD0002', attr='value', packets=packets)
+        data.add_basic(name='archive_memory_usage', attr='value', nix='NIXD0003', packets=packets)
         data.add_basic(name='autonomous_asw_boot_stat', nix='NIXD0166', attr='value',
                        packets=packets)
         data.add_basic(name='memory_load_ena_flag', nix='NIXD0167', attr='value', packets=packets)
@@ -190,18 +193,18 @@ class MaxiReport(QLProduct):
         data.add_basic(name='hv_regulators_mask', nix='NIXD0074', attr='value', packets=packets)
         data.add_basic(name='tc_20_128_seq_cnt', nix='NIXD0077', packets=packets)
         data.add_basic(name='attenuator_motions', nix='NIX00076', packets=packets)
-        data.add_basic(name='hk_asp_photoa0_v', nix='NIX00078', packets=packets)
-        data.add_basic(name='hk_asp_photoa1_v', nix='NIX00079', packets=packets)
-        data.add_basic(name='hk_asp_photob0_v', nix='NIX00080', packets=packets)
-        data.add_basic(name='hk_asp_photob1_v', nix='NIX00081', packets=packets)
-        data.add_basic(name='attenuator_currents', nix='NIX00094', packets=packets)
-        data.add_basic(name='hk_att_c', nix='NIXD0075', packets=packets)
-        data.add_basic(name='hk_det_c', nix='NIXD0058', packets=packets)
+        data.add_basic(name='hk_asp_photoa0_v', nix='NIX00078', attr='value', packets=packets)
+        data.add_basic(name='hk_asp_photoa1_v', nix='NIX00079', attr='value', packets=packets)
+        data.add_basic(name='hk_asp_photob0_v', nix='NIX00080', attr='value', packets=packets)
+        data.add_basic(name='hk_asp_photob1_v', nix='NIX00081', attr='value', packets=packets)
+        data.add_basic(name='attenuator_currents', nix='NIX00094', attr='value', packets=packets)
+        data.add_basic(name='hk_att_c', nix='NIXD0075', attr='value', packets=packets)
+        data.add_basic(name='hk_det_c', nix='NIXD0058', attr='value', packets=packets)
         data.add_basic(name='fdir_function_status', nix='NIX00085', packets=packets)
         data['control_index'] = range(len(control))
 
         return cls(service_type=service_type, service_subtype=service_subtype, ssid=ssid,
-                   control=control, data=data)
+                   control=control, data=data, idb=idb)
 
     @classmethod
     def is_datasource_for(cls, *, service_type, service_subtype, ssid, **kwargs):

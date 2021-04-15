@@ -37,12 +37,23 @@ class TMTCTestData:
         self.__doc__ = "\n".join([f'{str(k)}: {repr(v)}\n\n' for k, v in self.__dict__.items()])
 
 
+class IOTestData:
+    def __init__(self, data_dir):
+        self.SOC_DIR = data_dir / "io" / "soc"
+        self.TM = self.SOC_DIR / "PktTmRaw.xml"
+        self.TC = self.SOC_DIR / "PktTcReport.xml"
+        self.HK_MAXI_P1 = self.SOC_DIR / "PktTmHK_MAXI_p1.xml"
+        self.HK_MAXI_P2 = self.SOC_DIR / "PktTmHK_MAXI_p2.xml"
+        self.__doc__ = "\n".join([f'{str(k)}: {repr(v)}\n\n' for k, v in self.__dict__.items()])
+
+
 class TestData:
     def __init__(self, data_dir):
         self.ephemeris = EphemerisTestData(data_dir)
         self.idb = IDBTestData(data_dir)
         self.tmtc = TMTCTestData(data_dir)
         self.products = IDBTestProduct(data_dir)
+        self.io = IOTestData(data_dir)
 
         self.__doc__ = "\n".join([f"{k}\n******************\n\n{v.__doc__}\n\n\n"
                                   for k, v in self.__dict__.items()])

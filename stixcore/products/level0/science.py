@@ -236,7 +236,7 @@ class CompressedPixelData(ScienceProduct):
 
         data = Data()
 
-        data['delta_time'] = packets.get_value('NIX00441').astype(np.int32)
+        data['delta_time'] = packets.get_value('NIX00441')
         data.add_meta(name='delta_time', nix='NIX00441', packets=packets)
         unique_times = np.unique(data['delta_time'])
 
@@ -619,8 +619,8 @@ class Spectrogram(ScienceProduct):
         if counts.sum() != full_counts.sum():
             raise ValueError('Original and reformatted count totals do not match')
 
-        delta_time = np.array(packets.get_value('NIX00441'), np.uint16)
-        closing_time_offset = np.array(packets.get_value('NIX00269'), np.uint16)
+        delta_time = packets.get_value('NIX00441')
+        closing_time_offset = packets.get_value('NIX00269')
 
         # TODO incorporate into main loop above
         centers = []

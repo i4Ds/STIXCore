@@ -518,8 +518,8 @@ class EnergyCalibration(QLProduct):
         # control['.obs_avg'] = control['obs_beg'] + (control['obs_end'] - control['obs_beg']) / 2
 
         # Control
-        control.add_basic(name='quiet_time', nix='NIX00123', packets=packets, dtype=np.uint16)
-        control.add_basic(name='live_time', nix='NIX00124', packets=packets, dtype=np.uint16)
+        control.add_basic(name='quiet_time', nix='NIX00123', packets=packets)
+        control.add_basic(name='live_time', nix='NIX00124', packets=packets)
         control.add_basic(name='average_temperature', nix='NIX00125', packets=packets,
                           dtype=np.uint16)
         control.add_data('detector_mask', _get_detector_mask(packets))

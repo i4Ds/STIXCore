@@ -168,8 +168,12 @@ def raw_to_engineering_product(product, idbm):
 
         # replace the old column with the converted
         product.data[col] = product.data[CCN]
+        product.data[col].meta = product.data[CCN].meta
         # delete the generic column for conversion
         del product.data[CCN]
+        # delete the calibration key from meta as it is now processed
+        del product.data[col].meta["PCF_CURTX"]
+
         assert c == len(product.data)
 
     return col_n

@@ -10,8 +10,10 @@ from astropy.table import unique, vstack
 from astropy.table.table import QTable
 from astropy.time.core import Time
 
+from stixcore.processing.engineering import raw_to_engineering_product
 from stixcore.products.common import _get_energies_from_mask
 from stixcore.products.product import BaseProduct
+from stixcore.tmtc.packets import GenericPacket
 from stixcore.util.logging import get_logger
 
 __all__ = ['QLProduct', 'LightCurve']
@@ -87,6 +89,19 @@ class QLProduct(BaseProduct):
                f' {self.control.__repr__()}\n' \
                f' {self.data.__repr__()}\n' \
                f'>'
+
+    @classmethod
+    def from_level0(cls, l0product):
+        l1 = type(cls)(service_type=l0product.service_type,
+                       service_subtype=l0product.service_subtype,
+                       ssid=l0product.ssid,
+                       control=l0product.control,
+                       data=l0product.data,
+                       idb=l0product.idb)
+
+        raw_to_engineering_product(l1, GenericPacket.idb_manager)
+
+        return l1
 
     # @classmethod
     # def from_fits(cls, fitspath):

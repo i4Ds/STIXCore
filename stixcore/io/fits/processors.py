@@ -354,6 +354,7 @@ class FitsL1Processor:
         self.archive_path = archive_path
 
     def write_fits(self, product):
+        created_files = []
         if callable(getattr(product, 'to_days', None)):
             products = product.to_days()
         else:
@@ -405,8 +406,11 @@ class FitsL1Processor:
 
             hdul = fits.HDUList([primary_hdu, control_hdu, data_hdu, energy_hdu])
 
-            logger.debug(f'Writing fits file to {path / filename}')
-            hdul.writeto(path / filename, overwrite=True, checksum=True)
+            filetowrite = path / filename
+            logger.debug(f'Writing fits file to {filetowrite}')
+            hdul.writeto(filetowrite, overwrite=True, checksum=True)
+            created_files.append(filetowrite)
+        return created_files
 
     @staticmethod
     def generate_filename(*, product, version, status=''):
@@ -440,10 +444,13 @@ class FitsL1Processor:
             tc_control = f'_{product.control["tc_packet_seq_control"][0]}'
 
         if product.type == 'ql':
-            date_range = product.obs_avg.to_datetime().strftime("%Y%m%d")
+            date_range = f'{(product.obs_avg.coarse // (24 * 60 * 60) ) * 24 * 60 * 60:010d}'
+            # date_range = product.obs_avg.to_datetime().strftime("%Y%m%d")
         else:
-            start_obs = product.obs_beg.to_datetime().strftime("%Y%m%dT%H%M%S")
-            end_obs = product.obs_end.to_datetime().strftime("%Y%m%dT%H%M%S")
+            # start_obs = product.obs_beg.to_datetime().strftime("%Y%m%dT%H%M%S")
+            # end_obs = product.obs_end.to_datetime().strftime("%Y%m%dT%H%M%S")
+            start_obs = str(product.obs_beg)
+            end_obs = str(product.obs_end)
             date_range = f'{start_obs}-{end_obs}'
         return f'solo_{product.level}_stix-{product.type}-' \
                f'{product.name.replace("_", "-")}{user_req}' \

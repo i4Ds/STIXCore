@@ -1,7 +1,7 @@
 from unittest.mock import patch
 
 from stixcore.datetime.datetime import SCETime
-from stixcore.io.fits.processors import FitsL0Processor
+from stixcore.io.fits.processors import FitsL0Processor, FitsL1Processor
 
 
 def test_level0_processor_init():
@@ -76,3 +76,20 @@ def test_level0_processor_generate_primary_header(datetime, product):
     for name, value, *comment in header:
         if name in test_data.keys():
             assert value == test_data[name]
+
+
+def test_level1_processor_init():
+    pro = FitsL1Processor('some/path')
+    assert pro.archive_path == 'some/path'
+
+
+def test_level1_processor_generate_filename():
+    with patch('stixcore.products.level1.quicklook.QLProduct') as product:
+        processor = FitsL1Processor('some/path')
+        product.control.colnames = []
+        product.type = 'ql'
+        product.obs_avg = SCETime(coarse=0, fine=2 ** 15)
+        product.level = 'L1'
+        product.name = 'a_name'
+        filename = processor.generate_filename(product=product, version=1)
+        assert filename == 'solo_L1_stix-ql-a-name_0000000000_V01.fits'

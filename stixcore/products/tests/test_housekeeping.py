@@ -57,9 +57,6 @@ def test_calibration_hk(levelb, idbm):
 
     hk = MaxiReport.from_levelb(levelb)
 
-    # setattr(hk, "idb", {"2.26.34": (660258881.0, 660258882.0)})
-    # setattr(hk.data['hk_dpu_pcb_t'], "meta", {"NIXS": "NIXD0025", "PCF_CURTX": "CIXP0024TM"})
-    # setattr(hk.data['hk_dpu_2v5_c'], "meta", {"NIXS": "NIXD0028", "PCF_CURTX": "CIXP0026TM"})
     raw_to_engineering_product(hk, idbm)
 
 

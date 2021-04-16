@@ -119,10 +119,12 @@ class ProductFactory(BasicRegistrationFactory):
 
                 energies = None
                 if level == 'L1':
-                    energies = QTable.read(file_path, hdu='ENERGIES')
-
+                    try:
+                        energies = QTable.read(file_path, hdu='ENERGIES')
+                    except KeyError:
+                        logger.warn(f"no ENERGIES data found in FITS: {file_path}")
                 idb = defaultdict(SCETimeRange)
-                if level == 'L0':
+                if level in ('L0', 'L1'):
                     try:
                         idbt = QTable.read(file_path, hdu='IDB')
                         for row in idbt.iterrows():

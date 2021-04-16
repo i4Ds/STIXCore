@@ -8,19 +8,20 @@ import pytest
 
 from stixcore.data.test import test_data
 from stixcore.idb.manager import IDBManager
-from stixcore.io.fits.processors import FitsL0Processor
+from stixcore.io.fits.processors import FitsL0Processor, FitsL1Processor
 from stixcore.io.soc.manager import SOCPacketFile
-from stixcore.processing.engineering import raw_to_engineering_product
-from stixcore.products.level0.housekeeping import MaxiReport, MiniReport
+from stixcore.products.level0.housekeeping import MaxiReport as MaxiReportL0
+from stixcore.products.level0.housekeeping import MiniReport as MiniReportL0
+from stixcore.products.level1.housekeeping import MaxiReport as MaxiReportL1
 from stixcore.products.levelb.binary import LevelB
 from stixcore.products.product import Product
 from stixcore.util.logging import get_logger
 
 logger = get_logger(__name__)
 
-testpackets = [(test_data.tmtc.TM_3_25_1, MiniReport, 'mini',
+testpackets = [(test_data.tmtc.TM_3_25_1, MiniReportL0, 'mini',
                 '0660010031f51423', '0660010031f51423', 1),
-               (test_data.tmtc.TM_3_25_2, MaxiReport, 'maxi',
+               (test_data.tmtc.TM_3_25_2, MaxiReportL0, 'maxi',
                 '0660258881f33104', '0660258881f33104', 1)]
 
 
@@ -55,9 +56,13 @@ def test_calibration_hk(levelb, idbm):
 
     levelb.data.__getitem__.return_value = [re.sub(r"\s+", "", h) for h in hex]
 
-    hk = MaxiReport.from_levelb(levelb)
+    hkl0 = MaxiReportL0.from_levelb(levelb)
+    hkl1 = MaxiReportL1.from_level0(hkl0)
 
-    raw_to_engineering_product(hk, idbm)
+    fits_procl1 = FitsL1Processor(Path(tempfile.gettempdir()))
+    fits_procl1.write_fits(hkl1)[0]
+
+    assert True
 
 
 def test_calibration_hk_many(idbm):
@@ -67,23 +72,26 @@ def test_calibration_hk_many(idbm):
     tstart = perf_counter()
 
     prod_lb_p1 = LevelB.from_tm(SOCPacketFile(test_data.io.HK_MAXI_P1))
-    hk_p1 = MaxiReport.from_levelb(prod_lb_p1)
+    hk_p1 = MaxiReportL0.from_levelb(prod_lb_p1)
 
-    fits_proc = FitsL0Processor(Path(tempfile.gettempdir()))
-    filename = fits_proc.write_fits(hk_p1)[0]
+    fits_procl0 = FitsL0Processor(Path(tempfile.gettempdir()))
+    filename = fits_procl0.write_fits(hk_p1)[0]
 
     hk_p1_io = Product(filename)
 
     prod_lb_p2 = LevelB.from_tm(SOCPacketFile(test_data.io.HK_MAXI_P2))
-    hk_p2 = MaxiReport.from_levelb(prod_lb_p2)
+    hk_p2 = MaxiReportL0.from_levelb(prod_lb_p2)
 
     # fake a idb change on the same day
     hk_p2.idb["2.26.35"] = hk_p2.idb["2.26.34"]
     del hk_p2.idb["2.26.34"]
 
-    hk = hk_p1_io + hk_p2
+    hkl0 = hk_p1_io + hk_p2
 
-    raw_to_engineering_product(hk, idbm)
+    hkl1 = MaxiReportL1.from_level0(hkl0, idbm=idbm)
+
+    fits_procl1 = FitsL1Processor(Path(tempfile.gettempdir()))
+    filename = fits_procl1.write_fits(hkl1)[0]
 
     tend = perf_counter()
 

@@ -49,11 +49,14 @@ class QLProduct(BaseProduct):
         self.data = data
         self.idb = idb
 
-        self.obs_beg = SCETime.from_float(self.data['time'][0]
-                                          - self.control['integration_time'][0] / 2)
-        self.obs_end = SCETime.from_float(self.data['time'][-1]
-                                          + self.control['integration_time'][-1] / 2)
-        self.obs_avg = self.obs_beg + (self.obs_end - self.obs_beg) / 2
+        try:
+            self.obs_beg = SCETime.from_float(self.data['time'][0]
+                                              - self.control['integration_time'][0] / 2)
+            self.obs_end = SCETime.from_float(self.data['time'][-1]
+                                              + self.control['integration_time'][-1] / 2)
+            self.obs_avg = self.obs_beg + (self.obs_end - self.obs_beg) / 2
+        except ValueError:
+            pass
 
     def __add__(self, other):
         """

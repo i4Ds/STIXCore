@@ -30,7 +30,7 @@ QLNIX00405_offset = 0.1
 
 class QLProduct(BaseProduct):
     def __init__(self, *, service_type, service_subtype, ssid, control, data,
-                 idb=defaultdict(SCETimeRange), **kwargs):
+                 idb_versions=defaultdict(SCETimeRange), **kwargs):
         """
         Generic product composed of control and data
 
@@ -47,13 +47,16 @@ class QLProduct(BaseProduct):
         self.type = 'ql'
         self.control = control
         self.data = data
-        self.idb = idb
+        self.idb_versions = idb_versions
 
-        self.obs_beg = SCETime.from_float(self.data['time'][0]
-                                          - self.control['integration_time'][0] / 2)
-        self.obs_end = SCETime.from_float(self.data['time'][-1]
-                                          + self.control['integration_time'][-1] / 2)
-        self.obs_avg = self.obs_beg + (self.obs_end - self.obs_beg) / 2
+        try:
+            self.obs_beg = SCETime.from_float(self.data['time'][0]
+                                              - self.control['integration_time'][0] / 2)
+            self.obs_end = SCETime.from_float(self.data['time'][-1]
+                                              + self.control['integration_time'][-1] / 2)
+            self.obs_avg = self.obs_beg + (self.obs_end - self.obs_beg) / 2
+        except ValueError:
+            pass
 
     def __add__(self, other):
         """
@@ -85,11 +88,12 @@ class QLProduct(BaseProduct):
         unique_control_inds = np.unique(data['control_index'])
         control = control[np.isin(control['index'], unique_control_inds)]
 
-        for idb_key, date_range in other.idb.items():
-            self.idb[idb_key].expand(date_range)
+        for idb_key, date_range in other.idb_versions.items():
+            self.idb_versions[idb_key].expand(date_range)
 
         return type(self)(service_type=self.service_type, service_subtype=self.service_subtype,
-                          ssid=self.ssid, control=control, data=data, idb=self.idb)
+                          ssid=self.ssid, control=control, data=data,
+                          idb_versions=self.idb_versions)
 
     def __repr__(self):
         return f'<{self.__class__.__name__}\n' \
@@ -117,23 +121,25 @@ class QLProduct(BaseProduct):
             data['control_index'] = data['control_index'] - control_index_min
             control['index'] = control['index'] - control_index_min
             yield type(self)(service_type=self.service_type, service_subtype=self.service_subtype,
-                             ssid=self.ssid, control=control, data=data, idb=self.idb)
+                             ssid=self.ssid, control=control, data=data,
+                             idb_versions=self.idb_versions)
 
 
 class LightCurve(QLProduct):
     """
     Quick Look Light Curve data product.
     """
-    def __init__(self, *, service_type, service_subtype, ssid, control, data, **kwargs):
+    def __init__(self, *, service_type, service_subtype, ssid, control, data,
+                 idb_versions=defaultdict(SCETimeRange), **kwargs):
         super().__init__(service_type=service_type, service_subtype=service_subtype,
-                         ssid=ssid, control=control, data=data, **kwargs)
+                         ssid=ssid, control=control, data=data, idb_versions=idb_versions, **kwargs)
         self.name = 'ql-lightcurve'
         self.level = 'L0'
 
     @classmethod
     def from_levelb(cls, levelb):
 
-        packets, idb = BaseProduct.from_levelb(levelb)
+        packets, idb_versions = BaseProduct.from_levelb(levelb)
 
         service_type = packets.get('service_type')[0]
         service_subtype = packets.get('service_subtype')[0]
@@ -183,7 +189,7 @@ class LightCurve(QLProduct):
         data['counts_err'] = np.sqrt(counts_var).T * u.ct
 
         return cls(service_type=service_type, service_subtype=service_subtype, ssid=ssid,
-                   control=control, data=data)
+                   control=control, data=data, idb_versions=idb_versions)
 
     def __repr__(self):
         return f'{self.name}, {self.level}\n' \
@@ -197,15 +203,16 @@ class LightCurve(QLProduct):
 
 
 class Background(QLProduct):
-    def __init__(self, *, service_type, service_subtype, ssid, control, data, **kwargs):
+    def __init__(self, *, service_type, service_subtype, ssid, control, data,
+                 idb_versions=defaultdict(SCETimeRange), **kwargs):
         super().__init__(service_type=service_type, service_subtype=service_subtype,
-                         ssid=ssid, control=control, data=data, **kwargs)
+                         ssid=ssid, control=control, data=data, idb_versions=idb_versions, **kwargs)
         self.name = 'ql-background'
         self.level = 'L0'
 
     @classmethod
     def from_levelb(cls, levelb):
-        packets, idb = BaseProduct.from_levelb(levelb)
+        packets, idb_versions = BaseProduct.from_levelb(levelb)
 
         service_type = packets.get('service_type')[0]
         service_subtype = packets.get('service_subtype')[0]
@@ -251,7 +258,7 @@ class Background(QLProduct):
         data['counts_err'] = np.sqrt(counts_var).T * u.ct
 
         return cls(service_type=service_type, service_subtype=service_subtype, ssid=ssid,
-                   control=control, data=data)
+                   control=control, data=data, idb_versions=idb_versions)
 
     @classmethod
     def is_datasource_for(cls, *, service_type, service_subtype, ssid, **kwargs):
@@ -263,15 +270,16 @@ class Spectra(QLProduct):
     """
     Quick Look Light Curve data product.
     """
-    def __init__(self, *, service_type, service_subtype, ssid, control, data, **kwargs):
+    def __init__(self, *, service_type, service_subtype, ssid, control, data,
+                 idb_versions=defaultdict(SCETimeRange), **kwargs):
         super().__init__(service_type=service_type, service_subtype=service_subtype,
-                         ssid=ssid, control=control, data=data, **kwargs)
+                         ssid=ssid, control=control, data=data, idb_versions=idb_versions, **kwargs)
         self.name = 'ql-spectra'
         self.level = 'L0'
 
     @classmethod
     def from_levelb(cls, levelb):
-        packets, idb = BaseProduct.from_levelb(levelb)
+        packets, idb_versions = BaseProduct.from_levelb(levelb)
 
         service_type = packets.get('service_type')[0]
         service_subtype = packets.get('service_subtype')[0]
@@ -348,7 +356,7 @@ class Spectra(QLProduct):
         data.add_meta(name='num_integrations', nix='NIX00485', packets=packets)
 
         return cls(service_type=service_type, service_subtype=service_subtype, ssid=ssid,
-                   control=control, data=data)
+                   control=control, data=data, idb_versions=idb_versions)
 
     @classmethod
     def _get_time(cls, control, num_energies, packets, pad_after):
@@ -382,15 +390,16 @@ class Spectra(QLProduct):
 
 
 class Variance(QLProduct):
-    def __init__(self, *, service_type, service_subtype, ssid, control, data, **kwargs):
+    def __init__(self, *, service_type, service_subtype, ssid, control, data,
+                 idb_versions=defaultdict(SCETimeRange), **kwargs):
         super().__init__(service_type=service_type, service_subtype=service_subtype,
-                         ssid=ssid, control=control, data=data, **kwargs)
+                         ssid=ssid, control=control, data=data, idb_versions=idb_versions, **kwargs)
         self.name = 'ql-variance'
         self.level = 'L0'
 
     @classmethod
     def from_levelb(cls, levelb):
-        packets, idb = BaseProduct.from_levelb(levelb)
+        packets, idb_versions = BaseProduct.from_levelb(levelb)
 
         service_type = packets.get('service_type')[0]
         service_subtype = packets.get('service_subtype')[0]
@@ -435,7 +444,7 @@ class Variance(QLProduct):
         data['variance_err'] = np.sqrt(variance_var)
 
         return cls(service_type=service_type, service_subtype=service_subtype, ssid=ssid,
-                   control=control, data=data)
+                   control=control, data=data, idb_versions=idb_versions)
 
     @classmethod
     def is_datasource_for(cls, *, service_type, service_subtype, ssid, **kwargs):
@@ -444,15 +453,16 @@ class Variance(QLProduct):
 
 
 class FlareFlag(QLProduct):
-    def __init__(self, *, service_type, service_subtype, ssid, control, data, **kwargs):
+    def __init__(self, *, service_type, service_subtype, ssid, control, data,
+                 idb_versions=defaultdict(SCETimeRange), **kwargs):
         super().__init__(service_type=service_type, service_subtype=service_subtype,
-                         ssid=ssid, control=control, data=data, **kwargs)
+                         ssid=ssid, control=control, data=data, idb_versions=idb_versions, **kwargs)
         self.name = 'ql-flareflag'
         self.level = 'L0'
 
     @classmethod
     def from_levelb(cls, levelb):
-        packets, idb = BaseProduct.from_levelb(levelb)
+        packets, idb_versions = BaseProduct.from_levelb(levelb)
 
         service_type = packets.get('service_type')[0]
         service_subtype = packets.get('service_subtype')[0]
@@ -485,7 +495,7 @@ class FlareFlag(QLProduct):
         data.add_basic(name='flare_progress', nix='NIXD0449', packets=packets, dtype=np.byte)
 
         return cls(service_type=service_type, service_subtype=service_subtype, ssid=ssid,
-                   control=control, data=data)
+                   control=control, data=data, idb_versions=idb_versions)
 
     @classmethod
     def is_datasource_for(cls, *, service_type, service_subtype, ssid, **kwargs):
@@ -494,15 +504,16 @@ class FlareFlag(QLProduct):
 
 
 class EnergyCalibration(QLProduct):
-    def __init__(self, *, service_type, service_subtype, ssid, control, data, **kwargs):
+    def __init__(self, *, service_type, service_subtype, ssid, control, data,
+                 idb_versions=defaultdict(SCETimeRange), **kwargs):
         super().__init__(service_type=service_type, service_subtype=service_subtype,
-                         ssid=ssid, control=control, data=data, **kwargs)
+                         ssid=ssid, control=control, data=data, idb_versions=idb_versions, **kwargs)
         self.name = 'ql-energycalibration'
         self.level = 'L0'
 
     @classmethod
     def from_levelb(cls, levelb):
-        packets, idb = BaseProduct.from_levelb(levelb)
+        packets, idb_versions = BaseProduct.from_levelb(levelb)
 
         service_type = packets.get('service_type')[0]
         service_subtype = packets.get('service_subtype')[0]
@@ -593,7 +604,7 @@ class EnergyCalibration(QLProduct):
         data['counts_err'] = np.sqrt(full_counts_var).reshape((1, *full_counts_var.shape))
 
         return cls(service_type=service_type, service_subtype=service_subtype, ssid=ssid,
-                   control=control, data=data)
+                   control=control, data=data, idb_versions=idb_versions)
 
     @classmethod
     def is_datasource_for(cls, *, service_type, service_subtype, ssid, **kwargs):
@@ -602,15 +613,16 @@ class EnergyCalibration(QLProduct):
 
 
 class TMStatusFlareList(QLProduct):
-    def __init__(self, *, service_type, service_subtype, ssid, control, data, **kwargs):
+    def __init__(self, *, service_type, service_subtype, ssid, control, data,
+                 idb_versions=defaultdict(SCETimeRange), **kwargs):
         super().__init__(service_type=service_type, service_subtype=service_subtype,
-                         ssid=ssid, control=control, data=data, **kwargs)
+                         ssid=ssid, control=control, data=data, idb_versions=idb_versions, **kwargs)
         self.name = 'ql-tmstatusflarelist'
         self.level = 'L0'
 
     @classmethod
     def from_levelb(cls, levelb):
-        packets, idb = BaseProduct.from_levelb(levelb)
+        packets, idb_versions = BaseProduct.from_levelb(levelb)
 
         service_type = packets.get('service_type')[0]
         service_subtype = packets.get('service_subtype')[0]
@@ -637,7 +649,7 @@ class TMStatusFlareList(QLProduct):
             data.add_basic(name='processing_mask', nix='NIX00293', packets=packets, dtype=np.byte)
 
         return cls(service_type=service_type, service_subtype=service_subtype, ssid=ssid,
-                   control=control, data=data)
+                   control=control, data=data, idb_versions=idb_versions)
 
     @classmethod
     def is_datasource_for(cls, *, service_type, service_subtype, ssid, **kwargs):

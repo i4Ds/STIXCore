@@ -109,7 +109,7 @@ def raw_to_engineering_product(product, idbm):
     col_n = 0
 
     idb_ranges = QTable(rows=[(version, range.start.as_float(), range.end.as_float())
-                              for version, range in product.idb.items()],
+                              for version, range in product.idb_versions.items()],
                         names=["version", "obt_start", "obt_end"])
     idb_ranges.sort("obt_start")
 
@@ -168,8 +168,15 @@ def raw_to_engineering_product(product, idbm):
 
         # replace the old column with the converted
         product.data[col] = product.data[CCN]
+        product.data[col].meta = product.data[CCN].meta
         # delete the generic column for conversion
         del product.data[CCN]
-        assert c == len(product.data)
+        # delete the calibration key from meta as it is now processed
+        del product.data[col].meta["PCF_CURTX"]
+
+        if c != len(product.data):
+            logger.warning("Not all time bins got converted to engineering" +
+                           "values due to bad idb periods." +
+                           f"\n Converted bins: {c}\ntotal bins {len(product.data)}")
 
     return col_n

@@ -174,6 +174,9 @@ def raw_to_engineering_product(product, idbm):
         # delete the calibration key from meta as it is now processed
         del product.data[col].meta["PCF_CURTX"]
 
-        assert c == len(product.data)
+        if c != len(product.data):
+            logger.warning("Not all time bins got converted to engineering" +
+                           "values due to bad idb periods." +
+                           f"\n Converted bins: {c}\ntotal bins {len(product.data)}")
 
     return col_n

@@ -109,7 +109,7 @@ def raw_to_engineering_product(product, idbm):
     col_n = 0
 
     idb_ranges = QTable(rows=[(version, range.start.as_float(), range.end.as_float())
-                              for version, range in product.idb.items()],
+                              for version, range in product.idb_versions.items()],
                         names=["version", "obt_start", "obt_end"])
     idb_ranges.sort("obt_start")
 

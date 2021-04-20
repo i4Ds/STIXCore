@@ -13,10 +13,11 @@ class MiniReport(QLProduct):
     """
     Mini house keeping reported during start up of the flight software.
     """
-    def __init__(self, *, service_type, service_subtype, ssid, control, data, **kwargs):
+    def __init__(self, *, service_type, service_subtype, ssid, control, data,
+                 idb_versions=defaultdict(SCETimeRange), **kwargs):
         super().__init__(service_type=service_type, service_subtype=service_subtype,
                          ssid=ssid, control=control, data=data,
-                         idb=defaultdict(SCETimeRange), **kwargs)
+                         idb_versions=idb_versions, **kwargs)
         self.name = 'mini'
         self.level = 'L1'
         self.type = 'hk'
@@ -32,9 +33,9 @@ class MaxiReport(QLProduct):
     Maxi house keeping reported in all modes while the flight software is running.
     """
     def __init__(self, *, service_type, service_subtype, ssid, control, data,
-                 idb=defaultdict(SCETimeRange), **kwargs):
+                 idb_versions=defaultdict(SCETimeRange), **kwargs):
         super().__init__(service_type=service_type, service_subtype=service_subtype,
-                         ssid=ssid, control=control, data=data, idb=idb, **kwargs)
+                         ssid=ssid, control=control, data=data, idb_versions=idb_versions, **kwargs)
         self.name = 'maxi'
         self.level = 'L1'
         self.type = 'hk'

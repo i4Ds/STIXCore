@@ -83,8 +83,8 @@ def test_calibration_hk_many(idbm):
     hk_p2 = MaxiReportL0.from_levelb(prod_lb_p2)
 
     # fake a idb change on the same day
-    hk_p2.idb["2.26.35"] = hk_p2.idb["2.26.34"]
-    del hk_p2.idb["2.26.34"]
+    hk_p2.idb_versions["2.26.35"] = hk_p2.idb_versions["2.26.34"]
+    del hk_p2.idb_versions["2.26.34"]
 
     hkl0 = hk_p1_io + hk_p2
 

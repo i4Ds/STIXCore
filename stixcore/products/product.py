@@ -72,27 +72,15 @@ class BaseProduct:
 
         packets = [Packet(unhexlify(d)) for d in levelb.data['data']]
 
-        idb = defaultdict(SCETimeRange)
+        idb_versions = defaultdict(SCETimeRange)
 
         for i, packet in enumerate(packets):
             decompression.decompress(packet)
             engineering.raw_to_engineering(packet)
-            idb[packet.get_idb().version].expand(packet.data_header.datetime)
-
-        # not needed?
-        # max_entries = len(idb)
-        # sorted_versions = sorted(idb)
-        # for i, key in enumerate(sorted_versions):
-        #     if i == 0:
-        #         idb[key].start = SCETime.min_time()
-        #     elif i > 0 and i < (max_entries-1):
-        #         idb[key].end = idb[sorted_versions[i+1]].start
-
-        #     if i == max_entries-1:
-        #         idb[key].end = SCETime.max_time()
+            idb_versions[packet.get_idb().version].expand(packet.data_header.datetime)
 
         packets = PacketSequence(packets)
-        return packets, idb
+        return packets, idb_versions
 
 
 class ProductFactory(BasicRegistrationFactory):
@@ -123,13 +111,13 @@ class ProductFactory(BasicRegistrationFactory):
                         energies = QTable.read(file_path, hdu='ENERGIES')
                     except KeyError:
                         logger.warn(f"no ENERGIES data found in FITS: {file_path}")
-                idb = defaultdict(SCETimeRange)
+                idb_versions = defaultdict(SCETimeRange)
                 if level in ('L0', 'L1'):
                     try:
-                        idbt = QTable.read(file_path, hdu='IDB')
+                        idbt = QTable.read(file_path, hdu='IDB_VERSIONS')
                         for row in idbt.iterrows():
-                            idb[row[0]] = SCETimeRange(start=SCETime.from_float(row[1]),
-                                                       end=SCETime.from_float(row[2]))
+                            idb_versions[row[0]] = SCETimeRange(start=SCETime.from_float(row[1]),
+                                                                end=SCETime.from_float(row[2]))
                     except KeyError:
                         logger.warn(f"no IDB data found in FITS: {file_path}")
 
@@ -141,7 +129,7 @@ class ProductFactory(BasicRegistrationFactory):
                 return Product(level=level, service_type=service_type,
                                service_subtype=service_subtype,
                                ssid=ssid, control=control,
-                               data=data, energies=energies, idb=idb)
+                               data=data, energies=energies, idb_versions=idb_versions)
 
     def _check_registered_widget(self, *args, **kwargs):
         """

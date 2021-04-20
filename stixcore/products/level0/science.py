@@ -1,4 +1,5 @@
 from pathlib import Path
+from collections import defaultdict
 
 import numpy as np
 
@@ -6,7 +7,7 @@ import astropy.units as u
 from astropy.table.operations import unique, vstack
 
 from stixcore.config.reader import read_energy_channels
-from stixcore.datetime.datetime import SCETime
+from stixcore.datetime.datetime import SCETime, SCETimeRange
 from stixcore.products.common import (
     _get_compression_scheme,
     _get_detector_mask,
@@ -94,15 +95,16 @@ class ScienceProduct(BaseProduct):
 
 
 class RawPixelData(ScienceProduct):
-    def __init__(self, *, service_type, service_subtype, ssid, control, data, **kwargs):
+    def __init__(self, *, service_type, service_subtype, ssid, control, data,
+                 idb_versions=defaultdict(SCETimeRange), **kwargs):
         super().__init__(service_type=service_type, service_subtype=service_subtype,
-                         ssid=ssid, control=control, data=data, **kwargs)
+                         ssid=ssid, control=control, data=data, idb_versions=idb_versions, **kwargs)
         self.name = 'xray-rpd'
         self.level = 'L0'
 
     @classmethod
     def from_levelb(cls, levelb):
-        packets, idb = BaseProduct.from_levelb(levelb)
+        packets, idb_versions = BaseProduct.from_levelb(levelb)
 
         service_type = packets.get('service_type')[0]
         service_subtype = packets.get('service_subtype')[0]
@@ -195,7 +197,7 @@ class RawPixelData(ScienceProduct):
         data.remove_columns(['start_time', 'integration_time', 'num_samples'])
 
         return cls(service_type=service_type, service_subtype=service_subtype, ssid=ssid,
-                   control=control, data=data)
+                   control=control, data=data, idb_versions=idb_versions)
 
     @classmethod
     def is_datasource_for(cls, *, service_type, service_subtype, ssid, **kwargs):
@@ -204,15 +206,16 @@ class RawPixelData(ScienceProduct):
 
 
 class CompressedPixelData(ScienceProduct):
-    def __init__(self, *, service_type, service_subtype, ssid, control, data, **kwargs):
+    def __init__(self, *, service_type, service_subtype, ssid, control, data,
+                 idb_versions=defaultdict(SCETimeRange), **kwargs):
         super().__init__(service_type=service_type, service_subtype=service_subtype,
-                         ssid=ssid, control=control, data=data, **kwargs)
+                         ssid=ssid, control=control, data=data, idb_versions=idb_versions, **kwargs)
         self.name = 'xray-cpd'
         self.level = 'L0'
 
     @classmethod
     def from_levelb(cls, levelb):
-        packets, idb = BaseProduct.from_levelb(levelb)
+        packets, idb_versions = BaseProduct.from_levelb(levelb)
 
         service_type = packets.get('service_type')[0]
         service_subtype = packets.get('service_subtype')[0]
@@ -387,7 +390,7 @@ class CompressedPixelData(ScienceProduct):
         data['control_index'] = 0
 
         return cls(service_type=service_type, service_subtype=service_subtype, ssid=ssid,
-                   control=control, data=data)
+                   control=control, data=data, idb_versions=idb_versions)
 
     @classmethod
     def is_datasource_for(cls, *, service_type, service_subtype, ssid, **kwargs):
@@ -415,15 +418,16 @@ class Visibility(ScienceProduct):
     """
     X-ray Visibilities or compression Level 3 data
     """
-    def __init__(self, *, service_type, service_subtype, ssid, control, data, **kwargs):
+    def __init__(self, *, service_type, service_subtype, ssid, control, data,
+                 idb_versions=defaultdict(SCETimeRange), **kwargs):
         super().__init__(service_type=service_type, service_subtype=service_subtype,
-                         ssid=ssid, control=control, data=data, **kwargs)
+                         ssid=ssid, control=control, data=data, idb_versions=idb_versions, **kwargs)
         self.name = 'xray-visibility'
         self.level = 'L0'
 
     @classmethod
     def from_levelb(cls, levelb):
-        packets, idb = BaseProduct.from_levelb(levelb)
+        packets, idb_versions = BaseProduct.from_levelb(levelb)
 
         service_type = packets.get('service_type')[0]
         service_subtype = packets.get('service_subtype')[0]
@@ -520,7 +524,7 @@ class Visibility(ScienceProduct):
         data['timedel'] = data['integration_time']
 
         return cls(service_type=service_type, service_subtype=service_subtype, ssid=ssid,
-                   control=control, data=data)
+                   control=control, data=data, idb_versions=idb_versions)
 
     @classmethod
     def is_datasource_for(cls, *, service_type, service_subtype, ssid, **kwargs):
@@ -532,15 +536,16 @@ class Spectrogram(ScienceProduct):
     """
     X-ray Spectrogram or compression Level 2 data
     """
-    def __init__(self, *, service_type, service_subtype, ssid, control, data, **kwargs):
+    def __init__(self, *, service_type, service_subtype, ssid, control, data,
+                 idb_versions=defaultdict(SCETimeRange), **kwargs):
         super().__init__(service_type=service_type, service_subtype=service_subtype,
-                         ssid=ssid, control=control, data=data, **kwargs)
+                         ssid=ssid, control=control, data=data, idb_versions=idb_versions, **kwargs)
         self.name = 'xray-spectrogram'
         self.level = 'L0'
 
     @classmethod
     def from_levelb(cls, levelb):
-        packets, idb = BaseProduct.from_levelb(levelb)
+        packets, idb_versions = BaseProduct.from_levelb(levelb)
 
         service_type = packets.get('service_type')[0]
         service_subtype = packets.get('service_subtype')[0]
@@ -651,7 +656,7 @@ class Spectrogram(ScienceProduct):
         data['control_index'] = 0
 
         return cls(service_type=service_type, service_subtype=service_subtype, ssid=ssid,
-                   control=control, data=data)
+                   control=control, data=data, idb_versions=idb_versions)
 
     @classmethod
     def is_datasource_for(cls, *, service_type, service_subtype, ssid, **kwargs):
@@ -663,15 +668,16 @@ class Aspect(ScienceProduct):
     """
     Aspect
     """
-    def __init__(self, *, service_type, service_subtype, ssid, control, data, **kwargs):
+    def __init__(self, *, service_type, service_subtype, ssid, control,
+                 data, idb_versions=defaultdict(SCETimeRange), **kwargs):
         super().__init__(service_type=service_type, service_subtype=service_subtype,
-                         ssid=ssid, control=control, data=data, **kwargs)
+                         ssid=ssid, control=control, data=data, idb_versions=idb_versions, **kwargs)
         self.name = 'burst-aspect'
         self.level = 'L0'
 
     @classmethod
     def from_levelb(cls, levelb):
-        packets, idb = BaseProduct.from_levelb(levelb)
+        packets, idb_versions = BaseProduct.from_levelb(levelb)
 
         service_type = packets.get('service_type')[0]
         service_subtype = packets.get('service_subtype')[0]

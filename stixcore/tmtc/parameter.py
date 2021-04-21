@@ -39,7 +39,9 @@ class Parameter:
         if self.name == 'NIXD0159':
             return self.unpack_NIX00065()
         elif self.children:
-            if all([False if child.children else True for child in self.children]):
+            names = (c.name for c in self.children)
+            if all([False if child.children else True for child in self.children]) \
+                    and 'NIXD0159' not in names:
                 params = {child.name: child for child in self.children}
                 values = defaultdict(list)
                 for param in self.children:

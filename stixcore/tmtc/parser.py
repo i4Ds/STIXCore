@@ -41,8 +41,8 @@ class PacketData:
         obj = PacketData()
 
         for parameter in parameters:
-            parameter = parameter.merge_children()
-            obj.__dict__[parameter.name] = parameter
+            new_parameter = parameter.merge_children()
+            obj.__dict__[parameter.name] = new_parameter
 
         return obj
 

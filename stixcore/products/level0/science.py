@@ -708,8 +708,9 @@ class Aspect(ScienceProduct):
         delta_time = ((control['summing_value'] * control['averaging_value']) / 1000.0)
         samples = packets.get_value('NIX00089')
 
-        offsets = [delta_time[i] * np.arange(ns) * u.s for i, ns in enumerate(samples)]
-        time = np.hstack([start_times[i].as_float() + offsets[i] for i in range(len(offsets))])
+        offsets = [delta_time[i] * np.ones(ns) * u.s for i, ns in enumerate(samples)]
+        time = np.hstack([start_times[i].as_float() + offsets[i] * np.arange(samples[i])
+                          for i in range(len(offsets))])
         timedel = np.hstack(offsets)
 
         # Data
@@ -740,15 +741,17 @@ class Aspect(ScienceProduct):
                          (self.data['time'] < dend))
 
             # Implement slice on parent or add mixin
-            data = self.data[i]
-            control_indices = np.unique(data['control_index'])
-            control = self.control[np.isin(self.control['index'], control_indices)]
-            control_index_min = control_indices.min()
+            if i[0].size > 0:
+                data = self.data[i]
+                control_indices = np.unique(data['control_index'])
+                control = self.control[np.isin(self.control['index'], control_indices)]
+                control_index_min = control_indices.min()
 
-            data['control_index'] = data['control_index'] - control_index_min
-            control['index'] = control['index'] - control_index_min
-            yield type(self)(service_type=self.service_type, service_subtype=self.service_subtype,
-                             ssid=self.ssid, control=control, data=data)
+                data['control_index'] = data['control_index'] - control_index_min
+                control['index'] = control['index'] - control_index_min
+                yield type(self)(service_type=self.service_type,
+                                 service_subtype=self.service_subtype, ssid=self.ssid,
+                                 control=control, data=data)
 
     @classmethod
     def is_datasource_for(cls, *, service_type, service_subtype, ssid, **kwargs):

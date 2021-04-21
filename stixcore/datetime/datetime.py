@@ -5,7 +5,7 @@ import astropy.units as u
 from stixcore.data.test import test_data
 from stixcore.ephemeris.manager import Time
 
-SPICE_TIME = Time(meta_kernel_path=test_data.ephemeris.META_KERNEL)
+SPICE_TIME = Time(meta_kernel_path=test_data.ephemeris.META_KERNEL_TIME)
 
 __all__ = ['SCETime', 'SCETimeRange']
 

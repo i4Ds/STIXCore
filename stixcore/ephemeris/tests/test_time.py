@@ -12,7 +12,7 @@ T0_DATETIME = datetime(2000, 1, 1, 0, 0, 0, 0, tzinfo=timezone.utc)
 
 @pytest.fixture
 def spicemanager():
-    return Time(meta_kernel_path=test_data.ephemeris.META_KERNEL)
+    return Time(meta_kernel_path=test_data.ephemeris.META_KERNEL_POS)
 
 
 def test_spicemanager(spicemanager):

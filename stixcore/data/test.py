@@ -8,7 +8,8 @@ test_dir = data_dir.joinpath('test')
 
 class EphemerisTestData:
     def __init__(self, data_dir):
-        self.META_KERNEL = data_dir / "ephemeris" / "test_time_20201001_V01.mk"
+        self.META_KERNEL_POS = data_dir / "ephemeris" / "test_position_20201001_V01.mk"
+        self.META_KERNEL_TIME = data_dir / "ephemeris" / "test_time_20201001_V01.mk"
         self.__doc__ = "\n".join([f'{str(k)}: {repr(v)}\n\n' for k, v in self.__dict__.items()])
 
 

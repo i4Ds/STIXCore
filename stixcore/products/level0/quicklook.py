@@ -52,7 +52,7 @@ class QLProduct(BaseProduct):
         try:
             self.obs_beg = SCETime.from_float(self.data['time'][0]
                                               - self.control['integration_time'][0] / 2)
-            self.obs_end = SCETime.from_float(self.data['time'][-1]
+            self.obs_beg = SCETime.from_float(self.data['time'][-1]
                                               + self.control['integration_time'][-1] / 2)
             self.obs_avg = self.obs_beg + (self.obs_end - self.obs_beg) / 2
         except ValueError:

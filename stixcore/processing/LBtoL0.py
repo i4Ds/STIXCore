@@ -48,8 +48,8 @@ class Level0:
             if complete:
                 for comp in complete:
                     tmp = Product._check_registered_widget(
-                        level='L0', service_type=cur_lb.service_type,
-                        service_subtype=cur_lb.service_subtype, ssid=cur_lb.ssid, data=None,
+                        level='L0', service_type=comp.service_type,
+                        service_subtype=comp.service_subtype, ssid=comp.ssid, data=None,
                         control=None)
 
                     # TODO need to carry better information for logging like index from oginianl
@@ -58,24 +58,24 @@ class Level0:
                         level0 = tmp.from_levelb(comp)
                     except Exception as e:
                         logger.error('%s', e)
-                        continue
+                        raise e
 
                     self.processor.write_fits(level0)
 
-            # if incomplete:
-            #     tmp = Product._check_registered_widget(level='L0',
-            #     service_type=cur_lb.service_type,
-            #                                            service_subtype=cur_lb.service_subtype,
-            #                                            ssid=cur_lb.ssid, data=None, control=None)
-            #     level0 = tmp.from_levelb(incomplete)
-            #     self.processor.write_fits(level0)
+        if cur_incomplete:
+            for inc in cur_incomplete:
+                tmp = Product._check_registered_widget(level='L0', service_type=inc.service_type,
+                                                       service_subtype=inc.service_subtype,
+                                                       ssid=inc.ssid, data=None, control=None)
+                level0 = tmp.from_levelb(inc)
+                self.processor.write_fits(level0)
 
 
 if __name__ == '__main__':
     tstart = perf_counter()
 
-    fits_path = Path('/Users/shane/Projects/stix/dataview/data/asdfadsf/LB/21/6/43')
-    bd = Path('/Users/shane/Projects/STIX/dataview/data/asdfadsf')
+    fits_path = Path('/Users/shane/Projects/stix/dataview/data/time_test/LB/21/6/30')
+    bd = Path('/Users/shane/Projects/STIX/dataview/data/time_test')
 
     l0processor = Level0(fits_path, bd)
     l0processor.process_fits_files()

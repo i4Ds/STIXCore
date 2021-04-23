@@ -14,8 +14,8 @@ if __name__ == '__main__':
     tstart = perf_counter()
     logger.info('LevelB run')
 
-    socm = SOCManager(Path('/Users/shane/Projects/STIX/dataview/data/real'))
-    out_dir = Path('/Users/shane/Projects/STIX/dataview/data/asdfadsf')
+    socm = SOCManager(Path('/Users/shane/Projects/STIX/dataview/data/time_test'))
+    out_dir = Path('/Users/shane/Projects/STIX/dataview/data/time_test')
     out_dir.mkdir(parents=True, exist_ok=True)
 
     fits_processor = FitsLBProcessor(out_dir)
@@ -24,12 +24,10 @@ if __name__ == '__main__':
     for tmtc_file in files_to_process:
         logger.info(f'Processing file: {tmtc_file.file}')
         # TODO sorting filter etc
-        try:
-            prod = LevelB.from_tm(tmtc_file)
+
+        for prod in LevelB.from_tm(tmtc_file):
             if prod:
                 fits_processor.write_fits(prod)
-        except ValueError as e:
-            logger.error(e)
 
     tend = perf_counter()
     logger.info('Time taken %f', tend - tstart)

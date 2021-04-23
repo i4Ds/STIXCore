@@ -39,6 +39,7 @@ class ScienceProduct(BaseProduct):
         self.type = 'sci'
         self.control = control
         self.data = data
+        self.idb_versions = kwargs.get('idb_versions', None)
 
         self.obs_beg = SCETime.from_float(self.data['time'][0] - self.data['timedel'][0] / 2)
         self.obs_end = SCETime.from_float(self.data['time'][-1] + self.data['timedel'][-1] / 2)
@@ -380,7 +381,7 @@ class CompressedPixelData(ScienceProduct):
         sub_index = np.searchsorted(data['delta_time'], unique_times)
         data = data[sub_index]
 
-        data['time'] = (control['time_stamp'][0].as_float()
+        data['time'] = (control['time_stamp'][0]
                         + data['delta_time'] + data['integration_time']/2)
         data['timedel'] = data['integration_time']
         data['counts'] = out_counts * u.ct
@@ -575,7 +576,8 @@ class Spectrogram(ScienceProduct):
         control.add_meta(name='pixel_mask', nix='NIXD0407', packets=packets)
         control['detector_mask'] = np.unique(_get_detector_mask(packets)[0], axis=0)
         control.add_meta(name='detector_mask', nix='NIX00407', packets=packets)
-        control.add_basic(name='rcr', nix='NIX00401', attr='value', packets=packets, dtype=np.int16)
+        control['rcr'] = np.unique(packets.get_value('NIX00401', attr='value'))[0]
+        control.add_meta(name='rcr', nix='NIX00401', packets=packets)
         control['index'] = range(len(control))
 
         e_min = np.array(packets.get_value('NIXD0442'))
@@ -656,7 +658,7 @@ class Spectrogram(ScienceProduct):
 
         # Data
         data = Data()
-        data['time'] = control["time_stamp"][0].as_float() + centers
+        data['time'] = control["time_stamp"][0] + centers
         data['timedel'] = deltas
         data['timedel'].meta = {'NIXS': ['NIX00441', 'NIX00269']}
         data.add_basic(name='triggers', nix='NIX00267', packets=packets)

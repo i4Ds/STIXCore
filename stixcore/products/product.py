@@ -269,7 +269,7 @@ class ControlSci(QTable, AddParametersMixin):
         else:
             coarse = control['time_stamp']
             fine = 0
-        control['time_stamp'] = [SCETime(c, f) for c, f in zip(coarse, fine)]
+        control['time_stamp'] = [SCETime(c, f).as_float() for c, f in zip(coarse, fine)]
         try:
             control['num_substructures'] = np.array(packets.get_value('NIX00403'),
                                                     np.int32).reshape(1, -1)

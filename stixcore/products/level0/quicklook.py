@@ -112,17 +112,18 @@ class QLProduct(BaseProduct):
         for day in days:
             i = np.where((self.data['time'] >= day * u.day) &
                          (self.data['time'] < (day + 1) * u.day))
+            if i[0].size > 0:
+                data = self.data[i]
+                control_indices = np.unique(data['control_index'])
+                control = self.control[np.isin(self.control['index'], control_indices)]
+                control_index_min = control_indices.min()
 
-            data = self.data[i]
-            control_indices = np.unique(data['control_index'])
-            control = self.control[np.isin(self.control['index'], control_indices)]
-            control_index_min = control_indices.min()
-
-            data['control_index'] = data['control_index'] - control_index_min
-            control['index'] = control['index'] - control_index_min
-            yield type(self)(service_type=self.service_type, service_subtype=self.service_subtype,
-                             ssid=self.ssid, control=control, data=data,
-                             idb_versions=self.idb_versions)
+                data['control_index'] = data['control_index'] - control_index_min
+                control['index'] = control['index'] - control_index_min
+                yield type(self)(service_type=self.service_type,
+                                 service_subtype=self.service_subtype,
+                                 ssid=self.ssid, control=control, data=data,
+                                 idb_versions=self.idb_versions)
 
 
 class LightCurve(QLProduct):
@@ -163,10 +164,19 @@ class LightCurve(QLProduct):
         control.add_data('compression_scheme_counts_skm',
                          _get_compression_scheme(packets, 'NIX00272'))
 
-        counts = np.array(packets.get_value('NIX00272')).reshape(control['num_energies'][0],
-                                                                 control['num_samples'][0])
-        counts_var = np.array(packets.get_value('NIX00272', attr="error")).\
-            reshape(control['num_energies'][0], control['num_samples'][0])
+        counts_flat = packets.get_value('NIX00272')
+        counts_var_flat = packets.get_value('NIX00272', attr='error')
+
+        flat_indices = np.hstack((0, np.cumsum([*control['num_samples']]) *
+                                  control['num_energies'])).astype(int)
+
+        counts = np.hstack([
+            counts_flat[flat_indices[i]:flat_indices[i + 1]].reshape(n_eng, n_sam)
+            for i, (n_sam, n_eng) in enumerate(control[['num_samples', 'num_energies']])])
+
+        counts_var = np.hstack([
+            counts_var_flat[flat_indices[i]:flat_indices[i + 1]].reshape(n_eng, n_sam)
+            for i, (n_sam, n_eng) in enumerate(control[['num_samples', 'num_energies']])])
 
         control.add_data('compression_scheme_triggers_skm',
                          _get_compression_scheme(packets, 'NIX00274'))

@@ -213,8 +213,8 @@ class LevelB(BaseProduct):
         packet_data = defaultdict(list)
         for binary in tmfile.get_packet_binaries():
             packet = TMPacket(binary)
-            # TODO remove
-            if packet.key == (3, 25, 2):
+            # # TODO remove
+            if packet.key[:2] == (21, 6):
                 packet_data[packet.key].append(packet)
 
         for prod_key, packets in packet_data.items():
@@ -235,9 +235,10 @@ class LevelB(BaseProduct):
             data['control_index'] = np.array(control['index'], dtype=np.int64)
             data['data'] = hex_data
             service_type, service_subtype, ssid = prod_key
+            control['ssid'] = ssid
             product = LevelB(service_type=service_type, service_subtype=service_subtype,
                              ssid=ssid, control=control, data=data)
-            return product
+            yield product
 
     @classmethod
     def is_datasource_for(cls, **kwargs):

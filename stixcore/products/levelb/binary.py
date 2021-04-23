@@ -55,6 +55,10 @@ class LevelB(BaseProduct):
         self.obt_end = SCETime(self.control['scet_coarse'][-1], self.control['scet_fine'][-1])
         self.obt_avg = self.obt_beg + (self.obt_end - self.obt_beg)/2
 
+        self.obs_beg = self.obt_beg
+        self.obs_end = self.obt_end
+        self.obs_avg = self.obt_avg
+
     def __repr__(self):
         return f"<LevelB {self.level}, {self.service_type}, {self.service_subtype}, {self.ssid} " \
                f"{self.obt_beg}-{self.obt_end}>"
@@ -213,9 +217,7 @@ class LevelB(BaseProduct):
         packet_data = defaultdict(list)
         for binary in tmfile.get_packet_binaries():
             packet = TMPacket(binary)
-            # TODO remove
-            if packet.key == (3, 25, 2):
-                packet_data[packet.key].append(packet)
+            packet_data[packet.key].append(packet)
 
         for prod_key, packets in packet_data.items():
             headers = []
@@ -237,7 +239,7 @@ class LevelB(BaseProduct):
             service_type, service_subtype, ssid = prod_key
             product = LevelB(service_type=service_type, service_subtype=service_subtype,
                              ssid=ssid, control=control, data=data)
-            return product
+            yield product
 
     @classmethod
     def is_datasource_for(cls, **kwargs):

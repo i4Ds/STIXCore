@@ -17,13 +17,14 @@ from astropy.time import Time
 import stixcore.processing.decompression as decompression
 import stixcore.processing.engineering as engineering
 from stixcore.datetime.datetime import SCETime, SCETimeRange
-from stixcore.tmtc.packet_factory import Packet
+from stixcore.tmtc.packet_factory import GenericPacket, Packet
 from stixcore.tmtc.packets import PacketSequence
 
 __all__ = ['BaseProduct', 'ProductFactory', 'Product', 'ControlSci', 'Control', 'Data']
 
 from collections import defaultdict
 
+from stixcore.processing.engineering import raw_to_engineering_product
 from stixcore.util.logging import get_logger
 
 logger = get_logger(__name__)
@@ -67,6 +68,29 @@ class BaseProduct:
         if hasattr(cls, 'is_datasource_for'):
             cls._registry[cls] = cls.is_datasource_for
 
+    def get_abs_times(self):
+        return [self.obt_beg + SCETime.from_float(t) for t in self.data['time']]
+
+    def get_abs_times_as_float(self):
+        return self.obt_beg.as_float() + self.data['time']
+
+    def to_abs_times_as_float(self):
+        self.data['time'] = self.get_abs_times_as_float()
+
+    def to_abs_times(self):
+        self.data['time'] = self.get_abs_times()
+
+    def get_rel_times(self):
+        return self.data['time'] - self.obt_beg.as_float()
+
+    def to_rel_times(self):
+        self.data['time'] = self.get_rel_times()
+
+    def obs_to_utc(self):
+        self.obs_avg = self.obt_avg.to_datetime()
+        self.obs_beg = self.obt_beg.to_datetime()
+        self.obs_end = self.obt_end.to_datetime()
+
     @classmethod
     def from_levelb(cls, levelb):
 
@@ -82,6 +106,29 @@ class BaseProduct:
         packets = PacketSequence(packets)
         return packets, idb_versions
 
+    @classmethod
+    def from_level0(cls, l0product, idbm=GenericPacket.idb_manager):
+        l1 = cls(service_type=l0product.service_type,
+                 service_subtype=l0product.service_subtype,
+                 ssid=l0product.ssid,
+                 control=l0product.control,
+                 data=l0product.data,
+                 idb_versions=l0product.idb_versions)
+
+        raw_to_engineering_product(l1, idbm)
+
+        # keep same time ref
+        l1.obs_avg = l0product.obs_avg
+        l1.obs_beg = l0product.obs_beg
+        l1.obs_end = l0product.obs_end
+        l1.obt_avg = l0product.obt_avg
+        l1.obt_beg = l0product.obt_beg
+        l1.obt_end = l0product.obt_end
+
+        # convert observation time to UTC
+        l1.obs_to_utc()
+        return l1
+
 
 class ProductFactory(BasicRegistrationFactory):
     def __call__(self, *args, **kwargs):
@@ -96,14 +143,6 @@ class ProductFactory(BasicRegistrationFactory):
                 timesys = header.get('TIMESYS')
                 control = QTable.read(file_path, hdu='CONTROL')
                 data = QTable.read(file_path, hdu='DATA')
-
-                if level != 'LB':
-                    if timesys == 'OBT':
-                        obs_beg = SCETime.from_string(header['OBT_BEG'])
-                        offset = obs_beg.as_float()
-                    elif timesys == 'UTC':
-                        offset = Time(header['OBT_BEG'])
-                    data['time'] = data['time'] + offset
 
                 energies = None
                 if level == 'L1':
@@ -126,10 +165,26 @@ class ProductFactory(BasicRegistrationFactory):
                                                         ssid=ssid, control=control,
                                                         data=data, energies=energies)
 
-                return Product(level=level, service_type=service_type,
+                prod = Product(level=level, service_type=service_type,
                                service_subtype=service_subtype,
                                ssid=ssid, control=control,
                                data=data, energies=energies, idb_versions=idb_versions)
+
+                # override all absolute times from the header data
+                prod.obt_beg = SCETime.from_fits_header(header['OBT_BEG'])
+                prod.obt_end = SCETime.from_fits_header(header['OBT_END'])
+                prod.obt_avg = prod.obt_beg + ((prod.obt_end - prod.obt_beg) / 2.0)
+
+                if timesys == 'OBT':
+                    prod.obs_beg = SCETime.from_fits_header(header['DATE_BEG'])
+                    prod.obs_end = SCETime.from_fits_header(header['DATE_END'])
+                    prod.obs_avg = SCETime.from_fits_header(header['DATE_AVG'])
+                elif timesys == 'UTC':
+                    prod.obs_beg = Time(header['DATE_BEG'])
+                    prod.obs_end = Time(header['DATE_END'])
+                    prod.obs_avg = Time(header['DATE_AVG'])
+
+                return prod
 
     def _check_registered_widget(self, *args, **kwargs):
         """
@@ -159,6 +214,24 @@ class ProductFactory(BasicRegistrationFactory):
         WidgetType = candidate_widget_types[0]
 
         return WidgetType
+
+    def from_levelb(self, product):
+        Product = self._check_registered_widget(level="L0",
+                                                service_type=product.service_type,
+                                                service_subtype=product.service_subtype,
+                                                ssid=product.ssid,
+                                                control=None,
+                                                data=None)
+        return Product.from_levelb(product)
+
+    def from_level0(self, product):
+        Product = self._check_registered_widget(level="L1",
+                                                service_type=product.service_type,
+                                                service_subtype=product.service_subtype,
+                                                ssid=product.ssid,
+                                                control=None,
+                                                data=None)
+        return Product.from_level0(product)
 
 
 Product = ProductFactory(registry=BaseProduct._registry)

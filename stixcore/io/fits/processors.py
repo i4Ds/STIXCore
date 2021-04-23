@@ -4,7 +4,6 @@ from datetime import datetime
 
 import numpy as np
 
-import astropy.units as u
 from astropy.io import fits
 from astropy.io.fits import table_to_hdu
 from astropy.table import QTable
@@ -54,8 +53,15 @@ class FitsProcessor:
         if 'tc_packet_seq_control' in product.control.colnames and user_req != '':
             tc_control = f'_{product.control["tc_packet_seq_control"][0]}'
 
-        return f'solo_{product.level}_stix-{product.type}-' \
-               f'{product.name.replace("_", "-")}{user_req}' \
+        tc_type = ''
+        if hasattr(product, 'type') and product.type:
+            tc_type = f'-{product.type}'
+
+        tc_name = ''
+        if hasattr(product, 'name') and product.name:
+            tc_name = f'-{product.name.replace("_", "-")}'
+
+        return f'solo_{product.level}_stix{tc_type}{tc_name}{user_req}' \
                f'_{date_range}_V{version:02d}{status}{tc_control}.fits'
 
     @classmethod
@@ -77,7 +83,6 @@ class FitsProcessor:
             ('SOOP_TYP', 'SOOP'),
             ('OBS_ID', 'obs_id'),
             ('TARGET', 'Sun'),
-            ('OBS_TYPE', product.type),
             ('STYPE', product.service_type),
             ('SSTYPE', product.service_subtype),
             ('SSID', product.ssid)
@@ -114,23 +119,23 @@ class FitsLBProcessor(FitsProcessor):
         """
         if product.level != 'LB':
             raise ValueError(f"Try to crate FITS file LB for {product.level} data product")
-        if 'scet_coarse' not in product.control:
+        if 'scet_coarse' not in product.control.colnames:
             raise ValueError("Expected scet_coarse in the control structure")
-
-        obs_beg = SCETime(coarse=product.control["scet_coarse"][0],
-                          fine=product.control["scet_fine"][0]).as_float().value
-        obs_end = SCETime(coarse=product.control["scet_coarse"][-1],
-                          fine=product.control["scet_fine"][-1]).as_float().value
 
         headers = FitsProcessor.generate_common_header(filename, product) + (
             # Name, Value, Comment
-            ('OBT_BEG', str(obs_beg), 'Start of acquisition time in OBT'),
-            ('OBT_END', str(obs_end), 'End of acquisition time in OBT'),
+            ('OBT_BEG', product.obs_beg.to_fits_header(), 'Start of acquisition time in OBT'),
+            ('OBT_END', product.obs_end.to_fits_header(), 'End of acquisition time in OBT'),
             ('TIMESYS', 'OBT', 'System used for time keywords'),
             ('LEVEL', 'LB', 'Processing level of the data'),
-            ('DATE_OBS', str(obs_beg), 'Start of acquisition time in OBT'),
-            ('DATE_BEG', str(obs_beg), 'Start of acquisition time in OBT'),
-            ('DATE_END', str(obs_end), 'End of acquisition time in OBT')
+            ('DATE_OBS', product.obs_beg.to_fits_header(),
+             'Start of acquisition time in OBT'),
+            ('DATE_BEG', product.obs_beg.to_fits_header(),
+             'Start of acquisition time in OBT'),
+            ('DATE_AVG', product.obs_avg.to_fits_header(),
+             'Center of acquisition time in OBT'),
+            ('DATE_END', product.obs_end.to_fits_header(),
+             'End of acquisition time in OBT')
         )
         return headers
 
@@ -159,18 +164,20 @@ class FitsLBProcessor(FitsProcessor):
                                                date_range=date_range, status=status)
 
     def write_fits(self, product):
-        """Write or merge the product data into a FITS file.
+        """
+        Write level B products into fits files.
+
         Parameters
         ----------
-        product : `LevelB`
-            The data product to write.
-        Raises
-        ------
-        ValueError
-            TODO what does the length check guaranties?
-        ValueError
-            TODO what does the length check guaranties?
+        product : `stixcore.product.level0`
+
+        Returns
+        -------
+        list
+            of created file as `pathlib.Path`
+
         """
+        created_files = []
         for prod in product.to_days():
             filename = self.generate_filename(prod, version=1)
             parts = [prod.level, prod.service_type, prod.service_subtype, prod.ssid]
@@ -210,8 +217,11 @@ class FitsLBProcessor(FitsProcessor):
             data_hdu.name = 'DATA'
             hdul = fits.HDUList([primary_hdu, control_hdu, data_hdu])
 
-            logger.info(f'Writing fits file to {path / filename}')
-            hdul.writeto(path / filename, overwrite=True, checksum=True)
+            filetowrite = path / filename
+            logger.info(f'Writing fits file to {filetowrite}')
+            hdul.writeto(filetowrite, overwrite=True, checksum=True)
+            created_files.append(filetowrite)
+        return created_files
 
 
 class FitsL0Processor:
@@ -280,7 +290,7 @@ class FitsL0Processor:
             # energies['e_high'] = ehigh * u.keV
 
             # Convert time to be relative to start date
-            data['time'] = (data['time'] - prod.obs_beg.as_float()).to(u.s)
+            # allready done data['time'] = (data['time'] - prod.obs_beg.as_float()).to(u.s)
 
             primary_header = self.generate_primary_header(filename, prod)
             primary_hdu = fits.PrimaryHDU()
@@ -360,18 +370,19 @@ class FitsL0Processor:
 
         headers = FitsProcessor.generate_common_header(filename, product) + (
             # Name, Value, Comment
-            ('OBT_BEG', str(product.obs_beg.as_float().value), 'Start of acquisition time in OBT'),
-            ('OBT_END', str(product.obs_end.as_float().value), 'End of acquisition time in OBT'),
+            ('OBT_BEG', product.obs_beg.to_fits_header(), 'Start of acquisition time in OBT'),
+            ('OBT_END', product.obs_end.to_fits_header(), 'End of acquisition time in OBT'),
             ('TIMESYS', 'OBT', 'System used for time keywords'),
             ('LEVEL', 'L0', 'Processing level of the data'),
-            ('DATE_OBS', str(product.obs_beg.as_float().value),
+            ('DATE_OBS', product.obs_beg.to_fits_header(),
              'Start of acquisition time in OBT'),
-            ('DATE_BEG', str(product.obs_beg.as_float().value),
+            ('DATE_BEG', product.obs_beg.to_fits_header(),
              'Start of acquisition time in OBT'),
-            ('DATE_AVG', str(product.obs_avg.as_float().value),
+            ('DATE_AVG', product.obs_avg.to_fits_header(),
              'Center of acquisition time in OBT'),
-            ('DATE_END', str(product.obs_end.as_float().value),
-             'End of acquisition time in OBT')
+            ('DATE_END', product.obs_end.to_fits_header(),
+             'End of acquisition time in OBT'),
+            ('OBS_TYPE', product.type),
         )
         return headers
 
@@ -396,8 +407,8 @@ class FitsL1Processor(FitsL0Processor):
 
         headers = FitsProcessor.generate_common_header(filename, product) + (
             # Name, Value, Comment
-            ('OBT_BEG', str(product.obt_beg.as_float().value), 'Start of acquisition time in OBT'),
-            ('OBT_END', str(product.obt_end.as_float().value), 'End of acquisition time in OBT'),
+            ('OBT_BEG', product.obt_beg.to_fits_header(), 'Start of acquisition time in OBT'),
+            ('OBT_END', product.obt_end.to_fits_header(), 'End of acquisition time in OBT'),
             ('TIMESYS', 'UTC', 'System used for time keywords'),
             ('LEVEL', 'L1', 'Processing level of the data'),
             ('DATE_OBS', astrotime(product.obs_beg).fits,
@@ -407,6 +418,7 @@ class FitsL1Processor(FitsL0Processor):
             ('DATE_AVG', astrotime(product.obs_avg).fits,
              'Center of acquisition time in UTC'),
             ('DATE_END', astrotime(product.obs_end).fits,
-             'End of acquisition time in UTC')
+             'End of acquisition time in UTC'),
+            ('OBS_TYPE', product.type),
         )
         return headers

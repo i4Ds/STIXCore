@@ -1,6 +1,7 @@
 """
 High level STIX data products created from single stand alone packets or a sequence of packets.
 """
+from copy import copy
 from itertools import chain
 from collections import defaultdict
 
@@ -49,13 +50,26 @@ class QLProduct(BaseProduct):
         self.data = data
         self.idb_versions = idb_versions
 
+        self.obs_beg = None
+        self.obs_end = None
+        self.obs_avg = None
+        self.obt_beg = None
+        self.obt_end = None
+        self.obt_avg = None
+
         try:
             self.obs_beg = SCETime.from_float(self.data['time'][0]
                                               - self.control['integration_time'][0] / 2)
-            self.obs_beg = SCETime.from_float(self.data['time'][-1]
+            self.obs_end = SCETime.from_float(self.data['time'][-1]
                                               + self.control['integration_time'][-1] / 2)
             self.obs_avg = self.obs_beg + (self.obs_end - self.obs_beg) / 2
-        except ValueError:
+
+            # obs is the same as obt for level 0
+            self.obt_beg = self.obs_beg
+            self.obt_end = self.obs_end
+            self.obt_avg = self.obs_avg
+
+        except (ValueError, AttributeError):
             pass
 
     def __add__(self, other):
@@ -75,25 +89,47 @@ class QLProduct(BaseProduct):
         if not isinstance(other, type(self)):
             raise TypeError(f'Products must of same type not {type(self)} and {type(other)}')
 
-        # TODO reindex and update data control_index
-        other.control['index'] = other.control['index'] + self.control['index'].max() + 1
-        control = vstack((self.control, other.control))
-        # control = unique(control, keys=['scet_coarse', 'scet_fine'])
-        # control = control.group_by(['scet_coarse', 'scet_fine'])
-
+        other = copy(other)
+        other.control['index'] = other.control['index'].data + self.control['index'].data.max() + 1
         other.data['control_index'] = other.data['control_index'] + self.control['index'].max() + 1
-        data = vstack((self.data, other.data))
-        data = unique(data, keys='time')
-        # data = data.group_by('time')
-        unique_control_inds = np.unique(data['control_index'])
-        control = control[np.isin(control['index'], unique_control_inds)]
+
+        control = vstack((self.control, other.control))
+        control = unique(control, ['scet_coarse', 'scet_fine'])
+
+        orig_indices = control['index']
+        # some BS for windows!
+        new_index = np.array(range(len(control)), dtype=np.int64)
+        control['index'] = new_index
+
+        _self = copy(self)
+        _self.to_abs_times_as_float()
+        other.to_abs_times_as_float()
+
+        data = vstack((_self.data, other.data))
+        data = data[np.nonzero(orig_indices[:, None] == data['control_index'].data)[1]]
+        data['control_index'] = np.array(range(len(data)), dtype=np.int64)
+
+        # TODO reactivate test
+        # if np.abs([((len(data[i]) / 2) - (control['data_length'][i] + 7))
+        #           for i in range(len(data))]).sum() > 0:
+        #    logger.error('Expected and actual data length do not match')
 
         for idb_key, date_range in other.idb_versions.items():
-            self.idb_versions[idb_key].expand(date_range)
+            _self.idb_versions[idb_key].expand(date_range)
 
-        return type(self)(service_type=self.service_type, service_subtype=self.service_subtype,
-                          ssid=self.ssid, control=control, data=data,
-                          idb_versions=self.idb_versions)
+        new_p = type(self)(service_type=_self.service_type, service_subtype=_self.service_subtype,
+                           ssid=_self.ssid, control=control, data=data,
+                           idb_versions=_self.idb_versions)
+
+        new_p.obt_beg = min(other.obt_beg, _self.obt_beg)
+        new_p.obt_end = max(other.obt_end, _self.obt_end)
+        new_p.obt_avg = new_p.obt_beg + (new_p.obt_end - new_p.obt_beg)/2
+
+        new_p.obs_beg = min(other.obs_beg, _self.obs_beg)
+        new_p.obs_end = max(other.obs_end, _self.obs_end)
+        new_p.obs_avg = new_p.obs_beg + (new_p.obs_end - new_p.obs_beg)/2
+        new_p.to_rel_times()
+        return new_p
 
     def __repr__(self):
         return f'<{self.__class__.__name__}\n' \
@@ -102,27 +138,35 @@ class QLProduct(BaseProduct):
                f'>'
 
     def to_days(self):
-        start_day = int((self.obs_beg.as_float() / u.d).decompose().value)
-        end_day = int((self.obs_end.as_float() / u.d).decompose().value)
+        start_day = int((self.obt_beg.as_float() / u.d).decompose().value)
+        end_day = int((self.obt_end.as_float() / u.d).decompose().value)
         if start_day == end_day:
             end_day += 1
         days = range(start_day, end_day)
-        # days = set([(t.year, t.month, t.day) for t in self.data['time'].to_datetime()])
-        # date_ranges = [(datetime(*day), datetime(*day) + timedelta(days=1)) for day in days]
-        for day in days:
-            i = np.where((self.data['time'] >= day * u.day) &
-                         (self.data['time'] < (day + 1) * u.day))
 
-            data = self.data[i]
+        _self = copy(self)
+        _self.to_abs_times_as_float()
+        for day in days:
+            i = np.where((_self.data['time'] >= day * u.day) &
+                         (_self.data['time'] < (day + 1) * u.day))
+
+            data = _self.data[i]
             control_indices = np.unique(data['control_index'])
-            control = self.control[np.isin(self.control['index'], control_indices)]
+            control = _self.control[np.isin(_self.control['index'], control_indices)]
             control_index_min = control_indices.min()
 
             data['control_index'] = data['control_index'] - control_index_min
             control['index'] = control['index'] - control_index_min
-            yield type(self)(service_type=self.service_type, service_subtype=self.service_subtype,
-                             ssid=self.ssid, control=control, data=data,
-                             idb_versions=self.idb_versions)
+            part_prod = type(self)(service_type=self.service_type,
+                                   service_subtype=self.service_subtype,
+                                   ssid=self.ssid, control=control, data=data,
+                                   idb_versions=self.idb_versions)
+            part_prod.to_rel_times()
+
+            if part_prod.level == 'L1':
+                part_prod.obs_to_utc()
+
+            yield part_prod
 
 
 class LightCurve(QLProduct):

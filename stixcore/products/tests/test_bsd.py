@@ -13,17 +13,17 @@ from stixcore.products.level0.science import (
 )
 
 testpackets = [(test_data.tmtc.TM_21_6_20_complete, RawPixelData, 'xray-rpd',
-                '0640971848f00000', '0640971950f00000', 6),
+                '0640971848:00000', '0640971950:00000', 6),
                (test_data.tmtc.TM_21_6_21, CompressedPixelData, 'xray-cpd',
-                '0658880585f52427', '0658880585f58981', 1),
+                '0658880585:52427', '0658880585:58981', 1),
                (test_data.tmtc.TM_21_6_21_complete, CompressedPixelData, 'xray-cpd',
-                '0640274394f06553', '0640274476f06553', 5),
+                '0640274394:06553', '0640274476:06553', 5),
                (test_data.tmtc.TM_21_6_24, Spectrogram, 'xray-spectrogram',
-                '0659402043f39320', '0659402958f32767', 54),
+                '0659402043:39320', '0659402958:32767', 54),
                (test_data.tmtc.TM_21_6_23_complete, Visibility, 'xray-visibility',
-                '0642038387f06553', '0642038403f32767', 5),
+                '0642038387:06553', '0642038403:32767', 5),
                (test_data.tmtc.TM_21_6_42_complete, Aspect, 'burst-aspect',
-                '0645932472f05485', '0645933132f52624', 2105)]
+                '0645932472:05485', '0645933132:52624', 2105)]
 
 
 @patch('stixcore.products.levelb.binary.LevelB')

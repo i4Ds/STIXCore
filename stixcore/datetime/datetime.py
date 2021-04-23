@@ -75,8 +75,17 @@ class SCETime:
         return SCETime(coarse=int(seconds), fine=fine)
 
     @classmethod
+    def from_fits_header(cls, str):
+        sub_seconds, seconds = np.modf(float(str))
+        fine = int((2**16 - 1) * sub_seconds)
+        return SCETime(coarse=int(seconds), fine=fine)
+
+    def to_fits_header(self):
+        return str(self.as_float().value)
+
+    @classmethod
     def from_string(cls, scet_str):
-        coarse, fine = [int(p) for p in scet_str.split('f')]
+        coarse, fine = [int(p) for p in scet_str.split(':')]
         return SCETime(coarse=coarse, fine=fine)
 
     def __add__(self, other):
@@ -100,7 +109,7 @@ class SCETime:
         return f'{self.__class__.__name__}(coarse={self.coarse}, fine={self.fine})'
 
     def __str__(self):
-        return f'{self.coarse:010d}f{self.fine:05d}'
+        return f'{self.coarse:010d}:{self.fine:05d}'
 
     def __gt__(self, other):
         if self.coarse > other.coarse:

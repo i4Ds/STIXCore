@@ -204,8 +204,10 @@ class MaxiReport(QLProduct):
         data.add_basic(name='fdir_function_status', nix='NIX00085', packets=packets)
         data['control_index'] = range(len(control))
 
-        return cls(service_type=service_type, service_subtype=service_subtype, ssid=ssid,
+        prod = cls(service_type=service_type, service_subtype=service_subtype, ssid=ssid,
                    control=control, data=data, idb_versions=idb_versions)
+        prod.to_rel_times()
+        return prod
 
     @classmethod
     def is_datasource_for(cls, *, service_type, service_subtype, ssid, **kwargs):

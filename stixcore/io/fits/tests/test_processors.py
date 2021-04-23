@@ -12,15 +12,15 @@ def test_levelb_processor_init():
 
 
 def test_levelb_processor_generate_filename():
-    with patch('stixcore.products.level0.quicklook.QLProduct') as product:
+    with patch('stixcore.products.levelb.binary.LevelB') as product:
         processor = FitsLBProcessor('some/path')
         product.control.colnames = []
-        product.type = 'ql'
         product.obs_beg.coarse = 0
         product.level = 'LB'
-        product.name = 'a_name'
+        product.name = None
+        product.type = None
         filename = processor.generate_filename(product, version=1)
-        assert filename == 'solo_LB_stix-ql-a-name_0000000000_V01.fits'
+        assert filename == 'solo_LB_stix_0000000000_V01.fits'
 
 
 @patch('stixcore.products.level0.quicklook.QLProduct')
@@ -30,8 +30,18 @@ def test_levelb_processor_generate_primary_header(datetime, product):
     datetime.now().isoformat.return_value = '1234-05-07T01:02:03.346'
     beg = SCETime(coarse=0, fine=0)
     end = SCETime(coarse=1, fine=2 ** 15)
-    product.control = {"scet_coarse": [beg.coarse, end.coarse],
-                       "scet_fine": [beg.fine, end.fine]}
+    avg = (beg + end)/2
+    product.obs_beg = beg
+    product.obs_avg = avg
+    product.obs_end = end
+    product.obt_beg = beg
+    product.obt_avg = avg
+    product.obt_end = end
+    dummy_control_data = {"scet_coarse": [beg.coarse, end.coarse],
+                          "scet_fine": [beg.fine, end.fine]}
+
+    product.control.__getitem__.side_effect = dummy_control_data.__getitem__
+    product.control.colnames = ['scet_coarse', 'dummy', 'scet_fine']
     product.level = 'LB'
     product.service_type = 1
     product.service_subtype = 2

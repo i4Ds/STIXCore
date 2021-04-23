@@ -32,17 +32,24 @@ class ScienceProduct(BaseProduct):
     """
 
     """
-    def __init__(self, *, service_type, service_subtype, ssid, control, data, **kwargs):
+    def __init__(self, *, service_type, service_subtype, ssid, control, data,
+                 idb_versions, **kwargs):
         self.service_type = service_type
         self.service_subtype = service_subtype
         self.ssid = ssid
         self.type = 'sci'
         self.control = control
         self.data = data
+        self.idb_versions = idb_versions
 
         self.obs_beg = SCETime.from_float(self.data['time'][0] - self.data['timedel'][0] / 2)
         self.obs_end = SCETime.from_float(self.data['time'][-1] + self.data['timedel'][-1] / 2)
         self.obs_avg = self.obs_beg + (self.obs_end - self.obs_beg) / 2
+
+        # obs is the same as obt for level 0
+        self.obt_beg = self.obs_beg
+        self.obt_end = self.obs_end
+        self.obt_avg = self.obs_avg
 
     def __add__(self, other):
         other.control['index'] = other.control['index'] + self.control['index'].max() + 1

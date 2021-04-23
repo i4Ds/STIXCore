@@ -8,15 +8,19 @@ import pytest
 from stixcore.data.test import test_data
 from stixcore.idb.idb import IDBPolynomialCalibration
 from stixcore.idb.manager import IDBManager
-from stixcore.io.fits.processors import FitsLBProcessor
+from stixcore.io.fits.processors import FitsL0Processor, FitsLBProcessor
 from stixcore.io.soc.manager import SOCManager
 from stixcore.products.levelb.binary import LevelB
+from stixcore.products.product import Product
 from stixcore.tmtc.packets import TMTC
+from stixcore.util.logging import get_logger
+
+logger = get_logger(__name__)
 
 
 @pytest.fixture
 def soc_manager():
-    return SOCManager(Path(__file__).parent.parent.parent / "data" / "test" / "io")
+    return SOCManager(Path(__file__).parent.parent.parent / "data" / "test" / "io" / "soc")
 
 
 @pytest.fixture
@@ -43,11 +47,27 @@ def test_level_b(soc_manager, out_dir):
 
     files_to_process = soc_manager.get_files(TMTC.TM)
     for tmtc_file in files_to_process:
-        lb1 = LevelB.from_tm(tmtc_file)
-        fits_processor.write_fits(lb1)
-        # do again for __add__
-        lb2 = LevelB.from_tm(tmtc_file)
-        fits_processor.write_fits(lb2)
+        for packet in LevelB.from_tm(tmtc_file):
+            fits_processor.write_fits(packet)
+            # do again for __add__
+            fits_processor.write_fits(packet)
+
+
+def test_level_0(soc_manager, out_dir):
+    lbp = FitsLBProcessor(out_dir)
+    l0p = FitsL0Processor(out_dir)
+
+    files_to_process = soc_manager.get_files(TMTC.TM)
+    for tmtc_file in files_to_process:
+        for packet in LevelB.from_tm(tmtc_file):
+            lbp.write_fits(packet)[0]
+            try:
+                l0 = Product.from_levelb(packet)
+                l0p.write_fits(l0)[0]
+                # do again for __add__
+                l0p.write_fits(l0)
+            except Exception as e:
+                logger.error(e)
 
 
 def test_get_calibration_polynomial(idb):

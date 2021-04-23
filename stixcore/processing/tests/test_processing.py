@@ -61,13 +61,10 @@ def test_level_0(soc_manager, out_dir):
     for tmtc_file in files_to_process:
         for packet in LevelB.from_tm(tmtc_file):
             lbp.write_fits(packet)[0]
-            try:
-                l0 = Product.from_levelb(packet)
-                l0p.write_fits(l0)[0]
-                # do again for __add__
-                l0p.write_fits(l0)
-            except Exception as e:
-                logger.error(e)
+            l0 = Product.from_levelb(packet)
+            l0p.write_fits(l0)[0]
+            # do again for __add__
+            l0p.write_fits(l0)
 
 
 def test_get_calibration_polynomial(idb):

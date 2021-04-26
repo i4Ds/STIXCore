@@ -658,8 +658,8 @@ class TMStatusFlareList(QLProduct):
             data.add_basic(name='average_y_loc', nix='NIX00292', packets=packets, dtype=np.byte)
             data.add_basic(name='processing_mask', nix='NIX00293', packets=packets, dtype=np.byte)
 
-        return cls(service_type=service_type, service_subtype=service_subtype, ssid=ssid,
-                   control=control, data=data, idb_versions=idb_versions)
+            return cls(service_type=service_type, service_subtype=service_subtype, ssid=ssid,
+                       control=control, data=data, idb_versions=idb_versions)
 
     @classmethod
     def is_datasource_for(cls, *, service_type, service_subtype, ssid, **kwargs):

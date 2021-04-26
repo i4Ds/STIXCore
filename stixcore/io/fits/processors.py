@@ -45,8 +45,11 @@ class FitsProcessor:
             user_req = f'_{user_req}'
 
         scet_obs = int(product.obt_avg.as_float().value // SEC_IN_DAY) * SEC_IN_DAY
-        name = '-'.join([str(x) for x in [product.service_type, product.service_subtype,
-                                          product.ssid]])
+
+        parts = [str(x) for x in [product.service_type, product.service_subtype, product.ssid]]
+        if product.ssid is None:
+            parts = parts[:-1]
+        name = '-'.join(parts)
         return f'solo_{product.level}_stix-{name}' \
                f'_{scet_obs:010d}_V{version:02d}{status}.fits'
 
@@ -84,7 +87,7 @@ class FitsProcessor:
             ('VERS_SW', 1, 'Software version'),
             ('STYPE', product.service_type),
             ('SSTYPE', product.service_subtype),
-            ('SSID', product.ssid)
+            ('SSID', product.ssid if product.ssid is not None else '')
         )
         return headers
 
@@ -117,6 +120,8 @@ class FitsLBProcessor(FitsProcessor):
         for prod in product.to_days():
             filename = self.generate_filename(prod, version=1)
             parts = [prod.level, prod.service_type, prod.service_subtype, prod.ssid]
+            if prod.ssid is None:
+                parts = parts[:-1]
             path = self.archive_path.joinpath(*[str(x) for x in parts])
             path.mkdir(parents=True, exist_ok=True)
             fitspath = path / filename

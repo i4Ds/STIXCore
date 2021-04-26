@@ -14,8 +14,8 @@ if __name__ == '__main__':
     tstart = perf_counter()
     logger.info('LevelB run')
 
-    socm = SOCManager(Path('/Users/shane/Projects/STIX/dataview/data/time_test'))
-    out_dir = Path('/Users/shane/Projects/STIX/dataview/data/time_test')
+    socm = SOCManager(Path('/Users/shane/Projects/STIX/dataview/data/tm_test'))
+    out_dir = Path('/Users/shane/Projects/STIX/dataview/data/tm_test')
     out_dir.mkdir(parents=True, exist_ok=True)
 
     fits_processor = FitsLBProcessor(out_dir)

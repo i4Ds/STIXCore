@@ -91,7 +91,10 @@ class ProductFactory(BasicRegistrationFactory):
                 header = fits.getheader(file_path)
                 service_type = int(header.get('stype'))
                 service_subtype = int(header.get('sstype'))
-                ssid = int(header.get('ssid'))
+                try:
+                    ssid = int(header.get('ssid'))
+                except ValueError:
+                    ssid = None
                 level = header.get('Level')
                 timesys = header.get('TIMESYS')
                 control = QTable.read(file_path, hdu='CONTROL')

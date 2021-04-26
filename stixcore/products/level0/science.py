@@ -727,7 +727,7 @@ class Aspect(ScienceProduct):
             data['control_index'] = np.hstack([np.full(ns, i) for i, ns in enumerate(samples)])
         except ValueError as e:
             logger.warning(e)
-            return None
+            raise e
 
         return cls(service_type=service_type, service_subtype=service_subtype, ssid=ssid,
                    control=control, data=data)

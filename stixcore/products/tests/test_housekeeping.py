@@ -72,7 +72,7 @@ def test_calibration_hk_many(idbm):
     tstart = perf_counter()
 
     prod_lb_p1 = LevelB.from_tm(SOCPacketFile(test_data.io.HK_MAXI_P1))
-    hk_p1 = MaxiReportL0.from_levelb(prod_lb_p1)
+    hk_p1 = MaxiReportL0.from_levelb(list(prod_lb_p1)[0])
 
     fits_procl0 = FitsL0Processor(Path(tempfile.gettempdir()))
     filename = fits_procl0.write_fits(hk_p1)[0]
@@ -80,7 +80,7 @@ def test_calibration_hk_many(idbm):
     hk_p1_io = Product(filename)
 
     prod_lb_p2 = LevelB.from_tm(SOCPacketFile(test_data.io.HK_MAXI_P2))
-    hk_p2 = MaxiReportL0.from_levelb(prod_lb_p2)
+    hk_p2 = MaxiReportL0.from_levelb(list(prod_lb_p2)[0])
 
     # fake a idb change on the same day
     hk_p2.idb_versions["2.26.35"] = hk_p2.idb_versions["2.26.34"]

@@ -188,7 +188,7 @@ class RawPixelData(ScienceProduct):
 
         sub_index = np.searchsorted(data['start_time'], unique_times)
         data = data[sub_index]
-        data['time'] = control["time_stamp"][0].as_float() \
+        data['time'] = control["time_stamp"][0] \
             + data['start_time'] + data['integration_time'] / 2
         data['timedel'] = data['integration_time']
         data['counts'] = counts * u.ct
@@ -527,7 +527,7 @@ class Visibility(ScienceProduct):
                                                                 num_detectors, -1))
         data.add_meta(name='imaginary', nix='NIX00264', packets=packets)
 
-        data['time'] = (control["time_stamp"][0].as_float()
+        data['time'] = (control["time_stamp"][0]
                         + data['delta_time'] + data['integration_time'] / 2)
         data['timedel'] = data['integration_time']
 

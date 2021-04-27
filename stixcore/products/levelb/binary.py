@@ -159,6 +159,9 @@ class LevelB(BaseProduct):
         """
         if self.service_type == 3 and self.service_subtype == 25 and self.ssid in {1, 2}:
             return [self], []
+        elif self.service_type == 21 and self.service_subtype == 6 and self.ssid in {30, 31, 32,
+                                                                                     33, 34, 43}:
+            return [self], []
 
         sequences = []
         flags = self.control['sequence_flag']

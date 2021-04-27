@@ -25,7 +25,8 @@ class Level0:
         for file in sorted(self.levelb_files):
             mission, level, identifier, *_ = file.name.split('_')
             tm_type = tuple(identifier.split('-')[1:])
-            tm[tm_type].append(file)
+            if tm_type[-1] in {'30', '31', '32', '33', '34', '41'}:  # TODO Fix 43
+                tm[tm_type].append(file)
 
         for tm_type, files in tm.items():
             last_incomplete = []
@@ -55,6 +56,7 @@ class Level0:
                             logger.error('Error processing file %s for %s, %s, %s', file,
                                          comp.service_type, comp.service_subtype, comp.ssid)
                             logger.error('%s', e)
+                            raise e
                     complete = []
                 try:
                     last_incomplete = last_incomplete[0] + incomplete[0]

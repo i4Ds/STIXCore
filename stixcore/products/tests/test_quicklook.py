@@ -8,15 +8,15 @@ from stixcore.products.level0 import quicklook as qll0
 from stixcore.products.level1 import quicklook as qll1
 
 testpackets = [(test_data.tmtc.TM_21_6_30, qll0.LightCurve, 'ql-lightcurve',
-                '0659402030f00007', '0659402958f00007', 232),
+                '0659402030f00008', '0659402958f00008', 232),
                (test_data.tmtc.TM_21_6_31, qll0.Background, 'ql-background',
-                '0659399870f00253', '0659402958f00253', 386),
+                '0659399870f00254', '0659402958f00254', 386),
                (test_data.tmtc.TM_21_6_32, qll0.Spectra, 'ql-spectra',
-                '0659399434f00007', '0659402538f00007', 4),
+                '0659399434f00008', '0659402538f00008', 4),
                (test_data.tmtc.TM_21_6_33, qll0.Variance, 'ql-variance',
-                '0659399970f00007', '0659402958f00007', 747),
+                '0659399970f00008', '0659402958f00008', 747),
                (test_data.tmtc.TM_21_6_34, qll0.FlareFlag, 'ql-flareflag',
-                '0659400170f00007', '0659402958f00007', 697),
+                '0659400170f00008', '0659402958f00008', 697),
                (test_data.tmtc.TM_21_6_41_complete, qll0.EnergyCalibration, 'ql-energycalibration',
                 '0659318520f00000', '0659326920f00000', 1)
                ]
@@ -35,7 +35,7 @@ def test_quicklook(levelb, packets):
 
     assert ql.level == 'L0'
     assert ql.name == name
-    assert str(ql.obs_beg) == beg
+    assert ql.obs_beg.to_string(sep='f') == beg
     # TODO enable time tests again
     # assert str(ql.obs_end) == end
     assert len(ql.data) == size

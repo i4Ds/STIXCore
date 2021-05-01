@@ -102,7 +102,10 @@ class ProductFactory(BasicRegistrationFactory):
 
                 if level != 'LB':
                     if timesys == 'OBT':
-                        obs_beg = SCETime.from_string(header['OBT_BEG'])
+                        try:
+                            obs_beg = SCETime.from_string(header['OBT_BEG'], sep=':')
+                        except ValueError:
+                            obs_beg = SCETime.from_string(header['OBT_BEG'], sep='f')
                         offset = obs_beg.as_float()
                     elif timesys == 'UTC':
                         offset = Time(header['OBT_BEG'])

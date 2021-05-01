@@ -7,7 +7,7 @@ import operator
 import numpy as np
 
 import astropy.units as u
-from astropy.utils.misc import ShapedLikeNDArray
+from astropy.utils import ShapedLikeNDArray
 
 from stixcore.data.test import test_data
 from stixcore.ephemeris.manager import Time
@@ -257,15 +257,13 @@ class SCETime(SCETBase):
                 raise ValueError('Coarse and fine times must be integers')
             # Convention if top bit is set means times are not synchronised
             time_sync = (coarse >> 31) != 1
+            coarse = np.where(time_sync, coarse, coarse ^ 2 ** 31)
 
             # Check limits
             if np.any(np.logical_or(coarse < 0, coarse > MAX_COARSE)):
-                raise ValueError(f'Course time cannot exceed must be in range (0 to {MAX_COARSE})')
+                raise ValueError(f'Course time must be in range (0 to {MAX_COARSE})')
             if np.any(np.logical_or(fine < 0, fine > MAX_FINE)):
-                raise ValueError(f'Fine time cannot exceed must be in range (0 to {MAX_FINE})')
-
-            # Only switch top bit off after time comparison
-            coarse = np.where(time_sync, coarse, coarse ^ 2 ** 31)
+                raise ValueError(f'Fine time must be in range (0 to {MAX_FINE})')
 
             # Can store as uints
             coarse = coarse.astype(np.uint32)
@@ -294,7 +292,7 @@ class SCETime(SCETBase):
         return SCETime(coarse, fine)
 
     @classmethod
-    def from_string(cls, scet_str):
+    def from_string(cls, scet_str, sep=':'):
         """
         Create an SCETime for a string representation e.g. `'123456:789'`
 
@@ -309,7 +307,7 @@ class SCETime(SCETBase):
         """
         if isinstance(scet_str, str):
             scet_str = [scet_str]
-        coarse, fine = zip(*[list(map(int, ts.split(':'))) for ts in scet_str])
+        coarse, fine = zip(*[list(map(int, ts.split(sep))) for ts in scet_str])
         return SCETime(coarse=coarse, fine=fine)
 
     def to_datetime(self):
@@ -324,6 +322,12 @@ class SCETime(SCETBase):
         with SPICE_TIME as time:
             utc = time.scet_to_datetime(f'{self.coarse}:{self.fine}')
             return utc
+
+    def to_string(self, full=True, sep=':'):
+        if self.size == 1:
+            if full:
+                return f'{self.coarse:010d}{sep}{self.fine:05d}'
+            return f'{self.coarse:010d}'
 
     @staticmethod
     def min_time():
@@ -434,7 +438,7 @@ class SCETimeDelta(SCETBase):
     SCETimeDeltas can be created from directly
 
     >>> SCETimeDelta(1, 2)
-    SCETimeDelta(1, 2)
+    SCETimeDelta(coarse=1, fine=2)
 
     or as as result of subtracting two times
 
@@ -535,6 +539,14 @@ class SCETimeDelta(SCETBase):
         new.coarse = -new.coarse
         new.fine = -new.fine
         return new
+
+    def __truediv__(self, other):
+        return SCETimeDelta(np.round(self.coarse/other).astype(int),
+                            np.round(self.fine/other).astype(int))
+
+    def __mul__(self, other):
+        return SCETimeDelta(np.round(self.coarse*other).astype(int),
+                            np.round(self.fine//other).astype(int))
 
     def __str__(self):
         return f'{self.coarse}, {self.fine}'

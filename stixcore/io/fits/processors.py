@@ -291,8 +291,8 @@ class FitsL0Processor:
         if product.type == 'ql' or product.name == 'burst-aspect':
             date_range = f'{(product.obs_avg.coarse // (24 * 60 * 60) ) * 24 * 60 * 60:010d}'
         else:
-            start_obs = str(product.obs_beg)
-            end_obs = str(product.obs_end)
+            start_obs = product.obs_beg.to_string(sep='f')
+            end_obs = product.obs_end.to_string(sep='f')
             date_range = f'{start_obs}-{end_obs}'
         return f'solo_{product.level}_stix-{product.type}-' \
                f'{product.name.replace("_", "-")}{user_req}' \
@@ -322,8 +322,8 @@ class FitsL0Processor:
             ('FILENAME', filename, 'FITS filename'),
             ('DATE', datetime.now().isoformat(timespec='milliseconds'),
              'FITS file creation date in UTC'),
-            ('OBT_BEG', str(product.obs_beg)),
-            ('OBT_END', str(product.obs_end)),
+            ('OBT_BEG', product.obs_beg.to_string()),
+            ('OBT_END', product.obs_end.to_string()),
             ('TIMESYS', 'OBT', 'System used for time keywords'),
             ('LEVEL', 'L0', 'Processing level of the data'),
             ('ORIGIN', 'STIX Team, FHNW', 'Location where file has been generated'),
@@ -331,11 +331,11 @@ class FitsL0Processor:
             ('VERSION', 1, 'Version of data product'),
             ('OBS_MODE', 'Nominal '),
             ('VERS_SW', 1, 'Software version'),
-            ('DATE_OBS', str(product.obs_beg),
+            ('DATE_OBS', product.obs_beg.to_string(),
              'Start of acquisition time in UT'),
-            ('DATE_BEG', str(product.obs_beg)),
-            ('DATE_AVG', str(product.obs_avg)),
-            ('DATE_END', str(product.obs_end)),
+            ('DATE_BEG', product.obs_beg.to_string()),
+            ('DATE_AVG', product.obs_avg.to_string()),
+            ('DATE_END', product.obs_end.to_string()),
             # ('MJDREF', product.obs_beg.mjd),
             # ('DATEREF', product.obs_beg.fits),
             ('OBS_TYPE', 'LC'),

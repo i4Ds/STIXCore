@@ -56,7 +56,7 @@ def test_find_version(idb_manager):
     idb.close()
 
     # fall back to the default
-    idb = idb_manager.get_idb(obt=StixDateTime(coarse=9631155005, fine=0))
+    idb = idb_manager.get_idb(obt=StixDateTime(coarse=2**31-1, fine=0))
     assert idb.get_idb_version() == "2.26.34"
 
     v = idb_manager.find_version(obt=None)

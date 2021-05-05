@@ -1,6 +1,6 @@
 from unittest.mock import patch
 
-from stixcore.datetime.datetime import SCETime
+from stixcore.datetime.datetime import SCETime, SCETimeRange
 from stixcore.io.fits.processors import FitsL0Processor, FitsL1Processor
 
 
@@ -14,7 +14,7 @@ def test_level0_processor_generate_filename():
         processor = FitsL0Processor('some/path')
         product.control.colnames = []
         product.type = 'ql'
-        product.obs_avg.coarse = 0
+        product.scet_timerange = SCETimeRange(start=SCETime(0, 0), end=SCETime(1234, 1234))
         product.level = 'LB'
         product.name = 'a_name'
         filename = processor.generate_filename(product, version=1)
@@ -26,8 +26,7 @@ def test_level0_processor_generate_filename():
         product.obs_avg.coarse = 0
         product.level = 'LB'
         product.name = 'a_name'
-        product.obs_beg = SCETime(12345, 6789)
-        product.obs_end = SCETime(98765, 4321)
+        product.scet_timerange = SCETimeRange(start=SCETime(12345, 6789), end=SCETime(98765, 4321))
         filename = processor.generate_filename(product, version=1)
         assert filename == 'solo_LB_stix-sci-a-name_0000012345f06789-0000098765f04321_V01.fits'
 
@@ -50,10 +49,10 @@ def test_level0_processor_generate_filename():
 def test_level0_processor_generate_primary_header(datetime, product):
     processor = FitsL0Processor('some/path')
     datetime.now().isoformat.return_value = '1234-05-07T01:02:03.346'
-
     product.obs_beg = SCETime(coarse=0, fine=0)
     product.obs_avg = SCETime(coarse=0, fine=2 ** 15)
     product.obs_end = SCETime(coarse=1, fine=2 ** 15)
+    product.scet_timerange = SCETimeRange(start=product.obs_beg, end=product.obs_end)
     product.service_type = 1
     product.service_subtype = 2
     product.ssid = 3
@@ -65,7 +64,7 @@ def test_level0_processor_generate_primary_header(datetime, product):
         'OBT_END': '0000000001:32768',
         'DATE_OBS': '0000000000:00000',
         'DATE_BEG': '0000000000:00000',
-        'DATE_AVG': '0000000000:32768',
+        'DATE_AVG': '0000000000:49152',
         'DATE_END': '0000000001:32768',
         'STYPE': 1,
         'SSTYPE': 2,
@@ -88,7 +87,8 @@ def test_level1_processor_generate_filename():
         processor = FitsL1Processor('some/path')
         product.control.colnames = []
         product.type = 'ql'
-        product.obs_avg = SCETime(coarse=0, fine=2 ** 15)
+        product.scet_timerange = SCETimeRange(start=SCETime(0, 0),
+                                              end=SCETime(coarse=0, fine=2**16-1))
         product.level = 'L1'
         product.name = 'a_name'
         filename = processor.generate_filename(product=product, version=1)

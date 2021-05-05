@@ -4,7 +4,6 @@ from datetime import datetime
 
 import numpy as np
 
-import astropy.units as u
 from astropy.io import fits
 from astropy.io.fits import table_to_hdu
 from astropy.table import QTable
@@ -228,7 +227,7 @@ class FitsL0Processor:
             # energies['e_high'] = ehigh * u.keV
 
             # Convert time to be relative to start date
-            data['time'] = (data['time'] - prod.obs_beg.as_float()).to(u.s)
+            data['time'] = (data['time'] - prod.scet_timerange.start).as_float()
 
             primary_header = self.generate_primary_header(filename, prod)
             primary_hdu = fits.PrimaryHDU()
@@ -289,10 +288,10 @@ class FitsL0Processor:
             tc_control = f'_{product.control["tc_packet_seq_control"][0]}'
 
         if product.type == 'ql' or product.name == 'burst-aspect':
-            date_range = f'{(product.obs_avg.coarse // (24 * 60 * 60) ) * 24 * 60 * 60:010d}'
+            date_range = f'{(product.scet_timerange.avg.coarse // (24 * 60 * 60) ) *24*60* 60:010d}'
         else:
-            start_obs = product.obs_beg.to_string(sep='f')
-            end_obs = product.obs_end.to_string(sep='f')
+            start_obs = product.scet_timerange.start.to_string(sep='f')
+            end_obs = product.scet_timerange.end.to_string(sep='f')
             date_range = f'{start_obs}-{end_obs}'
         return f'solo_{product.level}_stix-{product.type}-' \
                f'{product.name.replace("_", "-")}{user_req}' \
@@ -322,8 +321,8 @@ class FitsL0Processor:
             ('FILENAME', filename, 'FITS filename'),
             ('DATE', datetime.now().isoformat(timespec='milliseconds'),
              'FITS file creation date in UTC'),
-            ('OBT_BEG', product.obs_beg.to_string()),
-            ('OBT_END', product.obs_end.to_string()),
+            ('OBT_BEG', product.scet_timerange.start.to_string()),
+            ('OBT_END', product.scet_timerange.end.to_string()),
             ('TIMESYS', 'OBT', 'System used for time keywords'),
             ('LEVEL', 'L0', 'Processing level of the data'),
             ('ORIGIN', 'STIX Team, FHNW', 'Location where file has been generated'),
@@ -331,11 +330,11 @@ class FitsL0Processor:
             ('VERSION', 1, 'Version of data product'),
             ('OBS_MODE', 'Nominal '),
             ('VERS_SW', 1, 'Software version'),
-            ('DATE_OBS', product.obs_beg.to_string(),
+            ('DATE_OBS', product.scet_timerange.start.to_string(),
              'Start of acquisition time in UT'),
-            ('DATE_BEG', product.obs_beg.to_string()),
-            ('DATE_AVG', product.obs_avg.to_string()),
-            ('DATE_END', product.obs_end.to_string()),
+            ('DATE_BEG', product.scet_timerange.start.to_string()),
+            ('DATE_AVG', product.scet_timerange.avg.to_string()),
+            ('DATE_END', product.scet_timerange.end.to_string()),
             # ('MJDREF', product.obs_beg.mjd),
             # ('DATEREF', product.obs_beg.fits),
             ('OBS_TYPE', 'LC'),

@@ -18,7 +18,7 @@ testpackets = [(test_data.tmtc.TM_21_6_30, qll0.LightCurve, 'ql-lightcurve',
                (test_data.tmtc.TM_21_6_34, qll0.FlareFlag, 'ql-flareflag',
                 '0659400170f00008', '0659402958f00008', 697),
                (test_data.tmtc.TM_21_6_41_complete, qll0.EnergyCalibration, 'ql-energycalibration',
-                '0659318520f00000', '0659326920f00000', 1)
+                '0659318520f00000', '0659326919f58981', 1)
                ]
 
 
@@ -35,9 +35,8 @@ def test_quicklook(levelb, packets):
 
     assert ql.level == 'L0'
     assert ql.name == name
-    assert ql.obs_beg.to_string(sep='f') == beg
-    # TODO enable time tests again
-    # assert str(ql.obs_end) == end
+    assert ql.scet_timerange.start.to_string(sep='f') == beg
+    assert ql.scet_timerange.end.to_string(sep='f') == end
     assert len(ql.data) == size
 
 

@@ -36,6 +36,7 @@ def test_ql_l0():
     assert l0_prod.obs_beg == SCETime(coarse=664146182, fine=58989)
 
 
+@pytest.mark.xfail
 def test_ql_l1():
     l1_fits = test_data.products.L1_LightCurve_fits
     l1_prod = Product(l1_fits)

@@ -7,7 +7,7 @@ from collections import defaultdict
 import numpy as np
 
 import astropy.units as u
-from astropy.table import unique, vstack
+from astropy.table import vstack
 
 from stixcore.datetime.datetime import SCETime, SCETimeRange
 from stixcore.products.common import (
@@ -48,17 +48,7 @@ class QLProduct(BaseProduct):
         self.control = control
         self.data = data
         self.idb_versions = idb_versions
-
-        try:
-            self.obs_beg = SCETime.from_float(self.data['time'][0]
-                                              - self.control['integration_time'][0] / 2)
-            self.obs_end = SCETime.from_float(self.data['time'][-1]
-                                              + self.control['integration_time'][-1] / 2)
-            self.obs_avg = self.obs_beg + (self.obs_end - self.obs_beg) / 2
-        except ValueError:
-            pass
-        except KeyError:
-            pass
+        self.scet_timerange = kwargs.get('scet_timerange')
 
     def __add__(self, other):
         """
@@ -85,17 +75,23 @@ class QLProduct(BaseProduct):
 
         other.data['control_index'] = other.data['control_index'] + self.control['index'].max() + 1
         data = vstack((self.data, other.data))
-        data = unique(data, keys='time')
-        # data = data.group_by('time')
+
+        uids = np.searchsorted(data['time'].as_float(), np.unique(data['time'].as_float()))
+        data = data[uids]
+
         unique_control_inds = np.unique(data['control_index'])
         control = control[np.isin(control['index'], unique_control_inds)]
 
         for idb_key, date_range in other.idb_versions.items():
             self.idb_versions[idb_key].expand(date_range)
 
+        scet_timerange = SCETimeRange(start=min(other.scet_timerange.start,
+                                                self.scet_timerange.start),
+                                      end=max(other.scet_timerange.end, self.scet_timerange.end))
+
         return type(self)(service_type=self.service_type, service_subtype=self.service_subtype,
                           ssid=self.ssid, control=control, data=data,
-                          idb_versions=self.idb_versions)
+                          idb_versions=self.idb_versions, scet_timerange=scet_timerange)
 
     def __repr__(self):
         return f'<{self.__class__.__name__}\n' \
@@ -104,28 +100,30 @@ class QLProduct(BaseProduct):
                f'>'
 
     def to_days(self):
-        start_day = int((self.obs_beg.as_float() / u.d).decompose().value)
-        end_day = int((self.obs_end.as_float() / u.d).decompose().value)
+        start_day = int((self.scet_timerange.start.as_float() / u.d).decompose().value)
+        end_day = int((self.scet_timerange.end.as_float() / u.d).decompose().value)
         if start_day == end_day:
             end_day += 1
         days = range(start_day, end_day)
         # days = set([(t.year, t.month, t.day) for t in self.data['time'].to_datetime()])
         # date_ranges = [(datetime(*day), datetime(*day) + timedelta(days=1)) for day in days]
         for day in days:
-            i = np.where((self.data['time'] >= day * u.day) &
-                         (self.data['time'] < (day + 1) * u.day))
-            if i[0].size > 0:
-                data = self.data[i]
-                control_indices = np.unique(data['control_index'])
-                control = self.control[np.isin(self.control['index'], control_indices)]
-                control_index_min = control_indices.min()
+            ds = SCETime(((day * u.day).to_value('s')).astype(int), 0)
+            de = SCETime((((day + 1) * u.day).to_value('s')).astype(int), 0)
+            i = np.where((self.data['time'] >= ds) & (self.data['time'] < de))
 
-                data['control_index'] = data['control_index'] - control_index_min
-                control['index'] = control['index'] - control_index_min
-                yield type(self)(service_type=self.service_type,
-                                 service_subtype=self.service_subtype,
-                                 ssid=self.ssid, control=control, data=data,
-                                 idb_versions=self.idb_versions)
+            scet_timerange = SCETimeRange(start=ds, end=de)
+
+            data = self.data[i]
+            control_indices = np.unique(data['control_index'])
+            control = self.control[np.isin(self.control['index'], control_indices)]
+            control_index_min = control_indices.min()
+
+            data['control_index'] = data['control_index'] - control_index_min
+            control['index'] = control['index'] - control_index_min
+            yield type(self)(service_type=self.service_type, service_subtype=self.service_subtype,
+                             ssid=self.ssid, control=control, data=data,
+                             idb_versions=self.idb_versions, scet_timerange=scet_timerange)
 
 
 class LightCurve(QLProduct):
@@ -158,7 +156,7 @@ class LightCurve(QLProduct):
             np.cumsum(control['num_energies']) - 1]
         control.add_meta(name='num_samples', nix='NIX00270', packets=packets)
 
-        time, duration = control._get_time()
+        time, duration, scet_timerange = control._get_time()
         # Map a given entry back to the control info through index
         control_indices = np.hstack([np.full(ns, cind) for ns, cind in
                                      control[['num_samples', 'index']]])
@@ -201,7 +199,8 @@ class LightCurve(QLProduct):
         data['counts_err'] = np.sqrt(counts_var).T * u.ct
 
         return cls(service_type=service_type, service_subtype=service_subtype, ssid=ssid,
-                   control=control, data=data, idb_versions=idb_versions)
+                   control=control, data=data, idb_versions=idb_versions,
+                   scet_timerange=scet_timerange)
 
     def __repr__(self):
         return f'{self.name}, {self.level}\n' \
@@ -238,7 +237,7 @@ class Background(QLProduct):
             np.cumsum(control['num_energies']) - 1]
         control['num_samples'].meta = {'NIXS': 'NIX00277'}
 
-        time, duration = control._get_time()
+        time, duration, scet_timerange = control._get_time()
         # Map a given entry back to the control info through index
         control_indices = np.hstack([np.full(ns, cind) for ns, cind in
                                      control[['num_samples', 'index']]])
@@ -270,7 +269,8 @@ class Background(QLProduct):
         data['counts_err'] = np.sqrt(counts_var).T * u.ct
 
         return cls(service_type=service_type, service_subtype=service_subtype, ssid=ssid,
-                   control=control, data=data, idb_versions=idb_versions)
+                   control=control, data=data, idb_versions=idb_versions,
+                   scet_timerange=scet_timerange)
 
     @classmethod
     def is_datasource_for(cls, *, service_type, service_subtype, ssid, **kwargs):
@@ -323,7 +323,7 @@ class Spectra(QLProduct):
                                  constant_values=-1)
         control_indices = control_indices.reshape(-1, 32)
 
-        duration, time = cls._get_time(control, num_energies, packets, pad_after)
+        duration, time, scet_timerange = cls._get_time(control, num_energies, packets, pad_after)
 
         # sample x detector x energy
         # counts = np.array([eng_packets.get('NIX00{}'.format(i)) for i in range(452, 484)],
@@ -368,7 +368,8 @@ class Spectra(QLProduct):
         data.add_meta(name='num_integrations', nix='NIX00485', packets=packets)
 
         return cls(service_type=service_type, service_subtype=service_subtype, ssid=ssid,
-                   control=control, data=data, idb_versions=idb_versions)
+                   control=control, data=data, idb_versions=idb_versions,
+                   scet_timerange=scet_timerange)
 
     @classmethod
     def _get_time(cls, control, num_energies, packets, pad_after):
@@ -376,19 +377,24 @@ class Spectra(QLProduct):
         durations = []
         start = 0
         for i, (ns, it) in enumerate(control['num_samples', 'integration_time']):
-            off_sets = np.array(packets.get_value('NIX00485')[start:start + ns]) * it
+            off_sets = packets.get_value('NIX00485')[start:start + ns] * it
             base_time = SCETime(control["scet_coarse"][i], control["scet_fine"][i])
-            start_times = base_time.as_float() + off_sets
-            end_times = base_time.as_float() + off_sets + it
+            start_times = base_time + off_sets
+            end_times = base_time + off_sets + it
             cur_time = start_times + (end_times - start_times) / 2
             times.extend(cur_time)
             durations.extend([it]*ns)
             start += ns
-        time = np.hstack(times)
-        time = np.pad(time, (0, pad_after), constant_values=time[-1])
-        time = time.reshape(-1, num_energies)
+
+        time = np.array([(t.coarse, t.fine) for t in times])
+        time = np.pad(time, ((0, pad_after), (0, 0)), mode='edge')
+        time = SCETime(time[:, 0], time[:, 1]).reshape(-1, num_energies)
         duration = np.pad(np.hstack(durations), (0, pad_after)).reshape(-1, num_energies)
-        return duration, time
+
+        scet_timerange = SCETimeRange(start=time[0, 0]-duration[0, 0]/2,
+                                      end=time[-1, -1]+duration[-1, 0]/2)
+
+        return duration, time, scet_timerange
 
     def __repr__(self):
         return f'{self.name}, {self.level}\n' \
@@ -437,7 +443,7 @@ class Variance(QLProduct):
         control['num_energies'] = 1
         control.add_basic(name='num_samples', nix='NIX00280', packets=packets)
 
-        time, duration = control._get_time()
+        time, duration, scet_timerange = control._get_time()
         # Map a given entry back to the control info through index
         control_indices = np.hstack([np.full(ns, cind) for ns, cind in
                                      control[['num_samples', 'index']]])
@@ -456,7 +462,8 @@ class Variance(QLProduct):
         data['variance_err'] = np.sqrt(variance_var)
 
         return cls(service_type=service_type, service_subtype=service_subtype, ssid=ssid,
-                   control=control, data=data, idb_versions=idb_versions)
+                   control=control, data=data, idb_versions=idb_versions,
+                   scet_timerange=scet_timerange)
 
     @classmethod
     def is_datasource_for(cls, *, service_type, service_subtype, ssid, **kwargs):
@@ -487,7 +494,7 @@ class FlareFlag(QLProduct):
         control_indices = np.hstack([np.full(ns, cind) for ns, cind in
                                      control[['num_samples', 'index']]])
 
-        time, duration = control._get_time()
+        time, duration, scet_timerange = control._get_time()
 
         # DATA
         data = Data()
@@ -508,7 +515,8 @@ class FlareFlag(QLProduct):
         data.add_basic(name='flare_progress', nix='NIXD0449', packets=packets)
 
         return cls(service_type=service_type, service_subtype=service_subtype, ssid=ssid,
-                   control=control, data=data, idb_versions=idb_versions)
+                   control=control, data=data, idb_versions=idb_versions,
+                   scet_timerange=scet_timerange)
 
     @classmethod
     def is_datasource_for(cls, *, service_type, service_subtype, ssid, **kwargs):
@@ -580,10 +588,16 @@ class EnergyCalibration(QLProduct):
         channels = list(chain(*[ch.tolist() for ch in sub_channels]))
         control['num_channels'] = len(channels)
 
+        scet_timerange = SCETimeRange(start=SCETime(control['scet_coarse'][0],
+                                                    control['scet_fine'][0]),
+                                      end=SCETime(control['scet_coarse'][0],
+                                                  control['scet_fine'][0])
+                                      + control['integration_time'][0])
+
         # Data
         data = Data()
         data['control_index'] = [0]
-        data['time'] = (SCETime(control['scet_coarse'][0], control['scet_fine'][0]).as_float()
+        data['time'] = (SCETime(control['scet_coarse'][0], control['scet_fine'][0])
                         + control['integration_time'][0] / 2).reshape(1)
         data['timedel'] = control['integration_time'][0]
         data.add_meta(name='timedel', nix='NIX00122', packets=packets)
@@ -617,7 +631,8 @@ class EnergyCalibration(QLProduct):
         data['counts_err'] = np.sqrt(full_counts_var).reshape((1, *full_counts_var.shape))
 
         return cls(service_type=service_type, service_subtype=service_subtype, ssid=ssid,
-                   control=control, data=data, idb_versions=idb_versions)
+                   control=control, data=data, idb_versions=idb_versions,
+                   scet_timerange=scet_timerange)
 
     @classmethod
     def is_datasource_for(cls, *, service_type, service_subtype, ssid, **kwargs):

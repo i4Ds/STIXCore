@@ -7,12 +7,14 @@ import operator
 import numpy as np
 
 import astropy.units as u
+from astropy.time.core import Time
 from astropy.utils import ShapedLikeNDArray
+from astropy.utils.data_info import MixinInfo
 
 from stixcore.data.test import test_data
-from stixcore.ephemeris.manager import Time
+from stixcore.ephemeris.manager import Time as SpiceTime
 
-SPICE_TIME = Time(meta_kernel_path=test_data.ephemeris.META_KERNEL_TIME)
+SPICE_TIME = SpiceTime(meta_kernel_path=test_data.ephemeris.META_KERNEL_TIME)
 
 __all__ = ['SCETBase', 'SCETime', 'SCETimeDelta', 'SCETimeRange']
 
@@ -21,8 +23,61 @@ MAX_COARSE = 2**31 - 1
 MAX_FINE = 2**16 - 1
 
 
-# class TimeInfo(MixinInfo):
-#     pass
+class TimeInfo(MixinInfo):
+    def new_like(self, cols, length, metadata_conflicts='warn', name=None):
+        """
+        Return a new instance of this class which is consistent with the
+        input ``cols`` and has ``length`` rows.
+
+        This is intended for creating an empty column object whose elements can
+        be set in-place for table operations like join or vstack.
+
+        Parameters
+        ----------
+        cols : list
+            List of input columns
+        length : int
+            Length of the output column object
+        metadata_conflicts : str ('warn'|'error'|'silent')
+            How to handle metadata conflicts
+        name : str
+            Output column name
+
+        Returns
+        -------
+        col : object
+            New instance of this class consistent with ``cols``
+        """
+        # Get merged info attributes like shape, dtype, format, description, etc.
+        attrs = self.merge_cols_attributes(cols, metadata_conflicts, name, ('meta', 'description'))
+        attrs.pop('dtype')  # Not relevant for Time
+
+        # cols[0]
+        # for col in cols[1:]:
+        #     # This is the method used by __setitem__ to ensure that the right side
+        #     # has a consistent location (and coerce data if necessary, but that does
+        #     # not happen in this case since `col` is already a Time object).  If this
+        #     # passes then any subsequent table operations via setitem will work.
+        #     try:
+        #         col0._make_value_equivalent(slice(None), col)
+        #     except ValueError:
+        #         raise ValueError('input columns have inconsistent locations')
+
+        # Make a new Time object with the desired shape and attributes
+        shape = (length,) + attrs.pop('shape')
+        coarse = np.zeros(shape, dtype=np.int32)
+        fine = np.zeros(shape, dtype=np.int32)
+        out = self._parent_cls(coarse, fine)
+
+        # Set remaining info attributes
+        for attr, value in attrs.items():
+            setattr(out.info, attr, value)
+
+        return out
+
+
+class TimeDetlaInfo(TimeInfo):
+    pass
 
 
 class SCETBase(ShapedLikeNDArray):
@@ -195,6 +250,10 @@ class SCETBase(ShapedLikeNDArray):
 
         return tuple(index)
 
+    def __setitem__(self, item, value):
+        self.coarse[item] = value.coarse
+        self.fine[item] = value.fine
+
     def __repr__(self):
         return f'{self.__class__.__name__}(coarse={self.coarse}, fine={self.fine})'
 
@@ -236,8 +295,7 @@ class SCETime(SCETBase):
     SCETime(coarse=123, fine=22610)
 
     """
-
-    # info = TimeInfo()
+    info = TimeInfo()
 
     def __init__(self, coarse, fine=0):
         """
@@ -320,8 +378,15 @@ class SCETime(SCETBase):
             The corresponding UTC datetime object.
         """
         with SPICE_TIME as time:
-            utc = time.scet_to_datetime(f'{self.coarse}:{self.fine}')
+            try:
+                utc = [time.scet_to_datetime(t.to_string()) for t in self]
+            except TypeError:
+                utc = time.scet_to_datetime(self.to_string())
+
             return utc
+
+    def to_time(self):
+        return Time(self.to_datetime())
 
     def to_string(self, full=True, sep=':'):
         if self.size == 1:
@@ -387,39 +452,29 @@ class SCETime(SCETBase):
     def __str__(self):
         return f'{self.coarse}:{self.fine}'
 
+    def _comparison_operator(self, other, op):
+        if other.__class__ is not self.__class__:
+            return NotImplemented
+        return op((self.coarse.astype(int) - other.coarse.astype(int))
+                  + (self.fine.astype(int) - other.fine.astype(int)), 0)
+
     def __gt__(self, other):
-        if self.coarse > other.coarse:
-            return True
-        if self.coarse == other.coarse and self.fine > other.fine:
-            return True
-        return False
+        return self._comparison_operator(other, operator.gt)
 
     def __ge__(self, other):
-        if self.coarse > other.coarse:
-            return True
-        if self.coarse == other.coarse and self.fine >= other.fine:
-            return True
-        return False
+        return self._comparison_operator(other, operator.ge)
 
     def __lt__(self, other):
-        if self.coarse < other.coarse:
-            return True
-        if self.coarse == other.coarse and self.fine < other.fine:
-            return True
-        return False
+        return self._comparison_operator(other, operator.lt)
 
     def __le__(self, other):
-        if self.coarse < other.coarse:
-            return True
-        if self.coarse == other.coarse and self.fine <= other.fine:
-            return True
-        return False
+        return self._comparison_operator(other, operator.le)
 
     def __eq__(self, other):
-        if not isinstance(other, type(self)):
-            return False
+        return self._comparison_operator(other, operator.eq)
 
-        return self.coarse == other.coarse and self.fine == other.fine
+    def __ne__(self, other):
+        return self._comparison_operator(other, operator.ne)
 
 
 class SCETimeDelta(SCETBase):
@@ -446,6 +501,8 @@ class SCETimeDelta(SCETBase):
     SCETimeDelta(coarse=4, fine=-2)
 
     """
+    info = TimeDetlaInfo()
+
     def __init__(self, coarse, fine=0):
         """
         Create a new delta time using the given coarse and fine values.
@@ -541,12 +598,12 @@ class SCETimeDelta(SCETBase):
         return new
 
     def __truediv__(self, other):
-        return SCETimeDelta(np.round(self.coarse/other).astype(int),
-                            np.round(self.fine/other).astype(int))
+        res = self.as_float()/other
+        return SCETimeDelta.from_float(res)
 
     def __mul__(self, other):
-        return SCETimeDelta(np.round(self.coarse*other).astype(int),
-                            np.round(self.fine//other).astype(int))
+        res = self.as_float() * other
+        return SCETimeDelta.from_float(res)
 
     def __str__(self):
         return f'{self.coarse}, {self.fine}'
@@ -598,6 +655,10 @@ class SCETimeRange:
             self.end = max(self.end, time.end)
         else:
             raise ValueError("time must be 'SCETime' or 'SCETimeRange'")
+
+    @property
+    def avg(self):
+        return self.start + (self.end-self.start)/2
 
     def __repr__(self):
         return f'{self.__class__.__name__}(start={str(self.start)}, end={str(self.end)})'

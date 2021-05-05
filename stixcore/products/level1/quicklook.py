@@ -4,9 +4,9 @@
 
 from collections import defaultdict
 
-from stixcore.datetime.datetime import SCETimeRange
 from stixcore.processing.engineering import raw_to_engineering_product
 from stixcore.products.level0.quicklook import QLProduct as QLProductL0
+from stixcore.time import SCETimeRange
 from stixcore.tmtc.packets import GenericPacket
 from stixcore.util.logging import get_logger
 

@@ -5,8 +5,8 @@ from pathlib import Path
 import pytest
 
 from stixcore.data.test import test_data
-from stixcore.datetime.datetime import SCETime as StixDateTime
 from stixcore.idb.manager import IDBManager
+from stixcore.time import SCETime as StixDateTime
 
 
 @pytest.fixture

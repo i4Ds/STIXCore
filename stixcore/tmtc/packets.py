@@ -2,9 +2,9 @@ from enum import Enum
 
 import numpy as np
 
-from stixcore.datetime.datetime import SCETime
 from stixcore.idb.idb import IDB
 from stixcore.idb.manager import IDBManager
+from stixcore.time import SCETime
 from stixcore.tmtc.parameter import CompressedParameter, EngineeringParameter, Parameter
 from stixcore.tmtc.parser import parse_binary, parse_bitstream, parse_variable
 

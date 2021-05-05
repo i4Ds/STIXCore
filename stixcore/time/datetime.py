@@ -19,7 +19,7 @@ SPICE_TIME = SpiceTime(meta_kernel_path=test_data.ephemeris.META_KERNEL_TIME)
 __all__ = ['SCETBase', 'SCETime', 'SCETimeDelta', 'SCETimeRange']
 
 # SOLO convention top bit is for time sync
-MAX_COARSE = 2**31 - 1
+MAX_COARSE = 2**32 - 1
 MAX_FINE = 2**16 - 1
 
 
@@ -315,11 +315,11 @@ class SCETime(SCETBase):
                 raise ValueError('Coarse and fine times must be integers')
             # Convention if top bit is set means times are not synchronised
             time_sync = (coarse >> 31) != 1
-            coarse = np.where(time_sync, coarse, coarse ^ 2 ** 31)
+            # coarse = np.where(time_sync, coarse, coarse ^ 2 ** 31)
 
             # Check limits
             if np.any(np.logical_or(coarse < 0, coarse > MAX_COARSE)):
-                raise ValueError(f'Course time must be in range (0 to {MAX_COARSE})')
+                raise ValueError(f'Coarse time must be in range (0 to {MAX_COARSE})')
             if np.any(np.logical_or(fine < 0, fine > MAX_FINE)):
                 raise ValueError(f'Fine time must be in range (0 to {MAX_FINE})')
 
@@ -422,8 +422,9 @@ class SCETime(SCETBase):
         if isinstance(other, u.Quantity):
             other = SCETimeDelta.from_float(other.to(u.s))
 
-        delta_coarse, new_fine = divmod(self.fine + other.fine, MAX_FINE)
-        new_coarse = self.coarse + other.coarse + delta_coarse
+        delta_coarse, new_fine = divmod(self.fine + other.fine, MAX_FINE + 1)
+        new_coarse = (self.coarse.astype(np.int64) + other.coarse.astype(np.int64)
+                      + delta_coarse.astype(np.int64))
         return SCETime(coarse=new_coarse, fine=new_fine)
 
     def __radd__(self, other):
@@ -445,7 +446,7 @@ class SCETime(SCETBase):
         if isinstance(other, u.Quantity):
             other = SCETimeDelta.from_float(other)
 
-        delta_coarse, new_fine = np.divmod(self.fine - other.fine, MAX_FINE)
+        delta_coarse, new_fine = np.divmod(self.fine - other.fine, MAX_FINE+1)
         new_coarse = self.coarse - other.coarse + delta_coarse
         return SCETime(coarse=new_coarse, fine=new_fine)
 

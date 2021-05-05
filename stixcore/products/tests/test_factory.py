@@ -3,11 +3,11 @@ from datetime import datetime
 import pytest
 
 from stixcore.data.test import test_data
-from stixcore.datetime.datetime import SCETime
 from stixcore.products.level0.quicklook import LightCurve as LCL0
 from stixcore.products.level1.quicklook import LightCurve as LCL1
 from stixcore.products.levelb.binary import LevelB
 from stixcore.products.product import Product
+from stixcore.time import SCETime
 
 
 def test_ql_lb():

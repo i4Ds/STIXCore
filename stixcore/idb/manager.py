@@ -10,8 +10,8 @@ from pathlib import Path
 
 from dateutil import parser as dtparser
 
-from stixcore.datetime.datetime import SCETime as StixDateTime
 from stixcore.idb.idb import IDB
+from stixcore.time import SCETime as StixDateTime
 from stixcore.util.logging import get_logger
 
 thread_lock = threading.Lock()

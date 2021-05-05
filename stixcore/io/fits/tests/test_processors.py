@@ -1,7 +1,7 @@
 from unittest.mock import patch
 
-from stixcore.datetime.datetime import SCETime, SCETimeRange
 from stixcore.io.fits.processors import FitsL0Processor, FitsL1Processor
+from stixcore.time import SCETime, SCETimeRange
 
 
 def test_level0_processor_init():

@@ -3,9 +3,9 @@ House Keeping data products
 """
 from collections import defaultdict
 
-from stixcore.datetime.datetime import SCETime, SCETimeRange
 from stixcore.products.level0.quicklook import QLProduct
 from stixcore.products.product import Control, Data
+from stixcore.time import SCETime, SCETimeRange
 
 __all__ = ['MiniReport', 'MaxiReport']
 

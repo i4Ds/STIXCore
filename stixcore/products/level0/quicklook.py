@@ -9,7 +9,6 @@ import numpy as np
 import astropy.units as u
 from astropy.table import vstack
 
-from stixcore.datetime.datetime import SCETime, SCETimeRange
 from stixcore.products.common import (
     _get_compression_scheme,
     _get_detector_mask,
@@ -19,6 +18,7 @@ from stixcore.products.common import (
     rebin_proportional,
 )
 from stixcore.products.product import BaseProduct, Control, Data
+from stixcore.time import SCETime, SCETimeRange
 from stixcore.util.logging import get_logger
 
 __all__ = ['QLProduct', 'LightCurve', 'Background', 'Spectra']

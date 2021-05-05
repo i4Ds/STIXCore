@@ -5,7 +5,8 @@ import pytest
 
 import astropy.units as u
 
-from stixcore.datetime.datetime import MAX_COARSE, MAX_FINE, SCETime, SCETimeDelta, SCETimeRange
+from stixcore.time import SCETime, SCETimeDelta, SCETimeRange
+from stixcore.time.datetime import MAX_COARSE, MAX_FINE
 
 
 def test_time_init():
@@ -16,7 +17,7 @@ def test_time_init():
     assert t2 == t3
     assert t1 == t3
 
-    with pytest.raises(ValueError, match=r'Course time must be in range.*'):
+    with pytest.raises(ValueError, match=r'Coarse time must be in range.*'):
         SCETime(-1, 0)
 
     with pytest.raises(ValueError, match=r'Fine time must be in range.*'):
@@ -140,8 +141,11 @@ def test_time_minmax():
     assert SCETime.max_time() == SCETime(coarse=MAX_COARSE, fine=MAX_FINE)
     # TODO enable after https://github.com/i4Ds/STIXCore/issues/102
     # assert SCETime.min_time() - SCETime(coarse=0, fine=1) == SCETime.min_time()
-    with pytest.raises(ValueError, match=r'Course time must be in the range.*'):
-        SCETime.max_time() + (2**34)*u.s
+    with pytest.raises(ValueError, match=r'Coarse time must be in range.*'):
+        m = SCETime.max_time()
+        dt = SCETimeDelta(0, 1)
+        nm = m + dt
+        print(nm)
 
 
 def test_timedelta_init():
@@ -153,7 +157,7 @@ def test_timedelta_init():
     assert dt1 == dt3
 
     with pytest.raises(ValueError):
-        _ = SCETimeDelta(2 ** 31 + 1, 0)
+        _ = SCETimeDelta(2 ** 32 + 1, 0)
 
     with pytest.raises(ValueError):
         SCETime(0, 2**16+1)
@@ -229,7 +233,7 @@ def test_deltatime_sub():
     t2 = t1 - dt1
     assert t2.coarse == 0
     assert t2.fine == 1
-    with pytest.raises(ValueError, match=r'Course time must be in range.*'):
+    with pytest.raises(ValueError, match=r'Coarse time must be in range.*'):
         t1 - dt2
 
 

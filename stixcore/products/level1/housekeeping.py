@@ -7,8 +7,8 @@ import numpy as np
 
 import astropy.units as u
 
-from stixcore.datetime.datetime import SCETimeRange
 from stixcore.products.level1.quicklook import QLProduct
+from stixcore.time import SCETimeRange
 
 __all__ = ['MiniReport', 'MaxiReport']
 

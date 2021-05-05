@@ -7,7 +7,6 @@ import astropy.units as u
 from astropy.table.operations import unique, vstack
 
 from stixcore.config.reader import read_energy_channels
-from stixcore.datetime.datetime import SCETime, SCETimeRange
 from stixcore.products.common import (
     _get_compression_scheme,
     _get_detector_mask,
@@ -16,6 +15,7 @@ from stixcore.products.common import (
     rebin_proportional,
 )
 from stixcore.products.product import BaseProduct, ControlSci, Data
+from stixcore.time import SCETime, SCETimeRange
 from stixcore.util.logging import get_logger
 
 logger = get_logger(__name__)

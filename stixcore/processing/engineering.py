@@ -7,7 +7,7 @@ from sunpy.time.timerange import TimeRange
 
 from astropy.table.table import QTable
 
-from stixcore.datetime.datetime import SCETime
+from stixcore.time import SCETime
 from stixcore.tmtc.parameter import EngineeringParameter, Parameter
 from stixcore.util.logging import get_logger
 

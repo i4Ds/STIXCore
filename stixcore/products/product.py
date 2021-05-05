@@ -206,6 +206,7 @@ class Control(QTable, AddParametersMixin):
         """
         Common generator method the create and prepare the control table.
 
+        Parameters
         ----------
         packets : `PacketSequence`
             The set of packets of same data type for what the data product will be created.

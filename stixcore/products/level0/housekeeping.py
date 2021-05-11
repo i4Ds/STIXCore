@@ -3,9 +3,9 @@ House Keeping data products
 """
 from collections import defaultdict
 
-from stixcore.datetime.datetime import SCETime, SCETimeRange
 from stixcore.products.level0.quicklook import QLProduct
 from stixcore.products.product import Control, Data
+from stixcore.time import SCETime, SCETimeRange
 
 __all__ = ['MiniReport', 'MaxiReport']
 
@@ -37,7 +37,8 @@ class MiniReport(QLProduct):
         control['index'] = range(len(control))
 
         # Create array of times as dt from date_obs
-        times = [SCETime(ct, ft).as_float() for ct, ft in control['scet_coarse', 'scet_fine']]
+        times = SCETime(control['scet_coarse'], control['scet_fine'])
+        scet_timerange = SCETimeRange(start=times[0], end=times[-1])
 
         # Data
         data = Data()
@@ -82,7 +83,8 @@ class MiniReport(QLProduct):
         data['control_index'] = range(len(control))
 
         return cls(service_type=service_type, service_subtype=service_subtype, ssid=ssid,
-                   control=control, data=data, idb_versions=idb_versions)
+                   control=control, data=data, idb_versions=idb_versions,
+                   scet_timerange=scet_timerange)
 
     @classmethod
     def is_datasource_for(cls, *, service_type, service_subtype, ssid, **kwargs):
@@ -117,7 +119,8 @@ class MaxiReport(QLProduct):
         control['index'] = range(len(control))
 
         # Create array of times as dt from date_obs
-        times = [SCETime(ct, ft).as_float() for ct, ft in control['scet_coarse', 'scet_fine']]
+        times = SCETime(control['scet_coarse'], control['scet_fine'])
+        scet_timerange = SCETimeRange(start=times[0], end=times[-1])
 
         # Data
         data = Data()
@@ -205,7 +208,8 @@ class MaxiReport(QLProduct):
         data['control_index'] = range(len(control))
 
         return cls(service_type=service_type, service_subtype=service_subtype, ssid=ssid,
-                   control=control, data=data, idb_versions=idb_versions)
+                   control=control, data=data, idb_versions=idb_versions,
+                   scet_timerange=scet_timerange)
 
     @classmethod
     def is_datasource_for(cls, *, service_type, service_subtype, ssid, **kwargs):

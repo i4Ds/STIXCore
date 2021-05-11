@@ -16,7 +16,7 @@ from astropy.time import Time
 
 import stixcore.processing.decompression as decompression
 import stixcore.processing.engineering as engineering
-from stixcore.datetime.datetime import SCETime, SCETimeRange
+from stixcore.time import SCETime, SCETimeDelta, SCETimeRange
 from stixcore.tmtc.packet_factory import Packet
 from stixcore.tmtc.packets import PacketSequence
 
@@ -100,12 +100,17 @@ class ProductFactory(BasicRegistrationFactory):
                 control = QTable.read(file_path, hdu='CONTROL')
                 data = QTable.read(file_path, hdu='DATA')
 
+                scet_timerange = SCETimeRange(start=SCETime.from_string(header.get('OBT_BEG')),
+                                              end=SCETime.from_string(header.get('OBT_END')))
+
                 if level != 'LB':
                     if timesys == 'OBT':
-                        obs_beg = SCETime.from_string(header['OBT_BEG'])
-                        offset = obs_beg.as_float()
+                        try:
+                            offset = SCETime.from_string(header['OBT_BEG'], sep=':')
+                        except ValueError:
+                            offset = SCETime.from_string(header['OBT_BEG'], sep='f')
                     elif timesys == 'UTC':
-                        offset = Time(header['OBT_BEG'])
+                        offset = Time(header['DATE_BEG'])
                     data['time'] = data['time'] + offset
 
                 energies = None
@@ -132,7 +137,8 @@ class ProductFactory(BasicRegistrationFactory):
                 return Product(level=level, service_type=service_type,
                                service_subtype=service_subtype,
                                ssid=ssid, control=control,
-                               data=data, energies=energies, idb_versions=idb_versions)
+                               data=data, energies=energies, idb_versions=idb_versions,
+                               scet_timerange=scet_timerange)
 
     def _check_registered_widget(self, *args, **kwargs):
         """
@@ -173,26 +179,34 @@ class Control(QTable, AddParametersMixin):
         return f'<{self.__class__.__name__} \n {super().__repr__()}>'
 
     def _get_time(self):
-        # Replicate integration time for each sample in each packet
-        base_times = np.hstack(
-            [np.full(ns, SCETime(coarse=ct, fine=ft).as_float().value)
-             for ns, ct, ft in self[['num_samples', 'scet_coarse', 'scet_fine']]]) * u.s
-        start_delta = np.hstack(
-            [(np.arange(ns) * it) for ns, it in self[['num_samples', 'integration_time']]])
+        # Replicate the start time of each for the number of samples in that packet
+        base_coarse, base_fine = zip(*[([ct] * ns, [ft] * ns) for ns, ct, ft in
+                                       self[['num_samples', 'scet_coarse', 'scet_fine']]])
+        bases = SCETime(base_coarse[0], base_fine[0])
 
-        durations = np.hstack([np.ones(num_sample) * int_time for num_sample, int_time in
-                              self[['num_samples', 'integration_time']]])
+        # Create start time for each time bin by multiplying the duration by the sample number
+        deltas = SCETimeDelta(np.hstack([(np.arange(ns) * it)
+                              for ns, it in self[['num_samples', 'integration_time']]]))
 
-        # Add the delta time to base times and convert to relative from start time
-        times = base_times + start_delta + (durations / 2)
+        # Create integration time for each sample in each packet by replicating the duration for
+        # number of sample in each packet
+        durations = SCETimeDelta(np.hstack([np.ones(num_sample) * int_time for num_sample, int_time
+                                            in self[['num_samples', 'integration_time']]]))
 
-        return times, durations
+        # Add the delta time to base times and convert to bin centers
+        times = bases + deltas + (durations / 2)
+
+        # Create a time range object covering the total observation time
+        tr = SCETimeRange(start=bases[0], end=bases[-1]+deltas[-1] + durations[-1])
+
+        return times, durations, tr
 
     @classmethod
     def from_packets(cls, packets, NIX00405_offset=0):
         """
         Common generator method the create and prepare the control table.
 
+        Parameters
         ----------
         packets : `PacketSequence`
             The set of packets of same data type for what the data product will be created.

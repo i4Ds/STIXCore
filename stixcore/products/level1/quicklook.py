@@ -4,11 +4,9 @@
 
 from collections import defaultdict
 
-from astropy.time.core import Time
-
-from stixcore.datetime.datetime import SCETimeRange
 from stixcore.processing.engineering import raw_to_engineering_product
 from stixcore.products.level0.quicklook import QLProduct as QLProductL0
+from stixcore.time import SCETimeRange
 from stixcore.tmtc.packets import GenericPacket
 from stixcore.util.logging import get_logger
 
@@ -30,7 +28,8 @@ class QLProduct(QLProductL0):
                  ssid=l0product.ssid,
                  control=l0product.control,
                  data=l0product.data,
-                 idb_versions=l0product.idb_versions)
+                 idb_versions=l0product.idb_versions,
+                 scet_timerange=l0product.scet_timerange)
 
         raw_to_engineering_product(l1, idbm)
 
@@ -59,8 +58,8 @@ class LightCurve(QLProduct):
 
     @classmethod
     def from_level0(cls, level0):
-        delta_times = level0.data['time'] - level0.obs_beg.as_float()
-        level0.data['time'] = Time(level0.obs_beg.to_datetime()) + delta_times
+        # delta_times = level0.data['time'] - level0.obs_beg.as_float()
+        # level0.data['time'] = Time(level0.obs_beg.to_datetime()) + delta_times
         return cls(service_type=level0.service_type, service_subtype=level0.service_subtype,
                    ssid=level0.ssid, control=level0.control, data=level0.data,
                    idb_versions=level0.idb_versions)

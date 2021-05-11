@@ -6,8 +6,8 @@ import numpy as np
 from astropy.table.operations import unique, vstack
 from astropy.table.table import Table
 
-from stixcore.datetime.datetime import SCETime
 from stixcore.products.product import BaseProduct
+from stixcore.time import SCETime
 from stixcore.tmtc.packets import TMPacket
 from stixcore.util.logging import get_logger
 

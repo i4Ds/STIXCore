@@ -10,8 +10,8 @@ from pathlib import Path
 
 from dateutil import parser as dtparser
 
-from stixcore.datetime.datetime import SCETime as StixDateTime
 from stixcore.idb.idb import IDB
+from stixcore.time import SCETime
 from stixcore.util.logging import get_logger
 
 thread_lock = threading.Lock()
@@ -71,10 +71,10 @@ class IDBManager:
                 for item in self.history:
                     item['validityPeriodUTC'][0] = dtparser.parse(item['validityPeriodUTC'][0])
                     item['validityPeriodUTC'][1] = dtparser.parse(item['validityPeriodUTC'][1])
-                    item['validityPeriodOBT'][0] = StixDateTime(
+                    item['validityPeriodOBT'][0] = SCETime(
                                                     coarse=item['validityPeriodOBT'][0]['coarse'],
                                                     fine=item['validityPeriodOBT'][0]['fine'])
-                    item['validityPeriodOBT'][1] = StixDateTime(
+                    item['validityPeriodOBT'][1] = SCETime(
                                                     coarse=item['validityPeriodOBT'][1]['coarse'],
                                                     fine=item['validityPeriodOBT'][1]['fine'])
 
@@ -375,7 +375,7 @@ class IDBManager:
         `~stixcore.idb.idb.IDB`
             reference to a IDB reader
         """
-        if isinstance(obt, StixDateTime):
+        if isinstance(obt, SCETime):
             obt_version = self.find_version(obt=obt)
             if self.has_version(obt_version):
                 version_label = obt_version

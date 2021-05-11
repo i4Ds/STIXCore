@@ -20,8 +20,13 @@ def apply_decompress(raw, skm):
     CompressedParameter
         A uncompressed version of the parameter
     """
-    decompressed, error = algo_decompress(raw.value, s=skm[0].value, k=skm[1].value, m=skm[2].value,
-                                          return_variance=True)
+    try:
+        decompressed, error = algo_decompress(raw.value, s=skm[0].value, k=skm[1].value,
+                                              m=skm[2].value, return_variance=True)
+    except AttributeError:
+        # If the compression scheme parameters are overridden they will be int no parameters
+        decompressed, error = algo_decompress(raw.value, s=skm[0], k=skm[1], m=skm[2],
+                                              return_variance=True)
     return CompressedParameter(name=raw.name, idb_info=raw.idb_info, value=raw.value,
                                decompressed=decompressed, error=error, skm=skm)
 

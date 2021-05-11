@@ -75,6 +75,10 @@ class TM_21_6_23(GenericTMPacket):
                 setattr(subpacket, nix, p)
 
     def get_decompression_parameter(self):
+        # See https://github.com/i4Ds/STIX-FSW/pull/970  flux and vis share the same
+        # compression parameters but this is not idea as flux can be considerably larger so it was
+        # decided to change this onboard
+        # TODO should only be active after FSW v180
         params = copy(super(TM_21_6_23, self).get_decompression_parameter())
         skm_nixs = params['NIX00261']
         s, k, m = [self.data.get(nix).value for nix in skm_nixs]

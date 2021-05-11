@@ -248,9 +248,7 @@ class TMPacket(GenericPacket):
 
     @property
     def key(self):
-        key = (self.data_header.service_type, self.data_header.service_subtype)
-        if self.pi1_val is not None:
-            key = key + (self.pi1_val, )
+        key = (self.data_header.service_type, self.data_header.service_subtype, self.pi1_val)
         return key
 
     @property

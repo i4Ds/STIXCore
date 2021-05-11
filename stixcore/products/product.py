@@ -91,7 +91,10 @@ class ProductFactory(BasicRegistrationFactory):
                 header = fits.getheader(file_path)
                 service_type = int(header.get('stype'))
                 service_subtype = int(header.get('sstype'))
-                ssid = int(header.get('ssid'))
+                try:
+                    ssid = int(header.get('ssid'))
+                except ValueError:
+                    ssid = None
                 level = header.get('Level')
                 timesys = header.get('TIMESYS')
                 control = QTable.read(file_path, hdu='CONTROL')
@@ -269,7 +272,7 @@ class ControlSci(QTable, AddParametersMixin):
         else:
             coarse = control['time_stamp']
             fine = 0
-        control['time_stamp'] = [SCETime(c, f) for c, f in zip(coarse, fine)]
+        control['time_stamp'] = [SCETime(c, f).as_float() for c, f in zip(coarse, fine)]
         try:
             control['num_substructures'] = np.array(packets.get_value('NIX00403'),
                                                     np.int32).reshape(1, -1)

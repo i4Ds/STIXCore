@@ -159,6 +159,9 @@ class LevelB(BaseProduct):
         """
         if self.service_type == 3 and self.service_subtype == 25 and self.ssid in {1, 2}:
             return [self], []
+        elif self.service_type == 21 and self.service_subtype == 6 and self.ssid in {30, 31, 32,
+                                                                                     33, 34, 43}:
+            return [self], []
 
         sequences = []
         flags = self.control['sequence_flag']
@@ -213,9 +216,9 @@ class LevelB(BaseProduct):
         packet_data = defaultdict(list)
         for binary in tmfile.get_packet_binaries():
             packet = TMPacket(binary)
-            # TODO remove
-            if packet.key == (3, 25, 2):
-                packet_data[packet.key].append(packet)
+            # # TODO remove
+            # if packet.key[:2] == (21, 6):
+            packet_data[packet.key].append(packet)
 
         for prod_key, packets in packet_data.items():
             headers = []
@@ -235,9 +238,11 @@ class LevelB(BaseProduct):
             data['control_index'] = np.array(control['index'], dtype=np.int64)
             data['data'] = hex_data
             service_type, service_subtype, ssid = prod_key
+            if ssid is not None:
+                control['ssid'] = ssid
             product = LevelB(service_type=service_type, service_subtype=service_subtype,
                              ssid=ssid, control=control, data=data)
-            return product
+            yield product
 
     @classmethod
     def is_datasource_for(cls, **kwargs):

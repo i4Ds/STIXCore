@@ -57,6 +57,8 @@ class QLProduct(BaseProduct):
             self.obs_avg = self.obs_beg + (self.obs_end - self.obs_beg) / 2
         except ValueError:
             pass
+        except KeyError:
+            pass
 
     def __add__(self, other):
         """
@@ -112,17 +114,18 @@ class QLProduct(BaseProduct):
         for day in days:
             i = np.where((self.data['time'] >= day * u.day) &
                          (self.data['time'] < (day + 1) * u.day))
+            if i[0].size > 0:
+                data = self.data[i]
+                control_indices = np.unique(data['control_index'])
+                control = self.control[np.isin(self.control['index'], control_indices)]
+                control_index_min = control_indices.min()
 
-            data = self.data[i]
-            control_indices = np.unique(data['control_index'])
-            control = self.control[np.isin(self.control['index'], control_indices)]
-            control_index_min = control_indices.min()
-
-            data['control_index'] = data['control_index'] - control_index_min
-            control['index'] = control['index'] - control_index_min
-            yield type(self)(service_type=self.service_type, service_subtype=self.service_subtype,
-                             ssid=self.ssid, control=control, data=data,
-                             idb_versions=self.idb_versions)
+                data['control_index'] = data['control_index'] - control_index_min
+                control['index'] = control['index'] - control_index_min
+                yield type(self)(service_type=self.service_type,
+                                 service_subtype=self.service_subtype,
+                                 ssid=self.ssid, control=control, data=data,
+                                 idb_versions=self.idb_versions)
 
 
 class LightCurve(QLProduct):
@@ -163,16 +166,25 @@ class LightCurve(QLProduct):
         control.add_data('compression_scheme_counts_skm',
                          _get_compression_scheme(packets, 'NIX00272'))
 
-        counts = np.array(packets.get_value('NIX00272')).reshape(control['num_energies'][0],
-                                                                 control['num_samples'][0])
-        counts_var = np.array(packets.get_value('NIX00272', attr="error")).\
-            reshape(control['num_energies'][0], control['num_samples'][0])
+        counts_flat = packets.get_value('NIX00272')
+        counts_var_flat = packets.get_value('NIX00272', attr='error')
+
+        flat_indices = np.hstack((0, np.cumsum([*control['num_samples']]) *
+                                  control['num_energies'])).astype(int)
+
+        counts = np.hstack([
+            counts_flat[flat_indices[i]:flat_indices[i + 1]].reshape(n_eng, n_sam)
+            for i, (n_sam, n_eng) in enumerate(control[['num_samples', 'num_energies']])])
+
+        counts_var = np.hstack([
+            counts_var_flat[flat_indices[i]:flat_indices[i + 1]].reshape(n_eng, n_sam)
+            for i, (n_sam, n_eng) in enumerate(control[['num_samples', 'num_energies']])])
 
         control.add_data('compression_scheme_triggers_skm',
                          _get_compression_scheme(packets, 'NIX00274'))
 
-        triggers = np.hstack(packets.get_value('NIX00274'))
-        triggers_var = np.hstack(packets.get_value('NIX00274', attr="error"))
+        triggers = packets.get_value('NIX00274').T
+        triggers_var = packets.get_value('NIX00274', attr="error").T
 
         data = Data()
         data['control_index'] = control_indices
@@ -242,8 +254,8 @@ class Background(QLProduct):
         control.add_data('compression_scheme_triggers_skm',
                          _get_compression_scheme(packets, 'NIX00274'))
 
-        triggers = packets.get_value('NIX00274')
-        triggers_var = packets.get_value('NIX00274', attr="error")
+        triggers = packets.get_value('NIX00274').T
+        triggers_var = packets.get_value('NIX00274', attr="error").T
 
         data = Data()
         data['control_index'] = control_indices
@@ -430,8 +442,8 @@ class Variance(QLProduct):
         control_indices = np.hstack([np.full(ns, cind) for ns, cind in
                                      control[['num_samples', 'index']]])
 
-        variance = packets.get_value('NIX00281')
-        variance_var = packets.get_value('NIX00281', attr='error')
+        variance = packets.get_value('NIX00281').T
+        variance_var = packets.get_value('NIX00281', attr='error').T
 
         # Data
         data = Data()
@@ -484,15 +496,16 @@ class FlareFlag(QLProduct):
         data['duration'] = duration
         data.add_meta(name='duration', nix='NIX00405', packets=packets)
 
-        data.add_basic(name='loc_z', nix='NIX00283', packets=packets, dtype=np.byte)
-        data.add_basic(name='loc_y', nix='NIX00284', packets=packets, dtype=np.byte)
-        data.add_basic(name='thermal_index', nix='NIXD0061', packets=packets, attr='value',
-                       dtype=np.byte)
-        data.add_basic(name='non_thermal_index', nix='NIXD0060', packets=packets, attr='value',
-                       dtype=np.byte)
-        data.add_basic(name='location_status', nix='NIXD0059', packets=packets, attr='value',
-                       dtype=np.byte)
-        data.add_basic(name='flare_progress', nix='NIXD0449', packets=packets, dtype=np.byte)
+        data.add_basic(name='loc_z', nix='NIX00283', packets=packets, dtype=np.int16)
+        data.add_basic(name='loc_y', nix='NIX00284', packets=packets, dtype=np.int16)
+        data['thermal_index'] = packets.get_value('NIXD0061', attr='value').astype(np.int16).T
+        data.add_meta(name='thermal_index', nix='NIXD0061', packets=packets)
+        data['non_thermal_index'] = packets.get_value('NIXD0060', attr='value').astype(np.int16).T
+        data.add_meta(name='non_thermal_index', nix='NIXD0060', packets=packets)
+        data['location_status'] = packets.get_value('NIXD0059', attr='value').astype(np.int16).T
+        data.add_meta(name='location_status', nix='NIXD0059', packets=packets)
+        data['flare_progress'] = packets.get_value('NIXD0449', attr='value').astype(np.int16).T
+        data.add_basic(name='flare_progress', nix='NIXD0449', packets=packets)
 
         return cls(service_type=service_type, service_subtype=service_subtype, ssid=ssid,
                    control=control, data=data, idb_versions=idb_versions)

@@ -72,7 +72,7 @@ def test_level0_processor_generate_filename():
         product.level = 'LB'
         product.name = 'a_name'
         filename = processor.generate_filename(product, version=1)
-        assert filename == 'solo_L0_stix-ql-a-name_0000000000_V01.fits'
+        assert filename == 'solo_LB_stix-ql-a-name_0000000000_V01.fits'
 
     with patch('stixcore.products.level0.science.ScienceProduct') as product:
         product.type = 'sci'
@@ -82,20 +82,20 @@ def test_level0_processor_generate_filename():
         product.name = 'a_name'
         product.scet_timerange = SCETimeRange(start=SCETime(12345, 6789), end=SCETime(98765, 4321))
         filename = processor.generate_filename(product, version=1)
-        assert filename == 'solo_L0_stix-sci-a-name_0000012345-0000098765_V01.fits'
+        assert filename == 'solo_L0_stix-sci-a-name_0000012345f06789-0000098765f04321_V01.fits'
 
         dummy_control_data = {'request_id': [123456], 'tc_packet_seq_control': [98765]}
 
         product.control.__getitem__.side_effect = dummy_control_data.__getitem__
         product.control.colnames = ['request_id']
         filename = processor.generate_filename(product, version=1)
-        assert filename == 'solo_L0_stix-sci-a-name-123456_' \
-                           '0000012345-0000098765_V01.fits'
+        assert filename == 'solo_L0_stix-sci-a-name' \
+                           '-123456_0000012345f06789-0000098765f04321_V01.fits'
 
         product.control.colnames = ['request_id', 'tc_packet_seq_control']
         filename = processor.generate_filename(product, version=1)
-        assert filename == 'solo_L0_stix-sci-a-name-123456_' \
-                           '0000012345-0000098765_V01_98765.fits'
+        assert filename == 'solo_L0_stix-sci-a-name' \
+                           '-123456_0000012345f06789-0000098765f04321_V01_98765.fits'
 
 
 @patch('stixcore.products.level0.quicklook.QLProduct')
@@ -110,6 +110,7 @@ def test_level0_processor_generate_primary_header(datetime, product):
     product.service_type = 1
     product.service_subtype = 2
     product.ssid = 3
+    product.level = 'L0'
 
     test_data = {
         'FILENAME': 'a_filename.fits',
@@ -144,7 +145,7 @@ def test_level1_processor_generate_filename():
         product.control.colnames = []
         beg = SCETime(coarse=0, fine=0)
         end = SCETime(coarse=1, fine=2 ** 15)
-        avg = (beg + end)/2
+        avg = beg + (end - beg)/2
         product.obt_beg = beg
         product.obt_avg = avg
         product.obt_end = end
@@ -165,7 +166,7 @@ def test_level1_processor_generate_primary_header(product):
     processor = FitsL1Processor('some/path')
     beg = SCETime(coarse=0, fine=0)
     end = SCETime(coarse=1, fine=2 ** 15)
-    avg = (beg + end)/2
+    avg = beg + (end - beg)/2
     product.obt_beg = beg
     product.obt_avg = avg
     product.obt_end = end

@@ -6,7 +6,7 @@ import pytest
 
 from stixcore.data.test import test_data
 from stixcore.idb.manager import IDBManager
-from stixcore.time import SCETime as StixDateTime
+from stixcore.time import SCETime
 
 
 @pytest.fixture
@@ -51,12 +51,12 @@ def test_download_version(idb_manager):
 
 
 def test_find_version(idb_manager):
-    idb = idb_manager.get_idb(obt=StixDateTime(coarse=631155005, fine=0))
+    idb = idb_manager.get_idb(obt=SCETime(coarse=631155005, fine=0))
     assert idb.get_idb_version() == "2.26.34"
     idb.close()
 
     # fall back to the default
-    idb = idb_manager.get_idb(obt=StixDateTime(coarse=2**31-1, fine=0))
+    idb = idb_manager.get_idb(obt=SCETime(coarse=2 ** 31 - 1, fine=0))
     assert idb.get_idb_version() == "2.26.34"
 
     v = idb_manager.find_version(obt=None)

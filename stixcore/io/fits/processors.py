@@ -10,8 +10,8 @@ from astropy.table import QTable
 from astropy.time import Time as astrotime
 
 import stixcore
-from stixcore.datetime.datetime import SCETime
 from stixcore.products.product import Product
+from stixcore.time import SCETime
 from stixcore.util.logging import get_logger
 
 __all__ = ['SEC_IN_DAY', 'FitsProcessor', 'FitsLBProcessor', 'FitsL0Processor', 'FitsL1Processor']
@@ -333,13 +333,8 @@ class FitsL0Processor:
         if product.type == 'ql' or product.name == 'burst-aspect':
             date_range = f'{(product.scet_timerange.avg.coarse // (24 * 60 * 60) ) *24*60* 60:010d}'
         else:
-
             start_obs = product.scet_timerange.start.to_string(sep='f')
             end_obs = product.scet_timerange.end.to_string(sep='f')
-
-            start_obs = f'{product.obs_beg.coarse:010d}'
-            end_obs = f'{product.obs_end.coarse:010d}'
-
             date_range = f'{start_obs}-{end_obs}'
         return FitsProcessor.generate_filename(product, version=version,
                                                date_range=date_range, status=status)

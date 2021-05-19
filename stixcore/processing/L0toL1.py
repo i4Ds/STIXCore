@@ -1,11 +1,14 @@
+import logging
 from time import perf_counter
 from pathlib import Path
 
+from sunpy.util.datatype_factory_base import NoMatchError
+
 from stixcore.io.fits.processors import FitsL1Processor
-from stixcore.products.product import Product
+from stixcore.products import Product
 from stixcore.util.logging import get_logger
 
-logger = get_logger(__name__)
+logger = get_logger(__name__, level=logging.DEBUG)
 
 
 class Level1:
@@ -16,23 +19,30 @@ class Level1:
         self.processor = FitsL1Processor(self.output_dir)
 
     def process_fits_files(self):
+        all_files = []
         for file in self.level0_files:
             l0 = Product(file)
-            tmp = Product._check_registered_widget(level='L1', service_type=l0.service_type,
-                                                   service_subtype=l0.service_subtype,
-                                                   ssid=l0.ssid, data=None, control=None)
-            l1 = tmp.from_level0(l0)
-            self.processor.write_fits(l1)
+            try:
+                tmp = Product._check_registered_widget(level='L1', service_type=l0.service_type,
+                                                       service_subtype=l0.service_subtype,
+                                                       ssid=l0.ssid, data=None, control=None)
+                l1 = tmp.from_level0(l0)
+                files = self.processor.write_fits(l1)
+                all_files.extend(files)
+            except NoMatchError:
+                logger.debug('No match for product %s', l0)
+
+        return all_files
 
 
 if __name__ == '__main__':
     tstart = perf_counter()
 
-    fits_path = Path('/Users/shane/Projects/stix/dataview/data/time_test')
-    bd = Path('/Users/shane/Projects/STIX/dataview/data/time_test/')
+    fits_path = Path('/Users/shane/Projects/stix/dataview/data/tm_test/L0')
+    bd = Path('/Users/shane/Projects/STIX/dataview/data/tm_test/')
 
     l1processor = Level1(fits_path, bd)
-    l1processor.process_fits_files()
-
+    all_files = l1processor.process_fits_files()
+    logger.info(all_files)
     tend = perf_counter()
     logger.info('Time taken %f', tend-tstart)

@@ -1,6 +1,7 @@
 """
 High level STIX data products created from single stand alone packets or a sequence of packets.
 """
+import logging
 from itertools import chain
 from collections import defaultdict
 
@@ -8,6 +9,7 @@ import numpy as np
 
 import astropy.units as u
 from astropy.table import vstack
+from astropy.table.operations import unique
 
 from stixcore.products.common import (
     _get_compression_scheme,
@@ -18,12 +20,12 @@ from stixcore.products.common import (
     rebin_proportional,
 )
 from stixcore.products.product import BaseProduct, Control, Data
-from stixcore.time import SCETime, SCETimeRange
+from stixcore.time import SCETime, SCETimeDelta, SCETimeRange
 from stixcore.util.logging import get_logger
 
 __all__ = ['QLProduct', 'LightCurve', 'Background', 'Spectra']
 
-logger = get_logger(__name__)
+logger = get_logger(__name__, level=logging.DEBUG)
 
 QLNIX00405_offset = 0.1
 
@@ -68,26 +70,37 @@ class QLProduct(BaseProduct):
             raise TypeError(f'Products must of same type not {type(self)} and {type(other)}')
 
         # TODO reindex and update data control_index
-        other.control['index'] = other.control['index'] + self.control['index'].max() + 1
-        control = vstack((self.control, other.control))
+        other_control = other.control[:]
+        other_data = other.data[:]
+        other_control['index'] = other.control['index'] + self.control['index'].max() + 1
+        control = vstack((self.control, other_control))
         # control = unique(control, keys=['scet_coarse', 'scet_fine'])
         # control = control.group_by(['scet_coarse', 'scet_fine'])
 
-        other.data['control_index'] = other.data['control_index'] + self.control['index'].max() + 1
-        data = vstack((self.data, other.data))
+        other_data['control_index'] = other.data['control_index'] + self.control['index'].max() + 1
 
-        uids = np.searchsorted(data['time'].as_float(), np.unique(data['time'].as_float()))
-        data = data[uids]
+        logger.debug('len self: %d, len other %d', len(self.data), len(other_data))
+
+        data = vstack((self.data, other_data))
+
+        logger.debug('len stacked %d', len(data))
+
+        data['time_float'] = data['time'].as_float()
+
+        data = unique(data, keys=['time_float'])
+
+        logger.debug('len unique %d', len(data))
+
+        data.remove_column('time_float')
 
         unique_control_inds = np.unique(data['control_index'])
-        control = control[np.isin(control['index'], unique_control_inds)]
+        control = control[np.nonzero(control['index'][:, None] == unique_control_inds)[1]]
 
         for idb_key, date_range in other.idb_versions.items():
             self.idb_versions[idb_key].expand(date_range)
 
-        scet_timerange = SCETimeRange(start=min(other.scet_timerange.start,
-                                                self.scet_timerange.start),
-                                      end=max(other.scet_timerange.end, self.scet_timerange.end))
+        scet_timerange = SCETimeRange(start=data['time'][0]-data['timedel'][0]/2,
+                                      end=data['time'][-1]+data['timedel'][-1]/2)
 
         return type(self)(service_type=self.service_type, service_subtype=self.service_subtype,
                           ssid=self.ssid, control=control, data=data,
@@ -112,12 +125,15 @@ class QLProduct(BaseProduct):
             de = SCETime((((day + 1) * u.day).to_value('s')).astype(int), 0)
             i = np.where((self.data['time'] >= ds) & (self.data['time'] < de))
 
-            scet_timerange = SCETimeRange(start=ds, end=de)
-
             data = self.data[i]
             control_indices = np.unique(data['control_index'])
+
             control = self.control[np.isin(self.control['index'], control_indices)]
+            # control = control[np.nonzero(control['index'][:, None] == control_indices)[1]]
+
             control_index_min = control_indices.min()
+
+            scet_timerange = SCETimeRange(start=data['time'][0], end=data['time'][-1])
 
             data['control_index'] = data['control_index'] - control_index_min
             control['index'] = control['index'] - control_index_min
@@ -134,7 +150,7 @@ class LightCurve(QLProduct):
                  idb_versions=defaultdict(SCETimeRange), **kwargs):
         super().__init__(service_type=service_type, service_subtype=service_subtype,
                          ssid=ssid, control=control, data=data, idb_versions=idb_versions, **kwargs)
-        self.name = 'ql-lightcurve'
+        self.name = 'lightcurve'
         self.level = 'L0'
 
     @classmethod
@@ -203,8 +219,8 @@ class LightCurve(QLProduct):
                    scet_timerange=scet_timerange)
 
     def __repr__(self):
-        return f'{self.name}, {self.level}\n' \
-               f'{self.obs_beg}, {self.obs_end}\n ' \
+        return f'<{self.__class__.__name__}, {self.level} ' \
+               f'{self.scet_timerange.start}to {self.scet_timerange.end} ' \
                f'{len(self.control)}, {len(self.data)}'
 
     @classmethod
@@ -218,7 +234,7 @@ class Background(QLProduct):
                  idb_versions=defaultdict(SCETimeRange), **kwargs):
         super().__init__(service_type=service_type, service_subtype=service_subtype,
                          ssid=ssid, control=control, data=data, idb_versions=idb_versions, **kwargs)
-        self.name = 'ql-background'
+        self.name = 'background'
         self.level = 'L0'
 
     @classmethod
@@ -286,7 +302,7 @@ class Spectra(QLProduct):
                  idb_versions=defaultdict(SCETimeRange), **kwargs):
         super().__init__(service_type=service_type, service_subtype=service_subtype,
                          ssid=ssid, control=control, data=data, idb_versions=idb_versions, **kwargs)
-        self.name = 'ql-spectra'
+        self.name = 'spectra'
         self.level = 'L0'
 
     @classmethod
@@ -389,7 +405,8 @@ class Spectra(QLProduct):
         time = np.array([(t.coarse, t.fine) for t in times])
         time = np.pad(time, ((0, pad_after), (0, 0)), mode='edge')
         time = SCETime(time[:, 0], time[:, 1]).reshape(-1, num_energies)
-        duration = np.pad(np.hstack(durations), (0, pad_after)).reshape(-1, num_energies)
+        duration = SCETimeDelta(np.pad(np.hstack(durations),
+                                       (0, pad_after)).reshape(-1, num_energies))
 
         scet_timerange = SCETimeRange(start=time[0, 0]-duration[0, 0]/2,
                                       end=time[-1, -1]+duration[-1, 0]/2)
@@ -398,7 +415,7 @@ class Spectra(QLProduct):
 
     def __repr__(self):
         return f'{self.name}, {self.level}\n' \
-               f'{self.obs_beg}, {self.obs_end}\n ' \
+               f'{self.scet_timerange.start}, {self.scet_timerange.end}\n ' \
                f'{len(self.control)}, {len(self.data)}'
 
     @classmethod
@@ -412,7 +429,7 @@ class Variance(QLProduct):
                  idb_versions=defaultdict(SCETimeRange), **kwargs):
         super().__init__(service_type=service_type, service_subtype=service_subtype,
                          ssid=ssid, control=control, data=data, idb_versions=idb_versions, **kwargs)
-        self.name = 'ql-variance'
+        self.name = 'variance'
         self.level = 'L0'
 
     @classmethod
@@ -476,7 +493,7 @@ class FlareFlag(QLProduct):
                  idb_versions=defaultdict(SCETimeRange), **kwargs):
         super().__init__(service_type=service_type, service_subtype=service_subtype,
                          ssid=ssid, control=control, data=data, idb_versions=idb_versions, **kwargs)
-        self.name = 'ql-flareflag'
+        self.name = 'flareflag'
         self.level = 'L0'
 
     @classmethod
@@ -500,8 +517,8 @@ class FlareFlag(QLProduct):
         data = Data()
         data['control_index'] = control_indices
         data['time'] = time
-        data['duration'] = duration
-        data.add_meta(name='duration', nix='NIX00405', packets=packets)
+        data['timedel'] = duration
+        data.add_meta(name='timedel', nix='NIX00405', packets=packets)
 
         data.add_basic(name='loc_z', nix='NIX00283', packets=packets, dtype=np.int16)
         data.add_basic(name='loc_y', nix='NIX00284', packets=packets, dtype=np.int16)
@@ -529,8 +546,9 @@ class EnergyCalibration(QLProduct):
                  idb_versions=defaultdict(SCETimeRange), **kwargs):
         super().__init__(service_type=service_type, service_subtype=service_subtype,
                          ssid=ssid, control=control, data=data, idb_versions=idb_versions, **kwargs)
-        self.name = 'ql-energycalibration'
+        self.name = 'energy'
         self.level = 'L0'
+        self.type = 'cal'
 
     @classmethod
     def from_levelb(cls, levelb):
@@ -588,6 +606,10 @@ class EnergyCalibration(QLProduct):
         channels = list(chain(*[ch.tolist() for ch in sub_channels]))
         control['num_channels'] = len(channels)
 
+        time = SCETime(control['scet_coarse'], control['scet_fine']) \
+            + control['integration_time'] / 2
+        duration = SCETimeDelta(control['integration_time'])
+
         scet_timerange = SCETimeRange(start=SCETime(control['scet_coarse'][0],
                                                     control['scet_fine'][0]),
                                       end=SCETime(control['scet_coarse'][0],
@@ -596,10 +618,10 @@ class EnergyCalibration(QLProduct):
 
         # Data
         data = Data()
+        data['timedel'] = duration[0:1]
         data['control_index'] = [0]
-        data['time'] = (SCETime(control['scet_coarse'][0], control['scet_fine'][0])
-                        + control['integration_time'][0] / 2).reshape(1)
-        data['timedel'] = control['integration_time'][0]
+        data['time'] = time[0:1]
+
         data.add_meta(name='timedel', nix='NIX00122', packets=packets)
         # data['detector_id'] = np.array(packets.get('NIXD0155'), np.ubyte)
         # data['pixel_id'] = np.array(packets.get('NIXD0156'), np.ubyte)
@@ -645,7 +667,7 @@ class TMStatusFlareList(QLProduct):
                  idb_versions=defaultdict(SCETimeRange), **kwargs):
         super().__init__(service_type=service_type, service_subtype=service_subtype,
                          ssid=ssid, control=control, data=data, idb_versions=idb_versions, **kwargs)
-        self.name = 'ql-tmstatusflarelist'
+        self.name = 'tmstatusflarelist'
         self.level = 'L0'
 
     @classmethod

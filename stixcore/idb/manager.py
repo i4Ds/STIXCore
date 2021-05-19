@@ -244,6 +244,7 @@ class IDBManager:
                 duration_ms = ("duration in ms", 0, 1, 0, 0, 0)
                 binary_seconds = ("binary seconds", 0, 1.0 / 65535, 0, 0, 0)
 
+                # TODO take IDB version into account
                 for nix, config, unit in [('NIX00269', duration, "s"),
                                           ('NIX00441', duration, "s"),
                                           ('NIX00122', duration, "s"),

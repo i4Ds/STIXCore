@@ -5,6 +5,7 @@ Array like time objects
 import operator
 
 import numpy as np
+from sunpy.time.timerange import TimeRange
 
 import astropy.units as u
 from astropy.time.core import Time
@@ -24,6 +25,17 @@ MAX_FINE = 2**16 - 1
 
 
 class TimeInfo(MixinInfo):
+    attr_names = MixinInfo.attr_names
+    _supports_indexing = True
+
+    def get_sortable_arrays(self):
+        pass
+
+    #
+    # @property
+    # def unit(self):
+    #     return None
+
     def new_like(self, cols, length, metadata_conflicts='warn', name=None):
         """
         Return a new instance of this class which is consistent with the
@@ -78,6 +90,26 @@ class TimeInfo(MixinInfo):
 
 class TimeDetlaInfo(TimeInfo):
     pass
+    # _represent_as_dict_attrs = ('seconds')
+    # _represent_as_dict_primary_data = 'seconds'
+    #
+    # attrs_names = MixinInfo.attr_names | {'serialize_method'}
+    #
+    # def _represent_as_dict(self, attrs=None):
+    #     out = super()._represent_as_dict()
+    #
+    #     col = self._parent
+    #
+    #     # If the serialize method for this context (e.g. 'fits' or 'ecsv') is
+    #     # 'data_mask', that means to serialize using an explicit mask column.
+    #     method = self.serialize_method[self._serialize_context]
+    #
+    # def __init__(self, bound=False):
+    #     super().__init__(bound)
+    #
+    #     if bound:
+    #         self.serialize_method = {'fits': 'seconds',
+    #                                  None: 'seconds'}
 
 
 class SCETBase(ShapedLikeNDArray):
@@ -118,7 +150,11 @@ class SCETBase(ShapedLikeNDArray):
             coarse = apply_method(coarse)
             fine = apply_method(fine)
 
-        return self.__class__(coarse, fine)
+        out = self.__class__(coarse, fine)
+        if 'info' in self.__dict__:
+            out.info = self.info
+
+        return out
 
     # TODO check v spice
     def as_float(self):
@@ -456,8 +492,9 @@ class SCETime(SCETBase):
     def _comparison_operator(self, other, op):
         if other.__class__ is not self.__class__:
             return NotImplemented
-        return op((self.coarse.astype(int) - other.coarse.astype(int))
-                  + (self.fine.astype(int) - other.fine.astype(int)), 0)
+
+        return op(self.coarse.astype(int) - other.coarse.astype(int), 0) | op(
+            (self.fine.astype(int) - other.fine.astype(int)), 0)
 
     def __gt__(self, other):
         return self._comparison_operator(other, operator.gt)
@@ -529,6 +566,10 @@ class SCETimeDelta(SCETBase):
             # Fine needs to be 32bit as due to SO convention coarse has max of 2**31 which works
             # for a signed 32 bit in but but fine uses all 16bit as a uint as has to be 32 as a int
             super().__init__(coarse.astype(np.int32), fine.astype(np.int32))
+
+    # @property
+    # def seconds(self):
+    #     return self.as_float()
 
     @classmethod
     def from_float(cls, scet_float):
@@ -631,6 +672,9 @@ class SCETimeRange:
         end time of the range
     """
     def __init__(self, *, start=SCETime.max_time(), end=SCETime.min_time()):
+        if not isinstance(start, SCETime) or not isinstance(end, SCETime):
+            raise TypeError('Must be SCETime')
+
         self.start = start.min()
         self.end = end.max()
 
@@ -656,6 +700,9 @@ class SCETimeRange:
             self.end = max(self.end, time.end)
         else:
             raise ValueError("time must be 'SCETime' or 'SCETimeRange'")
+
+    def to_timerange(self):
+        return TimeRange(self.start.to_time(), self.end.to_time())
 
     @property
     def avg(self):

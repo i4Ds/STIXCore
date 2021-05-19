@@ -16,6 +16,7 @@ from stixcore.products.common import (
 )
 from stixcore.products.product import BaseProduct, ControlSci, Data
 from stixcore.time import SCETime, SCETimeRange
+from stixcore.time.datetime import SCETimeDelta
 from stixcore.util.logging import get_logger
 
 logger = get_logger(__name__)
@@ -40,22 +41,19 @@ class ScienceProduct(BaseProduct):
         self.control = control
         self.data = data
         self.idb_versions = kwargs.get('idb_versions', None)
-
-        self.obs_beg = SCETime.from_float(self.data['time'][0] - self.data['timedel'][0] / 2)
-        self.obs_end = SCETime.from_float(self.data['time'][-1] + self.data['timedel'][-1] / 2)
-        self.obs_avg = self.obs_beg + (self.obs_end - self.obs_beg) / 2
+        self.scet_timerange = kwargs['scet_timerange']
 
     def __add__(self, other):
-        other.control['index'] = other.control['index'] + self.control['index'].max() + 1
+        combined_control_index = other.control['index'] + self.control['index'].max() + 1
         control = vstack((self.control, other.control))
         cnames = control.colnames
         cnames.remove('index')
         control = unique(control, cnames)
 
-        other.data['control_index'] = other.data['control_index'] + self.control['index'].max() + 1
+        combined_data_index = other.data['control_index'] + self.control['index'].max() + 1
         data = vstack((self.data, other.data))
 
-        data_ind = np.isin(data['control_index'], control['index'])
+        data_ind = np.isin(combined_data_index, combined_control_index)
         data = data[data_ind]
 
         return type(self)(service_type=self.service_type, service_subtype=self.service_subtype,
@@ -91,8 +89,12 @@ class ScienceProduct(BaseProduct):
             #     data_inds = np.where(self.data['control_index'] == data_index)
             #     data = self.data[data_inds]
 
+            scet_timerange = SCETimeRange(start=data['time'][0] - data['timedel'][0]/2,
+                                          end=data['time'][-1] + data['timedel'][-1]/2)
+
             yield type(self)(service_type=self.service_type, service_subtype=self.service_subtype,
-                             ssid=self.ssid, control=control, data=data)
+                             ssid=self.ssid, control=control, data=data,
+                             scet_timerange=scet_timerange)
 
 
 class RawPixelData(ScienceProduct):
@@ -186,11 +188,15 @@ class RawPixelData(ScienceProduct):
         #
         #     start_index = end_index
 
+        scet_timerange = SCETimeRange(start=control["time_stamp"][0] + data['start_time'][0],
+                                      end=control["time_stamp"][-1] + data['start_time'][-1]
+                                      + data['integration_time'][-1])
+
         sub_index = np.searchsorted(data['start_time'], unique_times)
         data = data[sub_index]
         data['time'] = control["time_stamp"][0] \
             + data['start_time'] + data['integration_time'] / 2
-        data['timedel'] = data['integration_time']
+        data['timedel'] = SCETimeDelta(data['integration_time'])
         data['counts'] = counts * u.ct
         # data.add_meta(name='counts', nix='NIX00065', packets=packets)
         data['control_index'] = control['index'][0]
@@ -198,7 +204,8 @@ class RawPixelData(ScienceProduct):
         data.remove_columns(['start_time', 'integration_time', 'num_samples'])
 
         return cls(service_type=service_type, service_subtype=service_subtype, ssid=ssid,
-                   control=control, data=data, idb_versions=idb_versions)
+                   control=control, data=data, idb_versions=idb_versions,
+                   scet_timerange=scet_timerange)
 
     @classmethod
     def is_datasource_for(cls, *, service_type, service_subtype, ssid, **kwargs):
@@ -257,7 +264,7 @@ class CompressedPixelData(ScienceProduct):
         data.add_data('pixel_masks', (pixel_masks, pm_meta))
         data.add_data('detector_masks', _get_detector_mask(packets))
         # NIX00405 in BSD is 1 indexed
-        data['integration_time'] = packets.get_value('NIX00405')
+        data['integration_time'] = SCETimeDelta(packets.get_value('NIX00405'))
         data.add_meta(name='integration_time', nix='NIX00405', packets=packets)
 
         triggers = np.array([packets.get_value(f'NIX00{i}') for i in range(242, 258)])
@@ -381,6 +388,10 @@ class CompressedPixelData(ScienceProduct):
         sub_index = np.searchsorted(data['delta_time'], unique_times)
         data = data[sub_index]
 
+        scet_timerange = SCETimeRange(start=control['time_stamp'][0] + data['delta_time'][0],
+                                      end=control['time_stamp'][-1] + data['delta_time'][-1]
+                                      + data['integration_time'][-1])
+
         data['time'] = (control['time_stamp'][0]
                         + data['delta_time'] + data['integration_time']/2)
         data['timedel'] = data['integration_time']
@@ -394,7 +405,8 @@ class CompressedPixelData(ScienceProduct):
         data['control_index'] = 0
 
         return cls(service_type=service_type, service_subtype=service_subtype, ssid=ssid,
-                   control=control, data=data, idb_versions=idb_versions)
+                   control=control, data=data, idb_versions=idb_versions,
+                   scet_timerange=scet_timerange)
 
     @classmethod
     def is_datasource_for(cls, *, service_type, service_subtype, ssid, **kwargs):
@@ -426,7 +438,7 @@ class Visibility(ScienceProduct):
                  idb_versions=defaultdict(SCETimeRange), **kwargs):
         super().__init__(service_type=service_type, service_subtype=service_subtype,
                          ssid=ssid, control=control, data=data, idb_versions=idb_versions, **kwargs)
-        self.name = 'xray-visibility'
+        self.name = 'xray-vis'
         self.level = 'L0'
 
     @classmethod
@@ -453,13 +465,13 @@ class Visibility(ScienceProduct):
         control['index'] = range(len(control))
 
         data = Data()
-        data['control_index'] = np.full(len(packets.get_value('NIX00441')), 0)
         try:
             data['delta_time'] = packets.get_value('NIX00441')
             data.add_meta(name='delta_time', nix='NIX00441', packets=packets)
         except AttributeError:
             data['delta_time'] = packets.get_value('NIX00404')
             data.add_meta(name='delta_time', nix='NIX00404', packets=packets)
+        data['control_index'] = np.full(len(data['delta_time']), 0)
         unique_times = np.unique(data['delta_time'])
 
         # time = np.array([])
@@ -527,12 +539,17 @@ class Visibility(ScienceProduct):
                                                                 num_detectors, -1))
         data.add_meta(name='imaginary', nix='NIX00264', packets=packets)
 
+        scet_timerange = SCETimeRange(start=control["time_stamp"][0] + data['delta_time'][0],
+                                      end=control["time_stamp"][-1] + data['delta_time'][-1]
+                                      + data['integration_time'][-1])
+
         data['time'] = (control["time_stamp"][0]
                         + data['delta_time'] + data['integration_time'] / 2)
-        data['timedel'] = data['integration_time']
+        data['timedel'] = SCETimeDelta(data['integration_time'])
 
         return cls(service_type=service_type, service_subtype=service_subtype, ssid=ssid,
-                   control=control, data=data, idb_versions=idb_versions)
+                   control=control, data=data, idb_versions=idb_versions,
+                   scet_timerange=scet_timerange)
 
     @classmethod
     def is_datasource_for(cls, *, service_type, service_subtype, ssid, **kwargs):
@@ -548,7 +565,7 @@ class Spectrogram(ScienceProduct):
                  idb_versions=defaultdict(SCETimeRange), **kwargs):
         super().__init__(service_type=service_type, service_subtype=service_subtype,
                          ssid=ssid, control=control, data=data, idb_versions=idb_versions, **kwargs)
-        self.name = 'xray-spectrogram'
+        self.name = 'xray-spec'
         self.level = 'L0'
 
     @classmethod
@@ -655,10 +672,14 @@ class Spectrogram(ScienceProduct):
 
         centers = np.hstack(centers)
         deltas = np.hstack(deltas)
+        deltas = SCETimeDelta(deltas)
+
+        scet_timerange = SCETimeRange(start=control['time_stamp'][0] + centers[0] - deltas[0]/2,
+                                      end=control['time_stamp'][0] + centers[-1] + deltas[-1]/2)
 
         # Data
         data = Data()
-        data['time'] = control["time_stamp"][0] + centers
+        data['time'] = control['time_stamp'][0] + centers
         data['timedel'] = deltas
         data['timedel'].meta = {'NIXS': ['NIX00441', 'NIX00269']}
         data.add_basic(name='triggers', nix='NIX00267', packets=packets)
@@ -669,7 +690,8 @@ class Spectrogram(ScienceProduct):
         data['control_index'] = 0
 
         return cls(service_type=service_type, service_subtype=service_subtype, ssid=ssid,
-                   control=control, data=data, idb_versions=idb_versions)
+                   control=control, data=data, idb_versions=idb_versions,
+                   scet_timerange=scet_timerange)
 
     @classmethod
     def is_datasource_for(cls, *, service_type, service_subtype, ssid, **kwargs):
@@ -685,7 +707,7 @@ class Aspect(ScienceProduct):
                  data, idb_versions=defaultdict(SCETimeRange), **kwargs):
         super().__init__(service_type=service_type, service_subtype=service_subtype,
                          ssid=ssid, control=control, data=data, idb_versions=idb_versions, **kwargs)
-        self.name = 'burst-aspect'
+        self.name = 'aspect-burst'
         self.level = 'L0'
 
     @classmethod

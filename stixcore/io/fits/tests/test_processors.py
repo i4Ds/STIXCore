@@ -16,7 +16,7 @@ def test_levelb_processor_generate_filename():
         processor = FitsLBProcessor('some/path')
         product.control.colnames = []
         product.type = 'ql'
-        product.obs_beg.coarse = 0
+        product.obt_beg.coarse = 0
         product.level = 'LB'
         product.name = 'a_name'
         filename = processor.generate_filename(product, version=1)

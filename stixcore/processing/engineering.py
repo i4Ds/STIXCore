@@ -3,7 +3,6 @@ import re
 from collections.abc import Iterable
 
 import numpy as np
-from sunpy.time.timerange import TimeRange
 
 from astropy.table.table import QTable
 
@@ -180,10 +179,9 @@ def raw_to_engineering_product(product, idbm):
                            "values due to bad idb periods." +
                            f"\n Converted bins: {c}\ntotal bins {len(product.data)}")
 
-        # Convert add times to utc
-
-    product.data['time'] = product.data['time'].to_time()
-    product.utc_timerange = TimeRange(product.scet_timerange.start.to_time(),
-                                      product.scet_timerange.end.to_time())
+    # Convert add times to utc
+    product.data['time'] = product.data['time']
+    # product.utc_timerange = TimeRange(product.scet_timerange.start.to_time(),
+    #                                   product.scet_timerange.end.to_time())
 
     return col_n

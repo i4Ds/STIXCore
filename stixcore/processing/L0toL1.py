@@ -38,8 +38,8 @@ class Level1:
 if __name__ == '__main__':
     tstart = perf_counter()
 
-    fits_path = Path('/Users/shane/Projects/stix/dataview/data/tm_test/L0')
-    bd = Path('/Users/shane/Projects/STIX/dataview/data/tm_test/')
+    fits_path = Path('/home/shane/fits_new/L0/3/25')
+    bd = Path('/home/shane/fits_new/')
 
     l1processor = Level1(fits_path, bd)
     all_files = l1processor.process_fits_files()

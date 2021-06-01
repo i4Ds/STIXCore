@@ -43,6 +43,7 @@ class MiniReport(QLProduct):
         # Data
         data = Data()
         data['time'] = times
+        data['timedel'] = SCETime(0,0) 
         data.add_basic(name='sw_running', nix='NIXD0021', attr='value', packets=packets)
         data.add_basic(name='instrument_number', nix='NIXD0022', attr='value', packets=packets)
         data.add_basic(name='instrument_mode', nix='NIXD0023', attr='value', packets=packets)
@@ -125,6 +126,7 @@ class MaxiReport(QLProduct):
         # Data
         data = Data()
         data['time'] = times
+        data['timedel'] = SCETime(0,0)
         data.add_basic(name='sw_running', nix='NIXD0021', packets=packets)
         data.add_basic(name='instrument_number', nix='NIXD0022', packets=packets)
         data.add_basic(name='instrument_mode', nix='NIXD0023', packets=packets)

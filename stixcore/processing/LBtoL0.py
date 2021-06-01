@@ -31,7 +31,7 @@ class Level0:
         for file in sorted(self.levelb_files):
             mission, level, identifier, *_ = file.name.split('_')
             tm_type = tuple(map(int, identifier.split('-')[1:]))
-            if tm_type[-1] in {30, 31, 32, 33, 34, 41, 20, 21, 22, 23, 24}:  # TODO Fix 43
+            if tm_type[-1] in {1,2} and tm_type[0] == 3: #, 31, 32, 33, 34, 41, 20, 21, 22, 23, 24}:  # TODO Fix 43
                 tm[tm_type].append(file)
 
         # For each type
@@ -39,15 +39,21 @@ class Level0:
 
             # Stand alane packet data
             if tm_type[0] in {3, 21} and tm_type[-1] in {1, 2, 30, 31, 32, 33, 34}:
-                levelb = map(Product, files)
-                levelb_combined = reduce(add, levelb)
-                tmp = Product._check_registered_widget(
-                    level='L0', service_type=levelb_combined.service_type,
-                    service_subtype=levelb_combined.service_subtype, ssid=levelb_combined.ssid,
-                    data=None, control=None)
-                level0 = tmp.from_levelb(levelb_combined)
-                fits_files = self.processor.write_fits(level0)
-                all_files.extend(fits_files)
+                for file in files:
+                    levelb = Product(file)
+                    tmp = Product._check_registered_widget(
+                        level='L0', service_type=levelb.service_type,
+                        service_subtype=levelb.service_subtype, ssid=levelb.ssid,
+                        data=None, control=None)
+                    try:
+                        level0 = tmp.from_levelb(levelb)
+                        fits_files = self.processor.write_fits(level0)
+                        all_files.extend(fits_files)
+                    except Exception as e:
+                        #logger.error('Error processing file %s for %s, %s, %s', file,
+                        #             levelb.service_type, levelb.service_subtype, levelb.ssid)
+                        #logger.error('%s', e)
+                        raise e 
             else:
                 last_incomplete = []
                 # for each file
@@ -78,7 +84,7 @@ class Level0:
                                 logger.error('Error processing file %s for %s, %s, %s', file,
                                              comp.service_type, comp.service_subtype, comp.ssid)
                                 logger.error('%s', e)
-                                raise e
+                                #raise e
                         complete = []
                     try:
                         last_incomplete = last_incomplete[0] + incomplete[0]
@@ -102,8 +108,8 @@ class Level0:
 if __name__ == '__main__':
     tstart = perf_counter()
 
-    fits_path = Path('/Users/shane/Projects/stix/dataview/data/tm_test/LB')
-    bd = Path('/Users/shane/Projects/STIX/dataview/data/tm_test')
+    fits_path = Path('/home/shane/fits_new/LB')
+    bd = Path('/home/shane/fits_new')
 
     l0processor = Level0(fits_path, bd)
     l0_files = l0processor.process_fits_files()

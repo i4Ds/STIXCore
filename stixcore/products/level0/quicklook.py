@@ -326,6 +326,9 @@ class Spectra(QLProduct):
         control.add_meta(name='num_energies', nix='NIX00100', packets=packets)
         control.add_basic(name='num_samples', nix='NIX00089', packets=packets)
 
+        #TODO Handel NIX00089 value of zero ie valid packet with no data
+
+
         # Due to the way packets are split up full contiguous block of detector 1-32 are not always
         # down-linked to the ground so need to pad the array to write to table and later fits
         total_samples = control['num_samples'].sum()

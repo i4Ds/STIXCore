@@ -238,16 +238,18 @@ class LevelB(BaseProduct):
             control = Table(headers)
             control['index'] = np.arange(len(control), dtype=np.int64)
 
-            control = unique(control, keys=['scet_coarse', 'scet_fine', 'sequence_count'])
-
-            if not np.array_equal(control['index'].data, np.arange(len(control), dtype=np.int64)):
-                raise Exception('Control data and index do not agree')
             data = Table()
             data['control_index'] = np.array(control['index'], dtype=np.int64)
             data['data'] = hex_data
 
+            control = unique(control, keys=['scet_coarse', 'scet_fine', 'sequence_count'])
+            
             # Only keep data that is in the control table via index
             data = data[np.nonzero(control['index'][:, None] == data['control_index'])[1]]
+
+            # now reindex both data and control
+            control['index'] = range(len(control))
+            data['control_index'] = control['index']
 
             service_type, service_subtype, ssid = prod_key
             if ssid is not None:

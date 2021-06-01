@@ -23,22 +23,67 @@ IDB_VERSION_PREFIX = "v"
 IDB_VERSION_DELIM = "."
 IDB_VERSION_HISTORY_FILE = "idbVersionHistory.json"
 
+IDB_FORCE_VERSION_KEY = '__FORCE_VERSION__'
+
 logger = get_logger(__name__)
 
 
 class IDBManager:
     """Manages IDB (definition of TM/TC packet structures) Versions and provides a IDB reader."""
 
-    def __init__(self, data_root):
+    def __init__(self, data_root, force_version=None):
         """Create the manager for a given data path root.
 
         Parameters
         ----------
         data_root : `str` | `pathlib.Path`
             Path to the directory with all IDB versions
+        force_version : `str` | `pathlib.Path`
+            `pathlib.Path`: Path to a directory with a specific IDB version
+            `str` : Version Label to a IDB version within the data_root directory
         """
         self.data_root = data_root
         self.idb_cache = dict()
+        self._force_version = None
+        self.force_version = force_version
+
+    @property
+    def force_version(self):
+        """Get the forced IDB version.
+
+        Returns
+        -------
+        `pathlib.Path`
+            path to the IDB directory
+        """
+        return self._force_version
+
+    @force_version.setter
+    def force_version(self, value):
+        """Set a forced IDB version to be used for all processing.
+
+        Parameters
+        ----------
+        force_version : `str` or `pathlib.Path`
+            `pathlib.Path`: Path to a directory with a specific IDB version
+            `str` : Version Label to a IDB version within the data_root directory
+        """
+        idb = None
+        if isinstance(value, str) and self.has_version(value):
+            idb = self.get_idb(value)
+
+        if isinstance(value, Path) and value.exists():
+            idb = IDB(value)
+
+        if idb:
+            if not idb.is_connected():
+                idb._connect_database()
+            self.idb_cache[IDB_FORCE_VERSION_KEY] = idb
+            self._force_version = idb.get_idb_filename()
+        else:
+            if IDB_FORCE_VERSION_KEY in self.idb_cache:
+                del self.idb_cache[IDB_FORCE_VERSION_KEY]
+            self._force_version = None
 
     @property
     def data_root(self):
@@ -87,7 +132,7 @@ class IDBManager:
 
         Parameters
         ----------
-        utc : `datetime`, optional
+        obt : `datetime`, optional
             the time point of the IDB operation, by default None
 
         Returns
@@ -375,6 +420,11 @@ class IDBManager:
         `~stixcore.idb.idb.IDB`
             reference to a IDB reader
         """
+
+        if self._force_version:
+            logger.warn(f"Use Forced IDB version: {self._force_version}")
+            return self.idb_cache[IDB_FORCE_VERSION_KEY]
+
         if isinstance(obt, SCETime):
             obt_version = self.find_version(obt=obt)
             if self.has_version(obt_version):

@@ -1,5 +1,6 @@
 from pathlib import Path
 
+from stixcore.data.test import test_data
 from stixcore.idb.manager import IDBManager
 from stixcore.tmtc.packets import GenericPacket, GenericTMPacket, SourcePacketHeader
 
@@ -115,7 +116,10 @@ class ValidationFunctionError(AttributeError):
     """
 
 
-# Main packet class
-idbm = IDBManager(Path(__file__).parent.parent / "data" / "idb")
-GenericPacket.idb_manager = idbm
+if __name__ == "__main__":
+    # Main packet class
+    GenericPacket.idb_manager = IDBManager(Path(__file__).parent.parent / "data" / "idb")
+else:  # testing
+    GenericPacket.idb_manager = IDBManager(test_data.idb.DIR)
+
 Packet = TMTCPacketFactory(registry=GenericPacket._registry)

@@ -15,7 +15,7 @@ class Level1:
     def __init__(self, source_dir, output_dir):
         self.source_dir = Path(source_dir)
         self.output_dir = Path(output_dir)
-        self.level0_files = sorted(list(self.source_dir.rglob('*.fits')))
+        self.level0_files = sorted(list(self.source_dir.rglob('*.fits')))[-10:]
         self.processor = FitsL1Processor(self.output_dir)
 
     def process_fits_files(self):
@@ -31,6 +31,9 @@ class Level1:
                 all_files.extend(files)
             except NoMatchError:
                 logger.debug('No match for product %s', l0)
+            except Exception as e:
+                logger.error('Error processing file %s', file)
+                logger.error(e)
 
         return all_files
 
@@ -38,7 +41,7 @@ class Level1:
 if __name__ == '__main__':
     tstart = perf_counter()
 
-    fits_path = Path('/home/shane/fits_new/L0/3/25')
+    fits_path = Path('/home/shane/fits_new/L0/21/6/31')
     bd = Path('/home/shane/fits_new/')
 
     l1processor = Level1(fits_path, bd)

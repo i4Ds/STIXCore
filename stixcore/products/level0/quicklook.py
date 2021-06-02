@@ -107,10 +107,8 @@ class QLProduct(BaseProduct):
                           idb_versions=self.idb_versions, scet_timerange=scet_timerange)
 
     def __repr__(self):
-        return f'<{self.__class__.__name__}\n' \
-               f' {self.control.__repr__()}\n' \
-               f' {self.data.__repr__()}\n' \
-               f'>'
+        return f'<{self.__class__.__name__}, {self.scet_timerange.start} to ' \
+               f'{self.scet_timerange.start}, {len(self.control)}, {len(self.data)}>'
 
     def to_days(self):
         start_day = int((self.scet_timerange.start.as_float() / u.d).decompose().value)
@@ -326,8 +324,7 @@ class Spectra(QLProduct):
         control.add_meta(name='num_energies', nix='NIX00100', packets=packets)
         control.add_basic(name='num_samples', nix='NIX00089', packets=packets)
 
-        #TODO Handel NIX00089 value of zero ie valid packet with no data
-
+        # TODO Handel NIX00089 value of zero ie valid packet with no data
 
         # Due to the way packets are split up full contiguous block of detector 1-32 are not always
         # down-linked to the ground so need to pad the array to write to table and later fits

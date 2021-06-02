@@ -12,7 +12,6 @@ from astropy.time.core import Time
 from astropy.utils import ShapedLikeNDArray
 from astropy.utils.data_info import MixinInfo
 
-from stixcore.data.test import test_data
 from stixcore.ephemeris.manager import Time as SpiceTime
 
 SPICE_TIME = SpiceTime(meta_kernel_path='/home/shane/spice/kernels/mk/solo_ANC_soc-flown-mk.tm')

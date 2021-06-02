@@ -4,7 +4,6 @@ import logging
 import tempfile
 import functools
 from pathlib import Path
-from datetime import datetime
 from textwrap import wrap
 
 import numpy as np
@@ -62,8 +61,8 @@ class SpiceManager:
 
             self.mod_meta_kernel_path = Path(path)
 
-        #*_, datestamp, version = self.meta_kernel_path.name.split('_')
-        #self.kernel_date = datetime.strptime(datestamp, '%Y%m%d')
+        # *_, datestamp, version = self.meta_kernel_path.name.split('_')
+        # self.kernel_date = datetime.strptime(datestamp, '%Y%m%d')
 
     def __enter__(self):
         spiceypy.furnsh(str(self.mod_meta_kernel_path))

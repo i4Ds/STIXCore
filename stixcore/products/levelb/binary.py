@@ -243,7 +243,7 @@ class LevelB(BaseProduct):
             data['data'] = hex_data
 
             control = unique(control, keys=['scet_coarse', 'scet_fine', 'sequence_count'])
-            
+
             # Only keep data that is in the control table via index
             data = data[np.nonzero(control['index'][:, None] == data['control_index'])[1]]
 

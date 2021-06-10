@@ -4,6 +4,7 @@ from datetime import datetime
 
 import numpy as np
 
+import astropy.units as u
 from astropy.io import fits
 from astropy.io.fits import table_to_hdu
 from astropy.table import QTable
@@ -273,12 +274,11 @@ class FitsL0Processor:
                                   for version, range in product.idb_versions.items()],
                                   names=["version", "obt_start", "obt_end"])
 
-            # elow, ehigh = prod.get_energies()
-            #
-            # energies = QTable()
-            # energies['channel'] = range(len(elow))
-            # energies['e_low'] = elow * u.keV
-            # energies['e_high'] = ehigh * u.keV
+            elow, ehigh = prod.get_energies()
+            energies = QTable()
+            energies['channel'] = range(len(elow))
+            energies['e_low'] = elow * u.keV
+            energies['e_high'] = ehigh * u.keV
 
             # Convert time to be relative to start date
             data['time'] = (data['time'] - prod.scet_timerange.start).as_float()
@@ -461,12 +461,11 @@ class FitsL1Processor(FitsL0Processor):
                                   for version, range in product.idb_versions.items()],
                                   names=["version", "obt_start", "obt_end"])
 
-            # elow, ehigh = prod.get_energies()
-            #
-            # energies = QTable()
-            # energies['channel'] = range(len(elow))
-            # energies['e_low'] = elow * u.keV
-            # energies['e_high'] = ehigh * u.keV
+            elow, ehigh = prod.get_energies()
+            energies = QTable()
+            energies['channel'] = range(len(elow))
+            energies['e_low'] = elow * u.keV
+            energies['e_high'] = ehigh * u.keV
 
             # Convert time to be relative to start date
             data['time'] = (data['time'] - prod.scet_timerange.start).as_float()

@@ -14,7 +14,8 @@ from astropy.utils.data_info import MixinInfo
 
 from stixcore.ephemeris.manager import Time as SpiceTime
 
-SPICE_TIME = SpiceTime(meta_kernel_path='/home/shane/spice/kernels/mk/solo_ANC_soc-flown-mk.tm')
+SPICE_TIME = SpiceTime(meta_kernel_path='/Users/shane/Downloads/'
+                                        'SOLAR-ORBITER 2/kernels/mk/solo_ANC_soc-flown-mk.tm')
 
 __all__ = ['SCETBase', 'SCETime', 'SCETimeDelta', 'SCETimeRange']
 

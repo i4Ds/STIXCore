@@ -10,6 +10,7 @@ from stixcore.config.reader import read_energy_channels
 from stixcore.products.common import (
     _get_compression_scheme,
     _get_detector_mask,
+    _get_energies_from_mask,
     _get_pixel_mask,
     _get_unique,
     rebin_proportional,
@@ -95,6 +96,16 @@ class ScienceProduct(BaseProduct):
             yield type(self)(service_type=self.service_type, service_subtype=self.service_subtype,
                              ssid=self.ssid, control=control, data=data,
                              scet_timerange=scet_timerange)
+
+    def get_energies(self):
+        if 'energy_bin_edge_mask' in self.control.colnames:
+            energies = _get_energies_from_mask(self.control['energy_bin_edge_mask'][0])
+        elif 'energy_bin_mask' in self.control.colnames:
+            energies = _get_energies_from_mask(self.control['energy_bin_mask'][0])
+        else:
+            energies = _get_energies_from_mask()
+
+        return energies
 
 
 class RawPixelData(ScienceProduct):

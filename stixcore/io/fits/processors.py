@@ -143,13 +143,13 @@ class FitsLBProcessor(FitsProcessor):
 
         headers = FitsProcessor.generate_common_header(filename, product) + (
             # Name, Value, Comment
-            ('OBT_BEG', str(product.obt_beg), 'Start of acquisition time in OBT'),
-            ('OBT_END', str(product.obt_end), 'End of acquisition time in OBT'),
+            ('OBT_BEG', product.obt_beg.to_string(), 'Start of acquisition time in OBT'),
+            ('OBT_END', product.obt_end.to_string(), 'End of acquisition time in OBT'),
             ('TIMESYS', 'OBT', 'System used for time keywords'),
             ('LEVEL', 'LB', 'Processing level of the data'),
-            ('DATE_OBS', str(product.obt_beg), 'Start of acquisition time in OBT'),
-            ('DATE_BEG', str(product.obt_avg), 'Start of acquisition time in OBT'),
-            ('DATE_END', str(product.obt_end), 'End of acquisition time in OBT')
+            ('DATE_OBS', product.obt_beg.to_string(), 'Start of acquisition time in OBT'),
+            ('DATE_BEG', product.obt_beg.to_string(), 'Start of acquisition time in OBT'),
+            ('DATE_END', product.obt_end.to_string(), 'End of acquisition time in OBT')
         )
         return headers
 

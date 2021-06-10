@@ -176,14 +176,14 @@ class EngineeringParameter(Parameter):
         convert = False
 
         if unit == 'degC':
-            unit = 'dec_C'
+            unit = 'deg_C'
             convert = 'K'
 
         if unit is not None and unit != '' and engineering is not None:
             try:
                 engineering = engineering * u.Unit(unit)
-                if convert is not False:
-                    engineering = engineering.to(convert)
+                if convert == 'K':
+                    engineering = engineering.to(convert, equivalencies=u.temperature())
             except ValueError:
                 raise NotImplementedError(f"Add unit support: for {unit}")
 

@@ -12,10 +12,10 @@ from astropy.time.core import Time
 from astropy.utils import ShapedLikeNDArray
 from astropy.utils.data_info import MixinInfo
 
+from stixcore.data.test import test_data
 from stixcore.ephemeris.manager import Time as SpiceTime
 
-SPICE_TIME = SpiceTime(meta_kernel_path='/Users/shane/Downloads/'
-                                        'SOLAR-ORBITER 2/kernels/mk/solo_ANC_soc-flown-mk.tm')
+SPICE_TIME = SpiceTime(meta_kernel_path=test_data.ephemeris.META_KERNEL_TIME)
 
 __all__ = ['SCETBase', 'SCETime', 'SCETimeDelta', 'SCETimeRange']
 
@@ -493,8 +493,13 @@ class SCETime(SCETBase):
         if other.__class__ is not self.__class__:
             return NotImplemented
 
-        return op(self.coarse.astype(int) - other.coarse.astype(int), 0) | op(
-            (self.fine.astype(int) - other.fine.astype(int)), 0)
+        if op(self.coarse.astype(int) - other.coarse.astype(int), 0):
+            return True
+        elif self.coarse.astype(int) == other.coarse.astype(int) and \
+                op((self.fine.astype(int) - other.fine.astype(int)), 0):
+            return True
+        else:
+            return False
 
     def __gt__(self, other):
         return self._comparison_operator(other, operator.gt)

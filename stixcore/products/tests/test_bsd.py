@@ -18,11 +18,11 @@ testpackets = [(test_data.tmtc.TM_21_6_20_complete, RawPixelData, 'xray-rpd',
                 '0658880585f52427', '0658880585f58981', 1),
                (test_data.tmtc.TM_21_6_21_complete, CompressedPixelData, 'xray-cpd',
                 '0640274394f06553', '0640274476f06553', 5),
-               (test_data.tmtc.TM_21_6_24, Spectrogram, 'xray-spectrogram',
+               (test_data.tmtc.TM_21_6_24, Spectrogram, 'xray-spec',
                 '0659402043f39320', '0659402958f32767', 54),
-               (test_data.tmtc.TM_21_6_23_complete, Visibility, 'xray-visibility',
+               (test_data.tmtc.TM_21_6_23_complete, Visibility, 'xray-vis',
                 '0642038387f06553', '0642038403f32767', 5),
-               (test_data.tmtc.TM_21_6_42_complete, Aspect, 'burst-aspect',
+               (test_data.tmtc.TM_21_6_42_complete, Aspect, 'aspect-burst',
                 '0645932472f05485', '0645933132f52624', 2105)]
 
 

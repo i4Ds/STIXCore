@@ -5,13 +5,13 @@ import pytest
 
 import astropy.units as u
 
-from stixcore.data.test import test_dir as test_dir
+from stixcore.data.test import test_data
 from stixcore.ephemeris.manager import Position
 
 
 @pytest.fixture
 def spicemanager():
-    return Position(meta_kernel_path=test_dir / 'ephemeris' / 'test_position_20201001_V01.mk')
+    return Position(meta_kernel_path=test_data.ephemeris.META_KERNEL_POS)
 
 
 def test_get_position(spicemanager):

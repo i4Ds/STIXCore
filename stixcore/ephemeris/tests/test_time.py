@@ -15,8 +15,8 @@ def spicemanager():
     return Time(meta_kernel_path=test_data.ephemeris.META_KERNEL_POS)
 
 
-def test_spicemanager(spicemanager):
-    assert spicemanager.kernel_date == datetime(2020, 10, 1)
+# def test_spicemanager(spicemanager):
+#     assert spicemanager.kernel_date == datetime(2020, 10, 1)
 
 
 # Compare to know fixed SCET T0 value

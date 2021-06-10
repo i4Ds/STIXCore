@@ -1,7 +1,5 @@
 from unittest.mock import patch
 
-from astropy.time import Time
-
 from stixcore.io.fits.processors import FitsL0Processor, FitsL1Processor, FitsLBProcessor
 from stixcore.time import SCETime, SCETimeRange
 
@@ -15,12 +13,14 @@ def test_levelb_processor_generate_filename():
     with patch('stixcore.products.level0.quicklook.QLProduct') as product:
         processor = FitsLBProcessor('some/path')
         product.control.colnames = []
-        product.type = 'ql'
-        product.obt_beg.coarse = 0
+        product.service_type = 21
+        product.service_subtype = 6
+        product.ssid = 20
+        product.obt_avg = SCETime(43200, 0)
         product.level = 'LB'
         product.name = 'a_name'
         filename = processor.generate_filename(product, version=1)
-        assert filename == 'solo_LB_stix-ql-a-name_0000000000_V01.fits'
+        assert filename == 'solo_LB_stix-21-6-20_0000000000_V01.fits'
 
 
 @patch('stixcore.products.level0.quicklook.QLProduct')
@@ -36,15 +36,20 @@ def test_levelb_processor_generate_primary_header(datetime, product):
     product.service_type = 1
     product.service_subtype = 2
     product.ssid = 3
+    product.obt_beg = beg
+    product.obt_end = end
+    product.date_obs = beg
+    product.date_beg = beg
+    product.date_end = end
 
     test_data = {
         'FILENAME': 'a_filename.fits',
         'DATE': '1234-05-07T01:02:03.346',
-        'OBT_BEG': str(beg.as_float().value),
-        'OBT_END': str(end.as_float().value),
-        'DATE_OBS': str(beg.as_float().value),
-        'DATE_BEG': str(beg.as_float().value),
-        'DATE_END': str(end.as_float().value),
+        'OBT_BEG': beg.to_string(),
+        'OBT_END': end.to_string(),
+        'DATE_OBS': beg.to_string(),
+        'DATE_BEG': beg.to_string(),
+        'DATE_END': end.to_string(),
         'STYPE': product.service_type,
         'SSTYPE': product.service_subtype,
         'SSID': product.ssid,
@@ -155,10 +160,14 @@ def test_level1_processor_generate_filename():
         product.type = 'ql'
         product.scet_timerange = SCETimeRange(start=SCETime(0, 0),
                                               end=SCETime(coarse=0, fine=2**16-1))
+        product.utc_timerange = product.scet_timerange.to_timerange()
         product.level = 'L1'
         product.name = 'a_name'
         filename = processor.generate_filename(product, version=1)
-        assert filename == 'solo_L1_stix-ql-a-name_20000101T000000_20000101T000001_V01.fits'
+        assert filename == 'solo_L1_stix-ql-a-name_20000101_V01.fits'
+        product.type = 'bsd'
+        filename = processor.generate_filename(product, version=1)
+        assert filename == 'solo_L1_stix-bsd-a-name_20000101T000000_20000101T000001_V01.fits'
 
 
 @patch('stixcore.products.level1.quicklook.QLProduct')
@@ -166,13 +175,9 @@ def test_level1_processor_generate_primary_header(product):
     processor = FitsL1Processor('some/path')
     beg = SCETime(coarse=0, fine=0)
     end = SCETime(coarse=1, fine=2 ** 15)
-    avg = beg + (end - beg)/2
-    product.obt_beg = beg
-    product.obt_avg = avg
-    product.obt_end = end
-    product.obs_beg = beg.to_datetime()
-    product.obs_avg = avg.to_datetime()
-    product.obs_end = end.to_datetime()
+    beg + (end - beg)/2
+    product.scet_timerange = SCETimeRange(start=beg, end=end)
+    product.utc_timerange = product.scet_timerange.to_timerange()
     product.level = 'L1'
     product.type = "ql"
     product.service_type = 1
@@ -181,12 +186,12 @@ def test_level1_processor_generate_primary_header(product):
 
     test_data = {
         'FILENAME': 'a_filename.fits',
-        'OBT_BEG': str(beg.as_float().value),
-        'OBT_END': str(end.as_float().value),
-        'DATE_OBS': Time(beg.to_datetime()).fits,
-        'DATE_BEG': Time(beg.to_datetime()).fits,
-        'DATE_AVG': Time(avg.to_datetime()).fits,
-        'DATE_END': Time(end.to_datetime()).fits,
+        'OBT_BEG': beg.to_string(),
+        'OBT_END': end.to_string(),
+        'DATE_OBS': product.utc_timerange.start.fits,
+        'DATE_BEG': product.utc_timerange.start.fits,
+        'DATE_AVG': product.utc_timerange.center.fits,
+        'DATE_END': product.utc_timerange.end.fits,
         'STYPE': product.service_type,
         'SSTYPE': product.service_subtype,
         'SSID': product.ssid,

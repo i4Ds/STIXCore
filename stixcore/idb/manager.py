@@ -119,10 +119,12 @@ class IDBManager:
                                                     coarse=item['validityPeriodOBT'][1]['coarse'],
                                                     fine=item['validityPeriodOBT'][1]['fine'])
                     try:
-                        available = self.download_version(item['version'], force=False)
-                        if not available:
-                            raise ValueError('was not able to download IDB version '
-                                             f'{item["version"]} into {self._data_root}')
+                        if not self.has_version(item['version']):
+                            available = self.download_version(item['version'], force=False)
+                            if not available:
+                                raise ValueError('was not able to download IDB version '
+                                                 f'{item["version"]} into {self._data_root}')
+
                     except EnvironmentError:
                         pass
 
@@ -192,9 +194,9 @@ class IDBManager:
 
         vlabel = (IDB_VERSION_PREFIX + IDBManager.convert_version_label(version_label))
         vdir = self.data_root / vlabel
+
         try:
-            if not vdir.exists():
-                os.mkdir(vdir)
+            vdir.mkdir(parents=True, exist_ok=True)
             urllib.request.urlretrieve(url + vlabel + ".raw.zip", vdir / "idb.zip")
 
             with zipfile.ZipFile(vdir / "idb.zip", 'r') as zip_ref:
@@ -252,8 +254,7 @@ class IDBManager:
         vlabel = (IDB_VERSION_PREFIX + IDBManager.convert_version_label(version_label))
         vdir = self.data_root / vlabel
         try:
-            if not vdir.exists():
-                os.mkdir(vdir)
+            vdir.mkdir(parents=True, exist_ok=True)
             urllib.request.urlretrieve(url + vlabel + ".zip", vdir / "idb.zip")
 
             with zipfile.ZipFile(vdir / "idb.zip", 'r') as zip_ref:
@@ -503,13 +504,3 @@ class IDBManager:
             return idb
         raise ValueError(f'Version "{version_label}" not found in: '
                          f'"{self._get_filename_for_version(version_label)}"')
-
-
-if __name__ == '__main__':
-    tm_m = IDBManager(Path(__file__).parent.parent / "data" / "idb")
-    tm_m.download_version("2.26.35", force=True)
-    # tm_m.compile_version("2.26.31", force=True)
-    # tm_m.compile_version("2.26.32", force=True)
-    # tm_m.compile_version("2.26.33", force=True)
-    # tm_m.compile_version("2.26.34", force=True)
-    # tm_m.compile_version("2.26.35", force=True)

@@ -1,3 +1,4 @@
+import sys
 from pathlib import Path
 
 from stixcore.data.test import test_data
@@ -116,10 +117,9 @@ class ValidationFunctionError(AttributeError):
     """
 
 
-if __name__ == "__main__":
-    # Main packet class
-    GenericPacket.idb_manager = IDBManager(Path(__file__).parent.parent / "data" / "idb")
-else:  # testing
+if 'pytest' in sys.modules:
     GenericPacket.idb_manager = IDBManager(test_data.idb.DIR)
+else:
+    GenericPacket.idb_manager = IDBManager(Path(__file__).parent.parent / "data" / "idb")
 
 Packet = TMTCPacketFactory(registry=GenericPacket._registry)

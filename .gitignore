@@ -148,6 +148,9 @@ static
 #privare
 nicky.md
 
+#productive IDBs
+stixcore/data/idb/v**
+
 # Specifc Template
 docs/_build
 docs/generated

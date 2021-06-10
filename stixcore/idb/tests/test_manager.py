@@ -39,13 +39,33 @@ def test_has_version(versions, idb_manager):
     assert should == has_ver
 
 
+def test_force_version_str(idb_manager):
+    idb_manager.download_version("2.26.35", force=True)
+    idb_m = IDBManager(test_data.idb.DIR, force_version='2.26.35')
+    idb_f = idb_m.get_idb("any")
+    assert idb_f.get_idb_version() == '2.26.35'
+    assert idb_f.filename == test_data.idb.DIR / 'v2.26.35' / 'idb.sqlite'
+
+    idb = idb_m.get_idb(obt=SCETime.min_time())
+    assert idb_f == idb
+
+    idb = idb_m.get_idb(obt=SCETime.max_time())
+    assert idb_f == idb
+
+
+def test_force_version_path():
+    p = test_data.idb.DIR.parent / 'idb_force' / 'idb.sqlite'
+    idb_m = IDBManager(test_data.idb.DIR, force_version=p)
+    idb = idb_m.get_idb("any")
+    assert idb.get_idb_version() == '2.26.35'
+    assert idb.filename == p
+
+
 @pytest.mark.remote_data
 def test_download_version(idb_manager):
     assert idb_manager.download_version("2.26.34", force=True)
 
-    with pytest.raises(ValueError) as e:
-        idb_manager.download_version("2.26.34")
-    assert len(str(e.value)) > 1
+    assert idb_manager.download_version("2.26.34")
 
     assert idb_manager.download_version("2.26.34", force=True)
 
@@ -59,15 +79,14 @@ def test_find_version(idb_manager):
     idb = idb_manager.get_idb(obt=SCETime(coarse=2 ** 31 - 1, fine=0))
     assert idb.get_idb_version() == "2.26.34"
 
-    v = idb_manager.find_version(obt=None)
-    assert v == "2.26.3"
+    assert idb_manager.find_version(obt=None) == "2.26.33"
 
 
 def test_get_versions(idb_manager):
     versions = idb_manager.get_versions()
     assert isinstance(versions, list)
-    # zjust 3 not 4 as 2.26.2 contains no file
-    assert len(versions) == 4
+    # zjust 5 not 6 as 2.26.2 contains no file
+    assert len(versions) == 5
 
 
 def test_get_idb_not_found_error(idb_manager):

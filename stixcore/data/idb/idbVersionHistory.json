@@ -1,16 +1,24 @@
 [
         {
-                "version":"2.26.3",
-                "aswVersion":179,
-                "validityPeriodUTC":["2019-01-01T00:00:00", "2020-01-01T00:00:00"],
-                "validityPeriodOBT":[{"coarse":599616005, "fine":0}, {"coarse":631152005, "fine":0}]
+                "version":"2.26.33",
+                "aswVersion":178,
+                "comment": "return alway this for the past",
+                "validityPeriodUTC":["2000-01-01T00:00:00", "2020-05-18T09:12:54"],
+                "validityPeriodOBT":[{"coarse":0, "fine":0}, {"coarse":642159994, "fine":0}]
+
         },
         {
                 "version":"2.26.34",
-                "aswVersion":180,
-                "comment": "return alway this for the past",
-                "validityPeriodUTC":["2020-01-01T00:00:00", "2022-01-01T00:00:00"],
-                "validityPeriodOBT":[{"coarse":0, "fine":0}, {"coarse":694310302, "fine":0}]
+                "aswVersion":179,
+                "validityPeriodUTC":["2020-05-18T09:12:54", "2022-01-01T00:00:00"],
+                "validityPeriodOBT":[{"coarse":642159994, "fine":0}, {"coarse":694310300, "fine":0}]
+        },
+        {
+                "version":"2.26.35",
+                "aswVersion":181,
+                "comment": "return this for the next future",
+                "validityPeriodUTC":["2022-01-01T00:00:00", "2030-01-01T00:00:00"],
+                "validityPeriodOBT":[{"coarse":694310300, "fine":0}, {"coarse":4294967295, "fine":0}]
 
         }
 ]

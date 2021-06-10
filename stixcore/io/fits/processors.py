@@ -304,11 +304,11 @@ class FitsL0Processor:
             idb_hdu = table_to_hdu(idb_enc)
             idb_hdu.name = 'IDB_VERSIONS'
 
-            # energy_enc = fits.connect._encode_mixins(energies)
-            # energy_hdu = table_to_hdu(energy_enc)
-            # energy_hdu.name = 'ENERGIES'
+            energy_enc = fits.connect._encode_mixins(energies)
+            energy_hdu = table_to_hdu(energy_enc)
+            energy_hdu.name = 'ENERGIES'
 
-            hdul = fits.HDUList([primary_hdu, control_hdu, data_hdu, idb_hdu])  # , energy_hdu])
+            hdul = fits.HDUList([primary_hdu, control_hdu, data_hdu, idb_hdu, energy_hdu])
 
             filetowrite = path / filename
             logger.debug(f'Writing fits file to {filetowrite}')
@@ -491,11 +491,11 @@ class FitsL1Processor(FitsL0Processor):
             idb_hdu = table_to_hdu(idb_enc)
             idb_hdu.name = 'IDB_VERSIONS'
 
-            # energy_enc = fits.connect._encode_mixins(energies)
-            # energy_hdu = table_to_hdu(energy_enc)
-            # energy_hdu.name = 'ENERGIES'
+            energy_enc = fits.connect._encode_mixins(energies)
+            energy_hdu = table_to_hdu(energy_enc)
+            energy_hdu.name = 'ENERGIES'
 
-            hdul = fits.HDUList([primary_hdu, control_hdu, data_hdu, idb_hdu])  # , energy_hdu])
+            hdul = fits.HDUList([primary_hdu, control_hdu, data_hdu, idb_hdu, energy_hdu])
 
             filetowrite = path / filename
             logger.debug(f'Writing fits file to {filetowrite}')

@@ -2,6 +2,7 @@ import os
 import re
 import json
 import shutil
+import logging
 import sqlite3
 import zipfile
 import threading
@@ -23,7 +24,7 @@ IDB_VERSION_HISTORY_FILE = "idbVersionHistory.json"
 
 IDB_FORCE_VERSION_KEY = '__FORCE_VERSION__'
 
-logger = get_logger(__name__)
+logger = get_logger(__name__, level=logging.DEBUG)
 
 
 class IDBManager:

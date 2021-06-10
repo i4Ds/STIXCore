@@ -2,10 +2,12 @@ from collections import defaultdict
 
 import numpy as np
 
+import astropy.units as u
 from astropy.table import unique
 from astropy.table.operations import vstack
 
 from stixcore.processing.engineering import raw_to_engineering_product
+from stixcore.products.common import _get_energies_from_mask
 from stixcore.products.product import BaseProduct
 from stixcore.time import SCETimeRange
 
@@ -89,6 +91,16 @@ class ScienceProduct(BaseProduct):
                              ssid=self.ssid, control=control, data=data,
                              scet_timerange=scet_timerange)
 
+    def get_energies(self):
+        if 'energy_bin_edge_mask' in self.control.colnames:
+            energies = _get_energies_from_mask(self.control['energy_bin_edge_mask'][0])
+        elif 'energy_bin_mask' in self.control.colnames:
+            energies = _get_energies_from_mask(self.control['energy_bin_mask'][0])
+        else:
+            energies = _get_energies_from_mask()
+
+        return energies
+
 
 class RawPixelDataL1(ScienceProduct):
     def __init__(self, *, service_type, service_subtype, ssid, control,
@@ -109,7 +121,7 @@ class CompressedPixelData(ScienceProduct):
                  data, idb_versions=defaultdict(SCETimeRange), **kwargs):
         super().__init__(service_type=service_type, service_subtype=service_subtype,
                          ssid=ssid, control=control, data=data, idb_versions=idb_versions, **kwargs)
-        self.name = 'xray-cpd'
+        self.name = 'xray-scpd'
         self.level = 'L1'
 
     @classmethod
@@ -123,7 +135,7 @@ class SummedPixelData(ScienceProduct):
                  data, idb_versions=defaultdict(SCETimeRange), **kwargs):
         super().__init__(service_type=service_type, service_subtype=service_subtype,
                          ssid=ssid, control=control, data=data, idb_versions=idb_versions, **kwargs)
-        self.name = 'xray-spd'
+        self.name = 'xray-scpd'
         self.level = 'L1'
 
     @classmethod
@@ -167,6 +179,33 @@ class Aspect(ScienceProduct):
                          ssid=ssid, control=control, data=data, idb_versions=idb_versions, **kwargs)
         self.name = 'aspect-burst'
         self.level = 'L1'
+
+    def to_days(self):
+        utc_timerange = self.scet_timerange.to_timerange()
+
+        for day in utc_timerange.get_dates():
+            ds = day
+            de = day + 1 * u.day
+            utc_times = self.data['time'].to_time()
+            i = np.where((utc_times >= ds) & (utc_times < de))
+
+            if len(i[0]) > 0:
+                scet_timerange = SCETimeRange(start=self.data['time'][i[0]]
+                                              - self.data['timedel'][i[0]] / 2,
+                                              end=self.data['time'][i[-1]]
+                                              + self.data['timedel'][i[-1]] / 2)
+
+                data = self.data[i]
+                control_indices = np.unique(data['control_index'])
+                control = self.control[np.isin(self.control['index'], control_indices)]
+                control_index_min = control_indices.min()
+
+                data['control_index'] = data['control_index'] - control_index_min
+                control['index'] = control['index'] - control_index_min
+                yield type(self)(service_type=self.service_type,
+                                 service_subtype=self.service_subtype, ssid=self.ssid,
+                                 control=control, data=data, idb_versions=self.idb_versions,
+                                 scet_timerange=scet_timerange)
 
     @classmethod
     def is_datasource_for(cls, *, service_type, service_subtype, ssid, **kwargs):

@@ -33,16 +33,18 @@ class Level1:
                 logger.debug('No match for product %s', l0)
             except Exception as e:
                 logger.error('Error processing file %s', file)
-                logger.error(e)
-
+                # logger.error(e)
+                raise e
         return all_files
 
 
 if __name__ == '__main__':
     tstart = perf_counter()
 
-    fits_path = Path('/home/shane/fits_new/L0/21/6/31')
-    bd = Path('/home/shane/fits_new/')
+    fits_path = Path('/Users/shane/Library/Application Support/'
+                     'JetBrains/PyCharm2021.1/scratches/fsw-v181/L0')
+    bd = Path('/Users/shane/Library/Application Support/'
+              'JetBrains/PyCharm2021.1/scratches/fsw-v181/')
 
     l1processor = Level1(fits_path, bd)
     all_files = l1processor.process_fits_files()

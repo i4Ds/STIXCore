@@ -20,8 +20,9 @@ Locations
 
     `/data/stix/SOC/incoming` : incoming TM data - entry point of the processing pipline
 
-* Programs
+* Programs / Libs / Dependencies 
     `/opt/stixcore` :
+
 
 Sync with SOC
 -------------

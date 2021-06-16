@@ -30,5 +30,5 @@ def test_read_subc_params(path):
     assert len(t) == 32
     assert len(t.colnames) == 23
     assert isinstance(t, Table)
-    if sys.version_info > (3, 6):
+    if sys.version_info >= (3, 7):
         assert str(t["Slit Width"].unit) == "mm"

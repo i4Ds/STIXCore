@@ -100,4 +100,4 @@ def read_subc_params(path):
     `Table`
         params for all 32 sub-collimators
     """
-    return Table.read(path, format='ascii.ecsv')
+    return Table.read(path, format='ascii')

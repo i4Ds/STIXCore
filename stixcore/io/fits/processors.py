@@ -392,7 +392,7 @@ class FitsL1Processor(FitsL0Processor):
 
         date_range = f'{product.utc_timerange.start.strftime("%Y%m%dT%H%M%S")}_' +\
                      f'{product.utc_timerange.end.strftime("%Y%m%dT%H%M%S")}'
-        if product.type == 'ql' or product.name == 'burst-aspect':
+        if product.type in ['ql', 'hk'] or product.name == 'burst-aspect':
             date_range = product.utc_timerange.center.strftime("%Y%m%d")
 
         return FitsProcessor.generate_filename(product, version=version, date_range=date_range,

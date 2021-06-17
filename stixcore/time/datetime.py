@@ -492,8 +492,7 @@ class SCETime(SCETBase):
         if other.__class__ is not self.__class__:
             return NotImplemented
 
-        return op(self.coarse.astype(int) - other.coarse.astype(int), 0) | op(
-            (self.fine.astype(int) - other.fine.astype(int)), 0)
+        return op(self.as_float() - other.as_float(), 0)
 
     def __gt__(self, other):
         return self._comparison_operator(other, operator.gt)

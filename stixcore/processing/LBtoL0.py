@@ -29,8 +29,8 @@ class Level0:
         for file in sorted(self.levelb_files):
             mission, level, identifier, *_ = file.name.split('_')
             tm_type = tuple(map(int, identifier.split('-')[1:]))
-            if tm_type[-1] in {20, 21, 22, 23, 24} and tm_type[0] == 21:  # TODO Fix 43
-                tm[tm_type].append(file)
+            # if tm_type[-1] not in {20, 21, 22, 23, 24} and tm_type[0] == 21:  # TODO Fix 43
+            tm[tm_type].append(file)
 
         # For each type
         for tm_type, files in tm.items():
@@ -51,6 +51,7 @@ class Level0:
                         logger.error('Error processing file %s for %s, %s, %s', file,
                                      levelb.service_type, levelb.service_subtype, levelb.ssid)
                         logger.error('%s', e)
+                        raise e
 
             else:
                 last_incomplete = []
@@ -106,8 +107,8 @@ class Level0:
 if __name__ == '__main__':
     tstart = perf_counter()
 
-    fits_path = Path('/home/shane/fits_new/LB')
-    bd = Path('/home/shane/fits_new')
+    fits_path = Path('/home/shane/fits_210617/LB')
+    bd = Path('/home/shane/fits_210617')
 
     l0processor = Level0(fits_path, bd)
     l0_files = l0processor.process_fits_files()

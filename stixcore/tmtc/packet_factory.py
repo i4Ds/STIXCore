@@ -115,7 +115,9 @@ class ValidationFunctionError(AttributeError):
     """
 
 
-# Main packet class
-idbm = IDBManager(Path(__file__).parent.parent / "data" / "idb")
-GenericPacket.idb_manager = idbm
+# if 'pytest' in sys.modules:
+#     GenericPacket.idb_manager = IDBManager(test_data.idb.DIR)
+# else:
+GenericPacket.idb_manager = IDBManager(Path(__file__).parent.parent / "data" / "idb")
+
 Packet = TMTCPacketFactory(registry=GenericPacket._registry)

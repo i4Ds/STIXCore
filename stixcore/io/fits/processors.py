@@ -4,6 +4,7 @@ from datetime import datetime
 
 import numpy as np
 
+import astropy.units as u
 from astropy.io import fits
 from astropy.io.fits import table_to_hdu
 from astropy.table import QTable
@@ -142,13 +143,13 @@ class FitsLBProcessor(FitsProcessor):
 
         headers = FitsProcessor.generate_common_header(filename, product) + (
             # Name, Value, Comment
-            ('OBT_BEG', str(product.obt_beg), 'Start of acquisition time in OBT'),
-            ('OBT_END', str(product.obt_end), 'End of acquisition time in OBT'),
+            ('OBT_BEG', product.obt_beg.to_string(), 'Start of acquisition time in OBT'),
+            ('OBT_END', product.obt_end.to_string(), 'End of acquisition time in OBT'),
             ('TIMESYS', 'OBT', 'System used for time keywords'),
             ('LEVEL', 'LB', 'Processing level of the data'),
-            ('DATE_OBS', str(product.obt_beg), 'Start of acquisition time in OBT'),
-            ('DATE_BEG', str(product.obt_avg), 'Start of acquisition time in OBT'),
-            ('DATE_END', str(product.obt_end), 'End of acquisition time in OBT')
+            ('DATE_OBS', product.obt_beg.to_string(), 'Start of acquisition time in OBT'),
+            ('DATE_BEG', product.obt_beg.to_string(), 'Start of acquisition time in OBT'),
+            ('DATE_END', product.obt_end.to_string(), 'End of acquisition time in OBT')
         )
         return headers
 
@@ -273,12 +274,11 @@ class FitsL0Processor:
                                   for version, range in product.idb_versions.items()],
                                   names=["version", "obt_start", "obt_end"])
 
-            # elow, ehigh = prod.get_energies()
-            #
-            # energies = QTable()
-            # energies['channel'] = range(len(elow))
-            # energies['e_low'] = elow * u.keV
-            # energies['e_high'] = ehigh * u.keV
+            elow, ehigh = prod.get_energies()
+            energies = QTable()
+            energies['channel'] = range(len(elow))
+            energies['e_low'] = elow * u.keV
+            energies['e_high'] = ehigh * u.keV
 
             # Convert time to be relative to start date
             data['time'] = (data['time'] - prod.scet_timerange.start).as_float()
@@ -304,11 +304,11 @@ class FitsL0Processor:
             idb_hdu = table_to_hdu(idb_enc)
             idb_hdu.name = 'IDB_VERSIONS'
 
-            # energy_enc = fits.connect._encode_mixins(energies)
-            # energy_hdu = table_to_hdu(energy_enc)
-            # energy_hdu.name = 'ENERGIES'
+            energy_enc = fits.connect._encode_mixins(energies)
+            energy_hdu = table_to_hdu(energy_enc)
+            energy_hdu.name = 'ENERGIES'
 
-            hdul = fits.HDUList([primary_hdu, control_hdu, data_hdu, idb_hdu])  # , energy_hdu])
+            hdul = fits.HDUList([primary_hdu, control_hdu, data_hdu, idb_hdu, energy_hdu])
 
             filetowrite = path / filename
             logger.debug(f'Writing fits file to {filetowrite}')
@@ -392,7 +392,7 @@ class FitsL1Processor(FitsL0Processor):
 
         date_range = f'{product.utc_timerange.start.strftime("%Y%m%dT%H%M%S")}_' +\
                      f'{product.utc_timerange.end.strftime("%Y%m%dT%H%M%S")}'
-        if product.type == 'ql' or product.name == 'burst-aspect':
+        if product.type in ['ql', 'hk'] or product.name == 'burst-aspect':
             date_range = product.utc_timerange.center.strftime("%Y%m%d")
 
         return FitsProcessor.generate_filename(product, version=version, date_range=date_range,
@@ -461,12 +461,11 @@ class FitsL1Processor(FitsL0Processor):
                                   for version, range in product.idb_versions.items()],
                                   names=["version", "obt_start", "obt_end"])
 
-            # elow, ehigh = prod.get_energies()
-            #
-            # energies = QTable()
-            # energies['channel'] = range(len(elow))
-            # energies['e_low'] = elow * u.keV
-            # energies['e_high'] = ehigh * u.keV
+            elow, ehigh = prod.get_energies()
+            energies = QTable()
+            energies['channel'] = range(len(elow))
+            energies['e_low'] = elow * u.keV
+            energies['e_high'] = ehigh * u.keV
 
             # Convert time to be relative to start date
             data['time'] = (data['time'] - prod.scet_timerange.start).as_float()
@@ -492,11 +491,11 @@ class FitsL1Processor(FitsL0Processor):
             idb_hdu = table_to_hdu(idb_enc)
             idb_hdu.name = 'IDB_VERSIONS'
 
-            # energy_enc = fits.connect._encode_mixins(energies)
-            # energy_hdu = table_to_hdu(energy_enc)
-            # energy_hdu.name = 'ENERGIES'
+            energy_enc = fits.connect._encode_mixins(energies)
+            energy_hdu = table_to_hdu(energy_enc)
+            energy_hdu.name = 'ENERGIES'
 
-            hdul = fits.HDUList([primary_hdu, control_hdu, data_hdu, idb_hdu])  # , energy_hdu])
+            hdul = fits.HDUList([primary_hdu, control_hdu, data_hdu, idb_hdu, energy_hdu])
 
             filetowrite = path / filename
             logger.debug(f'Writing fits file to {filetowrite}')

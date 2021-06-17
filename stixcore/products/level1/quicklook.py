@@ -122,7 +122,7 @@ class Background(QLProduct):
                 and service_subtype == 6 and ssid == 31)
 
 
-class Specta(QLProduct):
+class Spectra(QLProduct):
     """
     Quick Look Light Curve data product.
     """
@@ -133,11 +133,6 @@ class Specta(QLProduct):
 
         self.name = 'spectra'
         self.level = 'L1'
-
-    def __repr__(self):
-        return f'{self.name}, {self.level}\n' \
-               f'{self.obs_beg}, {self.obs_end}\n ' \
-               f'{len(self.control)}, {len(self.data)}'
 
     @classmethod
     def is_datasource_for(cls,  *, service_type, service_subtype, ssid, **kwargs):

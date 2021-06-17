@@ -14,6 +14,7 @@ from astropy.table.operations import unique
 from stixcore.products.common import (
     _get_compression_scheme,
     _get_detector_mask,
+    _get_energies_from_mask,
     _get_energy_bins,
     _get_pixel_mask,
     _get_sub_spectrum_mask,
@@ -123,21 +124,30 @@ class QLProduct(BaseProduct):
             de = SCETime((((day + 1) * u.day).to_value('s')).astype(int), 0)
             i = np.where((self.data['time'] >= ds) & (self.data['time'] < de))
 
-            data = self.data[i]
-            control_indices = np.unique(data['control_index'])
+            scet_timerange = SCETimeRange(start=ds, end=de)
 
-            control = self.control[np.isin(self.control['index'], control_indices)]
-            # control = control[np.nonzero(control['index'][:, None] == control_indices)[1]]
+            if i[0].size > 0:
+                data = self.data[i]
+                control_indices = np.unique(data['control_index'])
+                control = self.control[np.isin(self.control['index'], control_indices)]
+                control_index_min = control_indices.min()
 
-            control_index_min = control_indices.min()
+                data['control_index'] = data['control_index'] - control_index_min
+                control['index'] = control['index'] - control_index_min
+                yield type(self)(service_type=self.service_type,
+                                 service_subtype=self.service_subtype,
+                                 ssid=self.ssid, control=control, data=data,
+                                 idb_versions=self.idb_versions, scet_timerange=scet_timerange)
 
-            scet_timerange = SCETimeRange(start=data['time'][0], end=data['time'][-1])
+    def get_energies(self):
+        if 'energy_bin_edge_mask' in self.control.colnames:
+            energies = _get_energies_from_mask(self.control['energy_bin_edge_mask'][0])
+        elif 'energy_bin_mask' in self.control.colnames:
+            energies = _get_energies_from_mask(self.control['energy_bin_mask'][0])
+        else:
+            energies = _get_energies_from_mask()
 
-            data['control_index'] = data['control_index'] - control_index_min
-            control['index'] = control['index'] - control_index_min
-            yield type(self)(service_type=self.service_type, service_subtype=self.service_subtype,
-                             ssid=self.ssid, control=control, data=data,
-                             idb_versions=self.idb_versions, scet_timerange=scet_timerange)
+        return energies
 
 
 class LightCurve(QLProduct):

@@ -7,17 +7,17 @@ from stixcore.data.test import test_data
 from stixcore.products.level0 import quicklook as qll0
 from stixcore.products.level1 import quicklook as qll1
 
-testpackets = [(test_data.tmtc.TM_21_6_30, qll0.LightCurve, 'ql-lightcurve',
+testpackets = [(test_data.tmtc.TM_21_6_30, qll0.LightCurve, 'lightcurve',
                 '0659402030f00008', '0659402958f00008', 232),
-               (test_data.tmtc.TM_21_6_31, qll0.Background, 'ql-background',
+               (test_data.tmtc.TM_21_6_31, qll0.Background, 'background',
                 '0659399870f00254', '0659402958f00254', 386),
-               (test_data.tmtc.TM_21_6_32, qll0.Spectra, 'ql-spectra',
+               (test_data.tmtc.TM_21_6_32, qll0.Spectra, 'spectra',
                 '0659399434f00008', '0659402538f00008', 4),
-               (test_data.tmtc.TM_21_6_33, qll0.Variance, 'ql-variance',
+               (test_data.tmtc.TM_21_6_33, qll0.Variance, 'variance',
                 '0659399970f00008', '0659402958f00008', 747),
-               (test_data.tmtc.TM_21_6_34, qll0.FlareFlag, 'ql-flareflag',
+               (test_data.tmtc.TM_21_6_34, qll0.FlareFlag, 'flareflag',
                 '0659400170f00008', '0659402958f00008', 697),
-               (test_data.tmtc.TM_21_6_41_complete, qll0.EnergyCalibration, 'ql-energycalibration',
+               (test_data.tmtc.TM_21_6_41_complete, qll0.EnergyCalibration, 'energy',
                 '0659318520f00000', '0659326919f58981', 1)
                ]
 
@@ -51,12 +51,13 @@ def test_lightcurve(levelb):
     ql_lc_product_l0 = qll0.LightCurve.from_levelb(levelb)
 
     assert ql_lc_product_l0.level == 'L0'
-    assert ql_lc_product_l0.name == 'ql-lightcurve'
+    assert ql_lc_product_l0.name == 'lightcurve'
+    assert ql_lc_product_l0.type == 'ql'
     assert len(ql_lc_product_l0.control) == 1
     assert len(ql_lc_product_l0.data) == ql_lc_product_l0.control['num_samples']
 
     ql_lc_product_l1 = qll1.LightCurve.from_level0(ql_lc_product_l0)
     assert ql_lc_product_l1.level == 'L1'
-    assert ql_lc_product_l1.name == 'ql-lightcurve'
+    assert ql_lc_product_l1.name == 'lightcurve'
     assert len(ql_lc_product_l1.control) == 1
     assert len(ql_lc_product_l1.data) == ql_lc_product_l1.control['num_samples']

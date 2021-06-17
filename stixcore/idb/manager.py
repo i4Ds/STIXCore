@@ -2,13 +2,12 @@ import os
 import re
 import json
 import shutil
+import logging
 import sqlite3
 import zipfile
 import threading
 import urllib.request
 from pathlib import Path
-
-from dateutil import parser as dtparser
 
 from stixcore.idb.idb import IDB
 from stixcore.time import SCETime
@@ -23,22 +22,67 @@ IDB_VERSION_PREFIX = "v"
 IDB_VERSION_DELIM = "."
 IDB_VERSION_HISTORY_FILE = "idbVersionHistory.json"
 
-logger = get_logger(__name__)
+IDB_FORCE_VERSION_KEY = '__FORCE_VERSION__'
+
+logger = get_logger(__name__, level=logging.DEBUG)
 
 
 class IDBManager:
     """Manages IDB (definition of TM/TC packet structures) Versions and provides a IDB reader."""
 
-    def __init__(self, data_root):
+    def __init__(self, data_root, force_version=None):
         """Create the manager for a given data path root.
 
         Parameters
         ----------
         data_root : `str` | `pathlib.Path`
             Path to the directory with all IDB versions
+        force_version : `str` | `pathlib.Path`
+            `pathlib.Path`: Path to a directory with a specific IDB version
+            `str` : Version Label to a IDB version within the data_root directory
         """
-        self.data_root = data_root
         self.idb_cache = dict()
+        self._force_version = None
+        self.data_root = data_root
+        self.force_version = force_version
+
+    @property
+    def force_version(self):
+        """Get the forced IDB version.
+
+        Returns
+        -------
+        `pathlib.Path`
+            path to the IDB directory
+        """
+        return self._force_version
+
+    @force_version.setter
+    def force_version(self, value):
+        """Set a forced IDB version to be used for all processing.
+
+        Parameters
+        ----------
+        force_version : `str` or `pathlib.Path`
+            `pathlib.Path`: Path to a directory with a specific IDB version
+            `str` : Version Label to a IDB version within the data_root directory
+        """
+        idb = None
+        if isinstance(value, str) and self.has_version(value):
+            idb = self.get_idb(value)
+
+        if isinstance(value, Path) and value.exists():
+            idb = IDB(value)
+
+        if idb:
+            if not idb.is_connected():
+                idb._connect_database()
+            self.idb_cache[IDB_FORCE_VERSION_KEY] = idb
+            self._force_version = idb.get_idb_filename()
+        else:
+            if IDB_FORCE_VERSION_KEY in self.idb_cache:
+                del self.idb_cache[IDB_FORCE_VERSION_KEY]
+            self._force_version = None
 
     @property
     def data_root(self):
@@ -69,14 +113,21 @@ class IDBManager:
             with open(self._data_root / IDB_VERSION_HISTORY_FILE) as f:
                 self.history = json.load(f)
                 for item in self.history:
-                    item['validityPeriodUTC'][0] = dtparser.parse(item['validityPeriodUTC'][0])
-                    item['validityPeriodUTC'][1] = dtparser.parse(item['validityPeriodUTC'][1])
                     item['validityPeriodOBT'][0] = SCETime(
                                                     coarse=item['validityPeriodOBT'][0]['coarse'],
                                                     fine=item['validityPeriodOBT'][0]['fine'])
                     item['validityPeriodOBT'][1] = SCETime(
                                                     coarse=item['validityPeriodOBT'][1]['coarse'],
                                                     fine=item['validityPeriodOBT'][1]['fine'])
+                    try:
+                        if not self.has_version(item['version']):
+                            available = self.download_version(item['version'], force=False)
+                            if not available:
+                                raise ValueError('was not able to download IDB version '
+                                                 f'{item["version"]} into {self._data_root}')
+
+                    except EnvironmentError:
+                        pass
 
         except EnvironmentError:
             raise ValueError(f'No IDB version history found at: '
@@ -87,7 +138,7 @@ class IDBManager:
 
         Parameters
         ----------
-        utc : `datetime`, optional
+        obt : `datetime`, optional
             the time point of the IDB operation, by default None
 
         Returns
@@ -108,9 +159,10 @@ class IDBManager:
         logger.error(f"No IDB version found for Time: {obt}")
         return ''
 
-    def download_version(self, version_label, force=False,
-                         url="http://pub099.cs.technik.fhnw.ch/data/idb/"):
-        """Download and installs an IDB version of a public available URL.
+    def compile_version(self, version_label, force=False,
+                        url="http://pub099.cs.technik.fhnw.ch/data/idb/"):
+        """Download compiles and installs an IDB version of a public available URL.
+           Some IDB parameters will be injected to support the raw tw engineering framework.
 
         Parameters
         ----------
@@ -139,14 +191,14 @@ class IDBManager:
             try:
                 Path(self._get_filename_for_version(version_label)).unlink()
             except Exception as e:
-                logger.warn(e)
+                logger.warning(e)
 
         vlabel = (IDB_VERSION_PREFIX + IDBManager.convert_version_label(version_label))
         vdir = self.data_root / vlabel
+
         try:
-            if not vdir.exists():
-                os.mkdir(vdir)
-            urllib.request.urlretrieve(url + vlabel + ".zip", vdir / "idb.zip")
+            vdir.mkdir(parents=True, exist_ok=True)
+            urllib.request.urlretrieve(url + vlabel + ".raw.zip", vdir / "idb.zip")
 
             with zipfile.ZipFile(vdir / "idb.zip", 'r') as zip_ref:
                 zip_ref.extractall(vdir / "raw")
@@ -163,6 +215,60 @@ class IDBManager:
         finally:
             shutil.rmtree(str(vdir / "raw"))
             (vdir / "idb.zip").unlink()
+
+        return self.has_version(version_label)
+
+    def download_version(self, version_label, force=False,
+                         url="http://pub099.cs.technik.fhnw.ch/data/idb/"):
+        """Download and installs an IDB version of a public available URL.
+
+        Parameters
+        ----------
+        version_label : `str` or (`int`, `int`, `int`)
+            a version definition
+        force : `bool`, optional
+            set to True to override the local version, by default False
+        url : `str`, optional
+            public available IDB versions folder, by default
+            "https://nicky.thecrag.com/public/stix/"
+
+        Returns
+        -------
+        `bool`
+            was the download and installation successfully
+
+        Raises
+        ------
+        ValueError
+        """
+        if force is False and self.has_version(version_label):
+            logger.warning(f'IDB version {version_label} already available locally. '
+                           f'Use force=True if you would like to override')
+            return True
+
+        if force:
+            try:
+                Path(self._get_filename_for_version(version_label)).unlink()
+            except Exception as e:
+                logger.warning(e)
+
+        vlabel = (IDB_VERSION_PREFIX + IDBManager.convert_version_label(version_label))
+        vdir = self.data_root / vlabel
+        try:
+            vdir.mkdir(parents=True, exist_ok=True)
+            urllib.request.urlretrieve(url + vlabel + ".zip", vdir / "idb.zip")
+
+            with zipfile.ZipFile(vdir / "idb.zip", 'r') as zip_ref:
+                zip_ref.extractall(vdir)
+
+            shutil.move(vdir / vlabel / "idb.sqlite", vdir / "idb.sqlite")
+
+            (vdir / "idb.zip").unlink()
+            shutil.rmtree(str(vdir / vlabel))
+
+        except Exception as e:
+            logger.error(e)
+            return False
 
         return self.has_version(version_label)
 
@@ -214,8 +320,8 @@ class IDBManager:
 
                             sql = f"insert into {name} values ({qmark})"
                             if num != len(cols):
-                                logger.warn(f"Found inconsistent data in idb files: "
-                                            f"{names} : {cols}")
+                                logger.warning(f"Found inconsistent data in idb files: "
+                                               f"{names} : {cols}")
                             else:
                                 cur.execute(sql, cols)
 
@@ -376,6 +482,11 @@ class IDBManager:
         `~stixcore.idb.idb.IDB`
             reference to a IDB reader
         """
+
+        if self._force_version:
+            logger.warning(f"Use Forced IDB version: {self._force_version}")
+            return self.idb_cache[IDB_FORCE_VERSION_KEY]
+
         if isinstance(obt, SCETime):
             obt_version = self.find_version(obt=obt)
             if self.has_version(obt_version):

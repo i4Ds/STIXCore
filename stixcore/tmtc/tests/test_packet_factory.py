@@ -37,7 +37,7 @@ def idb():
     return IDBManager(test_data.idb.DIR).get_idb("2.26.34")
 
 
-@pytest.fixture()
+@pytest.fixture
 def data_dir():
     return test_data.tmtc.TM_DIR
 

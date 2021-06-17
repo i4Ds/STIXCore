@@ -119,12 +119,9 @@ def raw_to_engineering_product(product, idbm):
     idb_ranges['obt_end'][-1] = SCETime.max_time().as_float()
 
     for col in product.data.colnames:
-        if (not (hasattr(product.data[col], "meta")
-                 and "PCF_CURTX" in product.data[col].meta
-                 and product.data[col].meta["PCF_CURTX"] is not None
-                 and product.data[col].meta["NIXS"] is not None
-                 and hasattr(product, "idb")
-                 )):
+        if not (hasattr(product.data[col], "meta")
+                and product.data[col].meta.get("PCF_CURTX", None) is not None
+                and product.data[col].meta["NIXS"] is not None):
             continue
         col_n += 1
         c = 0
@@ -134,8 +131,8 @@ def raw_to_engineering_product(product, idbm):
 
         for idbversion, starttime, endtime in idb_ranges.iterrows():
             idb = idbm.get_idb(idbversion)
-            idb_time_period = np.where((starttime <= product.data['time']) &
-                                       (product.data['time'] < endtime))[0]
+            idb_time_period = np.where((starttime <= product.data['time'].as_float()) &
+                                       (product.data['time'].as_float() < endtime))[0]
             if len(idb_time_period) < 1:
                 continue
             c += len(idb_time_period)

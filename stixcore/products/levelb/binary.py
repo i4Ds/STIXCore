@@ -44,6 +44,7 @@ class LevelB(BaseProduct):
         self.ssid = ssid
         self.control = control
         self.data = data
+        self.type = ''
 
         # TODO better encapsulated time handling?
         times = [SCETime(c, f) for c, f in self.control[['scet_coarse', 'scet_fine']]]
@@ -80,10 +81,12 @@ class LevelB(BaseProduct):
         if not isinstance(other, type(self)):
             raise TypeError(f'Products must of same type not {type(self)} and {type(other)}')
 
+        # Copy so don't overwrite
         other = other[:]
         other.control['index'] = other.control['index'].data + self.control['index'].data.max() + 1
         other.data['control_index'] = other.data['control_index'] + self.control['index'].max() + 1
 
+        # For level b the control info is used to sort and select
         control = vstack((self.control, other.control))
         control = unique(control, ['scet_coarse', 'scet_fine', 'sequence_count'])
 
@@ -113,8 +116,9 @@ class LevelB(BaseProduct):
             the next `LevelB` objects for another day.
 
         """
+        # TODO reploace with SCETime
         scet = self.control['scet_coarse'] + (self.control['scet_coarse'] / (2**16-1))
-        scet = scet[(self.control['scet_coarse'] >> 31) != 1]
+        # scet = scet[(self.control['scet_coarse'] >> 31) != 1]
         from stixcore.io.fits.processors import SEC_IN_DAY
         days, frac = np.divmod(scet, SEC_IN_DAY)
         days = np.unique(days) * SEC_IN_DAY
@@ -237,6 +241,16 @@ class LevelB(BaseProduct):
             data = Table()
             data['control_index'] = np.array(control['index'], dtype=np.int64)
             data['data'] = hex_data
+
+            control = unique(control, keys=['scet_coarse', 'scet_fine', 'sequence_count'])
+
+            # Only keep data that is in the control table via index
+            data = data[np.nonzero(control['index'][:, None] == data['control_index'])[1]]
+
+            # now reindex both data and control
+            control['index'] = range(len(control))
+            data['control_index'] = control['index']
+
             service_type, service_subtype, ssid = prod_key
             if ssid is not None:
                 control['ssid'] = ssid

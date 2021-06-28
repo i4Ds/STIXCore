@@ -2,6 +2,7 @@ import os
 import re
 import json
 import shutil
+import logging
 import sqlite3
 import zipfile
 import threading
@@ -23,7 +24,7 @@ IDB_VERSION_HISTORY_FILE = "idbVersionHistory.json"
 
 IDB_FORCE_VERSION_KEY = '__FORCE_VERSION__'
 
-logger = get_logger(__name__)
+logger = get_logger(__name__, level=logging.DEBUG)
 
 
 class IDBManager:
@@ -349,6 +350,7 @@ class IDBManager:
                 duration_ms = ("duration in ms", 0, 1, 0, 0, 0)
                 binary_seconds = ("binary seconds", 0, 1.0 / 65535, 0, 0, 0)
 
+                # TODO take IDB version into account
                 for nix, config, unit in [('NIX00269', duration, "s"),
                                           ('NIX00441', duration, "s"),
                                           ('NIX00122', duration, "s"),

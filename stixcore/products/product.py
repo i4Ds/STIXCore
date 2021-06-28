@@ -96,21 +96,30 @@ class ProductFactory(BasicRegistrationFactory):
                 except ValueError:
                     ssid = None
                 level = header.get('Level')
-                timesys = header.get('TIMESYS')
+                header.get('TIMESYS')
                 control = QTable.read(file_path, hdu='CONTROL')
+                # Weird issue where time_stamp wasn't a proper table column?
+                if 'time_stamp' in control.colnames:
+                    ts = control['time_stamp'].value
+                    control.remove_column('time_stamp')
+                    control['time_stamp'] = ts * u.s
                 data = QTable.read(file_path, hdu='DATA')
 
                 scet_timerange = SCETimeRange(start=SCETime.from_string(header.get('OBT_BEG')),
                                               end=SCETime.from_string(header.get('OBT_END')))
 
                 if level != 'LB':
-                    if timesys == 'OBT':
-                        try:
-                            offset = SCETime.from_string(header['OBT_BEG'], sep=':')
-                        except ValueError:
-                            offset = SCETime.from_string(header['OBT_BEG'], sep='f')
-                    elif timesys == 'UTC':
-                        offset = Time(header['DATE_BEG'])
+
+                    data['timedel'] = SCETimeDelta(data['timedel'])
+                    try:
+                        offset = SCETime.from_string(header['OBT_BEG'], sep=':')
+                    except ValueError:
+                        offset = SCETime.from_string(header['OBT_BEG'], sep='f')
+                    try:
+                        control['time_stamp'] = SCETime.from_float(control['time_stamp'])
+                    except KeyError:
+                        pass
+
                     data['time'] = data['time'] + offset
 
                 energies = None
@@ -182,7 +191,9 @@ class Control(QTable, AddParametersMixin):
         # Replicate the start time of each for the number of samples in that packet
         base_coarse, base_fine = zip(*[([ct] * ns, [ft] * ns) for ns, ct, ft in
                                        self[['num_samples', 'scet_coarse', 'scet_fine']]])
-        bases = SCETime(base_coarse[0], base_fine[0])
+        base_coarse = np.hstack(base_coarse)
+        base_fine = np.hstack(base_fine)
+        bases = SCETime(base_coarse, base_fine)
 
         # Create start time for each time bin by multiplying the duration by the sample number
         deltas = SCETimeDelta(np.hstack([(np.arange(ns) * it)
@@ -286,7 +297,7 @@ class ControlSci(QTable, AddParametersMixin):
         else:
             coarse = control['time_stamp']
             fine = 0
-        control['time_stamp'] = [SCETime(c, f).as_float() for c, f in zip(coarse, fine)]
+        control['time_stamp'] = SCETime(coarse, fine)
         try:
             control['num_substructures'] = np.array(packets.get_value('NIX00403'),
                                                     np.int32).reshape(1, -1)

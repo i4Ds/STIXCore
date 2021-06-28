@@ -173,14 +173,19 @@ class EngineeringParameter(Parameter):
         super(EngineeringParameter, self).__init__(name=name, value=value, idb_info=idb_info)
 
         self.unit = unit
+        convert = False
 
-        unit = 'deg_C' if unit == 'degC' else unit
+        if unit == 'degC':
+            unit = 'deg_C'
+            convert = 'K'
 
         if unit is not None and unit != '' and engineering is not None:
             try:
                 engineering = engineering * u.Unit(unit)
+                if convert == 'K':
+                    engineering = engineering.to(convert, equivalencies=u.temperature())
             except ValueError:
-                raise NotImplementedError(f"add unit suport: for {unit}")
+                raise NotImplementedError(f"Add unit support: for {unit}")
 
         self.engineering = engineering
 

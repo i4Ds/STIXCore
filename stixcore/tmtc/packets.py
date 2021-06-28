@@ -245,6 +245,7 @@ class TMPacket(GenericPacket):
         self.idb = idb
         if not idb:
             self.idb = self.idb_manager.get_idb(obt=self.data_header.datetime)
+            # self.idb = self.idb_manager.get_idb('2.26.35')
 
     @property
     def key(self):
@@ -464,6 +465,7 @@ class GenericTMPacket:
 
         if isinstance(self.idb, IDBManager):
             idb = self.idb.get_idb(obt=self.data_header.datetime)
+            # idb = self.idb.get_idb('2.26.35')
 
         packet_info = idb.get_packet_type_info(self.data_header.service_type,
                                                self.data_header.service_subtype,
@@ -509,6 +511,7 @@ class GenericTMPacket:
     def get_idb(self):
         if isinstance(self.idb, IDBManager):
             return self.idb.get_idb(obt=self.data_header.datetime)
+            # return self.idb.get_idb('2.26.35')
         if isinstance(self.idb, IDB):
             return self.idb
         return None

@@ -9,6 +9,8 @@ from stixcore.time import SCETime, SCETimeRange
 
 __all__ = ['MiniReport', 'MaxiReport']
 
+from stixcore.time.datetime import SCETimeDelta
+
 
 class MiniReport(QLProduct):
     """
@@ -43,6 +45,7 @@ class MiniReport(QLProduct):
         # Data
         data = Data()
         data['time'] = times
+        data['timedel'] = SCETimeDelta(0, 0)
         data.add_basic(name='sw_running', nix='NIXD0021', attr='value', packets=packets)
         data.add_basic(name='instrument_number', nix='NIXD0022', attr='value', packets=packets)
         data.add_basic(name='instrument_mode', nix='NIXD0023', attr='value', packets=packets)
@@ -125,6 +128,7 @@ class MaxiReport(QLProduct):
         # Data
         data = Data()
         data['time'] = times
+        data['timedel'] = SCETimeDelta(0, 0)
         data.add_basic(name='sw_running', nix='NIXD0021', packets=packets)
         data.add_basic(name='instrument_number', nix='NIXD0022', packets=packets)
         data.add_basic(name='instrument_mode', nix='NIXD0023', packets=packets)

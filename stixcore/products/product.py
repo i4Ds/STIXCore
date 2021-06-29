@@ -11,6 +11,7 @@ from sunpy.util.datatype_factory_base import (
 
 import astropy.units as u
 from astropy.io import fits
+from astropy.table.operations import unique, vstack
 from astropy.table.table import QTable
 from astropy.time import Time
 
@@ -179,9 +180,6 @@ class ProductFactory(BasicRegistrationFactory):
         return WidgetType
 
 
-Product = ProductFactory(registry=BaseProduct._registry)
-
-
 class Control(QTable, AddParametersMixin):
 
     def __repr__(self):
@@ -315,3 +313,161 @@ class Data(QTable, AddParametersMixin):
     @classmethod
     def from_packets(cls, packets):
         raise NotImplementedError
+
+
+class GP(BaseProduct):
+    def __init__(self, *, service_type, service_subtype, ssid, control, data,
+                 idb_versions=defaultdict(SCETimeRange), **kwargs):
+        """
+        Generic product composed of control and data
+
+        Parameters
+        ----------
+        control : stix_parser.products.quicklook.Control
+            Table containing control information
+        data : stix_parser.products.quicklook.Data
+            Table containing data
+        """
+        self.service_type = service_type
+        self.service_subtype = service_subtype
+        self.ssid = ssid
+        self.type = 'ql'
+        self.control = control
+        self.data = data
+        self.idb_versions = idb_versions
+        self.scet_timerange = kwargs.get('scet_timerange')
+
+    def __add__(self, other):
+        """
+        Combine two products stacking data along columns and removing duplicated data using time as
+        the primary key.
+
+        Parameters
+        ----------
+        other : A subclass of stix_parser.products.quicklook.QLProduct
+
+        Returns
+        -------
+        A subclass of stix_parser.products.quicklook.QLProduct
+            The combined data product
+        """
+        if not isinstance(other, type(self)):
+            raise TypeError(f'Products must of same type not {type(self)} and {type(other)}')
+
+        # TODO reindex and update data control_index
+        other_control = other.control[:]
+        other_data = other.data[:]
+        other_control['index'] = other.control['index'] + self.control['index'].max() + 1
+        control = vstack((self.control, other_control))
+        # control = unique(control, keys=['scet_coarse', 'scet_fine'])
+        # control = control.group_by(['scet_coarse', 'scet_fine'])
+
+        other_data['control_index'] = other.data['control_index'] + self.control['index'].max() + 1
+
+        logger.debug('len self: %d, len other %d', len(self.data), len(other_data))
+
+        data = vstack((self.data, other_data))
+
+        logger.debug('len stacked %d', len(data))
+
+        data['time_float'] = data['time'].as_float()
+
+        data = unique(data, keys=['time_float'])
+
+        logger.debug('len unique %d', len(data))
+
+        data.remove_column('time_float')
+
+        unique_control_inds = np.unique(data['control_index'])
+        control = control[np.nonzero(control['index'][:, None] == unique_control_inds)[1]]
+
+        for idb_key, date_range in other.idb_versions.items():
+            self.idb_versions[idb_key].expand(date_range)
+
+        scet_timerange = SCETimeRange(start=data['time'][0]-data['timedel'][0]/2,
+                                      end=data['time'][-1]+data['timedel'][-1]/2)
+
+        return type(self)(service_type=self.service_type, service_subtype=self.service_subtype,
+                          ssid=self.ssid, control=control, data=data,
+                          idb_versions=self.idb_versions, scet_timerange=scet_timerange)
+
+    def __repr__(self):
+        return f'<{self.__class__.__name__}, {self.scet_timerange.start} to ' \
+               f'{self.scet_timerange.start}, {len(self.control)}, {len(self.data)}>'
+
+    def to_days(self):
+        start_day = int((self.scet_timerange.start.as_float() / u.d).decompose().value)
+        end_day = int((self.scet_timerange.end.as_float() / u.d).decompose().value)
+        if start_day == end_day:
+            end_day += 1
+        days = range(start_day, end_day)
+        # days = set([(t.year, t.month, t.day) for t in self.data['time'].to_datetime()])
+        # date_ranges = [(datetime(*day), datetime(*day) + timedelta(days=1)) for day in days]
+        for day in days:
+            ds = SCETime(((day * u.day).to_value('s')).astype(int), 0)
+            de = SCETime((((day + 1) * u.day).to_value('s')).astype(int), 0)
+            i = np.where((self.data['time'] >= ds) & (self.data['time'] < de))
+
+            scet_timerange = SCETimeRange(start=ds, end=de)
+
+            if i[0].size > 0:
+                data = self.data[i]
+                control_indices = np.unique(data['control_index'])
+                control = self.control[np.isin(self.control['index'], control_indices)]
+                control_index_min = control_indices.min()
+
+                data['control_index'] = data['control_index'] - control_index_min
+                control['index'] = control['index'] - control_index_min
+                yield type(self)(service_type=self.service_type,
+                                 service_subtype=self.service_subtype,
+                                 ssid=self.ssid, control=control, data=data,
+                                 idb_versions=self.idb_versions, scet_timerange=scet_timerange)
+
+
+class GenericProduct(GP):
+    """
+    Mini house keeping reported during start up of the flight software.
+    """
+    def __init__(self, *, service_type, service_subtype, ssid, control, data,
+                 idb_versions=defaultdict(SCETimeRange), **kwargs):
+        super().__init__(service_type=service_type, service_subtype=service_subtype,
+                         ssid=ssid, control=control, data=data, idb_versions=idb_versions, **kwargs)
+        self.name = f'{service_subtype}-{ssid}' if ssid else f'{service_subtype}'
+        self.level = 'L0'
+        self.type = f'{service_type}'
+
+    @classmethod
+    def from_levelb(cls, levelb):
+        packets, idb_versions = super().from_levelb(levelb)
+
+        service_type = packets.get('service_type')[0]
+        service_subtype = packets.get('service_subtype')[0]
+        ssid = packets.get('pi1_val')[0]
+
+        control = Control()
+        control['scet_coarse'] = packets.get('scet_coarse')
+        control['scet_fine'] = packets.get('scet_fine')
+        control['integration_time'] = 0
+        control['index'] = range(len(control))
+
+        # Create array of times as dt from date_obs
+        times = SCETime(control['scet_coarse'], control['scet_fine'])
+        scet_timerange = SCETimeRange(start=times[0], end=times[-1])
+
+        # Data
+        data = Data()
+        data['time'] = times
+        data['timedel'] = SCETimeDelta(0, 0)
+
+        for nix, param in packets.data[0].__dict__.items():
+            name = param.idb_info.PCF_DESCR.upper().replace(' ', '_')
+            data.add_basic(name=name, nix=nix, attr='value', packets=packets)
+
+        data['control_index'] = range(len(control))
+
+        return cls(service_type=service_type, service_subtype=service_subtype, ssid=ssid,
+                   control=control, data=data, idb_versions=idb_versions,
+                   scet_timerange=scet_timerange)
+
+
+Product = ProductFactory(registry=BaseProduct._registry, default_widget_type=GenericProduct)

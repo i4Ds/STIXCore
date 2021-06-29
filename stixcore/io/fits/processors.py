@@ -274,12 +274,6 @@ class FitsL0Processor:
                                   for version, range in product.idb_versions.items()],
                                   names=["version", "obt_start", "obt_end"])
 
-            elow, ehigh = prod.get_energies()
-            energies = QTable()
-            energies['channel'] = range(len(elow))
-            energies['e_low'] = elow * u.keV
-            energies['e_high'] = ehigh * u.keV
-
             # Convert time to be relative to start date
             data['time'] = (data['time'] - prod.scet_timerange.start).as_float()
             data['timedel'] = data['timedel'].as_float()
@@ -304,11 +298,21 @@ class FitsL0Processor:
             idb_hdu = table_to_hdu(idb_enc)
             idb_hdu.name = 'IDB_VERSIONS'
 
-            energy_enc = fits.connect._encode_mixins(energies)
-            energy_hdu = table_to_hdu(energy_enc)
-            energy_hdu.name = 'ENERGIES'
+            hdul = [primary_hdu, control_hdu, data_hdu, idb_hdu]
 
-            hdul = fits.HDUList([primary_hdu, control_hdu, data_hdu, idb_hdu, energy_hdu])
+            if getattr(prod, 'get_energies', False) is not False:
+                elow, ehigh = prod.get_energies()
+                energies = QTable()
+                energies['channel'] = range(len(elow))
+                energies['e_low'] = elow * u.keV
+                energies['e_high'] = ehigh * u.keV
+
+                energy_enc = fits.connect._encode_mixins(energies)
+                energy_hdu = table_to_hdu(energy_enc)
+                energy_hdu.name = 'ENERGIES'
+                hdul.append((energy_hdu))
+
+            hdul = fits.HDUList(hdul)
 
             filetowrite = path / filename
             logger.debug(f'Writing fits file to {filetowrite}')
@@ -336,7 +340,7 @@ class FitsL0Processor:
             The filename
         """
 
-        if product.type in {'ql', 'hk'} or product.name == 'burst-aspect':
+        if product.type != 'sci' or product.name == 'burst-aspect':
             date_range = f'{(product.scet_timerange.avg.coarse // (24 * 60 * 60) ) *24*60* 60:010d}'
         else:
             start_obs = product.scet_timerange.start.to_string(sep='f')

@@ -39,7 +39,7 @@ class Level0:
         for tm_type, files in tm.items():
 
             # Stand alane packet data
-            if tm_type[0] in {3, 21} and tm_type[-1] in {1, 2, 30, 31, 32, 33, 34}:
+            if tm_type[0] != 21 and tm_type[-1] not in {20, 21, 22, 23, 24}:
                 for file in files:
                     levelb = Product(file)
                     tmp = Product._check_registered_widget(
@@ -110,8 +110,8 @@ class Level0:
 if __name__ == '__main__':
     tstart = perf_counter()
 
-    fits_path = Path('/home/shane/fits_210617/LB')
-    bd = Path('/home/shane/fits_210617')
+    fits_path = Path('/home/shane/fits181/LB/5')
+    bd = Path('/home/shane/fits181')
 
     l0processor = Level0(fits_path, bd)
     l0_files = l0processor.process_fits_files()

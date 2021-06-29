@@ -31,8 +31,10 @@ logger = get_logger(__name__)
 
 
 class AddParametersMixin:
-    def add_basic(self, *, name, nix, packets, attr=None, dtype=None):
+    def add_basic(self, *, name, nix, packets, attr=None, dtype=None, reshape=False):
         value = packets.get_value(nix, attr=attr)
+        if reshape is True:
+            value = value.reshape(1, -1)
         self[name] = value if dtype is None else value.astype(dtype)
         self.add_meta(name=name, nix=nix, packets=packets, add_curtx=(attr == "value"))
 
@@ -461,7 +463,7 @@ class GenericProduct(GP):
 
         for nix, param in packets.data[0].__dict__.items():
             name = param.idb_info.PCF_DESCR.upper().replace(' ', '_')
-            data.add_basic(name=name, nix=nix, attr='value', packets=packets)
+            data.add_basic(name=name, nix=nix, attr='value', packets=packets, reshape=True)
 
         data['control_index'] = range(len(control))
 

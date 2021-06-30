@@ -110,7 +110,7 @@ class Level0:
 if __name__ == '__main__':
     tstart = perf_counter()
 
-    fits_path = Path('/home/shane/fits181/LB/5')
+    fits_path = Path('/home/shane/fits181/LB')
     bd = Path('/home/shane/fits181')
 
     l0processor = Level0(fits_path, bd)

@@ -254,8 +254,9 @@ class FitsL0Processor:
             filename = self.generate_filename(product=prod, version=1)
             # start_day = np.floor((prod.obs_beg.as_float()
             #                       // (1 * u.day).to('s')).value * SEC_IN_DAY).astype(int)
-            parts = [prod.level, prod.service_type, prod.service_subtype,
-                     prod.ssid]
+            parts = [prod.level, prod.service_type, prod.service_subtype]
+            if prod.ssid is not None:
+                parts.append(prod.ssid)
             path = self.archive_path.joinpath(*[str(x) for x in parts])
             path.mkdir(parents=True, exist_ok=True)
 
@@ -465,12 +466,6 @@ class FitsL1Processor(FitsL0Processor):
                                   for version, range in product.idb_versions.items()],
                                   names=["version", "obt_start", "obt_end"])
 
-            elow, ehigh = prod.get_energies()
-            energies = QTable()
-            energies['channel'] = range(len(elow))
-            energies['e_low'] = elow * u.keV
-            energies['e_high'] = ehigh * u.keV
-
             # Convert time to be relative to start date
             data['time'] = (data['time'] - prod.scet_timerange.start).as_float()
             data['timedel'] = data['timedel'].as_float()
@@ -495,11 +490,21 @@ class FitsL1Processor(FitsL0Processor):
             idb_hdu = table_to_hdu(idb_enc)
             idb_hdu.name = 'IDB_VERSIONS'
 
-            energy_enc = fits.connect._encode_mixins(energies)
-            energy_hdu = table_to_hdu(energy_enc)
-            energy_hdu.name = 'ENERGIES'
+            hdus = [primary_hdu, control_hdu, data_hdu, idb_hdu]
 
-            hdul = fits.HDUList([primary_hdu, control_hdu, data_hdu, idb_hdu, energy_hdu])
+            if getattr(prod, 'get_energies', False) is not False:
+                elow, ehigh = prod.get_energies()
+                energies = QTable()
+                energies['channel'] = range(len(elow))
+                energies['e_low'] = elow * u.keV
+                energies['e_high'] = ehigh * u.keV
+
+                energy_enc = fits.connect._encode_mixins(energies)
+                energy_hdu = table_to_hdu(energy_enc)
+                energy_hdu.name = 'ENERGIES'
+                hdus.append(energy_hdu)
+
+            hdul = fits.HDUList(hdus)
 
             filetowrite = path / filename
             logger.debug(f'Writing fits file to {filetowrite}')

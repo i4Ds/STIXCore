@@ -19,7 +19,7 @@ import stixcore.processing.decompression as decompression
 import stixcore.processing.engineering as engineering
 from stixcore.time import SCETime, SCETimeDelta, SCETimeRange
 from stixcore.tmtc.packet_factory import Packet
-from stixcore.tmtc.packets import PacketSequence
+from stixcore.tmtc.packets import GenericPacket, PacketSequence
 
 __all__ = ['BaseProduct', 'ProductFactory', 'Product', 'ControlSci', 'Control', 'Data']
 
@@ -420,16 +420,33 @@ class GP(BaseProduct):
 
                 data['control_index'] = data['control_index'] - control_index_min
                 control['index'] = control['index'] - control_index_min
-                yield type(self)(service_type=self.service_type,
+
+                out = type(self)(service_type=self.service_type,
                                  service_subtype=self.service_subtype,
                                  ssid=self.ssid, control=control, data=data,
                                  idb_versions=self.idb_versions, scet_timerange=scet_timerange)
+                out.level = self.level
+                yield out
 
 
 class GenericProduct(GP):
     """
     Mini house keeping reported during start up of the flight software.
     """
+    service_name_map = {
+        1: 'tc-verify',
+        5: 'events',
+        6: 'memory',
+        9: 'time',
+        17: 'conn-test',
+        20: 'info-dist',
+        22: 'context',
+        236: 'config',
+        237: 'params',
+        238: 'archive',
+        239: 'diagnostics'
+    }
+
     def __init__(self, *, service_type, service_subtype, ssid, control, data,
                  idb_versions=defaultdict(SCETimeRange), **kwargs):
         super().__init__(service_type=service_type, service_subtype=service_subtype,
@@ -437,6 +454,10 @@ class GenericProduct(GP):
         self.name = f'{service_subtype}-{ssid}' if ssid else f'{service_subtype}'
         self.level = 'L0'
         self.type = f'{service_type}'
+
+    @property
+    def utc_timerange(self):
+        return self.scet_timerange.to_timerange()
 
     @classmethod
     def from_levelb(cls, levelb):
@@ -461,15 +482,32 @@ class GenericProduct(GP):
         data['time'] = times
         data['timedel'] = SCETimeDelta(0, 0)
 
+        reshape = True if {'NIX00103', 'NIX00104'}.intersection(
+            packets.data[0].__dict__.keys()) else False
         for nix, param in packets.data[0].__dict__.items():
+
             name = param.idb_info.PCF_DESCR.upper().replace(' ', '_')
-            data.add_basic(name=name, nix=nix, attr='value', packets=packets, reshape=True)
+            data.add_basic(name=name, nix=nix, attr='value', packets=packets, reshape=reshape)
 
         data['control_index'] = range(len(control))
 
         return cls(service_type=service_type, service_subtype=service_subtype, ssid=ssid,
                    control=control, data=data, idb_versions=idb_versions,
                    scet_timerange=scet_timerange)
+
+    @classmethod
+    def from_level0(cls, l0product, idbm=GenericPacket.idb_manager):
+        l1 = cls(service_type=l0product.service_type,
+                 service_subtype=l0product.service_subtype,
+                 ssid=l0product.ssid,
+                 control=l0product.control,
+                 data=l0product.data,
+                 idb_versions=l0product.idb_versions,
+                 scet_timerange=l0product.scet_timerange)
+
+        engineering.raw_to_engineering_product(l1, idbm)
+        l1.level = 'L1'
+        return l1
 
 
 Product = ProductFactory(registry=BaseProduct._registry, default_widget_type=GenericProduct)

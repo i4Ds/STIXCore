@@ -1,4 +1,3 @@
-import os
 import logging
 from time import perf_counter
 from pathlib import Path
@@ -18,15 +17,16 @@ class Level0:
     def __init__(self, source_dir, output_dir):
         self.source_dir = Path(source_dir)
         self.output_dir = Path(output_dir)
-        self.levelb_files = sorted(list(self.source_dir.rglob('*.fits')),  key=os.path.getctime)
-        self.processor = FitsL0Processor(output_dir)
+        self.levelb_files = sorted(list(self.source_dir.rglob('*.fits')))
+        self.processor = FitsL0Processor(self.output_dir)
 
-    def process_fits_files(self):
+    def process_fits_files(self, files=None):
         all_files = []
         tm = defaultdict(list)
-
+        if files is None:
+            files = self.levelb_files
         # Create list of file by type
-        for file in sorted(self.levelb_files):
+        for file in files:
             mission, level, identifier, *_ = file.name.split('_')
             tm_type = tuple(map(int, identifier.split('-')[1:]))
             # if tm_type[-1] not in {20, 21, 22, 23, 24} and tm_type[0] == 21:  # TODO Fix 43
@@ -83,7 +83,7 @@ class Level0:
                                 logger.error('Error processing file %s for %s, %s, %s', file,
                                              comp.service_type, comp.service_subtype, comp.ssid)
                                 logger.error('%s', e)
-                                # raise e
+                                raise e
                         complete = []
                     try:
                         last_incomplete = last_incomplete[0] + incomplete[0]

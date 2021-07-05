@@ -10,3 +10,4 @@ This is the documentation for STIXCore.
    users
    developers
    code_ref/index
+   pipelineconfiguration

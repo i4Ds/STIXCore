@@ -2,9 +2,11 @@ import csv
 
 import numpy as np
 
+from astropy.table import Table
+
 from stixcore.config.data_types import EnergyChannel
 
-__all__ = ['read_energy_channels']
+__all__ = ['read_energy_channels', 'read_subc_params']
 
 
 def float_def(value, default=np.inf):
@@ -83,3 +85,19 @@ def read_energy_channels(path):
             )
 
     return energy_channels
+
+
+def read_subc_params(path):
+    """Read the configuration of the sub-collimator from the configuration file.
+
+    Parameters
+    ----------
+    path : `pathlib.Path`
+        path to the config file
+
+    Returns
+    -------
+    `Table`
+        params for all 32 sub-collimators
+    """
+    return Table.read(path, format='ascii')

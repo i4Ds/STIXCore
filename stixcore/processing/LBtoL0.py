@@ -32,6 +32,9 @@ class Level0:
             # if tm_type[-1] not in {20, 21, 22, 23, 24} and tm_type[0] == 21:  # TODO Fix 43
             tm[tm_type].append(file)
 
+        # Need to fix not standard time axis
+        del tm[(21, 6, 43)]
+
         # For each type
         for tm_type, files in tm.items():
 

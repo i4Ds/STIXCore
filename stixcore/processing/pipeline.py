@@ -35,7 +35,7 @@ class TMTCFileHandler(FileSystemEventHandler):
         Parameters
         ----------
         func : `callable`
-            The method to call when new TM is received
+            The method to call when new TM is received with the path to the file as the argument
         """
         if not callable(func):
             raise TypeError('func must be a callable')

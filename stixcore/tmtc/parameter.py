@@ -152,9 +152,9 @@ class EngineeringParameter(Parameter):
 
     Attributes
     ----------
-    value : `int`|`list`
+    value : `int` | `list`
         The original or raw values before the calibration.
-    engineering : `int`|`list`
+    engineering : `int` | `list`
         The Engineering values.
     unit : `str`
         The unit for the engineering values
@@ -165,9 +165,9 @@ class EngineeringParameter(Parameter):
 
         Parameters
         ----------
-        value : `int`|`list`
+        value : `int` | `list`
             The raw values.
-        engineering : `int`|`list`
+        engineering : `int` | `list`
             The engineering values.
         """
         super(EngineeringParameter, self).__init__(name=name, value=value, idb_info=idb_info)
@@ -203,9 +203,9 @@ class CompressedParameter(Parameter):
 
     Attributes
     ----------
-    decompressed : `int`|`list`
+    decompressed : `int` | `list`
         The decompressed values.
-    error : `int`|`list`
+    error : `int` | `list`
         The estimated error of the decompression.
     skm : `tuple`
         (s, k, m) settings for the decompression algorithm.
@@ -216,11 +216,11 @@ class CompressedParameter(Parameter):
 
         Parameters
         ----------
-        value : `int`|`list`
+        value : `int` | `list`
             The compressed values.
-        decompressed : `int`|`list`
+        decompressed : `int` | `list`
             The decompressed values.
-        error : `int`|`list`
+        error : `int` | `list`
             The estimated error of the decompression.
         skm : `numpy.array`
             [s, k, m] settings for the decompression algorithm.

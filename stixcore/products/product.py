@@ -317,7 +317,7 @@ class Data(QTable, AddParametersMixin):
         raise NotImplementedError
 
 
-class GP(BaseProduct):
+class GenericProduct(BaseProduct):
     def __init__(self, *, service_type, service_subtype, ssid, control, data,
                  idb_versions=defaultdict(SCETimeRange), **kwargs):
         """
@@ -429,7 +429,7 @@ class GP(BaseProduct):
                 yield out
 
 
-class GenericProduct(GP):
+class DefaultProduct(GenericProduct):
     """
     Mini house keeping reported during start up of the flight software.
     """
@@ -453,7 +453,7 @@ class GenericProduct(GP):
                          ssid=ssid, control=control, data=data, idb_versions=idb_versions, **kwargs)
         self.name = f'{service_subtype}-{ssid}' if ssid else f'{service_subtype}'
         self.level = 'L0'
-        self.type = f'{service_type}'
+        self.type = f'{self.service_name_map[service_type]}'
 
     @property
     def utc_timerange(self):
@@ -510,4 +510,4 @@ class GenericProduct(GP):
         return l1
 
 
-Product = ProductFactory(registry=BaseProduct._registry, default_widget_type=GenericProduct)
+Product = ProductFactory(registry=BaseProduct._registry, default_widget_type=DefaultProduct)

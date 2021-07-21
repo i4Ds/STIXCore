@@ -2,7 +2,7 @@ from collections import defaultdict
 
 import astropy.units as u
 
-__all__ = ['Parameter']
+__all__ = ['Parameter', 'EngineeringParameter', 'CompressedParameter']
 
 
 class Parameter:

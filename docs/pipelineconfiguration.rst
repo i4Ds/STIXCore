@@ -39,11 +39,13 @@ SOC TM data is synced from pub026 via rsync by cron every 10min.
 
 allready procced files should by appended to `/data/stix/SOC/processed_files.txt` and can then be removed from the `/incoming` folder.
 
-GDL
----
+GDL - GNU Data Language
+-----------------------
 
-GNU Data Language
 Version 0.9.9
+
 Install: https://www.scivision.dev/gdl-setup-with-astronomy-library-open-source-idl-replacement/
+
 start as user `stixcore`
-cml example: > gdl -e "a = fitstest()"
+
+cml example: `> gdl -e "a = fitstest()"`

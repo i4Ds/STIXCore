@@ -3,6 +3,7 @@ import re
 import logging
 import tempfile
 import functools
+from enum import Enum
 from pathlib import Path
 from textwrap import wrap
 
@@ -19,13 +20,57 @@ SOLAR_ORBITER_SRF_FRAME_ID = -144000
 SOLAR_ORBITER_STIX_ILS_FRAME_ID = -144851
 SOLAR_ORBITER_STIX_OPT_FRAME_D = -144852
 
-__all__ = ['SpiceManager', 'Time', 'Position']
+__all__ = ['SpiceKernelLoader', 'Time', 'Position', 'SpiceKernelManager', 'SpiceKernelType']
 
 logger = get_logger(__name__)
 logger.setLevel(logging.DEBUG)
 
 
-class SpiceManager:
+class SpiceKernelType(Enum):
+    CK = 'ck', "*.*"
+    FK = 'fk', "*.*"
+    IK = 'ik', "*.*"
+    LSK = 'lsk', "naif*.tls"
+    MK = 'mk', "solo_ANC_soc-flown-mk_*.tm"
+    MK_PRED = 'mk', "solo_ANC_soc-pred-mk_*.tm"
+    PCK = 'pck', "*.*"
+    SCLK = 'sclk', "solo_ANC_soc-sclk_*.tsc"
+    SPK = 'spk', "*.*"
+
+
+class SpiceKernelManager:
+
+    def __init__(self, path):
+
+        path = Path(path)
+        if not path.exists():
+            raise ValueError(f'path not found: {path}')
+        self.path = path
+
+    def _get_latest(self, kerneltype):
+        subdir, filter = kerneltype.value
+        path = self.path / str(subdir)
+        files = sorted(list(path.glob(filter)), key=os.path.basename)
+
+        if len(files) == 0:
+            raise ValueError(f'No current kernel found at: {path}')
+
+        return files[-1]
+
+    def get_latest_sclk(self):
+        return self._get_latest(SpiceKernelType.SCLK)
+
+    def get_latest_lsk(self):
+        return self._get_latest(SpiceKernelType.LSK)
+
+    def get_latest_mk(self):
+        return self._get_latest(SpiceKernelType.MK)
+
+    def get_latest(self, kerneltype):
+        return self._get_latest(kerneltype)
+
+
+class SpiceKernelLoader:
     """
     A context manager to ensure kernels are loaded and unloaded properly before and after use.
     """
@@ -109,11 +154,11 @@ class SpiceManager:
 class NotInSpiceContext(Exception):
     """
     Raised when a function decorated with `spice_context` decorator is called out side a
-    `SpiceManager` context.
+    `SpiceKernelLoader` context.
     """
 
 
-class Time(SpiceManager):
+class Time(SpiceKernelLoader):
     """
     Convert between spacecraft elapsed times (SCET), UTC strings and datetime objects
 
@@ -127,7 +172,7 @@ class Time(SpiceManager):
     '2019-10-24 13:01:50.672974+00:00'
 
     """
-    spice_context = SpiceManager.spice_context
+    spice_context = SpiceKernelLoader.spice_context
 
     @spice_context
     def scet_to_utc(self, scet):
@@ -220,7 +265,7 @@ class Time(SpiceManager):
         return scet
 
 
-class Position(SpiceManager):
+class Position(SpiceKernelLoader):
     """
     Obtain spacecraft position and orientation, convert to and from instrument coordinate system
 
@@ -237,7 +282,7 @@ class Position(SpiceManager):
     <Quantity 1.05385302e+08 km>,
     <Quantity 44917232.72028707 km>)
     """
-    spice_context = SpiceManager.spice_context
+    spice_context = SpiceKernelLoader.spice_context
 
     @spice_context
     def get_position(self, *, date, frame):

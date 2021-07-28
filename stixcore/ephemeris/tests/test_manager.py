@@ -1,3 +1,4 @@
+import os
 from unittest import mock
 
 import pytest
@@ -78,3 +79,12 @@ def test_manager_get_latest(spicekernelmanager):
     with pytest.raises(ValueError) as e:
         spicekernelmanager.get_latest(SpiceKernelType.FK)
     assert str(e.value).startswith('No current kernel found')
+
+
+def test_manager_environment(spicekernelmanager):
+    assert str(spicekernelmanager.path) == os.environ.get("STIX_PROCESSING_SPICE_DIR", "")
+    latest_mk = spicekernelmanager.get_latest(SpiceKernelType.MK)
+    assert os.environ.get("STIX_PROCESSING_SPICE_MK", "") == ""
+
+    latest_mk = spicekernelmanager.get_latest(SpiceKernelType.MK, setenvironment=True)
+    assert str(latest_mk) == os.environ.get("STIX_PROCESSING_SPICE_MK", "")

@@ -27,27 +27,62 @@ logger.setLevel(logging.DEBUG)
 
 
 class SpiceKernelType(Enum):
+    """Different Spice Kernel types."""
     CK = 'ck', "*.*"
+    """Kernels that contain orientation for the spacecraft and some of its
+    structures, (solar arrays, for instance)"""
+
     FK = 'fk', "*.*"
+    """Kernels that define reference frames needed for the Mission."""
+
     IK = 'ik', "*.*"
+    """Kernels for the instruments on board the spacecraft."""
+
     LSK = 'lsk', "naif*.tls"
+    """Leapseconds kernel."""
+
     MK = 'mk', "solo_ANC_soc-flown-mk_*.tm"
+    """Meta-kernel files (a.k.a "furnsh" files) that provide lists of kernels
+    suitable for a given mission period."""
+
     MK_PRED = 'mk', "solo_ANC_soc-pred-mk_*.tm"
+    """TODO"""
+
     PCK = 'pck', "*.*"
+    """Kernels that define planetary constants."""
+
     SCLK = 'sclk', "solo_ANC_soc-sclk_*.tsc"
+    """Spacecraft clock coefficients kernels."""
+
     SPK = 'spk', "*.*"
+    """Orbit kernels, for the spacecraft and other solar system bodies."""
 
 
 class SpiceKernelManager:
+    """A class to manage Spice kernels in the local file system."""
 
     def __init__(self, path):
+        """Creates a new SpiceKernelManager and also sets the system
+        environment variable 'STIX_PROCESSING_SPICE_DIR'
 
+        Parameters
+        ----------
+        path : `str` | `path`
+            path to the base directory with all availabele Spice kernels
+
+        Raises
+        ------
+        ValueError
+            Path does not exists
+        """
         path = Path(path)
         if not path.exists():
             raise ValueError(f'path not found: {path}')
         self.path = path
 
-    def _get_latest(self, kerneltype):
+        os.environ["STIX_PROCESSING_SPICE_DIR"] = str(path)
+
+    def _get_latest(self, kerneltype, *, setenvironment=False):
         subdir, filter = kerneltype.value
         path = self.path / str(subdir)
         files = sorted(list(path.glob(filter)), key=os.path.basename)
@@ -55,28 +90,44 @@ class SpiceKernelManager:
         if len(files) == 0:
             raise ValueError(f'No current kernel found at: {path}')
 
+        if setenvironment:
+            os.environ[f"STIX_PROCESSING_SPICE_{subdir.upper()}"] = str(files[-1])
+
         return files[-1]
 
-    def get_latest_sclk(self):
+    def get_latest_sclk(self, *, setenvironment=False):
         return self._get_latest(SpiceKernelType.SCLK)
 
-    def get_latest_lsk(self):
+    def get_latest_lsk(self, *, setenvironment=False):
         return self._get_latest(SpiceKernelType.LSK)
 
-    def get_latest_mk(self):
+    def get_latest_mk(self, *, setenvironment=False):
         return self._get_latest(SpiceKernelType.MK)
 
-    def get_latest(self, kerneltype):
-        return self._get_latest(kerneltype)
+    def get_latest(self, kerneltype=SpiceKernelType.MK, *, setenvironment=False):
+        """Finds the latest version of the spice kernel.
+
+        Parameters
+        ----------
+        kerneltype : `SpiceKernelType`, optional
+            the spice kernel type to looking for, by default SpiceKernelType.MK
+        setenvironment : bool, optional
+            also sets an environment variable to the latest found kernel file.
+            Name: 'STIX_PROCESSING_SPICE_[kernel type]', by default False
+
+        Returns
+        -------
+        `Path`
+            Path to the latest found spice kernel file of the given type.
+        """
+        return self._get_latest(kerneltype, setenvironment=setenvironment)
 
 
 class SpiceKernelLoader:
-    """
-    A context manager to ensure kernels are loaded and unloaded properly before and after use.
-    """
+    """A context manager to ensure kernels are loaded and unloaded properly before and after use."""
+
     def __init__(self, meta_kernel_path):
-        """
-        Create an instance loading the spice kernel in the given meta kernel file
+        """Create an instance loading the spice kernel in the given meta kernel file.
 
         Parameters
         ----------
@@ -119,9 +170,8 @@ class SpiceKernelLoader:
         self.__spice_context_manager = False
 
     def spice_context(func):
-        """
-        A decorator to ensure functions are executed within the context manager.
-        """
+        """A decorator to ensure functions are executed within the context manager."""
+
         @functools.wraps(func)
         def wrapper(self, *args, **kwargs):
             if not self.__spice_context_manager:
@@ -131,8 +181,7 @@ class SpiceKernelLoader:
 
     @staticmethod
     def _wrap_value_field(field):
-        r"""
-        Wrap a value field according to SPICE meta kernal spec
+        """Wrap a value field according to SPICE meta kernel spec.
 
         Parameters
         ----------
@@ -152,15 +201,12 @@ class SpiceKernelLoader:
 
 
 class NotInSpiceContext(Exception):
-    """
-    Raised when a function decorated with `spice_context` decorator is called out side a
-    `SpiceKernelLoader` context.
-    """
+    """Raised when a function decorated with `spice_context` decorator is called out side a
+    `SpiceKernelLoader` context."""
 
 
 class Time(SpiceKernelLoader):
-    """
-    Convert between spacecraft elapsed times (SCET), UTC strings and datetime objects
+    """Convert between spacecraft elapsed times (SCET), UTC strings and datetime objects.
 
     Examples
     --------
@@ -170,8 +216,8 @@ class Time(SpiceKernelLoader):
     ...     converted = time.scet_to_datetime('625237315:44104')
     >>> str(converted)
     '2019-10-24 13:01:50.672974+00:00'
-
     """
+
     spice_context = SpiceKernelLoader.spice_context
 
     @spice_context

@@ -48,4 +48,4 @@ Install: https://www.scivision.dev/gdl-setup-with-astronomy-library-open-source-
 
 start as user `stixcore`
 
-cml example: `> gdl -e "a = fitstest()"`
+cmd example: `> gdl -e "a = fitstest()"`

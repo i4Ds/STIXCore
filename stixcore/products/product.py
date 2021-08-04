@@ -431,7 +431,7 @@ class GenericProduct(BaseProduct):
 
 class DefaultProduct(GenericProduct):
     """
-    Mini house keeping reported during start up of the flight software.
+    Default product use when not QL or BSD.
     """
     service_name_map = {
         1: 'tc-verify',
@@ -482,8 +482,10 @@ class DefaultProduct(GenericProduct):
         data['time'] = times
         data['timedel'] = SCETimeDelta(0, 0)
 
-        reshape = True if {'NIX00103', 'NIX00104'}.intersection(
-            packets.data[0].__dict__.keys()) else False
+        reshape_nixs = {'NIX00103', 'NIX00104'}
+        reshape = False
+        if reshape_nixs.intersection(packets.data[0].__dict__.keys()):
+            reshape = True
         for nix, param in packets.data[0].__dict__.items():
 
             name = param.idb_info.PCF_DESCR.upper().replace(' ', '_')

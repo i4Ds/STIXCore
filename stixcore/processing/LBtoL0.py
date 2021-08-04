@@ -38,7 +38,7 @@ class Level0:
         # For each type
         for tm_type, files in tm.items():
 
-            # Stand alane packet data
+            # Stand alone packet data
             if tm_type[0] != 21 and tm_type[-1] not in {20, 21, 22, 23, 24}:
                 for file in files:
                     levelb = Product(file)

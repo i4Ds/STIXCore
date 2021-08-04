@@ -11,14 +11,14 @@
                 "version":"2.26.34",
                 "aswVersion":179,
                 "validityPeriodUTC":["2020-05-18T09:12:54", "2022-01-01T00:00:00"],
-                "validityPeriodOBT":[{"coarse":642159994, "fine":0}, {"coarse":694310300, "fine":0}]
+                "validityPeriodOBT":[{"coarse":642159994, "fine":0}, {"coarse":677766880, "fine":0}]
         },
         {
                 "version":"2.26.35",
                 "aswVersion":181,
                 "comment": "return this for the next future",
                 "validityPeriodUTC":["2022-01-01T00:00:00", "2030-01-01T00:00:00"],
-                "validityPeriodOBT":[{"coarse":694310300, "fine":0}, {"coarse":4294967295, "fine":0}]
+                "validityPeriodOBT":[{"coarse":677766880, "fine":0}, {"coarse":4294967295, "fine":0}]
 
         }
 ]

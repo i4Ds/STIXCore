@@ -15,7 +15,6 @@ from astropy.utils.data_info import MixinInfo
 from stixcore.data.test import test_data
 from stixcore.ephemeris.manager import Time as SpiceTime
 
-
 SPICE_TIME = SpiceTime(meta_kernel_path=test_data.ephemeris.META_KERNEL_TIME)
 
 __all__ = ['SCETBase', 'SCETime', 'SCETimeDelta', 'SCETimeRange']

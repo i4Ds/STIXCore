@@ -18,9 +18,12 @@ class Level1:
         self.level0_files = sorted(list(self.source_dir.rglob('*.fits')))
         self.processor = FitsL1Processor(self.output_dir)
 
-    def process_fits_files(self):
+    def process_fits_files(self, files=None):
         all_files = []
-        for file in self.level0_files:
+        if files is None:
+            files = self.level0_files
+
+        for file in files:
             l0 = Product(file)
             try:
                 tmp = Product._check_registered_widget(level='L1', service_type=l0.service_type,

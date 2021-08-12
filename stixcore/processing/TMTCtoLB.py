@@ -2,6 +2,7 @@ import logging
 from time import perf_counter
 from pathlib import Path
 
+from stixcore.config.config import CONFIG
 from stixcore.io.fits.processors import FitsLBProcessor
 from stixcore.io.soc.manager import SOCManager
 from stixcore.products.levelb.binary import LevelB
@@ -15,11 +16,17 @@ def tmtc_to_l0(tmtc_path, archive_path):
     socm = SOCManager(tmtc_path)
     out_dir = archive_path
     out_dir.mkdir(parents=True, exist_ok=True)
-    fits_processor = FitsLBProcessor(out_dir)
-    all_files = []
     files_to_process = socm.get_files(TMTC.TM)
+    return process_tmtc_to_levelbinary(files_to_process, archive_path)
+
+
+def process_tmtc_to_levelbinary(files_to_process, archive_path=None):
+    if archive_path is None:
+        archive_path = Path(CONFIG.get('Paths', 'fits_archive'))
+    fits_processor = FitsLBProcessor(archive_path)
+    all_files = []
     for tmtc_file in files_to_process:
-        logger.info(f'Processing file: {tmtc_file.file}')
+        logger.info(f'Processing file: {tmtc_file}')
         # TODO sorting filter etc
         for prod in LevelB.from_tm(tmtc_file):
             if prod:

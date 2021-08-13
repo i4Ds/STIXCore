@@ -10,6 +10,7 @@ class EphemerisTestData:
     def __init__(self, data_dir):
         self.META_KERNEL_POS = data_dir / "ephemeris" / 'mk' / "test_position_20201001_V01.mk"
         self.META_KERNEL_TIME = data_dir / "ephemeris" / 'mk' / "test_time_20201001_V01.mk"
+        self.KERNELS_DIR = data_dir / "ephemeris" / "spice" / "kernels"
         self.__doc__ = "\n".join([f'{str(k)}: {repr(v)}\n\n' for k, v in self.__dict__.items()])
 
 

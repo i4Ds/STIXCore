@@ -145,9 +145,9 @@ class RawPixelData(ScienceProduct):
         data.add_data('detector_masks', _get_detector_mask(packets))
         data['triggers'] = np.array([packets.get_value(f'NIX00{i}') for i in range(408, 424)],
                                     np.int64).T
-        data['triggers'].meta = {'NIXS': [f'NIX00{i}' for i in range(408, 424)],
-                                 'PCF_CURTX': [packets.get(f'NIX00{i}')[0].idb_info.PCF_CURTX
-                                               for i in range(408, 424)]}
+        data['triggers'].meta = {'NIXS': [f'NIX00{i}' for i in range(408, 424)]}  # ,
+        #                       #  'PCF_CURTX': [packets.get(f'NIX00{i}')[0].idb_info.PCF_CURTX
+        #                       #                for i in range(408, 424)]}
         data.add_basic(name='num_samples', nix='NIX00406', packets=packets, dtype=np.int16)
 
         num_detectors = 32

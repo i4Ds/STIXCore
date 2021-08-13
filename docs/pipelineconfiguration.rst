@@ -24,12 +24,12 @@ Locations
 
 
 * Programs / Libs / Dependencies
-    - `/opt/stixcore` :
-    - `/opt/STIX-GSW` : stix idl processing library: https://github.com/i4Ds/STIX-GSW
-    - `/usr/local/ssw` : IDL SolarSoft: https://www.lmsal.com/solarsoft/ssw_setup.html
-    - `/home/stixcore/astrolib` : GDL astrolib
-    - `/home/stixcore/.gdl/gdl-startup.pro`: GDL startup script with path to SSW, STIX-GSW, astrolib and homedir `/home/stixcore/`
 
+    `/opt/stixcore` :
+    `/opt/STIX-GSW` : stix idl processing library: https://github.com/i4Ds/STIX-GSW
+    `/usr/local/ssw` : IDL SolarSoft: https://www.lmsal.com/solarsoft/ssw_setup.html
+    `/home/stixcore/astrolib` : GDL astrolib
+    `/home/stixcore/.gdl/gdl-startup.pro`: GDL startup script with path to SSW, STIX-GSW, astrolib and homedir `/home/stixcore/`
 
 Sync with SOC
 -------------
@@ -41,7 +41,6 @@ SOC TM data is synced from pub026 via rsync by cron every 10min.
 `*/10 * * * * rsync -av stixcore@147.86.8.26:/home/solmoc/from_moc/*  /data/stix/SOC/incoming/ --exclude-from="/data/stix/SOC/processed_files.txt"`
 
 allready procced files should by appended to `/data/stix/SOC/processed_files.txt` and can then be removed from the `/incoming` folder.
-
 
 Sync SPICE kernels
 ------------------
@@ -65,6 +64,7 @@ all together in the cron job:
 `*/15 * * * * rsync -av stixcore@147.86.8.26:/home/solsoc/from_soc /data/stix/SOLSOC/ ; find /data/stix/SOLSOC/from_soc/ -name "solo_ANC*20*zip" | grep -vFf  processed_files.txt  | xargs -i /usr/bin/unzip -o {} -d /data/stix/spice/ ; find /data/stix/SOLSOC/from_soc/ -name "solo_ANC*20*zip" | grep -vFf  processed_files.txt >> processed_files.txt`
 
 
+
 GDL - GNU Data Language
 -----------------------
 
@@ -74,4 +74,4 @@ Install: https://www.scivision.dev/gdl-setup-with-astronomy-library-open-source-
 
 start as user `stixcore`
 
-cml example: `> gdl -e "a = fitstest()"`
+cmd example: `> gdl -e "a = fitstest()"`

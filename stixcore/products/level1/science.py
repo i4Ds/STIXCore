@@ -93,9 +93,9 @@ class ScienceProduct(BaseProduct):
 
     def get_energies(self):
         if 'energy_bin_edge_mask' in self.control.colnames:
-            energies = _get_energies_from_mask(self.control['energy_bin_edge_mask'][0])
+            energies = _get_energies_from_mask()
         elif 'energy_bin_mask' in self.control.colnames:
-            energies = _get_energies_from_mask(self.control['energy_bin_mask'][0])
+            energies = _get_energies_from_mask()
         else:
             energies = _get_energies_from_mask()
 
@@ -121,7 +121,7 @@ class CompressedPixelData(ScienceProduct):
                  data, idb_versions=defaultdict(SCETimeRange), **kwargs):
         super().__init__(service_type=service_type, service_subtype=service_subtype,
                          ssid=ssid, control=control, data=data, idb_versions=idb_versions, **kwargs)
-        self.name = 'xray-scpd'
+        self.name = 'xray-cpd'
         self.level = 'L1'
 
     @classmethod

@@ -1,24 +1,38 @@
 [
         {
+                "version":"2.26.31",
+                "aswVersion":167,
+                "comment": "return alway this for the past",
+                "validityPeriodUTC":["2000-01-01T00:00:00", "2020-04-14T16:07:41.186"],
+                "validityPeriodOBT":[{"coarse":0, "fine":0}, {"coarse":640195652, "fine":0}]
+
+        },
+        {
+                "version":"2.26.32",
+                "aswVersion":174,
+                "validityPeriodUTC":["2020-04-14T16:07:41.186", "2020-05-07T09:46:46.538"],
+                "validityPeriodOBT":[{"coarse":640195652, "fine":0}, {"coarse":642159994, "fine":0}]
+
+        },
+        {
                 "version":"2.26.33",
                 "aswVersion":178,
-                "comment": "return alway this for the past",
-                "validityPeriodUTC":["2000-01-01T00:00:00", "2020-05-18T09:12:54"],
-                "validityPeriodOBT":[{"coarse":0, "fine":0}, {"coarse":642159994, "fine":0}]
+                "validityPeriodUTC":["2020-05-07T09:46:46.538", "2020-05-18T09:12:54.151"],
+                "validityPeriodOBT":[{"coarse":642159994, "fine":0}, {"coarse":643108360, "fine":0}]
 
         },
         {
                 "version":"2.26.34",
                 "aswVersion":179,
-                "validityPeriodUTC":["2020-05-18T09:12:54", "2022-01-01T00:00:00"],
-                "validityPeriodOBT":[{"coarse":642159994, "fine":0}, {"coarse":677766880, "fine":0}]
+                "validityPeriodUTC":["2020-05-18T09:12:54.151", "2021-06-23T14:38:41.609"],
+                "validityPeriodOBT":[{"coarse":643108360, "fine":0}, {"coarse":677774250, "fine":0}]
         },
         {
                 "version":"2.26.35",
                 "aswVersion":181,
                 "comment": "return this for the next future",
-                "validityPeriodUTC":["2022-01-01T00:00:00", "2030-01-01T00:00:00"],
-                "validityPeriodOBT":[{"coarse":677766880, "fine":0}, {"coarse":4294967295, "fine":0}]
+                "validityPeriodUTC":["2021-06-23T14:38:41.609", "2136-02-07T08:11:44.778"],
+                "validityPeriodOBT":[{"coarse":677774250, "fine":0}, {"coarse":4294967295, "fine":0}]
 
         }
 ]

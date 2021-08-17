@@ -172,7 +172,7 @@ class IDBManager:
             set to True to override the local version, by default False
         url : `str`, optional
             public available IDB versions folder, by default
-            "https://nicky.thecrag.com/public/stix/"
+            "http://pub099.cs.technik.fhnw.ch/data/idb/"
 
         Returns
         -------
@@ -230,7 +230,7 @@ class IDBManager:
             set to True to override the local version, by default False
         url : `str`, optional
             public available IDB versions folder, by default
-            "https://nicky.thecrag.com/public/stix/"
+            "http://pub099.cs.technik.fhnw.ch/data/idb/"
 
         Returns
         -------

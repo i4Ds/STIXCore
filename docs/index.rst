@@ -11,3 +11,4 @@ This is the documentation for STIXCore.
    developers
    code_ref/index
    pipelineconfiguration
+   idb_versioning

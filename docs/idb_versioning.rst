@@ -1,7 +1,7 @@
 IDB Versioning
 ==============
 
-After a new IDB Version has been released it should be added to stixcore. All awailable IDB versions to stixcore are managed in the file `stixcore\data\idb\idbVersionHistory.json`
+After a new IDB Version has been released it should be added to stixcore. All available IDB versions to stixcore are managed in the file `stixcore\data\idb\idbVersionHistory.json`
 
 Follow the instructions to publish a new IDB `2.26.36` version
 

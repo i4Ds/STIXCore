@@ -512,9 +512,9 @@ class Visibility(ScienceProduct):
             triggers_var.extend(packets.get_value(f'NIX00{i}', attr='error'))
 
         data['triggers'] = np.array(triggers).reshape(-1, 16)
-        data['triggers'].meta = {'NIXS': [f'NIX00{i}' for i in range(242, 258)],
-                                 'PCF_CURTX': [packets.get(f'NIX00{i}')[0].idb_info.PCF_CURTX
-                                               for i in range(242, 258)]}
+        data['triggers'].meta = {'NIXS': [f'NIX00{i}' for i in range(242, 258)]}  # ,
+        #                         'PCF_CURTX': [packets.get(f'NIX00{i}')[0].idb_info.PCF_CURTX
+        #                                       for i in range(242, 258)]}
         data['triggers_err'] = np.sqrt(triggers_var).reshape(-1, 16)
 
         tids = np.searchsorted(data['delta_time'], unique_times)

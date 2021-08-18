@@ -213,8 +213,8 @@ def _get_energies_from_mask(mask=None):
         edges = np.where(np.array(mask) == 1)
         low_ind = np.min(edges)
         high_ind = np.max(edges)
-        low = [ENERGY_CHANNELS[low_ind:high_ind].e_lower]
-        high = [ENERGY_CHANNELS[low_ind:high_ind].e_upper]
+        low = [ENERGY_CHANNELS[i].e_lower for i in range(low_ind, high_ind+1)]
+        high = [ENERGY_CHANNELS[i].e_upper for i in range(low_ind, high_ind+1)]
     else:
         raise ValueError(f'Energy mask or edges must have a length of 32 or 33 not {len(mask)}')
 

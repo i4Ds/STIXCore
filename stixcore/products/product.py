@@ -338,6 +338,7 @@ class GenericProduct(BaseProduct):
         self.data = data
         self.idb_versions = idb_versions
         self.scet_timerange = kwargs.get('scet_timerange')
+        self.level = kwargs.get('level')
 
     def __add__(self, other):
         """
@@ -391,7 +392,8 @@ class GenericProduct(BaseProduct):
 
         return type(self)(service_type=self.service_type, service_subtype=self.service_subtype,
                           ssid=self.ssid, control=control, data=data,
-                          idb_versions=self.idb_versions, scet_timerange=scet_timerange)
+                          idb_versions=self.idb_versions, scet_timerange=scet_timerange,
+                          level=self.level)
 
     def __repr__(self):
         return f'<{self.__class__.__name__}, {self.scet_timerange.start} to ' \
@@ -452,7 +454,7 @@ class DefaultProduct(GenericProduct):
         super().__init__(service_type=service_type, service_subtype=service_subtype,
                          ssid=ssid, control=control, data=data, idb_versions=idb_versions, **kwargs)
         self.name = f'{service_subtype}-{ssid}' if ssid else f'{service_subtype}'
-        self.level = 'L0'
+        self.level = kwargs.get('level', 'L0')
         self.type = f'{self.service_name_map[service_type]}'
 
     @property

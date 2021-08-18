@@ -536,8 +536,11 @@ class FlareFlag(QLProduct):
         data.add_meta(name='non_thermal_index', nix='NIXD0060', packets=packets)
         data['location_status'] = packets.get_value('NIXD0059', attr='value').astype(np.int16).T
         data.add_meta(name='location_status', nix='NIXD0059', packets=packets)
-        data['flare_progress'] = packets.get_value('NIXD0449', attr='value').astype(np.int16).T
-        data.add_basic(name='flare_progress', nix='NIXD0449', packets=packets)
+        try:
+            data['flare_progress'] = packets.get_value('NIXD0449', attr='value').astype(np.int16).T
+            data.add_basic(name='flare_progress', nix='NIXD0449', packets=packets)
+        except AttributeError:
+            logger.warn('Missing NIXD0449')
 
         return cls(service_type=service_type, service_subtype=service_subtype, ssid=ssid,
                    control=control, data=data, idb_versions=idb_versions,

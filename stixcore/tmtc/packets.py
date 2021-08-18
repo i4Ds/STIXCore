@@ -563,11 +563,18 @@ class PacketSequence:
         self.spid = []
         self.pi1_val = []
         for packet in packets:
-            self.spid.append(packet.spid)
-            self.pi1_val.append(packet.pi1_val)
-            self.source_headers.append(packet.source_packet_header)
-            self.data_headers.append(packet.data_header)
-            self.data.append(packet.data)
+            try:
+                has_data = getattr(packet.data.get('NIX00089'), 'value', 1) > 0
+            except TypeError:
+                has_data = list(getattr(packet.data.get('NIX00089'), 'value', 1))[0] > 0
+            if has_data:
+                self.spid.append(packet.spid)
+                self.pi1_val.append(packet.pi1_val)
+                self.source_headers.append(packet.source_packet_header)
+                self.data_headers.append(packet.data_header)
+                self.data.append(packet.data)
+            else:
+                logger.warn('Dropping empty packet (NIX00089 == 0)')
 
     def get(self, name):
         try:

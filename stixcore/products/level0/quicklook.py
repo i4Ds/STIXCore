@@ -86,7 +86,8 @@ class QLProduct(BaseProduct):
 
         logger.debug('len stacked %d', len(data))
 
-        data['time_float'] = data['time'].as_float()
+        # Not sure where the rounding issue is arising need to investigate
+        data['time_float'] = np.around(data['time'].as_float(), 4)
 
         data = unique(data, keys=['time_float'])
 

@@ -1,6 +1,6 @@
+import re
 import time
 import logging
-from re import Pattern, compile
 from pathlib import Path
 
 from watchdog.events import FileSystemEventHandler, LoggingEventHandler
@@ -18,7 +18,7 @@ __all__ = ['GFTSFileHandler']
 
 logger = get_logger(__name__, level=logging.DEBUG)
 
-TM_REGEX = compile(r'.*PktTmRaw.*.xml$')
+TM_REGEX = re.compile(r'.*PktTmRaw.*.xml$')
 
 
 class GFTSFileHandler(FileSystemEventHandler):
@@ -46,7 +46,8 @@ class GFTSFileHandler(FileSystemEventHandler):
             raise TypeError('func must be a callable')
         self.func = func
 
-        if not isinstance(regex, Pattern):
+        # TODO should be Pattern but not compatible with py 3.6
+        if not isinstance(regex, type(re.compile('.'))):
             raise TypeError('regex must be a regex Pattern')
         self.regex = regex
 

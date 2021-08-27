@@ -5,8 +5,10 @@ import platform
 
 import dateutil.parser
 import pytest
+from watchdog.observers import Observer
 
 from stixcore.data.test import test_data
+from stixcore.processing.pipeline import GFTSFileHandler
 from stixcore.soop.manager import (
     FitsHeaderKeyword,
     FitsKeywordSet,
@@ -38,16 +40,24 @@ def test_soop_manager(soop_manager):
 
 
 def test_soop_manager_watchdog(soop_manager):
+    observer = Observer()
+    soop_handler = GFTSFileHandler(soop_manager.add_soop_file_to_index,
+                                   SOOPManager.SOOP_FILE_REGEX)
+    observer.schedule(soop_handler, soop_manager.data_root,  recursive=False)
+    observer.start()
+
     # 3 files are in the base dir
     assert soop_manager.filecounter == 3
     assert len(soop_manager.soops) == 8
     assert len(soop_manager.observations) == 132
 
+    time.sleep(1)
+
     # emulate a new file approaches via rsync
     shutil.copy(test_data.soop.DIR / "wd" / MOVE_FILE, test_data.soop.DIR / (MOVE_FILE+".tmp"))
     shutil.move(test_data.soop.DIR / (MOVE_FILE+".tmp"), test_data.soop.DIR / MOVE_FILE)
 
-    time.sleep(2)
+    time.sleep(3)
 
     # currently not triggered on mac see: https://github.com/i4Ds/STIXCore/issues/149
     if platform.system() != "Darwin":
@@ -55,6 +65,8 @@ def test_soop_manager_watchdog(soop_manager):
         assert soop_manager.filecounter == 4
         assert len(soop_manager.soops) == 10
         assert len(soop_manager.observations) == 150
+
+    observer.stop()
 
 
 def test_soop_manager_find_point(soop_manager):

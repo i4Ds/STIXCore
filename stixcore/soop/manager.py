@@ -8,8 +8,6 @@ from collections.abc import Iterable
 
 import dateutil.parser
 from intervaltree import IntervalTree
-from watchdog.events import FileSystemEventHandler
-from watchdog.observers import Observer
 
 from stixcore.util.logging import get_logger
 
@@ -18,9 +16,6 @@ __all__ = ['SOOPManager', 'SoopObservationType', 'FitsKeywordSet',
 
 
 logger = get_logger(__name__, level=logging.DEBUG)
-
-SOOP_FILTER = "SSTX_observation_timeline_export_*.json"
-SOOP_REGEX = re.compile(r'.*SSTX_observation_timeline_export_.*.json$')
 
 
 class FitsHeaderKeyword:
@@ -241,14 +236,16 @@ class SoopObservation:
                                        comment="Unique ID of the individual observation")])
 
 
-class SOOPManager(FileSystemEventHandler):
+class SOOPManager():
     """Manages LTP files provided by GFTS"""
+
+    SOOP_FILE_FILTER = "SSTX_observation_timeline_export_*.json"
+    SOOP_FILE_REGEX = re.compile(r'.*SSTX_observation_timeline_export_.*.json$')
 
     def __init__(self, data_root):
         """Create the manager for a given data path root.
 
         All existing files will be index and the dir is observed.
-        Newly arrived LTPs plans will be indexed on the fly.
 
         Parameters
         ----------
@@ -284,31 +281,17 @@ class SOOPManager(FileSystemEventHandler):
 
         self._data_root = path
 
-        self.observer = Observer()
-        self.observer.schedule(self, path,  recursive=False)
-        self.observer.start()
         self.soops = IntervalTree()
         self.observations = IntervalTree()
 
-        files = sorted(list(self._data_root.glob(SOOP_FILTER)), key=os.path.basename)
+        files = sorted(list(self._data_root.glob(SOOPManager.SOOP_FILE_FILTER)),
+                       key=os.path.basename)
 
         if len(files) == 0:
             raise ValueError(f'No current SOOP files found at: {self._data_root}')
 
         for sfile in files:
-            self._read_soop_file(sfile)
-
-    def __del__(self):
-        self.observer.stop()
-
-    def on_moved(self, event):
-        """Will be invoked if the directory abservers tracks a new arrived LTP file.
-
-        Each new file will be scanned and indexed.
-        """
-        if SOOP_REGEX.match(event.dest_path):
-            logger.info(f"detect new SOOP file: {event.dest_path}")
-            self._read_soop_file(Path(event.dest_path))
+            self.add_soop_file_to_index(sfile)
 
     def find_soops(self, *, start, end=None):
         """Search for all SOOPs in the index.
@@ -402,7 +385,7 @@ class SOOPManager(FileSystemEventHandler):
 
         return kwset.to_list()
 
-    def _read_soop_file(self, path):
+    def add_soop_file_to_index(self, path):
         logger.info(f"Read SOOP file: {path}")
         with open(path) as f:
             ltp_data = json.load(f)

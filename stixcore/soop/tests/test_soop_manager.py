@@ -9,12 +9,7 @@ from watchdog.observers import Observer
 
 from stixcore.data.test import test_data
 from stixcore.processing.pipeline import GFTSFileHandler
-from stixcore.soop.manager import (
-    FitsHeaderKeyword,
-    FitsKeywordSet,
-    SOOPManager,
-    SoopObservationType,
-)
+from stixcore.soop.manager import HeaderKeyword, KeywordSet, SOOPManager, SoopObservationType
 
 MOVE_FILE = 'SSTX_observation_timeline_export_M04_V02.json'
 
@@ -98,16 +93,16 @@ def test_soop_manager_find_filter(soop_manager):
 def test_soop_manager_get_keywords(soop_manager):
     start = dateutil.parser.parse("2021-10-04T12:00:00Z")
     end = dateutil.parser.parse("2021-10-18T00:00:00Z")
-    keylist = soop_manager.get_fits_keywords(start=start, end=end, otype=SoopObservationType.ALL)
+    keylist = soop_manager.get_keywords(start=start, end=end, otype=SoopObservationType.ALL)
     assert len(keylist) == 4
-    keyset = FitsKeywordSet(keylist)
-    assert keyset.get(FitsHeaderKeyword(name='TARGET')).value\
+    keyset = KeywordSet(keylist)
+    assert keyset.get(HeaderKeyword(name='TARGET')).value\
         == "TBC"
-    assert keyset.get(FitsHeaderKeyword(name='SOOPTYPE')).value\
+    assert keyset.get(HeaderKeyword(name='SOOPTYPE')).value\
         == "LF5"
-    assert keyset.get(FitsHeaderKeyword(name='SOOPNAME')).value\
+    assert keyset.get(HeaderKeyword(name='SOOPNAME')).value\
         == "L_FULL_LRES_MCAD_Coronal-Synoptic"
-    assert keyset.get(FitsHeaderKeyword(name='OBS_ID')).value\
+    assert keyset.get(HeaderKeyword(name='OBS_ID')).value\
         .count(";") == 15
 
 
@@ -115,17 +110,19 @@ def test_soop_manager_get_keywords_time_not_found(soop_manager):
     start = dateutil.parser.parse("2016-10-04T12:00:00Z")
     end = dateutil.parser.parse("2016-10-18T00:00:00Z")
     with pytest.raises(ValueError) as e:
-        _ = soop_manager.get_fits_keywords(start=start, end=end, otype=SoopObservationType.ALL)
+        _ = soop_manager.get_keywords(start=start, end=end, otype=SoopObservationType.ALL)
     assert str(e.value).startswith('No soops')
 
 
-def test_soop_manager_FitsKeywordSet():
-    a = FitsHeaderKeyword(name="a", value="v1", comment="ca")
-    a2 = FitsHeaderKeyword(name="a", value="v2", comment="ca")
-    b = FitsHeaderKeyword(name="b", value="v1", comment="cb")
-    b2 = FitsHeaderKeyword(name="B", value="v1", comment="cb2")
+def test_soop_manager_KeywordSet():
+    a = HeaderKeyword(name="a", value="v1", comment="ca")
+    a2 = HeaderKeyword(name="a", value="v2", comment="ca")
+    a3 = HeaderKeyword(name="a", value="v2", comment="ca")
 
-    f_set = FitsKeywordSet([a, a2, b, b2])
+    b = HeaderKeyword(name="b", value="v1", comment="cb")
+    b2 = HeaderKeyword(name="B", value="v1", comment="cb2")
+
+    f_set = KeywordSet([a, a2, b, b2, a3])
 
     f_list = f_set.to_list()
     assert len(f_list) == 2

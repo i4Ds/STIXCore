@@ -11,18 +11,18 @@ from intervaltree import IntervalTree
 
 from stixcore.util.logging import get_logger
 
-__all__ = ['SOOPManager', 'SoopObservationType', 'FitsKeywordSet',
-           'FitsHeaderKeyword', 'SoopObservation', 'SOOP']
+__all__ = ['SOOPManager', 'SoopObservationType', 'KeywordSet',
+           'HeaderKeyword', 'SoopObservation', 'SOOP']
 
 
 logger = get_logger(__name__, level=logging.DEBUG)
 
 
-class FitsHeaderKeyword:
+class HeaderKeyword:
     """Keyword object for FITS file header entries."""
 
     def __init__(self, *, name, value="", comment=""):
-        """Creates a FitsHeaderKeyword object.
+        """Creates a HeaderKeyword object.
 
         Parameters
         ----------
@@ -34,11 +34,33 @@ class FitsHeaderKeyword:
             the description (gets converted to `str`), by default ""
         """
         self.name = str(name).upper()
-        self.value = str(value)
-        self.comment = str(comment)
+        self._comment = set(list(comment) if isinstance(comment, set) else [str(comment)])
+        self._value = set(list(value) if isinstance(value, set) else [str(value)])
+
+    @property
+    def value(self):
+        """Get the value for the keyword.
+
+        Returns
+        -------
+        `str`
+            a concatanated string list of all unique values
+        """
+        return ";".join(sorted(self._value))
+
+    @property
+    def comment(self):
+        """Get the comment for the keyword.
+
+        Returns
+        -------
+        `str`
+            a concatanated string list of all unique comments
+        """
+        return ";".join(sorted(self._comment))
 
     def __eq__(self, other):
-        if not isinstance(other, FitsHeaderKeyword):
+        if not isinstance(other, HeaderKeyword):
             return False
         return self.name == other.name
 
@@ -46,16 +68,16 @@ class FitsHeaderKeyword:
         return hash(self.name)
 
     def __add__(self, other):
-        """Combine two FitsHeaderKeyword by concanating value and comment if the name is the same.
+        """Combine two HeaderKeyword by concanating value and comment if the name is the same.
 
         Parameters
         ----------
-        other : `FitsHeaderKeyword`
+        other : `HeaderKeyword`
             combine the current keyword with this one
 
         Returns
         -------
-        `FitsHeaderKeyword`
+        `HeaderKeyword`
             a new keyword object with combined values
 
         Raises
@@ -64,43 +86,38 @@ class FitsHeaderKeyword:
             if the other object is not of same type and addresses the same name
         """
         if self == other:
-            comment = self.comment
-            if self.comment != other.comment:
-                comment += ";" + other.comment
+            comment = self._comment.union(other._comment)
+            value = self._value.union(other._value)
 
-            value = self.value
-            if self.value != other.value:
-                value += ";" + other.value
-
-            return FitsHeaderKeyword(name=self.name, value=value, comment=comment)
+            return HeaderKeyword(name=self.name, value=value, comment=comment)
         else:
             raise ValueError("Keyword must address the same name")
 
 
-class FitsKeywordSet():
-    """Helper object to collect and combine `FitsHeaderKeyword`."""
+class KeywordSet():
+    """Helper object to collect and combine `HeaderKeyword`."""
 
     def __init__(self, s=None):
-        """Create a FitsKeywordSet collection.
+        """Create a KeywordSet collection.
 
         Parameters
         ----------
         s : `Iterable`, optional
-            a list of `FitsHeaderKeyword` objects, by default None
+            a list of `HeaderKeyword` objects, by default None
         """
         self.dic = dict()
         if s is not None:
             self.append(s)
 
     def add(self, element):
-        """Add a new `FitsHeaderKeyword` to the collection.
+        """Add a new `HeaderKeyword` to the collection.
 
-        If a same `FitsHeaderKeyword` is allready present than the new keywords
+        If a same `HeaderKeyword` is allready present than the new keywords
         gets combined into the old.
 
         Parameters
         ----------
-        element : `FitsHeaderKeyword`
+        element : `HeaderKeyword`
             the new keyword to add
         """
         if element in self.dic:
@@ -113,25 +130,25 @@ class FitsKeywordSet():
 
         Parameters
         ----------
-        element : `FitsHeaderKeyword`
+        element : `HeaderKeyword`
             a prototype keyword that should be return with the same name.
 
         Returns
         -------
-        `FitsHeaderKeyword`
+        `HeaderKeyword`
             The found keword with the same name.
         """
         return self.dic[element]
 
     def append(self, elements):
-        """Add a a list of `FitsHeaderKeyword` to the collection.
+        """Add a a list of `HeaderKeyword` to the collection.
 
-        If a same `FitsHeaderKeyword` is allready present than the new keywords
+        If a same `HeaderKeyword` is allready present than the new keywords
         gets combined into the old.
 
         Parameters
         ----------
-        element : Iterable<`FitsHeaderKeyword`>
+        element : Iterable<`HeaderKeyword`>
             the new keywords to add
         """
         if isinstance(elements, Iterable):
@@ -191,14 +208,14 @@ class SOOP:
         Returns
         -------
         `list`
-            list of `FitsHeaderKeyword`
+            list of `HeaderKeyword`
         """
-        return list([FitsHeaderKeyword(name="TARGET", value="TBC",
-                                       comment="Type of target from planning"),
-                    FitsHeaderKeyword(name="SOOPTYPE", value=self.encodedSoopType,
-                                      comment="Campaign ID(s) that the data belong to"),
-                    FitsHeaderKeyword(name="SOOPNAME", value=self.soopType,
-                                      comment="Name of the SOOP Campaign that the data belong to")])
+        return list([HeaderKeyword(name="TARGET", value="TBC",
+                                   comment="Type of target from planning"),
+                    HeaderKeyword(name="SOOPTYPE", value=self.encodedSoopType,
+                                  comment="Campaign ID(s) that the data belong to"),
+                    HeaderKeyword(name="SOOPNAME", value=self.soopType,
+                                  comment="Name of the SOOP Campaign that the data belong to")])
 
 
 class SoopObservation:
@@ -230,10 +247,10 @@ class SoopObservation:
         Returns
         -------
         `list`
-            list of `FitsHeaderKeyword`
+            list of `HeaderKeyword`
         """
-        return list([FitsHeaderKeyword(name="OBS_ID", value=";".join(self.socIds),
-                                       comment="Unique ID of the individual observation")])
+        return list([HeaderKeyword(name="OBS_ID", value=";".join(self.socIds),
+                                   comment="Unique ID of the individual observation")])
 
 
 class SOOPManager():
@@ -345,11 +362,11 @@ class SOOPManager():
 
         return list([o.data for o in intervals])
 
-    def get_fits_keywords(self, *, start, end=None, otype=SoopObservationType.ALL):
+    def get_keywords(self, *, start, end=None, otype=SoopObservationType.ALL):
         """Searches for corresponding entries (SOOPs and Observations) in the index LTPs.
 
         Based on all found entries for the filter parameters a list of
-        FitsHeaderKeyword is generated combining all avaliable information.
+        HeaderKeyword is generated combining all avaliable information.
 
        Parameters
         ----------
@@ -362,14 +379,14 @@ class SOOPManager():
         Returns
         -------
         `list`
-            a list of `FitsHeaderKeyword`
+            a list of `HeaderKeyword`
 
         Raises
         ------
         ValueError
             if no SOOPs or Observations where found in the index LTPs for the given filter settings.
         """
-        kwset = FitsKeywordSet()
+        kwset = KeywordSet()
 
         soops = self.find_soops(start=start, end=end)
         if len(soops) == 0:

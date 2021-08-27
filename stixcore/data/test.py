@@ -14,6 +14,12 @@ class EphemerisTestData:
         self.__doc__ = "\n".join([f'{str(k)}: {repr(v)}\n\n' for k, v in self.__dict__.items()])
 
 
+class SOOPTestData:
+    def __init__(self, data_dir):
+        self.DIR = data_dir / "soop"
+        self.__doc__ = "\n".join([f'{str(k)}: {repr(v)}\n\n' for k, v in self.__dict__.items()])
+
+
 class IDBTestData:
     def __init__(self, data_dir):
         self.DIR = data_dir / "idb"
@@ -56,6 +62,7 @@ class TestData:
         self.tmtc = TMTCTestData(data_dir)
         self.products = IDBTestProduct(data_dir)
         self.io = IOTestData(data_dir)
+        self.soop = SOOPTestData(data_dir)
 
         self.__doc__ = "\n".join([f"{k}\n******************\n\n{v.__doc__}\n\n\n"
                                   for k, v in self.__dict__.items()])

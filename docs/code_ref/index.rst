@@ -17,4 +17,5 @@ Code Reference
    processing
    products
    util
+   soop
    testdata

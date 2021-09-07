@@ -276,7 +276,7 @@ class FitsL0Processor:
                                   names=["version", "obt_start", "obt_end"])
 
             # Convert time to be relative to start date
-            data['time'] = (data['time'] - prod.scet_timerange.start).as_float()
+            data['time'] = (data['time'] - data['time'][0]).as_float()
             data['timedel'] = data['timedel'].as_float()
             try:
                 control['time_stamp'] = control['time_stamp'].as_float()

@@ -123,10 +123,9 @@ class QLProduct(BaseProduct):
             de = SCETime((((day + 1) * u.day).to_value('s')).astype(int), 0)
             i = np.where((self.data['time'] >= ds) & (self.data['time'] < de))
 
-            scet_timerange = SCETimeRange(start=ds, end=de)
-
             if i[0].size > 0:
                 data = self.data[i]
+                scet_timerange = SCETimeRange(start=data['time'][0], end=data['time'][-1])
                 control_indices = np.unique(data['control_index'])
                 control = self.control[np.isin(self.control['index'], control_indices)]
                 control_index_min = control_indices.min()

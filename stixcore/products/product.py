@@ -461,10 +461,6 @@ class DefaultProduct(GenericProduct):
     def utc_timerange(self):
         return self.scet_timerange.to_timerange()
 
-    @property
-    def utc_timerange(self):
-        return self.scet_timerange.to_timerange()
-
     @classmethod
     def from_levelb(cls, levelb):
         packets, idb_versions = super().from_levelb(levelb)

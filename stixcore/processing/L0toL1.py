@@ -19,7 +19,7 @@ class Level1:
         self.processor = FitsL1Processor(self.output_dir)
 
     def process_fits_files(self, files=None):
-        all_files = []
+        all_files = set()
         if files is None:
             files = self.level0_files
 
@@ -31,12 +31,11 @@ class Level1:
                                                        ssid=l0.ssid, data=None, control=None)
                 l1 = tmp.from_level0(l0)
                 files = self.processor.write_fits(l1)
-                all_files.extend(files)
+                all_files.update(files)
             except NoMatchError:
                 logger.debug('No match for product %s', l0)
-            except Exception as e:
-                logger.error('Error processing file %s', file)
-                logger.error(e)
+            except Exception:
+                logger.error('Error processing file %s', file, exc_info=True)
                 # raise e
         return all_files
 

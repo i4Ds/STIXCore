@@ -21,7 +21,7 @@ class Level0:
         self.processor = FitsL0Processor(self.output_dir)
 
     def process_fits_files(self, files=None):
-        all_files = []
+        all_files = set()
         tm = defaultdict(list)
         if files is None:
             files = self.levelb_files
@@ -50,7 +50,7 @@ class Level0:
                     try:
                         level0 = tmp.from_levelb(levelb)
                         fits_files = self.processor.write_fits(level0)
-                        all_files.extend(fits_files)
+                        all_files.update(fits_files)
                     except Exception as e:
                         logger.error('Error processing file %s for %s, %s, %s', file,
                                      levelb.service_type, levelb.service_subtype, levelb.ssid)
@@ -82,7 +82,7 @@ class Level0:
                                     control=None)
                                 level0 = tmp.from_levelb(comp)
                                 fits_files = self.processor.write_fits(level0)
-                                all_files.extend(fits_files)
+                                all_files.update(fits_files)
                             except Exception as e:
                                 logger.error('Error processing file %s for %s, %s, %s', file,
                                              comp.service_type, comp.service_subtype, comp.ssid)
@@ -104,7 +104,7 @@ class Level0:
                                                                control=None)
                         level0 = tmp.from_levelb(inc)
                         fits_files = self.processor.write_fits(level0)
-                        all_files.extend(fits_files)
+                        all_files.update(fits_files)
 
         return all_files
 

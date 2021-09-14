@@ -16,10 +16,11 @@ def _get_config():
     -------
     The parsed configuration as nested dictionaries
     """
-    config_path = Path(os.path.expanduser('~')) / 'stixcore.ini'
-    config = ConfigParser()
-    config.read(config_path)
-    return config
+    config_file = Path(os.path.expanduser('~')) / 'stixcore.ini'
+    with config_file.open('r') as file:
+        config = ConfigParser()
+        config.read_file(file)
+        return config
 
 
 CONFIG = _get_config()

@@ -87,7 +87,7 @@ class QLProduct(BaseProduct):
         logger.debug('len stacked %d', len(data))
 
         # Not sure where the rounding issue is arising need to investigate
-        data['time_float'] = np.around(data['time'].as_float(), 4)
+        data['time_float'] = np.around(data['time'].as_float(), 2)
 
         data = unique(data, keys=['time_float'])
 
@@ -125,7 +125,8 @@ class QLProduct(BaseProduct):
 
             if i[0].size > 0:
                 data = self.data[i]
-                scet_timerange = SCETimeRange(start=data['time'][0], end=data['time'][-1])
+                scet_timerange = SCETimeRange(start=data['time'][0] - data['timedel'][0]/2,
+                                              end=data['time'][-1] + data['timedel'][-1]/2)
                 control_indices = np.unique(data['control_index'])
                 control = self.control[np.isin(self.control['index'], control_indices)]
                 control_index_min = control_indices.min()

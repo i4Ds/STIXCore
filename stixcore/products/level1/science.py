@@ -49,7 +49,8 @@ class ScienceProduct(BaseProduct):
         if not isinstance(other, type(self)):
             raise TypeError(f'Products must of same type not {type(self)} and {type(other)}')
 
-        if np.all(self.control == other.control) and np.all(self.data == other.data):
+        if (np.all(self.control == other.control) and self.scet_timerange == other.scet_timerange
+                and len(self.data) == len(other.data)):
             return self
 
         combined_control_index = other.control['index'] + self.control['index'].max() + 1

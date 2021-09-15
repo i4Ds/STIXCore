@@ -422,7 +422,7 @@ class FitsL1Processor(FitsL0Processor):
         )
         return headers
 
-    def write_fits(self, product, overwrite=False):
+    def write_fits(self, product):
         """
         Write level 0 products into fits files.
 
@@ -452,14 +452,12 @@ class FitsL1Processor(FitsL0Processor):
             path.mkdir(parents=True, exist_ok=True)
 
             fitspath = path / filename
-            if fitspath.exists() and overwrite is True:
+            if fitspath.exists():
                 logger.info('Fits file %s exists appending data', fitspath.name)
                 existing = Product(fitspath)
                 logger.debug('Existing %s, Current %s', existing, prod)
                 prod = prod + existing
                 logger.debug('Combined %s', prod)
-            else:
-                logger.info('Fits file %s exists skipping as overwrite False')
 
             control = prod.control
             data = prod.data

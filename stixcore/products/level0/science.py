@@ -45,6 +45,9 @@ class ScienceProduct(BaseProduct):
         self.scet_timerange = kwargs['scet_timerange']
 
     def __add__(self, other):
+        if (np.all(self.control == other.control) and self.scet_timerange == other.scet_timerange
+                and len(self.data) == len(other.data)):
+            return self
         combined_control_index = other.control['index'] + self.control['index'].max() + 1
         control = vstack((self.control, other.control))
         cnames = control.colnames
@@ -573,6 +576,7 @@ class Spectrogram(ScienceProduct):
     """
     X-ray Spectrogram or compression Level 2 data
     """
+
     def __init__(self, *, service_type, service_subtype, ssid, control, data,
                  idb_versions=defaultdict(SCETimeRange), **kwargs):
         super().__init__(service_type=service_type, service_subtype=service_subtype,

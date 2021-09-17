@@ -436,7 +436,7 @@ class Position(SpiceKernelLoader):
         solo_sun_gse, earth_solo_lt = spiceypy.spkezr('SOLO', et, 'EARTH_SUN_ECL', 'None', 'Earth')
         sun_earth_hee, sun_earth_lt = spiceypy.spkezr('Earth', et, 'SOLO_HEE', 'None', 'Sun')
 
-        headers = [
+        headers = (
             ('RSUN_ARC', rsun_arc.to_value('arcsec'),
              '[arcsec] Apparent photospheric solar radius'),
             # ('CAR_ROT', ,), Doesn't make sense as we don't have a crpix
@@ -490,6 +490,6 @@ class Position(SpiceKernelLoader):
              'Start time of observation, corrected to Earth'),
             ('DATE_SUN', (start_time - sun_solo_lt*u.s).fits,
              'Start time of observation, corrected to Su'),
-        ]
+        )
 
         return headers

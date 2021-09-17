@@ -9,6 +9,7 @@ from textwrap import wrap
 
 import numpy as np
 import spiceypy
+from spiceypy.utils.exceptions import SpiceBADPARTNUMBER, SpiceINVALIDSCLKSTRING
 
 import astropy.units as u
 from astropy.time.core import Time as ApTime
@@ -407,3 +408,88 @@ class Position(SpiceKernelLoader):
         x = (np.pi/2 - longitude) * u.rad
 
         return x, y
+
+    def get_fits_headers(self, *, start_time, average_time):
+
+        try:
+            et = spiceypy.scs2e(-144, str(average_time))
+        except (SpiceBADPARTNUMBER, SpiceINVALIDSCLKSTRING):
+            et = spiceypy.utc2et(average_time.isot)
+
+        # HeliographicStonyhurst
+        solo_sun_hg, sun_solo_lt = spiceypy.spkezr('SOLO', et, 'SUN_EARTH_CEQU', 'None', 'Sun')
+
+        # Convert to spherical and add units
+        hg_rad, hg_lat, hg_lon = spiceypy.reclat(solo_sun_hg[:3])
+        hg_rad = hg_rad * u.km
+        hg_lat, hg_lon = (hg_lat * u.rad).to('deg'), (hg_lon * u.rad).to('deg')
+        # Calculate radial velocity add units
+        rad_vel, *_ = spiceypy.reclat(solo_sun_hg[3:])
+        rad_vel = rad_vel * (u.km / u.s)
+
+        rsun_arc = np.arcsin((1 * u.R_sun) / hg_rad).decompose().to('arcsec')
+
+        solo_sun_hee, _ = spiceypy.spkezr('SOLO', et, 'SOLO_HEE', 'None', 'Sun')
+        solo_sun_hci, _ = spiceypy.spkezr('SOLO', et, 'SOLO_HCI', 'None', 'Sun')
+        solo_sun_hae, _ = spiceypy.spkezr('SOLO', et, 'SUN_ARIES_ECL', 'None', 'Sun')
+        solo_sun_heeq, _ = spiceypy.spkezr('SOLO', et, 'SOLO_HEEQ', 'None', 'Sun')
+        solo_sun_gse, earth_solo_lt = spiceypy.spkezr('SOLO', et, 'EARTH_SUN_ECL', 'None', 'Earth')
+        sun_earth_hee, sun_earth_lt = spiceypy.spkezr('Earth', et, 'SOLO_HEE', 'None', 'Sun')
+
+        headers = [
+            ('RSUN_ARC', rsun_arc.to_value('arcsec'),
+             '[arcsec] Apparent photospheric solar radius'),
+            # ('CAR_ROT', ,), Doesn't make sense as we don't have a crpix
+            ('HGLT_OBS', hg_lat.to_value('deg'), '[deg] s/c heliographic latitude (B0 angle)'),
+            ('HGLN_OBS', hg_lon.to_value('deg'), '[deg] s/c heliographic longitude'),
+            # Not mistake same values know by different terms
+            ('CRLT_OBS', hg_lat.to_value('deg'), 'deg] s/c Carrington latitude (B0 angle)'),
+            ('CRLN_OBS', hg_lon.to_value('deg'), 'deg] s/c Carrington longitude (L0 angle)'),
+            ('DSUN_OBS', hg_rad.to_value('m'), '[m] s/c distance from Sun'),
+            ('HEEX_OBS', (solo_sun_hee[0]*u.km).to_value('m'),
+             '[m] s/c Heliocentric Earth Ecliptic X'),
+            ('HEEY_OBS', (solo_sun_hee[1]*u.km).to_value('m'),
+             '[m] s/c Heliocentric Earth Ecliptic Y'),
+            ('HEEZ_OBS', (solo_sun_hee[2]*u.km).to_value('m'),
+             '[m] s/c Heliocentric Earth Ecliptic Z'),
+            ('HCIX_OBS', (solo_sun_hci[0]*u.km).to_value('m'),
+             '[m] s/c Heliocentric Inertial X'),
+            ('HCIY_OBS', (solo_sun_hci[1]*u.km).to_value('m'),
+             '[m] s/c Heliocentric Inertial Y'),
+            ('HCIZ_OBS', (solo_sun_hci[2]*u.km).to_value('m'),
+             '[m] s/c Heliocentric Inertial Z'),
+            ('HCIX_VOB', (solo_sun_hci[3]*(u.km/u.s)).to_value('m/s'),
+             '[m/s] s/c Heliocentric Inertial X Velocity'),
+            ('HCIY_VOB', (solo_sun_hci[4]*(u.km/u.s)).to_value('m/s'),
+             '[m/s] s/c Heliocentric Inertial Y Velocity'),
+            ('HCIZ_VOB', (solo_sun_hci[5]*(u.km/u.s)).to_value('m/s'),
+             '[m/s] s/c Heliocentric Inertial Z Velocity'),
+            ('HAEX_OBS', (solo_sun_hae[0]*u.km).to_value('m'),
+             '[m] s/c Heliocentric Aries Ecliptic X'),
+            ('HAEY_OBS', (solo_sun_hae[1]*u.km).to_value('m'),
+             '[m] s/c Heliocentric Aries Ecliptic Y'),
+            ('HAEZ_OBS', (solo_sun_hae[0]*u.km).to_value('m'),
+             '[m] s/c Heliocentric Aries Ecliptic Z'),
+            ('HEQX_OBS', (solo_sun_heeq[0]*u.km).to_value('m'),
+             '[m] s/c Heliocentric Earth Equatorial X'),
+            ('HEQY_OBS', (solo_sun_heeq[1]*u.km).to_value('m'),
+             '[m] s/c Heliocentric Earth Equatorial Y'),
+            ('HEQZ_OBS', (solo_sun_heeq[2]*u.km).to_value('m'),
+             '[m] s/c Heliocentric Earth Equatorial Z'),
+            ('GSEX_OBS', (solo_sun_gse[0]*u.km).to_value('m'),
+             '[m] s/c Geocentric Solar Ecliptic X'),
+            ('GSEY_OBS', (solo_sun_gse[1]*u.km).to_value('m'),
+             '[m] s/c Geocentric Solar Ecliptic Y'),
+            ('GSEZ_OBS', (solo_sun_gse[2]*u.km).to_value('m'),
+             '[m] s/c Geocentric Solar Ecliptic Y'),
+            ('OBS_VR', rad_vel.to_value('m/s'),
+             '[m/s] Radial velocity of spacecraft relative to Sun'),
+            ('EAR_TDEL', sun_earth_lt - sun_solo_lt, '[s] Time(Sun to Earth) - Time(Sun to S/C)'),
+            ('SUN_TIME', sun_solo_lt, '[s] Time(Sun to s/c)'),
+            ('DATE_EAR', (start_time + (sun_earth_lt - sun_solo_lt)*u.s).fits,
+             'Start time of observation, corrected to Earth'),
+            ('DATE_SUN', (start_time - sun_solo_lt*u.s).fits,
+             'Start time of observation, corrected to Su'),
+        ]
+
+        return headers

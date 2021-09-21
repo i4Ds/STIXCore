@@ -201,8 +201,8 @@ def test_level1_processor_generate_primary_header(product):
         'LEVEL': 'L1',
         'OBS_TYPE': 'ql',
         'RSUN_ARC': 1589.329760679639,
-        'HGLT_OBS': -66.52087427071969,
-        'HGLN_OBS': -0.3186629343606465,
+        'HGLT_OBS': -66.521984558927,
+        'HGLN_OBS': -0.3190007305644162,
     }
 
     header = processor.generate_primary_header('a_filename.fits', product)

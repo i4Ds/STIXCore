@@ -27,6 +27,7 @@ MAX_FINE = 2**16 - 1
 class TimeInfo(MixinInfo):
     attr_names = MixinInfo.attr_names
     _supports_indexing = True
+    _represent_as_dict_attrs = ('coarse', 'fine')
 
     def get_sortable_arrays(self):
         pass

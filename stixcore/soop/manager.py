@@ -368,7 +368,7 @@ class SOOPManager():
         Based on all found entries for the filter parameters a list of
         HeaderKeyword is generated combining all avaliable information.
 
-       Parameters
+        Parameters
         ----------
         start : `datetime`
             start time to look for overlapping observations and SOOPs in utc time
@@ -376,10 +376,11 @@ class SOOPManager():
             end time to look for overlapping observations and SOOPs in utc time, by default None ()
         otype : `SoopObservationType`, optional
             filter for specific type of observations, by default SoopObservationType.ALL
+
         Returns
         -------
         `list`
-            a list of `HeaderKeyword`
+            A list of `HeaderKeyword`
 
         Raises
         ------

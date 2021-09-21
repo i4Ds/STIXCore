@@ -66,10 +66,12 @@ class SOCPacketFile:
                 # TODO add TC packer reading
                 pass
         elif self.tmtc == TMTC.TM:
-            for i, node in enumerate(root.iter('Packet')):
-                packet_binary = unhexlify(node.text)
+            for node in root.iter('PktRawResponseElement'):
+                packet_id = int(node.attrib['packetID'])
+                packet = node.getchildren()[0]
+                packet_binary = unhexlify(packet.text)
                 # Not sure why guess and extra moc header
-                yield packet_binary[76:]
+                yield packet_id, packet_binary[76:]
 
 
 class SOCManager:

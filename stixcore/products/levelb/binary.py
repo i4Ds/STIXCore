@@ -218,8 +218,9 @@ class LevelB(BaseProduct):
             The input data file.
         """
         packet_data = defaultdict(list)
-        for binary in tmfile.get_packet_binaries():
+        for id, binary in tmfile.get_packet_binaries():
             packet = TMPacket(binary)
+            packet.source = (tmfile.file.name, id)
             # # TODO remove
             # if packet.key[:2] == (21, 6):
             packet_data[packet.key].append(packet)
@@ -233,7 +234,7 @@ class LevelB(BaseProduct):
                 hex_data.append(bs.hex)
                 dh = vars(packet.data_header)
                 dh.pop('datetime')
-                headers.append({**sh, **dh})
+                headers.append({**sh, **dh, 'file': packet.source[0], 'packet': packet.source[1]})
 
             control = Table(headers)
             control['index'] = np.arange(len(control), dtype=np.int64)

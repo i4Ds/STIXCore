@@ -33,7 +33,9 @@ def test_levelb_processor_generate_primary_header(datetime, product):
     beg = SCETime(coarse=0, fine=0)
     end = SCETime(coarse=1, fine=2 ** 15)
     product.control = {"scet_coarse": [beg.coarse, end.coarse],
-                       "scet_fine": [beg.fine, end.fine]}
+                       "scet_fine": [beg.fine, end.fine],
+                       'file': ['packet1.xml', 'packet2.xml'],
+                       'packet': [1, 2]}
     product.level = 'LB'
     product.service_type = 1
     product.service_subtype = 2
@@ -56,7 +58,9 @@ def test_levelb_processor_generate_primary_header(datetime, product):
         'SSTYPE': product.service_subtype,
         'SSID': product.ssid,
         'TIMESYS': "OBT",
-        'LEVEL': 'LB'
+        'LEVEL': 'LB',
+        'RAW_FILE': 'packet1.xml;packet2.xml',
+        'PARENT': 'packet1.xml;packet2.xml'
     }
 
     header = processor.generate_primary_header('a_filename.fits', product)

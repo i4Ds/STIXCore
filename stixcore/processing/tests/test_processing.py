@@ -1,5 +1,3 @@
-import os
-import shutil
 from pathlib import Path
 
 import numpy as np
@@ -16,7 +14,7 @@ from stixcore.tmtc.packets import TMTC
 
 @pytest.fixture
 def soc_manager():
-    return SOCManager(Path(__file__).parent.parent.parent / "data" / "test" / "io")
+    return SOCManager(Path(__file__).parent.parent.parent / "data" / "test" / "io" / 'soc')
 
 
 @pytest.fixture
@@ -25,17 +23,8 @@ def idb():
 
 
 @pytest.fixture
-def out_dir():
-    out_dir = Path(__file__).parent.parent.parent / "io" / "tests" / "data" / "out"
-    if not out_dir.exists():
-        os.makedirs(out_dir)
-    return out_dir
-
-
-def teardown_function():
-    out_dir = Path(__file__).parent.parent.parent / "io" / "tests" / "data" / "out"
-    if out_dir.exists():
-        shutil.rmtree(str(out_dir))
+def out_dir(tmp_path):
+    return tmp_path
 
 
 def test_level_b(soc_manager, out_dir):
@@ -43,11 +32,10 @@ def test_level_b(soc_manager, out_dir):
 
     files_to_process = soc_manager.get_files(TMTC.TM)
     for tmtc_file in files_to_process:
-        lb1 = LevelB.from_tm(tmtc_file)
-        fits_processor.write_fits(lb1)
-        # do again for __add__
-        lb2 = LevelB.from_tm(tmtc_file)
-        fits_processor.write_fits(lb2)
+        for prod in LevelB.from_tm(tmtc_file):
+            fits_processor.write_fits(prod)
+            # do again for __add__
+            fits_processor.write_fits(prod)
 
 
 def test_get_calibration_polynomial(idb):

@@ -123,7 +123,7 @@ class ProductFactory(BasicRegistrationFactory):
                     except KeyError:
                         pass
 
-                    data['time'] = data['time'] + offset
+                    data['time'] = offset + data['time']
 
                 energies = None
                 if level == 'L1':
@@ -338,6 +338,7 @@ class GenericProduct(BaseProduct):
         self.data = data
         self.idb_versions = idb_versions
         self.scet_timerange = kwargs.get('scet_timerange')
+        self.level = kwargs.get('level')
 
     def __add__(self, other):
         """
@@ -372,7 +373,7 @@ class GenericProduct(BaseProduct):
 
         logger.debug('len stacked %d', len(data))
 
-        data['time_float'] = data['time'].as_float()
+        data['time_float'] = np.around(data['time'].as_float(), 2)
 
         data = unique(data, keys=['time_float'])
 
@@ -391,42 +392,71 @@ class GenericProduct(BaseProduct):
 
         return type(self)(service_type=self.service_type, service_subtype=self.service_subtype,
                           ssid=self.ssid, control=control, data=data,
-                          idb_versions=self.idb_versions, scet_timerange=scet_timerange)
+                          idb_versions=self.idb_versions, scet_timerange=scet_timerange,
+                          level=self.level)
 
     def __repr__(self):
         return f'<{self.__class__.__name__}, {self.scet_timerange.start} to ' \
                f'{self.scet_timerange.start}, {len(self.control)}, {len(self.data)}>'
 
     def to_days(self):
-        start_day = int((self.scet_timerange.start.as_float() / u.d).decompose().value)
-        end_day = int((self.scet_timerange.end.as_float() / u.d).decompose().value)
-        if start_day == end_day:
-            end_day += 1
-        days = range(start_day, end_day)
-        # days = set([(t.year, t.month, t.day) for t in self.data['time'].to_datetime()])
-        # date_ranges = [(datetime(*day), datetime(*day) + timedelta(days=1)) for day in days]
-        for day in days:
-            ds = SCETime(((day * u.day).to_value('s')).astype(int), 0)
-            de = SCETime((((day + 1) * u.day).to_value('s')).astype(int), 0)
-            i = np.where((self.data['time'] >= ds) & (self.data['time'] < de))
+        if self.level == 'L0':
+            start_day = int((self.scet_timerange.start.as_float() / u.d).decompose().value)
+            end_day = int((self.scet_timerange.end.as_float() / u.d).decompose().value)
+            if start_day == end_day:
+                end_day += 1
+            days = range(start_day, end_day)
+            # days = set([(t.year, t.month, t.day) for t in self.data['time'].to_datetime()])
+            # date_ranges = [(datetime(*day), datetime(*day) + timedelta(days=1)) for day in days]
+            for day in days:
+                ds = SCETime(((day * u.day).to_value('s')).astype(int), 0)
+                de = SCETime((((day + 1) * u.day).to_value('s')).astype(int), 0)
+                i = np.where((self.data['time'] >= ds) & (self.data['time'] < de))
 
-            scet_timerange = SCETimeRange(start=ds, end=de)
+                scet_timerange = SCETimeRange(start=ds, end=de)
 
-            if i[0].size > 0:
-                data = self.data[i]
-                control_indices = np.unique(data['control_index'])
-                control = self.control[np.isin(self.control['index'], control_indices)]
-                control_index_min = control_indices.min()
+                if i[0].size > 0:
+                    data = self.data[i]
+                    control_indices = np.unique(data['control_index'])
+                    control = self.control[np.isin(self.control['index'], control_indices)]
+                    control_index_min = control_indices.min()
 
-                data['control_index'] = data['control_index'] - control_index_min
-                control['index'] = control['index'] - control_index_min
+                    data['control_index'] = data['control_index'] - control_index_min
+                    control['index'] = control['index'] - control_index_min
 
-                out = type(self)(service_type=self.service_type,
-                                 service_subtype=self.service_subtype,
-                                 ssid=self.ssid, control=control, data=data,
-                                 idb_versions=self.idb_versions, scet_timerange=scet_timerange)
-                out.level = self.level
-                yield out
+                    out = type(self)(service_type=self.service_type,
+                                     service_subtype=self.service_subtype,
+                                     ssid=self.ssid, control=control, data=data,
+                                     idb_versions=self.idb_versions, scet_timerange=scet_timerange)
+                    out.level = self.level
+                    yield out
+        else:
+            utc_timerange = self.scet_timerange.to_timerange()
+
+            for day in utc_timerange.get_dates():
+                ds = day
+                de = day + 1 * u.day
+                utc_times = self.data['time'].to_time()
+                i = np.where((utc_times >= ds) & (utc_times < de))
+
+                if len(i[0]) > 0:
+                    data = self.data[i]
+
+                    scet_timerange = SCETimeRange(start=self.data['time'][0]
+                                                  - self.data['timedel'][0] / 2,
+                                                  end=self.data['time'][-1]
+                                                  + self.data['timedel'][-1] / 2)
+
+                    control_indices = np.unique(data['control_index'])
+                    control = self.control[np.isin(self.control['index'], control_indices)]
+                    control_index_min = control_indices.min()
+
+                    data['control_index'] = data['control_index'] - control_index_min
+                    control['index'] = control['index'] - control_index_min
+                    yield type(self)(service_type=self.service_type,
+                                     service_subtype=self.service_subtype, ssid=self.ssid,
+                                     control=control, data=data, idb_versions=self.idb_versions,
+                                     scet_timerange=scet_timerange, level=self.level)
 
 
 class DefaultProduct(GenericProduct):
@@ -452,7 +482,7 @@ class DefaultProduct(GenericProduct):
         super().__init__(service_type=service_type, service_subtype=service_subtype,
                          ssid=ssid, control=control, data=data, idb_versions=idb_versions, **kwargs)
         self.name = f'{service_subtype}-{ssid}' if ssid else f'{service_subtype}'
-        self.level = 'L0'
+        self.level = kwargs.get('level', 'L0')
         self.type = f'{self.service_name_map[service_type]}'
 
     @property

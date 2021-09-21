@@ -1,15 +1,21 @@
 """
 House Keeping data products
 """
+import logging
 from collections import defaultdict
+
+import numpy as np
+
+from astropy.table import unique, vstack
 
 from stixcore.products.level0.quicklook import QLProduct
 from stixcore.products.product import Control, Data
-from stixcore.time import SCETime, SCETimeRange
+from stixcore.time import SCETime, SCETimeDelta, SCETimeRange
+from stixcore.util.logging import get_logger
+
+logger = get_logger(__name__, level=logging.DEBUG)
 
 __all__ = ['MiniReport', 'MaxiReport']
-
-from stixcore.time.datetime import SCETimeDelta
 
 
 class MiniReport(QLProduct):
@@ -88,6 +94,61 @@ class MiniReport(QLProduct):
         return cls(service_type=service_type, service_subtype=service_subtype, ssid=ssid,
                    control=control, data=data, idb_versions=idb_versions,
                    scet_timerange=scet_timerange)
+
+    def __add__(self, other):
+        """
+        Combine two products stacking data along columns and removing duplicated data using time as
+        the primary key.
+
+        Parameters
+        ----------
+        other : A subclass of stix_parser.products.quicklook.QLProduct
+
+        Returns
+        -------
+        A subclass of stix_parser.products.quicklook.QLProduct
+            The combined data product
+        """
+        if not isinstance(other, type(self)):
+            raise TypeError(f'Products must of same type not {type(self)} and {type(other)}')
+
+        # TODO reindex and update data control_index
+        other_control = other.control[:]
+        other_data = other.data[:]
+        other_control['index'] = other.control['index'] + self.control['index'].max() + 1
+        control = vstack((self.control, other_control))
+        # control = unique(control, keys=['scet_coarse', 'scet_fine'])
+        # control = control.group_by(['scet_coarse', 'scet_fine'])
+
+        other_data['control_index'] = other.data['control_index'] + self.control['index'].max() + 1
+
+        logger.debug('len self: %d, len other %d', len(self.data), len(other_data))
+
+        data = vstack((self.data, other_data))
+
+        logger.debug('len stacked %d', len(data))
+
+        # Not sure where the rounding issue is arising need to investigate
+        data['time_float'] = np.around(data['time'].as_float(), 2)
+
+        data = unique(data, keys=['time_float'])
+
+        logger.debug('len unique %d', len(data))
+
+        data.remove_column('time_float')
+
+        unique_control_inds = np.unique(data['control_index'])
+        control = control[np.nonzero(control['index'][:, None] == unique_control_inds)[1]]
+
+        for idb_key, date_range in other.idb_versions.items():
+            self.idb_versions[idb_key].expand(date_range)
+
+        scet_timerange = SCETimeRange(start=data['time'][0]-data['timedel'][0]/2,
+                                      end=data['time'][-1]+data['timedel'][-1]/2)
+
+        return type(self)(service_type=self.service_type, service_subtype=self.service_subtype,
+                          ssid=self.ssid, control=control, data=data,
+                          idb_versions=self.idb_versions, scet_timerange=scet_timerange)
 
     @classmethod
     def is_datasource_for(cls, *, service_type, service_subtype, ssid, **kwargs):
@@ -214,6 +275,61 @@ class MaxiReport(QLProduct):
         return cls(service_type=service_type, service_subtype=service_subtype, ssid=ssid,
                    control=control, data=data, idb_versions=idb_versions,
                    scet_timerange=scet_timerange)
+
+    def __add__(self, other):
+        """
+        Combine two products stacking data along columns and removing duplicated data using time as
+        the primary key.
+
+        Parameters
+        ----------
+        other : A subclass of stix_parser.products.quicklook.QLProduct
+
+        Returns
+        -------
+        A subclass of stix_parser.products.quicklook.QLProduct
+            The combined data product
+        """
+        if not isinstance(other, type(self)):
+            raise TypeError(f'Products must of same type not {type(self)} and {type(other)}')
+
+        # TODO reindex and update data control_index
+        other_control = other.control[:]
+        other_data = other.data[:]
+        other_control['index'] = other.control['index'] + self.control['index'].max() + 1
+        control = vstack((self.control, other_control))
+        # control = unique(control, keys=['scet_coarse', 'scet_fine'])
+        # control = control.group_by(['scet_coarse', 'scet_fine'])
+
+        other_data['control_index'] = other.data['control_index'] + self.control['index'].max() + 1
+
+        logger.debug('len self: %d, len other %d', len(self.data), len(other_data))
+
+        data = vstack((self.data, other_data))
+
+        logger.debug('len stacked %d', len(data))
+
+        # Not sure where the rounding issue is arising need to investigate
+        data['time_float'] = np.around(data['time'].as_float(), 2)
+
+        data = unique(data, keys=['time_float'])
+
+        logger.debug('len unique %d', len(data))
+
+        data.remove_column('time_float')
+
+        unique_control_inds = np.unique(data['control_index'])
+        control = control[np.nonzero(control['index'][:, None] == unique_control_inds)[1]]
+
+        for idb_key, date_range in other.idb_versions.items():
+            self.idb_versions[idb_key].expand(date_range)
+
+        scet_timerange = SCETimeRange(start=data['time'][0]-data['timedel'][0]/2,
+                                      end=data['time'][-1]+data['timedel'][-1]/2)
+
+        return type(self)(service_type=self.service_type, service_subtype=self.service_subtype,
+                          ssid=self.ssid, control=control, data=data,
+                          idb_versions=self.idb_versions, scet_timerange=scet_timerange)
 
     @classmethod
     def is_datasource_for(cls, *, service_type, service_subtype, ssid, **kwargs):

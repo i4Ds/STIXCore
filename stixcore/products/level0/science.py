@@ -45,6 +45,9 @@ class ScienceProduct(BaseProduct):
         self.scet_timerange = kwargs['scet_timerange']
 
     def __add__(self, other):
+        if (np.all(self.control == other.control) and self.scet_timerange == other.scet_timerange
+                and len(self.data) == len(other.data)):
+            return self
         combined_control_index = other.control['index'] + self.control['index'].max() + 1
         control = vstack((self.control, other.control))
         cnames = control.colnames
@@ -512,9 +515,9 @@ class Visibility(ScienceProduct):
             triggers_var.extend(packets.get_value(f'NIX00{i}', attr='error'))
 
         data['triggers'] = np.array(triggers).reshape(-1, 16)
-        data['triggers'].meta = {'NIXS': [f'NIX00{i}' for i in range(242, 258)],
-                                 'PCF_CURTX': [packets.get(f'NIX00{i}')[0].idb_info.PCF_CURTX
-                                               for i in range(242, 258)]}
+        data['triggers'].meta = {'NIXS': [f'NIX00{i}' for i in range(242, 258)]}  # ,
+        #                         'PCF_CURTX': [packets.get(f'NIX00{i}')[0].idb_info.PCF_CURTX
+        #                                       for i in range(242, 258)]}
         data['triggers_err'] = np.sqrt(triggers_var).reshape(-1, 16)
 
         tids = np.searchsorted(data['delta_time'], unique_times)
@@ -573,6 +576,7 @@ class Spectrogram(ScienceProduct):
     """
     X-ray Spectrogram or compression Level 2 data
     """
+
     def __init__(self, *, service_type, service_subtype, ssid, control, data,
                  idb_versions=defaultdict(SCETimeRange), **kwargs):
         super().__init__(service_type=service_type, service_subtype=service_subtype,

@@ -46,20 +46,23 @@ class QLProduct(QLProductL0):
     def to_days(self):
 
         utc_timerange = self.scet_timerange.to_timerange()
-
-        for day in utc_timerange.get_dates():
+        # TODO remove sunpy3.0.1
+        days = utc_timerange.get_dates()
+        days.append(days[-1] + 1*u.day)
+        for day in days:
             ds = day
             de = day + 1 * u.day
             utc_times = self.data['time'].to_time()
             i = np.where((utc_times >= ds) & (utc_times < de))
 
             if len(i[0]) > 0:
-                scet_timerange = SCETimeRange(start=self.data['time'][i[0]]
-                                              - self.data['timedel'][i[0]]/2,
-                                              end=self.data['time'][i[-1]]
-                                              + self.data['timedel'][i[-1]]/2)
-
                 data = self.data[i]
+
+                scet_timerange = SCETimeRange(start=self.data['time'][0]
+                                              - self.data['timedel'][0]/2,
+                                              end=self.data['time'][-1]
+                                              + self.data['timedel'][-1]/2)
+
                 control_indices = np.unique(data['control_index'])
                 control = self.control[np.isin(self.control['index'], control_indices)]
                 control_index_min = control_indices.min()

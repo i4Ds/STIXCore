@@ -714,6 +714,9 @@ class SCETimeRange:
         return (f'{str(self.start)} to ' +
                 f'{str(self.end)}')
 
+    def __eq__(self, other):
+        return np.all(self.start == other.start) and np.all(self.end == other.end)
+
     def __contains__(self, item):
         if isinstance(item, SCETime):
             return self.start <= item <= self.end

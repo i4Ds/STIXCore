@@ -21,7 +21,7 @@ class Level0:
         self.processor = FitsL0Processor(self.output_dir)
 
     def process_fits_files(self, files=None):
-        all_files = []
+        all_files = set()
         tm = defaultdict(list)
         if files is None:
             files = self.levelb_files
@@ -33,13 +33,14 @@ class Level0:
             tm[tm_type].append(file)
 
         # Need to fix not standard time axis
-        del tm[(21, 6, 43)]
-
+        try:
+            del tm[(21, 6, 43)]
+        except Exception:
+            pass
         # For each type
         for tm_type, files in tm.items():
-
             # Stand alone packet data
-            if tm_type[0] != 21 and tm_type[-1] not in {20, 21, 22, 23, 24}:
+            if (tm_type[0] == 21 and tm_type[-1] not in {20, 21, 22, 23, 24}) or tm_type[0] != 21:
                 for file in files:
                     levelb = Product(file)
                     tmp = Product._check_registered_widget(
@@ -49,7 +50,7 @@ class Level0:
                     try:
                         level0 = tmp.from_levelb(levelb)
                         fits_files = self.processor.write_fits(level0)
-                        all_files.extend(fits_files)
+                        all_files.update(fits_files)
                     except Exception as e:
                         logger.error('Error processing file %s for %s, %s, %s', file,
                                      levelb.service_type, levelb.service_subtype, levelb.ssid)
@@ -81,11 +82,12 @@ class Level0:
                                     control=None)
                                 level0 = tmp.from_levelb(comp)
                                 fits_files = self.processor.write_fits(level0)
-                                all_files.extend(fits_files)
+                                all_files.update(fits_files)
                             except Exception as e:
                                 logger.error('Error processing file %s for %s, %s, %s', file,
                                              comp.service_type, comp.service_subtype, comp.ssid)
                                 logger.error('%s', e)
+                            # except Exception as e:
                                 raise e
                         complete = []
                     try:
@@ -102,7 +104,7 @@ class Level0:
                                                                control=None)
                         level0 = tmp.from_levelb(inc)
                         fits_files = self.processor.write_fits(level0)
-                        all_files.extend(fits_files)
+                        all_files.update(fits_files)
 
         return all_files
 
@@ -110,8 +112,8 @@ class Level0:
 if __name__ == '__main__':
     tstart = perf_counter()
 
-    fits_path = Path('/home/shane/fits181/LB')
-    bd = Path('/home/shane/fits181')
+    fits_path = Path('/home/shane/fits/LB/21/6/23')
+    bd = Path('/home/shane/fits')
 
     l0processor = Level0(fits_path, bd)
     l0_files = l0processor.process_fits_files()

@@ -24,14 +24,14 @@ def process_tmtc_to_levelbinary(files_to_process, archive_path=None):
     if archive_path is None:
         archive_path = Path(CONFIG.get('Paths', 'fits_archive'))
     fits_processor = FitsLBProcessor(archive_path)
-    all_files = []
+    all_files = set()
     for tmtc_file in files_to_process:
         logger.info(f'Processing file: {tmtc_file}')
         # TODO sorting filter etc
         for prod in LevelB.from_tm(tmtc_file):
             if prod:
                 files = fits_processor.write_fits(prod)
-                all_files.extend(files)
+                all_files.update(files)
     return all_files
 
 

@@ -86,7 +86,8 @@ class QLProduct(BaseProduct):
 
         logger.debug('len stacked %d', len(data))
 
-        data['time_float'] = data['time'].as_float()
+        # Not sure where the rounding issue is arising need to investigate
+        data['time_float'] = np.around(data['time'].as_float(), 2)
 
         data = unique(data, keys=['time_float'])
 
@@ -122,10 +123,10 @@ class QLProduct(BaseProduct):
             de = SCETime((((day + 1) * u.day).to_value('s')).astype(int), 0)
             i = np.where((self.data['time'] >= ds) & (self.data['time'] < de))
 
-            scet_timerange = SCETimeRange(start=ds, end=de)
-
             if i[0].size > 0:
                 data = self.data[i]
+                scet_timerange = SCETimeRange(start=data['time'][0] - data['timedel'][0]/2,
+                                              end=data['time'][-1] + data['timedel'][-1]/2)
                 control_indices = np.unique(data['control_index'])
                 control = self.control[np.isin(self.control['index'], control_indices)]
                 control_index_min = control_indices.min()
@@ -536,8 +537,11 @@ class FlareFlag(QLProduct):
         data.add_meta(name='non_thermal_index', nix='NIXD0060', packets=packets)
         data['location_status'] = packets.get_value('NIXD0059', attr='value').astype(np.int16).T
         data.add_meta(name='location_status', nix='NIXD0059', packets=packets)
-        data['flare_progress'] = packets.get_value('NIXD0449', attr='value').astype(np.int16).T
-        data.add_basic(name='flare_progress', nix='NIXD0449', packets=packets)
+        try:
+            data['flare_progress'] = packets.get_value('NIXD0449', attr='value').astype(np.int16).T
+            data.add_basic(name='flare_progress', nix='NIXD0449', packets=packets)
+        except AttributeError:
+            logger.warn('Missing NIXD0449')
 
         return cls(service_type=service_type, service_subtype=service_subtype, ssid=ssid,
                    control=control, data=data, idb_versions=idb_versions,

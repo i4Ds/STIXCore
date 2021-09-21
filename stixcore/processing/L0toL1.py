@@ -29,7 +29,7 @@ class Level1:
                 tmp = Product._check_registered_widget(level='L1', service_type=l0.service_type,
                                                        service_subtype=l0.service_subtype,
                                                        ssid=l0.ssid, data=None, control=None)
-                l1 = tmp.from_level0(l0)
+                l1 = tmp.from_level0(l0, parent=file.name)
                 files = self.processor.write_fits(l1)
                 all_files.update(files)
             except NoMatchError:

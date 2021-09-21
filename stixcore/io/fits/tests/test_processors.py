@@ -33,9 +33,9 @@ def test_levelb_processor_generate_primary_header(datetime, product):
     beg = SCETime(coarse=0, fine=0)
     end = SCETime(coarse=1, fine=2 ** 15)
     product.control = {"scet_coarse": [beg.coarse, end.coarse],
-                       "scet_fine": [beg.fine, end.fine],
-                       'file': ['packet1.xml', 'packet2.xml'],
-                       'packet': [1, 2]}
+                       "scet_fine": [beg.fine, end.fine]}
+    product.raw = ['packet1.xml', 'packet2.xml']
+    product.parent = ['packet1.xml', 'packet2.xml']
     product.level = 'LB'
     product.service_type = 1
     product.service_subtype = 2
@@ -118,6 +118,8 @@ def test_level0_processor_generate_primary_header(datetime, product):
     product.obs_avg = SCETime(coarse=0, fine=2 ** 15)
     product.obs_end = SCETime(coarse=1, fine=2 ** 15)
     product.scet_timerange = SCETimeRange(start=product.obs_beg, end=product.obs_end)
+    product.raw = ['packet1.xml', 'packet2.xml']
+    product.parent = ['lb1.fits', 'lb2.fts']
     product.service_type = 1
     product.service_subtype = 2
     product.ssid = 3
@@ -136,7 +138,9 @@ def test_level0_processor_generate_primary_header(datetime, product):
         'SSTYPE': 2,
         'SSID': 3,
         'TIMESYS': "OBT",
-        'LEVEL': 'L0'
+        'LEVEL': 'L0',
+        'RAW_FILE': 'packet1.xml;packet2.xml',
+        'PARENT': 'lb1.fits;lb2.fts'
     }
 
     header = processor.generate_primary_header('a_filename.fits', product)
@@ -184,6 +188,8 @@ def test_level1_processor_generate_primary_header(product):
     beg + (end - beg)/2
     product.scet_timerange = SCETimeRange(start=beg, end=end)
     product.utc_timerange = product.scet_timerange.to_timerange()
+    product.raw = ['packet1.xml', 'packet2.xml']
+    product.parent = ['l01.fits', 'l02.fts']
     product.level = 'L1'
     product.type = "ql"
     product.service_type = 1
@@ -207,6 +213,8 @@ def test_level1_processor_generate_primary_header(product):
         'RSUN_ARC': 1589.329760679639,
         'HGLT_OBS': -66.521984558927,
         'HGLN_OBS': -0.3190007305644162,
+        'RAW_FILE': 'packet1.xml;packet2.xml',
+        'PARENT': 'l01.fits;l02.fts'
     }
 
     header = processor.generate_primary_header('a_filename.fits', product)

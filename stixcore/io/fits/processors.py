@@ -62,7 +62,6 @@ class FitsProcessor:
 
     @classmethod
     def generate_common_header(cls, filename, product):
-        raw = ';'.join(np.unique(product.control['file']))
         headers = (
             # Name, Value, Comment
             ('TELESCOP', 'SOLO/STIX', 'Telescope/Sensor name'),
@@ -84,8 +83,8 @@ class FitsProcessor:
             ('STYPE', product.service_type),
             ('SSTYPE', product.service_subtype),
             ('SSID', product.ssid if product.ssid is not None else ''),
-            ('RAW_FILE', raw, 'Raw filename(s)'),
-            ('PARENT', raw, 'Source file current data product'),
+            ('RAW_FILE', ';'.join(list(product.raw)), 'Raw filename(s)'),
+            ('PARENT', ';'.join(list(product.parent)), 'Source file current data product'),
         )
         return headers
 

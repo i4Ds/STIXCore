@@ -3,12 +3,15 @@ from pathlib import Path
 import numpy as np
 import pytest
 
+from astropy.io.fits.diff import FITSDiff
+
 from stixcore.data.test import test_data
 from stixcore.idb.idb import IDBPolynomialCalibration
 from stixcore.idb.manager import IDBManager
-from stixcore.io.fits.processors import FitsLBProcessor
 from stixcore.io.soc.manager import SOCManager
-from stixcore.products.levelb.binary import LevelB
+from stixcore.processing.L0toL1 import Level1
+from stixcore.processing.LBtoL0 import Level0
+from stixcore.processing.TMTCtoLB import process_tmtc_to_levelbinary
 from stixcore.tmtc.packets import TMTC
 
 
@@ -28,14 +31,35 @@ def out_dir(tmp_path):
 
 
 def test_level_b(soc_manager, out_dir):
-    fits_processor = FitsLBProcessor(out_dir)
+    files_to_process = list(soc_manager.get_files(TMTC.TM))
+    res = process_tmtc_to_levelbinary(files_to_process=files_to_process[1:], archive_path=out_dir)
+    assert len(res) == 1
+    fits = res.pop()
+    diff = FITSDiff(test_data.products.DIR / fits.name, fits,
+                    ignore_keywords=['CHECKSUM', 'DATASUM', 'DATE'])
+    assert diff.identical
 
-    files_to_process = soc_manager.get_files(TMTC.TM)
-    for tmtc_file in files_to_process:
-        for prod in LevelB.from_tm(tmtc_file):
-            fits_processor.write_fits(prod)
-            # do again for __add__
-            fits_processor.write_fits(prod)
+
+def test_level_0(out_dir):
+    lb = test_data.products.LB_21_6_30_fits
+    l0 = Level0(out_dir / 'LB', out_dir)
+    res = l0.process_fits_files(files=[lb])
+    assert len(res) == 2
+    for fits in res:
+        diff = FITSDiff(test_data.products.DIR / fits.name, fits,
+                        ignore_keywords=['CHECKSUM', 'DATASUM', 'DATE'])
+        assert diff.identical
+
+
+def test_level_1(out_dir):
+    l0 = test_data.products.L0_LightCurve_fits
+    l1 = Level1(out_dir / 'LB', out_dir)
+    res = l1.process_fits_files(files=l0)
+    assert len(res) == 2
+    for fits in res:
+        diff = FITSDiff(test_data.products.DIR / fits.name, fits,
+                        ignore_keywords=['CHECKSUM', 'DATASUM', 'DATE'])
+        assert diff.identical
 
 
 def test_get_calibration_polynomial(idb):

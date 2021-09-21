@@ -73,6 +73,9 @@ class SOCPacketFile:
                 # Not sure why guess and extra moc header
                 yield packet_id, packet_binary[76:]
 
+    def __repr__(self):
+        return f"{self.__class__.__name__}('{self.file}')"
+
 
 class SOCManager:
     """Manages the SOC data exchange directory and provides excess and search methods."""
@@ -117,3 +120,6 @@ class SOCManager:
                     yield file
             except ValueError:
                 pass
+
+    def __repr__(self):
+        return f"{self.__class__.__name__}('{self.data_root}')"

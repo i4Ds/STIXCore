@@ -94,6 +94,8 @@ class ProductFactory(BasicRegistrationFactory):
                 header = fits.getheader(file_path)
                 service_type = int(header.get('stype'))
                 service_subtype = int(header.get('sstype'))
+                parent = header.get('parent').split(';')
+                raw = header.get('raw_file').split(';')
                 try:
                     ssid = int(header.get('ssid'))
                 except ValueError:
@@ -150,7 +152,7 @@ class ProductFactory(BasicRegistrationFactory):
                                service_subtype=service_subtype,
                                ssid=ssid, control=control,
                                data=data, energies=energies, idb_versions=idb_versions,
-                               scet_timerange=scet_timerange)
+                               scet_timerange=scet_timerange, raw=raw, parent=parent)
 
     def _check_registered_widget(self, *args, **kwargs):
         """

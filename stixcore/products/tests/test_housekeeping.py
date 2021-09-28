@@ -1,7 +1,5 @@
 import re
-import tempfile
 from time import perf_counter
-from pathlib import Path
 from unittest.mock import patch
 
 import pytest
@@ -48,9 +46,8 @@ def test_housekeeping(levelb, packets):
     assert len(hk.data) == size
 
 
-@pytest.mark.xfail
 @patch('stixcore.products.levelb.binary.LevelB')
-def test_calibration_hk(levelb, idbm):
+def test_calibration_hk(levelb, idbm, tmp_path):
 
     with test_data.tmtc.TM_3_25_2.open('r') as file:
         hex = file.readlines()
@@ -60,14 +57,13 @@ def test_calibration_hk(levelb, idbm):
     hkl0 = MaxiReportL0.from_levelb(levelb)
     hkl1 = MaxiReportL1.from_level0(hkl0)
 
-    fits_procl1 = FitsL1Processor(Path(tempfile.gettempdir()))
+    fits_procl1 = FitsL1Processor(tmp_path)
     fits_procl1.write_fits(hkl1)[0]
 
     assert True
 
 
-@pytest.mark.xfail
-def test_calibration_hk_many(idbm):
+def test_calibration_hk_many(idbm, tmp_path):
 
     idbm.download_version("2.26.35", force=True)
 
@@ -76,7 +72,7 @@ def test_calibration_hk_many(idbm):
     prod_lb_p1 = LevelB.from_tm(SOCPacketFile(test_data.io.HK_MAXI_P1))
     hk_p1 = MaxiReportL0.from_levelb(list(prod_lb_p1)[0])
 
-    fits_procl0 = FitsL0Processor(Path(tempfile.gettempdir()))
+    fits_procl0 = FitsL0Processor(tmp_path)
     filename = fits_procl0.write_fits(hk_p1)[0]
 
     hk_p1_io = Product(filename)
@@ -92,7 +88,7 @@ def test_calibration_hk_many(idbm):
 
     hkl1 = MaxiReportL1.from_level0(hkl0, idbm=idbm)
 
-    fits_procl1 = FitsL1Processor(Path(tempfile.gettempdir()))
+    fits_procl1 = FitsL1Processor(tmp_path)
     filename = fits_procl1.write_fits(hkl1)[0]
 
     tend = perf_counter()

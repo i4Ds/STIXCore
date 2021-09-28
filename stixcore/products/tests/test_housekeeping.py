@@ -1,8 +1,5 @@
 import re
-import shutil
-import tempfile
 from time import perf_counter
-from pathlib import Path
 from unittest.mock import patch
 
 import pytest
@@ -24,12 +21,6 @@ testpackets = [(test_data.tmtc.TM_3_25_1, MiniReportL0, 'mini',
                 '0660010031:51424', '0660010031:51424', 1),
                (test_data.tmtc.TM_3_25_2, MaxiReportL0, 'maxi',
                 '0660258881:33104', '0660258881:33104', 1)]
-
-
-def setup_module():
-    outdir = Path(tempfile.gettempdir()) / "stixcorefits"
-    if outdir.exists():
-        shutil.rmtree(str(outdir))
 
 
 @pytest.fixture
@@ -56,7 +47,7 @@ def test_housekeeping(levelb, packets):
 
 
 @patch('stixcore.products.levelb.binary.LevelB')
-def test_calibration_hk(levelb, idbm):
+def test_calibration_hk(levelb, idbm, tmp_path):
 
     with test_data.tmtc.TM_3_25_2.open('r') as file:
         hex = file.readlines()
@@ -66,13 +57,13 @@ def test_calibration_hk(levelb, idbm):
     hkl0 = MaxiReportL0.from_levelb(levelb)
     hkl1 = MaxiReportL1.from_level0(hkl0)
 
-    fits_procl1 = FitsL1Processor(Path(tempfile.gettempdir()) / "stixcorefits")
+    fits_procl1 = FitsL1Processor(tmp_path)
     fits_procl1.write_fits(hkl1)[0]
 
     assert True
 
 
-def test_calibration_hk_many(idbm):
+def test_calibration_hk_many(idbm, tmp_path):
 
     idbm.download_version("2.26.35", force=True)
 
@@ -81,7 +72,7 @@ def test_calibration_hk_many(idbm):
     prod_lb_p1 = LevelB.from_tm(SOCPacketFile(test_data.io.HK_MAXI_P1))
     hk_p1 = MaxiReportL0.from_levelb(list(prod_lb_p1)[0])
 
-    fits_procl0 = FitsL0Processor(Path(tempfile.gettempdir()) / "stixcorefits")
+    fits_procl0 = FitsL0Processor(tmp_path)
     filename = fits_procl0.write_fits(hk_p1)[0]
 
     hk_p1_io = Product(filename)
@@ -97,7 +88,7 @@ def test_calibration_hk_many(idbm):
 
     hkl1 = MaxiReportL1.from_level0(hkl0, idbm=idbm)
 
-    fits_procl1 = FitsL1Processor(Path(tempfile.gettempdir()) / "stixcorefits")
+    fits_procl1 = FitsL1Processor(tmp_path)
     filename = fits_procl1.write_fits(hkl1)[0]
 
     tend = perf_counter()

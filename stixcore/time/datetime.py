@@ -366,6 +366,13 @@ class SCETime(SCETBase):
             super().__init__(coarse, fine)
             self.time_sync = time_sync
 
+    @property
+    def fits(self):
+        if self.coarse.size == 1:
+            return f'{self.coarse:010d}:{self.fine:05d}'
+        else:
+            return [f'{c:010d}:{f:05d}' for c, f in zip(self.coarse, self.fine)]
+
     @classmethod
     def from_float(cls, scet_float):
         """

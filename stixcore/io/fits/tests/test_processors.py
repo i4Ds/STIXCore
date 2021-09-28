@@ -1,5 +1,7 @@
 from unittest.mock import patch
 
+import numpy as np
+
 from stixcore.io.fits.processors import FitsL0Processor, FitsL1Processor, FitsLBProcessor
 from stixcore.time import SCETime, SCETimeRange
 
@@ -173,8 +175,8 @@ def test_level1_processor_generate_filename():
 @patch('stixcore.products.level1.quicklook.QLProduct')
 def test_level1_processor_generate_primary_header(product):
     processor = FitsL1Processor('some/path')
-    beg = SCETime(coarse=0, fine=0)
-    end = SCETime(coarse=1, fine=2 ** 15)
+    beg = SCETime(coarse=683769519, fine=0)
+    end = SCETime(coarse=beg.coarse+24 * 60 * 60)
     beg + (end - beg)/2
     product.scet_timerange = SCETimeRange(start=beg, end=end)
     product.utc_timerange = product.scet_timerange.to_timerange()
@@ -197,10 +199,16 @@ def test_level1_processor_generate_primary_header(product):
         'SSID': product.ssid,
         'TIMESYS': 'UTC',
         'LEVEL': 'L1',
-        "OBS_TYPE": 'ql'
+        'OBS_TYPE': 'ql',
+        'RSUN_ARC': 1589.329760679639,
+        'HGLT_OBS': -66.521984558927,
+        'HGLN_OBS': -0.3190007305644162,
     }
 
     header = processor.generate_primary_header('a_filename.fits', product)
     for name, value, *comment in header:
         if name in test_data.keys():
-            assert value == test_data[name]
+            if isinstance(value, float):
+                assert np.allclose(test_data[name], value)
+            else:
+                assert value == test_data[name]

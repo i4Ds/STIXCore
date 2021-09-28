@@ -7,6 +7,7 @@ import astropy.units as u
 
 from stixcore.data.test import test_data
 from stixcore.ephemeris.manager import Position
+from stixcore.time.datetime import SCETime
 
 
 @pytest.fixture
@@ -51,3 +52,15 @@ def test_get_orientation(spicemanager):
 #     with spicemanager as spice:
 #         x, y = spice.convert_to_inst(coord)
 #         assert False
+
+def test_get_fits_headers(spicemanager):
+    start_scet = SCETime(683769519, 58289)
+    avg_scet = start_scet + 12*u.h
+
+    with spicemanager as spice:
+        r1 = spice.get_fits_headers(start_time=start_scet, average_time=avg_scet)
+        r2 = spice.get_fits_headers(start_time=start_scet.to_time(),
+                                    average_time=avg_scet.to_time())
+
+        arr = np.array([(r1[i][1], r2[i][1]) for i in range(len(r1) - 2)])
+        assert np.allclose(arr[:, 0], arr[:, 1])

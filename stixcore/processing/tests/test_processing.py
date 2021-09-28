@@ -32,7 +32,7 @@ def out_dir(tmp_path):
 
 def test_level_b(soc_manager, out_dir):
     files_to_process = list(soc_manager.get_files(TMTC.TM))
-    res = process_tmtc_to_levelbinary(files_to_process=files_to_process[1:], archive_path=out_dir)
+    res = process_tmtc_to_levelbinary(files_to_process=files_to_process[0:1], archive_path=out_dir)
     assert len(res) == 1
     fits = res.pop()
     diff = FITSDiff(test_data.products.DIR / fits.name, fits,

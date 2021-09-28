@@ -1,5 +1,4 @@
 """Module to encapsulate the SOC file reading and writing."""
-import os
 from pathlib import Path
 from binascii import unhexlify
 from xml.etree import ElementTree as Et
@@ -113,7 +112,7 @@ class SOCManager:
         elif tmtc == TMTC.TM:
             filter = "*PktTmRaw*.xml"
 
-        for filename in sorted(list(self.data_root.glob(filter)), key=os.path.getmtime):
+        for filename in sorted(list(self.data_root.glob(filter))):
             try:
                 file = SOCPacketFile(filename)
                 if file.tmtc.value & tmtc.value:

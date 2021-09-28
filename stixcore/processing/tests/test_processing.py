@@ -36,7 +36,7 @@ def test_level_b(soc_manager, out_dir):
     assert len(res) == 1
     fits = res.pop()
     diff = FITSDiff(test_data.products.DIR / fits.name, fits,
-                    ignore_keywords=['CHECKSUM', 'DATASUM', 'DATE'])
+                    ignore_keywords=['CHECKSUM', 'DATASUM', 'DATE', 'VERS_SW'])
     assert diff.identical
 
 
@@ -47,7 +47,7 @@ def test_level_0(out_dir):
     assert len(res) == 2
     for fits in res:
         diff = FITSDiff(test_data.products.DIR / fits.name, fits,
-                        ignore_keywords=['CHECKSUM', 'DATASUM', 'DATE'])
+                        ignore_keywords=['CHECKSUM', 'DATASUM', 'DATE', 'VERS_SW'])
         assert diff.identical
 
 
@@ -58,7 +58,7 @@ def test_level_1(out_dir):
     assert len(res) == 2
     for fits in res:
         diff = FITSDiff(test_data.products.DIR / fits.name, fits,
-                        ignore_keywords=['CHECKSUM', 'DATASUM', 'DATE'])
+                        ignore_keywords=['CHECKSUM', 'DATASUM', 'DATE', 'VERS_SW'])
         assert diff.identical
 
 

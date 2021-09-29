@@ -31,12 +31,10 @@ def test_quicklook(levelb, packets):
 
     levelb.data.__getitem__.return_value = [re.sub(r"\s+", "", h) for h in hex]
     levelb.control = {'raw_file': 'raw.xml', 'packet': 0}
-    if name == 'lightcurve':
-        ql = cl.from_levelb(levelb, parent='afits.fits')
-        assert ql.parent == ['afits.fits']
-        assert ql.raw == ['raw.xml']
-    else:
-        ql = cl.from_levelb(levelb)
+
+    ql = cl.from_levelb(levelb, parent='afits.fits')
+    assert ql.parent == ['afits.fits']
+    assert ql.raw == ['raw.xml']
     assert ql.level == 'L0'
     assert ql.name == name
     assert ql.scet_timerange.start.to_string(sep='f') == beg

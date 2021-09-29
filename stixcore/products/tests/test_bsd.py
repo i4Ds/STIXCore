@@ -34,8 +34,8 @@ def test_xray(levelb, packets):
         hex = file.readlines()
 
     levelb.data.__getitem__.return_value = [re.sub(r"\s+", "", h) for h in hex]
-
-    xray_L0 = cl.from_levelb(levelb)
+    levelb.control = {'raw_file': 'raw.xml', 'packet': 0}
+    xray_L0 = cl.from_levelb(levelb, parent='parent.fits')
 
     assert xray_L0.level == 'L0'
     assert xray_L0.name == name

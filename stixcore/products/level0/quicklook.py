@@ -170,7 +170,7 @@ class LightCurve(QLProduct):
         self.level = 'L0'
 
     @classmethod
-    def from_levelb(cls, levelb, parent=None):
+    def from_levelb(cls, levelb, parent=''):
         parent = [parent]
         packets, idb_versions = BaseProduct.from_levelb(levelb)
 
@@ -258,7 +258,7 @@ class Background(QLProduct):
         self.level = 'L0'
 
     @classmethod
-    def from_levelb(cls, levelb):
+    def from_levelb(cls, levelb, parent=''):
         packets, idb_versions = BaseProduct.from_levelb(levelb)
 
         service_type = packets.get('service_type')[0]
@@ -272,6 +272,10 @@ class Background(QLProduct):
         control['num_samples'] = np.array(packets.get_value('NIX00277')).flatten()[
             np.cumsum(control['num_energies']) - 1]
         control['num_samples'].meta = {'NIXS': 'NIX00277'}
+
+        control['raw_file'] = levelb.control['raw_file']
+        control['packet'] = levelb.control['packet']
+        control['parent'] = parent
 
         time, duration, scet_timerange = control._get_time()
         # Map a given entry back to the control info through index
@@ -326,7 +330,7 @@ class Spectra(QLProduct):
         self.level = 'L0'
 
     @classmethod
-    def from_levelb(cls, levelb):
+    def from_levelb(cls, levelb, parent=''):
         packets, idb_versions = BaseProduct.from_levelb(levelb)
 
         service_type = packets.get('service_type')[0]
@@ -339,6 +343,10 @@ class Spectra(QLProduct):
                          _get_compression_scheme(packets, 'NIX00452'))
         control.add_data('compression_scheme_triggers_skm',
                          _get_compression_scheme(packets, 'NIX00484'))
+
+        control['raw_file'] = levelb.control['raw_file']
+        control['packet'] = levelb.control['packet']
+        control['parent'] = parent
 
         # Fixed for spectra
         num_energies = np.unique(packets.get_value('NIX00100')).size
@@ -455,7 +463,7 @@ class Variance(QLProduct):
         self.level = 'L0'
 
     @classmethod
-    def from_levelb(cls, levelb):
+    def from_levelb(cls, levelb, parent=''):
         packets, idb_versions = BaseProduct.from_levelb(levelb)
 
         service_type = packets.get('service_type')[0]
@@ -472,6 +480,10 @@ class Variance(QLProduct):
 
         control.add_data('compression_scheme_variance_skm',
                          _get_compression_scheme(packets, 'NIX00281'))
+
+        control['raw_file'] = levelb.control['raw_file']
+        control['packet'] = levelb.control['packet']
+        control['parent'] = parent
 
         energy_masks = np.array([
             [bool(int(x)) for x in format(packets.get_value('NIX00282')[i], '032b')]
@@ -519,7 +531,7 @@ class FlareFlag(QLProduct):
         self.level = 'L0'
 
     @classmethod
-    def from_levelb(cls, levelb):
+    def from_levelb(cls, levelb, parent=''):
         packets, idb_versions = BaseProduct.from_levelb(levelb)
 
         service_type = packets.get('service_type')[0]
@@ -532,6 +544,10 @@ class FlareFlag(QLProduct):
 
         control_indices = np.hstack([np.full(ns, cind) for ns, cind in
                                      control[['num_samples', 'index']]])
+
+        control['raw_file'] = levelb.control['raw_file']
+        control['packet'] = levelb.control['packet']
+        control['parent'] = parent
 
         time, duration, scet_timerange = control._get_time()
 
@@ -576,7 +592,7 @@ class EnergyCalibration(QLProduct):
         self.type = 'cal'
 
     @classmethod
-    def from_levelb(cls, levelb):
+    def from_levelb(cls, levelb, parent=''):
         packets, idb_versions = BaseProduct.from_levelb(levelb)
 
         service_type = packets.get('service_type')[0]
@@ -603,6 +619,11 @@ class EnergyCalibration(QLProduct):
         control.add_data('subspectrum_mask', _get_sub_spectrum_mask(packets))
         control.add_data('compression_scheme_counts_skm',
                          _get_compression_scheme(packets, 'NIX00158'))
+
+        control['raw_file'] = levelb.control['raw_file']
+        control['packet'] = levelb.control['packet']
+        control['parent'] = parent
+
         subspec_data = {}
         j = 129
         for subspec, i in enumerate(range(300, 308)):
@@ -696,7 +717,7 @@ class TMStatusFlareList(QLProduct):
         self.level = 'L0'
 
     @classmethod
-    def from_levelb(cls, levelb):
+    def from_levelb(cls, levelb, parent=''):
         packets, idb_versions = BaseProduct.from_levelb(levelb)
 
         service_type = packets.get('service_type')[0]
@@ -709,6 +730,10 @@ class TMStatusFlareList(QLProduct):
         control.add_basic(name='ubsd_counter', nix='NIX00285', packets=packets)
         control.add_basic(name='pald_counter', nix='NIX00286', packets=packets)
         control.add_basic(name='num_flares', nix='NIX00294', packets=packets)
+
+        control['raw_file'] = levelb.control['raw_file']
+        control['packet'] = levelb.control['packet']
+        control['parent'] = parent
 
         data = Data()
         if control['num_flares'].sum() > 0:

@@ -37,6 +37,8 @@ def test_level_b(soc_manager, out_dir):
     fits = res.pop()
     diff = FITSDiff(test_data.products.DIR / fits.name, fits,
                     ignore_keywords=['CHECKSUM', 'DATASUM', 'DATE', 'VERS_SW'])
+    if not diff.identical:
+        print(diff.report())
     assert diff.identical
 
 
@@ -48,6 +50,8 @@ def test_level_0(out_dir):
     for fits in res:
         diff = FITSDiff(test_data.products.DIR / fits.name, fits,
                         ignore_keywords=['CHECKSUM', 'DATASUM', 'DATE', 'VERS_SW'])
+        if not diff.identical:
+            print(diff.report())
         assert diff.identical
 
 
@@ -59,6 +63,8 @@ def test_level_1(out_dir):
     for fits in res:
         diff = FITSDiff(test_data.products.DIR / fits.name, fits,
                         ignore_keywords=['CHECKSUM', 'DATASUM', 'DATE', 'VERS_SW'])
+        if not diff.identical:
+            print(diff.report())
         assert diff.identical
 
 

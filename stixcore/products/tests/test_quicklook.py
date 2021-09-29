@@ -30,9 +30,11 @@ def test_quicklook(levelb, packets):
         hex = file.readlines()
 
     levelb.data.__getitem__.return_value = [re.sub(r"\s+", "", h) for h in hex]
+    levelb.control = {'raw_file': 'raw.xml', 'packet': 0}
 
-    ql = cl.from_levelb(levelb)
-
+    ql = cl.from_levelb(levelb, parent='afits.fits')
+    assert ql.parent == ['afits.fits']
+    assert ql.raw == ['raw.xml']
     assert ql.level == 'L0'
     assert ql.name == name
     assert ql.scet_timerange.start.to_string(sep='f') == beg
@@ -47,6 +49,7 @@ def test_lightcurve(levelb):
         hex = file.read()
 
     levelb.data.__getitem__.return_value = [re.sub(r"\s+", "", hex)]
+    levelb.control = {'raw_file': 'raw.xml', 'packet': 0}
 
     ql_lc_product_l0 = qll0.LightCurve.from_levelb(levelb)
 

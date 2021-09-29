@@ -31,7 +31,7 @@ class MiniReport(QLProduct):
         self.type = 'hk'
 
     @classmethod
-    def from_levelb(cls, levelb):
+    def from_levelb(cls, levelb, parent=''):
         packets, idb_versions = super().from_levelb(levelb)
 
         service_type = packets.get('service_type')[0]
@@ -43,6 +43,10 @@ class MiniReport(QLProduct):
         control['scet_fine'] = packets.get('scet_fine')
         control['integration_time'] = 0
         control['index'] = range(len(control))
+
+        control['raw_file'] = levelb.control['raw_file']
+        control['packet'] = levelb.control['packet']
+        control['parent'] = parent
 
         # Create array of times as dt from date_obs
         times = SCETime(control['scet_coarse'], control['scet_fine'])
@@ -140,7 +144,7 @@ class MaxiReport(QLProduct):
         self.type = 'hk'
 
     @classmethod
-    def from_levelb(cls, levelb):
+    def from_levelb(cls, levelb, parent=''):
         packets, idb_versions = super().from_levelb(levelb)
 
         service_type = packets.get('service_type')[0]
@@ -152,6 +156,10 @@ class MaxiReport(QLProduct):
         control['scet_fine'] = packets.get('scet_fine')
         control['integration_time'] = 0
         control['index'] = range(len(control))
+
+        control['raw_file'] = levelb.control['raw_file']
+        control['packet'] = levelb.control['packet']
+        control['parent'] = parent
 
         # Create array of times as dt from date_obs
         times = SCETime(control['scet_coarse'], control['scet_fine'])

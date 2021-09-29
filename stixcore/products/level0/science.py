@@ -120,7 +120,7 @@ class RawPixelData(ScienceProduct):
         self.level = 'L0'
 
     @classmethod
-    def from_levelb(cls, levelb):
+    def from_levelb(cls, levelb, parent=''):
         packets, idb_versions = BaseProduct.from_levelb(levelb)
 
         service_type = packets.get('service_type')[0]
@@ -136,6 +136,10 @@ class RawPixelData(ScienceProduct):
             raise ValueError('Creating a science product form packets from multiple products')
 
         control['index'] = 0
+
+        control['raw_file'] = levelb.control['raw_file']
+        control['packet'] = levelb.control['packet']
+        control['parent'] = parent
 
         data = Data()
         data['start_time'] = packets.get_value('NIX00404')
@@ -237,7 +241,7 @@ class CompressedPixelData(ScienceProduct):
         self.level = 'L0'
 
     @classmethod
-    def from_levelb(cls, levelb):
+    def from_levelb(cls, levelb, parent=''):
         packets, idb_versions = BaseProduct.from_levelb(levelb)
 
         service_type = packets.get('service_type')[0]
@@ -254,6 +258,10 @@ class CompressedPixelData(ScienceProduct):
 
         # control.remove_column('num_structures')
         control = unique(control)
+
+        control['raw_file'] = levelb.control['raw_file']
+        control['packet'] = levelb.control['packet']
+        control['parent'] = parent
 
         if len(control) != 1:
             raise ValueError('Creating a science product form packets from multiple products')
@@ -457,7 +465,7 @@ class Visibility(ScienceProduct):
         self.level = 'L0'
 
     @classmethod
-    def from_levelb(cls, levelb):
+    def from_levelb(cls, levelb, parent=''):
         packets, idb_versions = BaseProduct.from_levelb(levelb)
 
         service_type = packets.get('service_type')[0]
@@ -473,6 +481,10 @@ class Visibility(ScienceProduct):
                          _get_compression_scheme(packets, 'NIX00242'))
 
         control = unique(control)
+
+        control['raw_file'] = levelb.control['raw_file']
+        control['packet'] = levelb.control['packet']
+        control['parent'] = parent
 
         if len(control) != 1:
             raise ValueError('Creating a science product form packets from multiple products')
@@ -585,7 +597,7 @@ class Spectrogram(ScienceProduct):
         self.level = 'L0'
 
     @classmethod
-    def from_levelb(cls, levelb):
+    def from_levelb(cls, levelb, parent=''):
         packets, idb_versions = BaseProduct.from_levelb(levelb)
 
         service_type = packets.get('service_type')[0]
@@ -601,6 +613,10 @@ class Spectrogram(ScienceProduct):
                          _get_compression_scheme(packets, 'NIX00267'))
 
         control = unique(control)
+
+        control['raw_file'] = levelb.control['raw_file']
+        control['packet'] = levelb.control['packet']
+        control['parent'] = parent
 
         if len(control) != 1:
             raise ValueError('Creating a science product form packets from multiple products')
@@ -727,7 +743,7 @@ class Aspect(ScienceProduct):
         self.level = 'L0'
 
     @classmethod
-    def from_levelb(cls, levelb):
+    def from_levelb(cls, levelb, parent=''):
         packets, idb_versions = BaseProduct.from_levelb(levelb)
 
         service_type = packets.get('service_type')[0]
@@ -743,6 +759,11 @@ class Aspect(ScienceProduct):
         control.add_basic(name='summing_value', nix='NIX00088', packets=packets)
         control.add_basic(name='averaging_value', nix='NIX00490', packets=packets)
         control.add_basic(name='samples', nix='NIX00089', packets=packets)
+
+        control['raw_file'] = levelb.control['raw_file']
+        control['packet'] = levelb.control['packet']
+        control['parent'] = parent
+
         control['index'] = range(len(control))
 
         delta_time = ((control['summing_value'] * control['averaging_value']) / 1000.0) * u.s

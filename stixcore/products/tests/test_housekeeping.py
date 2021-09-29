@@ -36,6 +36,7 @@ def test_housekeeping(levelb, packets):
         hex = file.readlines()
 
     levelb.data.__getitem__.return_value = [re.sub(r"\s+", "", h) for h in hex]
+    levelb.control = {'raw_file': 'raw.xml', 'packet': 0}
 
     hk = cl.from_levelb(levelb)
 
@@ -53,8 +54,11 @@ def test_calibration_hk(levelb, idbm, tmp_path):
         hex = file.readlines()
 
     levelb.data.__getitem__.return_value = [re.sub(r"\s+", "", h) for h in hex]
+    levelb.control = {'raw_file': 'raw.xml', 'packet': 0}
 
     hkl0 = MaxiReportL0.from_levelb(levelb)
+    hkl0.control['parent'] = ['parent.fits']
+    hkl0.control['raw_file'] = ['raw.xml']
     hkl1 = MaxiReportL1.from_level0(hkl0)
 
     fits_procl1 = FitsL1Processor(tmp_path)
@@ -69,10 +73,13 @@ def test_calibration_hk_many(idbm, tmp_path):
 
     tstart = perf_counter()
 
-    prod_lb_p1 = LevelB.from_tm(SOCPacketFile(test_data.io.HK_MAXI_P1))
-    hk_p1 = MaxiReportL0.from_levelb(list(prod_lb_p1)[0])
-
+    prod_lb_p1 = list(LevelB.from_tm(SOCPacketFile(test_data.io.HK_MAXI_P1)))[0]
+    prod_lb_p1.control['raw_file'] = ['raw.xml']
+    hk_p1 = MaxiReportL0.from_levelb(prod_lb_p1)
+    hk_p1.control['raw_file'] = ['raw.xml']
+    hk_p1.control['parent'] = ['parent.fits']
     fits_procl0 = FitsL0Processor(tmp_path)
+
     filename = fits_procl0.write_fits(hk_p1)[0]
 
     hk_p1_io = Product(filename)
@@ -85,8 +92,12 @@ def test_calibration_hk_many(idbm, tmp_path):
     del hk_p2.idb_versions["2.26.34"]
 
     hkl0 = hk_p1_io + hk_p2
+    hkl0.control['raw_file'] = ['raw.xml']
+    hkl0.control['parent'] = ['parent.fits']
 
     hkl1 = MaxiReportL1.from_level0(hkl0, idbm=idbm)
+    hkl1.control['raw_file'] = ['raw.xml']
+    hkl1.control['parent'] = ['parent.fits']
 
     fits_procl1 = FitsL1Processor(tmp_path)
     filename = fits_procl1.write_fits(hkl1)[0]

@@ -1,5 +1,4 @@
 """Module to encapsulate the SOC file reading and writing."""
-import os
 from pathlib import Path
 from binascii import unhexlify
 from xml.etree import ElementTree as Et
@@ -66,10 +65,15 @@ class SOCPacketFile:
                 # TODO add TC packer reading
                 pass
         elif self.tmtc == TMTC.TM:
-            for i, node in enumerate(root.iter('Packet')):
-                packet_binary = unhexlify(node.text)
+            for node in root.iter('PktRawResponseElement'):
+                packet_id = int(node.attrib['packetID'])
+                packet = node.getchildren()[0]
+                packet_binary = unhexlify(packet.text)
                 # Not sure why guess and extra moc header
-                yield packet_binary[76:]
+                yield packet_id, packet_binary[76:]
+
+    def __repr__(self):
+        return f"{self.__class__.__name__}('{self.file}')"
 
 
 class SOCManager:
@@ -108,10 +112,13 @@ class SOCManager:
         elif tmtc == TMTC.TM:
             filter = "*PktTmRaw*.xml"
 
-        for filename in sorted(list(self.data_root.glob(filter)), key=os.path.getmtime):
+        for filename in sorted(list(self.data_root.glob(filter))):
             try:
                 file = SOCPacketFile(filename)
                 if file.tmtc.value & tmtc.value:
                     yield file
             except ValueError:
                 pass
+
+    def __repr__(self):
+        return f"{self.__class__.__name__}('{self.data_root}')"

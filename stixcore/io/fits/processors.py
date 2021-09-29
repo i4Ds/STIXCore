@@ -82,7 +82,9 @@ class FitsProcessor:
             ('OBS_TYPE', product.type),
             ('STYPE', product.service_type),
             ('SSTYPE', product.service_subtype),
-            ('SSID', product.ssid if product.ssid is not None else '')
+            ('SSID', product.ssid if product.ssid is not None else ''),
+            ('RAW_FILE', ';'.join(list(product.raw)), 'Raw filename(s)'),
+            ('PARENT', ';'.join(list(product.parent)), 'Source file current data product'),
         )
         return headers
 

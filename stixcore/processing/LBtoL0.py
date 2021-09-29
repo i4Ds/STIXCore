@@ -37,6 +37,7 @@ class Level0:
             del tm[(21, 6, 43)]
         except Exception:
             pass
+
         # For each type
         for tm_type, files in tm.items():
             # Stand alone packet data
@@ -48,7 +49,7 @@ class Level0:
                         service_subtype=levelb.service_subtype, ssid=levelb.ssid,
                         data=None, control=None)
                     try:
-                        level0 = tmp.from_levelb(levelb)
+                        level0 = tmp.from_levelb(levelb, parent=file.name)
                         fits_files = self.processor.write_fits(level0)
                         all_files.update(fits_files)
                     except Exception as e:

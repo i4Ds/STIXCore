@@ -30,7 +30,7 @@ class QLProduct(QLProductL0):
         return self.scet_timerange.to_timerange()
 
     @classmethod
-    def from_level0(cls, l0product, idbm=GenericPacket.idb_manager):
+    def from_level0(cls, l0product, idbm=GenericPacket.idb_manager, parent=''):
         l1 = cls(service_type=l0product.service_type,
                  service_subtype=l0product.service_subtype,
                  ssid=l0product.ssid,
@@ -38,6 +38,8 @@ class QLProduct(QLProductL0):
                  data=l0product.data,
                  idb_versions=l0product.idb_versions,
                  scet_timerange=l0product.scet_timerange)
+
+        l1.control.replace_column('parent', [parent] * len(l1.control))
 
         raw_to_engineering_product(l1, idbm)
 

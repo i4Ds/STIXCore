@@ -210,9 +210,9 @@ def test_level1_processor_generate_primary_header(product):
         'TIMESYS': 'UTC',
         'LEVEL': 'L1',
         'OBS_TYPE': 'ql',
-        'RSUN_ARC': 1589.329760679639,
-        'HGLT_OBS': -66.521984558927,
-        'HGLN_OBS': -0.3190007305644162,
+        'RSUN_ARC': 1589.33,
+        'HGLT_OBS': -66.52,
+        'HGLN_OBS': -0.32,
         'RAW_FILE': 'packet1.xml;packet2.xml',
         'PARENT': 'l01.fits;l02.fts'
     }

@@ -278,7 +278,7 @@ class CompressedPixelData(ScienceProduct):
         unique_times = np.unique(data['delta_time'])
 
         data.add_basic(name='rcr', nix='NIX00401', attr='value', packets=packets, dtype=np.ubyte)
-        data['num_pixel_sets'] = np.atleast_1d(_get_unique(packets, 'NIX00442', np.byte))
+        data['num_pixel_sets'] = np.atleast_1d(_get_unique(packets, 'NIX00442', np.ubyte))
         data.add_meta(name='num_pixel_sets', nix='NIX00442', packets=packets)
         pixel_masks, pm_meta = _get_pixel_mask(packets, 'NIXD0407')
         pixel_masks = pixel_masks.reshape(-1, data['num_pixel_sets'][0], 12)

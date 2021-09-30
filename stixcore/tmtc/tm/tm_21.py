@@ -36,11 +36,20 @@ class TM_21_6_21(GenericTMPacket):
             subpacket.NIX00260 = param
 
     def get_decompression_parameter(self):
-        # https://github.com/i4Ds/STIX-FSW/issues/953
+
         params = super().get_decompression_parameter()
-        if self.data_header.datetime:
-            # TODO do some special treatment
-            return params
+
+        # https://github.com/i4Ds/STIX-FSW/issues/953
+        # In older version of the FSW the trigger were incorrectly compressed with the count
+        # compression scheme so need to modify default parameters
+        idb = self.idb.get_idb(obt=self.data_header.datetime)
+        idb_version = tuple(map(int, idb.version.split('.')))
+        if idb_version < (2, 26, 33):
+            count_skm = params['NIX00260']
+            nixs = list(params.keys())
+            nixs.remove('NIX00260')
+            params.update({nix: count_skm for nix in nixs})
+
         return params
 
 

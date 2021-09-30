@@ -521,6 +521,9 @@ class IDB:
             self.close()
             raise
 
+    def __repr__(self):
+        return f'{__class__.__name__}({self.version}, {self.filename})'
+
     def __getstate__(self):
         """Return state values to be pickled."""
         return self.filename

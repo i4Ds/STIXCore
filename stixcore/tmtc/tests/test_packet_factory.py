@@ -11,6 +11,7 @@ from stixcore.data.test import test_data
 from stixcore.idb.manager import IDBManager
 from stixcore.processing.decompression import decompress
 from stixcore.processing.engineering import raw_to_engineering
+from stixcore.time.datetime import SCETime
 from stixcore.tmtc import Packet
 from stixcore.tmtc.packet_factory import (
     BaseFactory,
@@ -302,6 +303,23 @@ def test_decompress(data_dir, idbm, packets):
             assert isinstance(params, CompressedParameter)
     else:
         assert c == 0
+
+
+def test_decompress_l1_triggers(data_dir, idbm):
+    hex = _get_bin_from_file(data_dir, '21_6_21_nstr_2.hex')
+    GenericPacket.idb_manager = idbm
+    Packet = TMTCPacketFactory(registry=GenericPacket._registry)
+    packet = Packet(hex)
+
+    packet.data_header.datetime = SCETime(640195650, 0)
+    old_decompression_parameters = packet.get_decompression_parameter()
+    assert list(set(old_decompression_parameters.values())) ==\
+        [('NIXD0007', 'NIXD0008', 'NIXD0009')]
+
+    packet.data_header.datetime = SCETime(677774250, 0)
+    new_decompression_parameters = packet.get_decompression_parameter()
+    assert old_decompression_parameters != new_decompression_parameters
+    assert new_decompression_parameters['NIX00242'] == ('NIXD0010', 'NIXD0011', 'NIXD0012')
 
 
 @pytest.mark.parametrize(*common_args, ids=packets_test_names)

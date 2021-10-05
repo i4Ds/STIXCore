@@ -72,21 +72,21 @@ def test_download_version(idb_manager):
 
 def test_find_version(idb_manager):
     idb = idb_manager.get_idb(obt=SCETime(coarse=631155005, fine=0))
-    assert idb.get_idb_version() == "2.26.34"
+    assert idb.get_idb_version() == "2.26.31"
     idb.close()
 
     # fall back to the default
     idb = idb_manager.get_idb(obt=SCETime(coarse=2 ** 31 - 1, fine=0))
-    assert idb.get_idb_version() == "2.26.34"
+    assert idb.get_idb_version() == "2.26.35"
 
-    assert idb_manager.find_version(obt=None) == "2.26.33"
+    assert idb_manager.find_version(obt=None) == "2.26.31"
 
 
 def test_get_versions(idb_manager):
     versions = idb_manager.get_versions()
     assert isinstance(versions, list)
     # zjust 5 not 6 as 2.26.2 contains no file
-    assert len(versions) == 5
+    assert len(versions) == 7
 
 
 def test_get_idb_not_found_error(idb_manager):

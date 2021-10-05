@@ -547,7 +547,7 @@ class GenericTMPacket:
         """
         if self.data_header.service_type == 21 and self.data_header.service_subtype == 6:
             if self.pi1_val in self._SCHEMAS:
-                return self._SCHEMAS[self.pi1_val]
+                return dict(self._SCHEMAS[self.pi1_val])  # return a copy no reference
         return None
 
 

@@ -71,7 +71,6 @@ class Level0:
 
         if complete:
             for comp in complete:
-
                 # TODO need to carry better information for logging like index from
                 #  original files and file names
                 res.append(executor.submit(self.process_product, comp, file))

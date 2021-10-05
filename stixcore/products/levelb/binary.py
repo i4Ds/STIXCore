@@ -14,6 +14,7 @@ from stixcore.util.logging import get_logger
 __all__ = ['LevelB', 'SequenceFlag']
 
 logger = get_logger(__name__)
+logger.setLevel('DEBUG')
 
 
 class SequenceFlag(IntEnum):

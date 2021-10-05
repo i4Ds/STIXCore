@@ -1,6 +1,6 @@
 from pathlib import Path
-from binascii import unhexlify
 from itertools import chain
+from concurrent.futures import ThreadPoolExecutor
 
 import numpy as np
 from sunpy.util.datatype_factory_base import (
@@ -455,7 +455,9 @@ class GenericProduct(BaseProduct):
 
     @classmethod
     def getLeveL0Packets(cls, levelb):
-        packets = [Packet(unhexlify(d)) for d in levelb.data['data']]
+        with ThreadPoolExecutor() as executor:
+            res = [executor.submit(Packet, d) for d in levelb.data['data']]
+        packets = [r.result() for r in res]
 
         idb_versions = defaultdict(SCETimeRange)
 

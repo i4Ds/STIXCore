@@ -1,4 +1,5 @@
 from pathlib import Path
+from binascii import unhexlify
 
 from stixcore.idb.manager import IDBManager
 from stixcore.tmtc.packets import GenericPacket, GenericTMPacket, SourcePacketHeader
@@ -81,6 +82,8 @@ class TMTCPacketFactory(BaseFactory):
         self.tm_packet_factory = TMPacketFactory(registry=GenericTMPacket._registry)  # noqa
 
     def __call__(self, data):
+        if isinstance(data, str):
+            data = unhexlify(data)
         sph = SourcePacketHeader(data)
         packet = self._check_registered(sph)
         return self.tm_packet_factory(packet)

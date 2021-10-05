@@ -2,12 +2,13 @@ import logging
 from time import perf_counter
 from pathlib import Path
 from collections import defaultdict
+from concurrent.futures import ProcessPoolExecutor
 
 from stixcore.io.fits.processors import FitsL0Processor
 from stixcore.products.product import Product
 from stixcore.util.logging import get_logger
 
-logger = get_logger(__name__, level=logging.WARNING)
+logger = get_logger(__name__, level=logging.DEBUG)
 
 
 class Level0:
@@ -21,7 +22,6 @@ class Level0:
         self.processor = FitsL0Processor(self.output_dir)
 
     def process_fits_files(self, files=None):
-        all_files = set()
         tm = defaultdict(list)
         if files is None:
             files = self.levelb_files
@@ -39,82 +39,75 @@ class Level0:
             pass
 
         # For each type
-        for tm_type, files in tm.items():
-            # Stand alone packet data
-            if (tm_type[0] == 21 and tm_type[-1] not in {20, 21, 22, 23, 24}) or tm_type[0] != 21:
-                for file in files:
-                    levelb = Product(file)
-                    tmp = Product._check_registered_widget(
-                        level='L0', service_type=levelb.service_type,
-                        service_subtype=levelb.service_subtype, ssid=levelb.ssid,
-                        data=None, control=None)
-                    try:
-                        level0 = tmp.from_levelb(levelb, parent=file.name)
-                        fits_files = self.processor.write_fits(level0)
-                        all_files.update(fits_files)
-                    except Exception as e:
-                        logger.error('Error processing file %s for %s, %s, %s', file,
-                                     levelb.service_type, levelb.service_subtype, levelb.ssid)
-                        logger.error('%s', e)
-                        raise e
+        with ProcessPoolExecutor() as executor:
+            res = []
+            for tm_type, files in tm.items():
+                # Stand alone packet data
+                if (tm_type[0] == 21 and tm_type[-1] not in {20, 21, 22, 23, 24}) or \
+                        tm_type[0] != 21:
+                    for file in files:
+                        res.append(self.process_standalone(file, executor))
+                else:
+                    for file in files:
+                        res.extend(self.process_sequence(file, executor))
 
-            else:
-                last_incomplete = []
-                # for each file
-                for file in files:
-                    levelb = Product(file)
-                    complete, incomplete = levelb.extract_sequences()
+        return [r.result() for r in res]
 
-                    if incomplete and last_incomplete:
-                        combined_complete, combined_incomplete \
-                            = (incomplete[0] + last_incomplete[0]).extract_sequences()
-                        complete.extend(combined_complete)
-                        last_incomplete = combined_incomplete
+    def process_standalone(self, file, executor):
+        levelb = Product(file)
+        return executor.submit(self.process_product, levelb, file)
 
-                    if complete:
-                        for comp in complete:
+    def process_sequence(self, file, executor):
+        res = []
+        last_incomplete = []
+        levelb = Product(file)
+        complete, incomplete = levelb.extract_sequences()
 
-                            # TODO need to carry better information for logging like index from
-                            #  original files and file names
-                            try:
-                                tmp = Product._check_registered_widget(
-                                    level='L0', service_type=comp.service_type,
-                                    service_subtype=comp.service_subtype, ssid=comp.ssid, data=None,
-                                    control=None)
-                                level0 = tmp.from_levelb(comp)
-                                fits_files = self.processor.write_fits(level0)
-                                all_files.update(fits_files)
-                            except Exception as e:
-                                logger.error('Error processing file %s for %s, %s, %s', file,
-                                             comp.service_type, comp.service_subtype, comp.ssid)
-                                logger.error('%s', e)
-                            # except Exception as e:
-                                raise e
-                        complete = []
-                    try:
-                        last_incomplete = last_incomplete[0] + incomplete[0]
-                    except IndexError:
-                        last_incomplete = []
+        if incomplete and last_incomplete:
+            combined_complete, combined_incomplete \
+                = (incomplete[0] + last_incomplete[0]).extract_sequences()
+            complete.extend(combined_complete)
+            last_incomplete = combined_incomplete
 
-                if last_incomplete:
-                    for inc in last_incomplete:
-                        tmp = Product._check_registered_widget(level='L0',
-                                                               service_type=inc.service_type,
-                                                               service_subtype=inc.service_subtype,
-                                                               ssid=inc.ssid, data=None,
-                                                               control=None)
-                        level0 = tmp.from_levelb(inc)
-                        fits_files = self.processor.write_fits(level0)
-                        all_files.update(fits_files)
+        if complete:
+            for comp in complete:
 
-        return all_files
+                # TODO need to carry better information for logging like index from
+                #  original files and file names
+                res.append(executor.submit(self.process_product, comp, file))
+            complete = []
+        try:
+            last_incomplete = last_incomplete[0] + incomplete[0]
+        except IndexError:
+            last_incomplete = []
+
+        if last_incomplete:
+            for inc in last_incomplete:
+                res.append(executor.submit(self.process_product,  inc, file))
+
+        return res
+
+    def process_product(self, prod, file):
+        tmp = Product._check_registered_widget(level='L0',
+                                               service_type=prod.service_type,
+                                               service_subtype=prod.service_subtype,
+                                               ssid=prod.ssid, data=None,
+                                               control=None)
+        try:
+            level0 = tmp.from_levelb(prod, parent=file.name)
+            return self.processor.write_fits(level0)
+        except Exception as e:
+            logger.error('Error processing file %s for %s, %s, %s', file,
+                         prod.service_type, prod.service_subtype, prod.ssid)
+            logger.error('%s', e)
+            raise e
 
 
 if __name__ == '__main__':
     tstart = perf_counter()
 
-    fits_path = Path('/home/shane/fits/LB/21/6/23')
-    bd = Path('/home/shane/fits')
+    fits_path = Path('/Users/shane/Projects/STIX/fits_new/LB/')
+    bd = Path('/Users/shane/Projects/STIX/fits_new')
 
     l0processor = Level0(fits_path, bd)
     l0_files = l0processor.process_fits_files()

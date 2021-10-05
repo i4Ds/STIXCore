@@ -1,6 +1,7 @@
 import os
 import sys
 import sqlite3
+import threading
 from types import SimpleNamespace
 
 import numpy as np
@@ -13,6 +14,8 @@ __all__ = ['IDB', 'IDBPacketTypeInfo', 'IDBParameter', 'IDBStaticParameter',
            'IDBPolynomialCalibration', 'IDBCalibrationCurve', 'IDBCalibrationParameter']
 
 logger = get_logger(__name__)
+
+lock = threading.Lock()
 
 
 class IDBPi1ValPosition(SimpleNamespace):
@@ -509,7 +512,7 @@ class IDB:
                 self.conn = sqlite3.connect(uri, check_same_thread=False, uri=True)
             else:
                 source = sqlite3.connect(uri, check_same_thread=False, uri=True)
-                self.conn = sqlite3.connect(':memory:')
+                self.conn = sqlite3.connect(':memory:', check_same_thread=False)
                 source.backup(self.conn)
                 source.close()
 
@@ -565,20 +568,24 @@ class IDB:
         if not self.cur:
             raise Exception('IDB is not initialized!')
         else:
-            if arguments:
-                self.cur.execute(sql, arguments)
-            else:
-                self.cur.execute(sql)
-            if result_type == 'list':
-                rows = self.cur.fetchall()
-            else:
-                rows = [
-                    dict(
-                        zip([column[0]
-                            for column in self.cur.description], row))
-                    for row in self.cur.fetchall()
-                ]
-            return rows
+            try:
+                lock.acquire()
+                if arguments:
+                    self.cur.execute(sql, arguments)
+                else:
+                    self.cur.execute(sql)
+                if result_type == 'list':
+                    rows = self.cur.fetchall()
+                else:
+                    rows = [
+                        dict(
+                            zip([column[0]
+                                for column in self.cur.description], row))
+                        for row in self.cur.fetchall()
+                    ]
+                return rows
+            finally:
+                lock.release()
 
     def get_spid_info(self, spid):
         """Get SPID description.

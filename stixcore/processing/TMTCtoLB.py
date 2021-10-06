@@ -17,7 +17,7 @@ def tmtc_to_l0(tmtc_path, archive_path):
     socm = SOCManager(tmtc_path)
     out_dir = archive_path
     out_dir.mkdir(parents=True, exist_ok=True)
-    files_to_process = list(socm.get_files(TMTC.TM))[:3]
+    files_to_process = list(socm.get_files(TMTC.TM))
     return process_tmtc_to_levelbinary(files_to_process, archive_path)
 
 

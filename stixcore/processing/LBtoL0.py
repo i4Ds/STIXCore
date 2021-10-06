@@ -51,11 +51,14 @@ class Level0:
                     for file in files:
                         res.extend(self.process_sequence(file, executor))
 
-        return [r.result() for r in res]
+        return [r.result() for r in res if r is not None]
 
     def process_standalone(self, file, executor):
-        levelb = Product(file)
-        return executor.submit(self.process_product, levelb, file)
+        try:
+            levelb = Product(file)
+            return executor.submit(self.process_product, levelb, file)
+        except Exception:
+            logger.error('Error processing file %s', file)
 
     def process_sequence(self, file, executor):
         res = []

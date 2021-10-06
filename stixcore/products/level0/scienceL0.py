@@ -15,7 +15,7 @@ from stixcore.products.common import (
     _get_unique,
     rebin_proportional,
 )
-from stixcore.products.product import BaseProduct, ControlSci, Data
+from stixcore.products.product import ControlSci, Data, GenericProduct
 from stixcore.time import SCETime, SCETimeRange
 from stixcore.time.datetime import SCETimeDelta
 from stixcore.util.logging import get_logger
@@ -30,7 +30,7 @@ __all__ = ['ScienceProduct', 'RawPixelData', 'CompressedPixelData', 'SummedPixel
            'Visibility', 'Spectrogram', 'Aspect']
 
 
-class ScienceProduct(BaseProduct):
+class ScienceProduct(GenericProduct):
     """
 
     """
@@ -38,11 +38,13 @@ class ScienceProduct(BaseProduct):
         self.service_type = service_type
         self.service_subtype = service_subtype
         self.ssid = ssid
-        self.type = 'sci'
         self.control = control
         self.data = data
         self.idb_versions = kwargs.get('idb_versions', None)
         self.scet_timerange = kwargs['scet_timerange']
+
+        self.type = 'sci'
+        self.level = 'L0'
 
     def __add__(self, other):
         if (np.all(self.control == other.control) and self.scet_timerange == other.scet_timerange
@@ -62,25 +64,6 @@ class ScienceProduct(BaseProduct):
 
         return type(self)(service_type=self.service_type, service_subtype=self.service_subtype,
                           ssid=self.ssid, data=data, control=control)
-
-    def __repr__(self):
-        return f'<{self.__class__.__name__}\n' \
-               f' {self.control.__repr__()}\n' \
-               f' {self.data.__repr__()}\n' \
-               f'>'
-
-    # @staticmethod
-    # def get_energies():
-    #     return get_energies_from_mask()
-    #
-    # @classmethod
-    # def from_fits(cls, fitspath):
-    #     header = fits.getheader(fitspath)
-    #     control = QTable.read(fitspath, hdu='CONTROL')
-    #     data = QTable.read(fitspath, hdu='DATA')
-    #     obs_beg = Time(header['DATE_OBS'])
-    #     data['time'] = (data['time'] + obs_beg)
-    #     return cls(control=control, data=data)
 
     def to_requests(self):
         for ci in unique(self.control, keys=['tc_packet_seq_control', 'request_id'])['index']:
@@ -110,6 +93,23 @@ class ScienceProduct(BaseProduct):
 
         return energies
 
+    @classmethod
+    def from_levelb(cls, levelb, *, parent=''):
+        packets, idb_versions = GenericProduct.getLeveL0Packets(levelb)
+
+        control = ControlSci.from_packets(packets)
+        # control.remove_column('num_structures')
+
+        control['index'] = 0
+        control['packet'] = levelb.control['packet']
+        control['raw_file'] = levelb.control['raw_file']
+        control['parent'] = parent
+
+        if len(control) != 1:
+            raise ValueError('Creating a science product form packets from multiple products')
+
+        return packets, idb_versions, control
+
 
 class RawPixelData(ScienceProduct):
     def __init__(self, *, service_type, service_subtype, ssid, control, data,
@@ -117,29 +117,10 @@ class RawPixelData(ScienceProduct):
         super().__init__(service_type=service_type, service_subtype=service_subtype,
                          ssid=ssid, control=control, data=data, idb_versions=idb_versions, **kwargs)
         self.name = 'xray-rpd'
-        self.level = 'L0'
 
     @classmethod
     def from_levelb(cls, levelb, parent=''):
-        packets, idb_versions = BaseProduct.from_levelb(levelb)
-
-        service_type = packets.get('service_type')[0]
-        service_subtype = packets.get('service_subtype')[0]
-        ssid = packets.get('pi1_val')[0]
-
-        control = ControlSci.from_packets(packets)
-
-        # control.remove_column('num_structures')
-        control = unique(control)
-
-        if len(control) != 1:
-            raise ValueError('Creating a science product form packets from multiple products')
-
-        control['index'] = 0
-
-        control['raw_file'] = levelb.control['raw_file']
-        control['packet'] = levelb.control['packet']
-        control['parent'] = parent
+        packets, idb_versions, control = ScienceProduct.from_levelb(levelb, parent=parent)
 
         data = Data()
         data['start_time'] = packets.get_value('NIX00404')
@@ -188,25 +169,6 @@ class RawPixelData(ScienceProduct):
         for i, (pid, did, cid, cc) in enumerate(dd):
             counts[time_indices[i], did, pid, cid] = cc
 
-        # Create final count array with 4 dimensions: unique times, 32 det, 32 energies, 12 pixels
-
-        # for i in range(self.num_samples):
-        #     tid = np.argwhere(self.raw_counts == unique_times)
-
-        # start_index = 0
-        # for i, time_index in enumerate(time_indices):
-        #     end_index = np.uint32(start_index + np.sum(data['num_samples'][time_index]))
-        #
-        #     for did, cid, pid in zip(tmp['detector_id'], tmp['channel'], tmp['pixel_id']):
-        #         index_1d = ((tmp['detector_id'] == did) & (tmp['channel'] == cid)
-        #                     & (tmp['pixel_id'] == pid))
-        #         cur_count = counts_1d[start_index:end_index][index_1d[start_index:end_index]]
-        #         # If we have a count assign it other wise do nothing as 0
-        #         if cur_count:
-        #             counts[i, did, cid, pid] = cur_count[0]
-        #
-        #     start_index = end_index
-
         scet_timerange = SCETimeRange(start=control["time_stamp"][0] + data['start_time'][0],
                                       end=control["time_stamp"][-1] + data['start_time'][-1]
                                       + data['integration_time'][-1])
@@ -222,8 +184,12 @@ class RawPixelData(ScienceProduct):
 
         data.remove_columns(['start_time', 'integration_time', 'num_samples'])
 
-        return cls(service_type=service_type, service_subtype=service_subtype, ssid=ssid,
-                   control=control, data=data, idb_versions=idb_versions,
+        return cls(service_type=packets.service_type,
+                   service_subtype=packets.service_subtype,
+                   ssid=packets.ssid,
+                   control=control,
+                   data=data,
+                   idb_versions=idb_versions,
                    scet_timerange=scet_timerange)
 
     @classmethod
@@ -238,35 +204,16 @@ class CompressedPixelData(ScienceProduct):
         super().__init__(service_type=service_type, service_subtype=service_subtype,
                          ssid=ssid, control=control, data=data, idb_versions=idb_versions, **kwargs)
         self.name = 'xray-cpd'
-        self.level = 'L0'
 
     @classmethod
     def from_levelb(cls, levelb, parent=''):
-        packets, idb_versions = BaseProduct.from_levelb(levelb)
-
-        service_type = packets.get('service_type')[0]
-        service_subtype = packets.get('service_subtype')[0]
-        ssid = packets.get('pi1_val')[0]
-
-        control = ControlSci.from_packets(packets)
+        packets, idb_versions, control = ScienceProduct.from_levelb(levelb, parent=parent)
 
         control.add_data('compression_scheme_counts_skm',
                          _get_compression_scheme(packets, 'NIX00260'))
 
         control.add_data('compression_scheme_triggers_skm',
                          _get_compression_scheme(packets, 'NIX00242'))
-
-        # control.remove_column('num_structures')
-        control = unique(control)
-
-        control['raw_file'] = levelb.control['raw_file']
-        control['packet'] = levelb.control['packet']
-        control['parent'] = parent
-
-        if len(control) != 1:
-            raise ValueError('Creating a science product form packets from multiple products')
-
-        control['index'] = 0
 
         data = Data()
         try:
@@ -282,7 +229,7 @@ class CompressedPixelData(ScienceProduct):
         data.add_meta(name='num_pixel_sets', nix='NIX00442', packets=packets)
         pixel_masks, pm_meta = _get_pixel_mask(packets, 'NIXD0407')
         pixel_masks = pixel_masks.reshape(-1, data['num_pixel_sets'][0], 12)
-        if ssid == 21 and data['num_pixel_sets'][0] != 12:
+        if packets.ssid == 21 and data['num_pixel_sets'][0] != 12:
             pixel_masks = np.pad(pixel_masks, ((0, 0), (0, 12 - data['num_pixel_sets'][0]), (0, 0)))
         data.add_data('pixel_masks', (pixel_masks, pm_meta))
         data.add_data('detector_masks', _get_detector_mask(packets))
@@ -322,10 +269,10 @@ class CompressedPixelData(ScienceProduct):
         out_var = None
 
         counts_var = np.sqrt(counts_var.transpose((0, 2, 3, 1)))
-        if ssid == 21:
+        if packets.ssid == 21:
             out_counts = np.zeros((unique_times.size, 32, data['num_pixel_sets'][0], 32))
             out_var = np.zeros((unique_times.size, 32, data['num_pixel_sets'][0], 32))
-        elif ssid == 22:
+        elif packets.ssid == 22:
             out_counts = np.zeros((unique_times.size, 32, data['num_pixel_sets'][0], 32))
             out_var = np.zeros((unique_times.size, 32, data['num_pixel_sets'][0], 32))
 
@@ -427,8 +374,12 @@ class CompressedPixelData(ScienceProduct):
                     'num_energy_groups', 'triggers', 'triggers_err', 'counts', 'counts_err']
         data['control_index'] = 0
 
-        return cls(service_type=service_type, service_subtype=service_subtype, ssid=ssid,
-                   control=control, data=data, idb_versions=idb_versions,
+        return cls(service_type=packets.service_type,
+                   service_subtype=packets.service_subtype,
+                   ssid=packets.ssid,
+                   control=control,
+                   data=data,
+                   idb_versions=idb_versions,
                    scet_timerange=scet_timerange)
 
     @classmethod
@@ -445,7 +396,6 @@ class SummedPixelData(CompressedPixelData):
         super().__init__(service_type=service_type, service_subtype=service_subtype,
                          ssid=ssid, control=control, data=data, **kwargs)
         self.name = 'xray-spd'
-        self.level = 'L0'
 
     @classmethod
     def is_datasource_for(cls, *, service_type, service_subtype, ssid, **kwargs):
@@ -466,30 +416,13 @@ class Visibility(ScienceProduct):
 
     @classmethod
     def from_levelb(cls, levelb, parent=''):
-        packets, idb_versions = BaseProduct.from_levelb(levelb)
-
-        service_type = packets.get('service_type')[0]
-        service_subtype = packets.get('service_subtype')[0]
-        ssid = packets.get('pi1_val')[0]
-
-        control = ControlSci.from_packets(packets)
+        packets, idb_versions, control = ScienceProduct.from_levelb(levelb, parent=parent)
 
         control.add_data('compression_scheme_counts_skm',
                          _get_compression_scheme(packets, 'NIX00263'))
 
         control.add_data('compression_scheme_triggers_skm',
                          _get_compression_scheme(packets, 'NIX00242'))
-
-        control = unique(control)
-
-        control['raw_file'] = levelb.control['raw_file']
-        control['packet'] = levelb.control['packet']
-        control['parent'] = parent
-
-        if len(control) != 1:
-            raise ValueError('Creating a science product form packets from multiple products')
-
-        control['index'] = range(len(control))
 
         data = Data()
         try:
@@ -574,8 +507,12 @@ class Visibility(ScienceProduct):
                         + data['delta_time'] + data['integration_time'] / 2)
         data['timedel'] = SCETimeDelta(data['integration_time'])
 
-        return cls(service_type=service_type, service_subtype=service_subtype, ssid=ssid,
-                   control=control, data=data, idb_versions=idb_versions,
+        return cls(service_type=packets.service_type,
+                   service_subtype=packets.service_subtype,
+                   ssid=packets.ssid,
+                   control=control,
+                   data=data,
+                   idb_versions=idb_versions,
                    scet_timerange=scet_timerange)
 
     @classmethod
@@ -594,17 +531,10 @@ class Spectrogram(ScienceProduct):
         super().__init__(service_type=service_type, service_subtype=service_subtype,
                          ssid=ssid, control=control, data=data, idb_versions=idb_versions, **kwargs)
         self.name = 'xray-spec'
-        self.level = 'L0'
 
     @classmethod
     def from_levelb(cls, levelb, parent=''):
-        packets, idb_versions = BaseProduct.from_levelb(levelb)
-
-        service_type = packets.get('service_type')[0]
-        service_subtype = packets.get('service_subtype')[0]
-        ssid = packets.get('pi1_val')[0]
-
-        control = ControlSci.from_packets(packets)
+        packets, idb_versions, control = ScienceProduct.from_levelb(levelb, parent=parent)
 
         control.add_data('compression_scheme_counts_skm',
                          _get_compression_scheme(packets, 'NIX00268'))
@@ -612,22 +542,12 @@ class Spectrogram(ScienceProduct):
         control.add_data('compression_scheme_triggers_skm',
                          _get_compression_scheme(packets, 'NIX00267'))
 
-        control = unique(control)
-
-        control['raw_file'] = levelb.control['raw_file']
-        control['packet'] = levelb.control['packet']
-        control['parent'] = parent
-
-        if len(control) != 1:
-            raise ValueError('Creating a science product form packets from multiple products')
-
         control['pixel_mask'] = np.unique(_get_pixel_mask(packets)[0], axis=0)
         control.add_meta(name='pixel_mask', nix='NIXD0407', packets=packets)
         control['detector_mask'] = np.unique(_get_detector_mask(packets)[0], axis=0)
         control.add_meta(name='detector_mask', nix='NIX00407', packets=packets)
         control['rcr'] = np.unique(packets.get_value('NIX00401', attr='value'))[0]
         control.add_meta(name='rcr', nix='NIX00401', packets=packets)
-        control['index'] = range(len(control))
 
         e_min = np.array(packets.get_value('NIXD0442'))
         e_max = np.array(packets.get_value('NIXD0443'))
@@ -721,8 +641,12 @@ class Spectrogram(ScienceProduct):
         data['counts_err'] = np.sqrt(full_counts_var) * u.ct
         data['control_index'] = 0
 
-        return cls(service_type=service_type, service_subtype=service_subtype, ssid=ssid,
-                   control=control, data=data, idb_versions=idb_versions,
+        return cls(service_type=packets.service_type,
+                   service_subtype=packets.service_subtype,
+                   ssid=packets.ssid,
+                   control=control,
+                   data=data,
+                   idb_versions=idb_versions,
                    scet_timerange=scet_timerange)
 
     @classmethod
@@ -740,16 +664,10 @@ class Aspect(ScienceProduct):
         super().__init__(service_type=service_type, service_subtype=service_subtype,
                          ssid=ssid, control=control, data=data, idb_versions=idb_versions, **kwargs)
         self.name = 'aspect-burst'
-        self.level = 'L0'
 
     @classmethod
     def from_levelb(cls, levelb, parent=''):
-        packets, idb_versions = BaseProduct.from_levelb(levelb)
-
-        service_type = packets.get('service_type')[0]
-        service_subtype = packets.get('service_subtype')[0]
-        ssid = packets.get('pi1_val')[0]
-
+        packets, idb_versions = GenericProduct.getLeveL0Packets(levelb)
         control = ControlSci()
         scet_coarse = packets.get_value('NIX00445')
         scet_fine = packets.get_value('NIX00446')
@@ -795,59 +713,13 @@ class Aspect(ScienceProduct):
             logger.warning(e)
             raise e
 
-        return cls(service_type=service_type, service_subtype=service_subtype, ssid=ssid,
-                   control=control, data=data, idb_versions=idb_versions,
+        return cls(service_type=packets.service_type,
+                   service_subtype=packets.service_subtype,
+                   ssid=packets.ssid,
+                   control=control,
+                   data=data,
+                   idb_versions=idb_versions,
                    scet_timerange=scet_timerange)
-
-    def to_days(self):
-        start_day = int((self.scet_timerange.start.as_float() / u.d).decompose().value)
-        end_day = int((self.scet_timerange.end.as_float() / u.d).decompose().value)
-        if start_day == end_day:
-            end_day += 1
-        days = range(start_day, end_day)
-        # days = set([(t.year, t.month, t.day) for t in self.data['time'].to_datetime()])
-        # date_ranges = [(datetime(*day), datetime(*day) + timedelta(days=1)) for day in days]
-        for day in days:
-            ds = SCETime(((day * u.day).to_value('s')).astype(int), 0)
-            de = SCETime((((day + 1) * u.day).to_value('s')).astype(int), 0)
-            i = np.where((self.data['time'] >= ds) & (self.data['time'] < de))
-
-            scet_timerange = SCETimeRange(start=ds, end=de)
-
-            if i[0].size > 0:
-                data = self.data[i]
-                control_indices = np.unique(data['control_index'])
-                control = self.control[np.isin(self.control['index'], control_indices)]
-                control_index_min = control_indices.min()
-
-                data['control_index'] = data['control_index'] - control_index_min
-                control['index'] = control['index'] - control_index_min
-                yield type(self)(service_type=self.service_type,
-                                 service_subtype=self.service_subtype,
-                                 ssid=self.ssid, control=control, data=data,
-                                 idb_versions=self.idb_versions, scet_timerange=scet_timerange)
-
-        # min_day = np.floor((self.data['time'] / (1 * u.day)).min())
-        # max_day = np.ceil((self.data['time'] / (1 * u.day)).max())
-        #
-        # days = np.arange(min_day, max_day) * u.day
-        # date_ranges = [(day, day+1*u.day) for day in days]
-        # for dstart, dend in date_ranges:
-        #     i = np.where((self.data['time'] >= dstart) &
-        #                  (self.data['time'] < dend))
-        #
-        #     # Implement slice on parent or add mixin
-        #     if i[0].size > 0:
-        #         data = self.data[i]
-        #         control_indices = np.unique(data['control_index'])
-        #         control = self.control[np.isin(self.control['index'], control_indices)]
-        #         control_index_min = control_indices.min()
-        #
-        #         data['control_index'] = data['control_index'] - control_index_min
-        #         control['index'] = control['index'] - control_index_min
-        #         yield type(self)(service_type=self.service_type,
-        #                          service_subtype=self.service_subtype, ssid=self.ssid,
-        #                          control=control, data=data)
 
     @classmethod
     def is_datasource_for(cls, *, service_type, service_subtype, ssid, **kwargs):

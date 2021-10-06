@@ -3,38 +3,14 @@ House Keeping data products
 """
 from collections import defaultdict
 
-import numpy as np
-
-import astropy.units as u
-
-from stixcore.products.level1.quicklook import QLProduct
+from stixcore.products.level0.housekeepingL0 import HKProduct
+from stixcore.products.product import L1Mixin
 from stixcore.time import SCETimeRange
 
 __all__ = ['MiniReport', 'MaxiReport']
 
 
-class ToDaysMixin:
-    def to_days(self):
-        for day_start in self.utc_timerange.get_dates():
-            day_end = day_start + 1*u.d
-            i = np.where((self.data['time'] >= day_start) & (self.data['time'] < day_end))
-
-            data = self.data[i]
-            control_indices = np.unique(data['control_index'])
-            control = self.control[np.isin(self.control['index'], control_indices)]
-            control_index_min = control_indices.min()
-
-            # scet_timerange = SCETimeRange(start=, end=de)
-            # utc_timerange =
-
-            data['control_index'] = data['control_index'] - control_index_min
-            control['index'] = control['index'] - control_index_min
-            yield type(self)(service_type=self.service_type, service_subtype=self.service_subtype,
-                             ssid=self.ssid, control=control, data=data,
-                             idb_versions=self.idb_versions, scet_timerange=self.scet_timerange)
-
-
-class MiniReport(QLProduct):
+class MiniReport(HKProduct, L1Mixin):
     """
     Mini house keeping reported during start up of the flight software.
     """
@@ -53,7 +29,7 @@ class MiniReport(QLProduct):
                 and service_subtype == 25 and ssid == 1)
 
 
-class MaxiReport(QLProduct):
+class MaxiReport(HKProduct, L1Mixin):
     """
     Maxi house keeping reported in all modes while the flight software is running.
     """

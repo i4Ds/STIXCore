@@ -92,7 +92,6 @@ class MiniReport(HKProduct):
 
         # Create array of times as dt from date_obs
         times = SCETime(control['scet_coarse'], control['scet_fine'])
-        scet_timerange = SCETimeRange(start=times[0], end=times[-1])
 
         # Data
         data = Data()
@@ -113,8 +112,7 @@ class MiniReport(HKProduct):
                    ssid=packets.ssid,
                    control=control,
                    data=data,
-                   idb_versions=idb_versions,
-                   scet_timerange=scet_timerange)
+                   idb_versions=idb_versions)
 
     @classmethod
     def is_datasource_for(cls, *, service_type, service_subtype, ssid, **kwargs):
@@ -141,7 +139,6 @@ class MaxiReport(HKProduct):
 
         # Create array of times as dt from date_obs
         times = SCETime(control['scet_coarse'], control['scet_fine'])
-        scet_timerange = SCETimeRange(start=times[0], end=times[-1])
 
         # Data
         data = Data()
@@ -163,8 +160,7 @@ class MaxiReport(HKProduct):
                    ssid=packets.ssid,
                    control=control,
                    data=data,
-                   idb_versions=idb_versions,
-                   scet_timerange=scet_timerange)
+                   idb_versions=idb_versions)
 
     @classmethod
     def is_datasource_for(cls, *, service_type, service_subtype, ssid, **kwargs):

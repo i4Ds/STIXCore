@@ -57,7 +57,6 @@ class QLProduct(GenericProduct, EnergyChanelsMixin):
         self.control = control
         self.data = data
         self.idb_versions = idb_versions
-        self.scet_timerange = kwargs.get('scet_timerange')
 
     @classmethod
     def from_levelb(cls, levelb, *, parent='', NIX00405_offset=0):
@@ -163,8 +162,7 @@ class LightCurve(QLProduct):
                    ssid=packets.ssid,
                    control=control,
                    data=data,
-                   idb_versions=idb_versions,
-                   scet_timerange=scet_timerange)
+                   idb_versions=idb_versions)
 
     @classmethod
     def is_datasource_for(cls, *, service_type, service_subtype, ssid, **kwargs):
@@ -233,8 +231,7 @@ class Background(QLProduct):
                    ssid=packets.ssid,
                    control=control,
                    data=data,
-                   idb_versions=idb_versions,
-                   scet_timerange=scet_timerange)
+                   idb_versions=idb_versions)
 
     @classmethod
     def is_datasource_for(cls, *, service_type, service_subtype, ssid, **kwargs):
@@ -339,8 +336,7 @@ class Spectra(QLProduct):
                    ssid=packets.ssid,
                    control=control,
                    data=data,
-                   idb_versions=idb_versions,
-                   scet_timerange=scet_timerange)
+                   idb_versions=idb_versions)
 
     @classmethod
     def _get_time(cls, control, num_energies, packets, pad_after):
@@ -433,8 +429,7 @@ class Variance(QLProduct):
                    ssid=packets.ssid,
                    control=control,
                    data=data,
-                   idb_versions=idb_versions,
-                   scet_timerange=scet_timerange)
+                   idb_versions=idb_versions)
 
     @classmethod
     def is_datasource_for(cls, *, service_type, service_subtype, ssid, **kwargs):
@@ -493,8 +488,7 @@ class FlareFlag(QLProduct):
                    ssid=packets.ssid,
                    control=control,
                    data=data,
-                   idb_versions=idb_versions,
-                   scet_timerange=scet_timerange)
+                   idb_versions=idb_versions)
 
     @classmethod
     def is_datasource_for(cls, *, service_type, service_subtype, ssid, **kwargs):
@@ -571,12 +565,6 @@ class EnergyCalibration(QLProduct):
             + control['integration_time'] / 2
         duration = SCETimeDelta(control['integration_time'])
 
-        scet_timerange = SCETimeRange(start=SCETime(control['scet_coarse'][0],
-                                                    control['scet_fine'][0]),
-                                      end=SCETime(control['scet_coarse'][0],
-                                                  control['scet_fine'][0])
-                                      + control['integration_time'][0])
-
         # Data
         data = Data()
         data['timedel'] = duration[0:1]
@@ -618,8 +606,7 @@ class EnergyCalibration(QLProduct):
                    ssid=packets.ssid,
                    control=control,
                    data=data,
-                   idb_versions=idb_versions,
-                   scet_timerange=scet_timerange)
+                   idb_versions=idb_versions)
 
     @classmethod
     def is_datasource_for(cls, *, service_type, service_subtype, ssid, **kwargs):

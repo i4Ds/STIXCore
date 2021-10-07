@@ -97,9 +97,6 @@ class ProductFactory(BasicRegistrationFactory):
                     control['time_stamp'] = ts * u.s
                 data = QTable.read(file_path, hdu='DATA')
 
-                scet_timerange = SCETimeRange(start=SCETime.from_string(header.get('OBT_BEG')),
-                                              end=SCETime.from_string(header.get('OBT_END')))
-
                 if level != 'LB':
 
                     data['timedel'] = SCETimeDelta(data['timedel'])
@@ -139,7 +136,7 @@ class ProductFactory(BasicRegistrationFactory):
                                service_subtype=service_subtype,
                                ssid=ssid, control=control,
                                data=data, energies=energies, idb_versions=idb_versions,
-                               scet_timerange=scet_timerange, raw=raw, parent=parent)
+                               raw=raw, parent=parent)
 
     def _check_registered_widget(self, *args, **kwargs):
         """
@@ -328,8 +325,12 @@ class GenericProduct(BaseProduct):
         self.control = control
         self.data = data
         self.idb_versions = idb_versions
-        self.scet_timerange = kwargs.get('scet_timerange')
         self.level = kwargs.get('level')
+
+    @property
+    def scet_timerange(self):
+        return SCETimeRange(start=self.data['time'][0]-self.data['timedel'][0]/2,
+                            end=self.data['time'][-1]+self.data['timedel'][-1]/2)
 
     @property
     def raw(self):
@@ -387,13 +388,9 @@ class GenericProduct(BaseProduct):
         for idb_key, date_range in other.idb_versions.items():
             self.idb_versions[idb_key].expand(date_range)
 
-        scet_timerange = SCETimeRange(start=data['time'][0]-data['timedel'][0]/2,
-                                      end=data['time'][-1]+data['timedel'][-1]/2)
-
         return type(self)(service_type=self.service_type, service_subtype=self.service_subtype,
                           ssid=self.ssid, control=control, data=data,
-                          idb_versions=self.idb_versions, scet_timerange=scet_timerange,
-                          level=self.level)
+                          idb_versions=self.idb_versions, level=self.level)
 
     def __repr__(self):
         return f'<{self.__class__.__name__}' \
@@ -417,8 +414,7 @@ class GenericProduct(BaseProduct):
 
                 if i[0].size > 0:
                     data = self.data[i]
-                    scet_timerange = SCETimeRange(start=data['time'][0] - data['timedel'][0]/2,
-                                                  end=data['time'][-1] + data['timedel'][-1]/2)
+
                     control_indices = np.unique(data['control_index'])
                     control = self.control[np.isin(self.control['index'], control_indices)]
                     control_index_min = control_indices.min()
@@ -429,7 +425,7 @@ class GenericProduct(BaseProduct):
                     out = type(self)(service_type=self.service_type,
                                      service_subtype=self.service_subtype,
                                      ssid=self.ssid, control=control, data=data,
-                                     idb_versions=self.idb_versions, scet_timerange=scet_timerange)
+                                     idb_versions=self.idb_versions)
                     out.level = self.level
                     yield out
         else:  # self.level == 'L1':
@@ -444,11 +440,6 @@ class GenericProduct(BaseProduct):
                 if len(i[0]) > 0:
                     data = self.data[i]
 
-                    scet_timerange = SCETimeRange(start=self.data['time'][0]
-                                                  - self.data['timedel'][0] / 2,
-                                                  end=self.data['time'][-1]
-                                                  + self.data['timedel'][-1] / 2)
-
                     control_indices = np.unique(data['control_index'])
                     control = self.control[np.isin(self.control['index'], control_indices)]
                     control_index_min = control_indices.min()
@@ -458,7 +449,7 @@ class GenericProduct(BaseProduct):
                     out = type(self)(service_type=self.service_type,
                                      service_subtype=self.service_subtype, ssid=self.ssid,
                                      control=control, data=data, idb_versions=self.idb_versions,
-                                     scet_timerange=scet_timerange, level=self.level)
+                                     level=self.level)
                     out.level = self.level
                     yield out
 
@@ -513,8 +504,7 @@ class L1Mixin:
                  ssid=l0product.ssid,
                  control=l0product.control,
                  data=l0product.data,
-                 idb_versions=l0product.idb_versions,
-                 scet_timerange=l0product.scet_timerange)
+                 idb_versions=l0product.idb_versions)
 
         l1.control.replace_column('parent', [parent] * len(l1.control))
 
@@ -561,7 +551,6 @@ class DefaultProduct(GenericProduct, L1Mixin):
 
         # Create array of times as dt from date_obs
         times = SCETime(control['scet_coarse'], control['scet_fine'])
-        scet_timerange = SCETimeRange(start=times[0], end=times[-1])
 
         # Data
         data = Data()
@@ -584,8 +573,7 @@ class DefaultProduct(GenericProduct, L1Mixin):
                    ssid=packets.ssid,
                    control=control,
                    data=data,
-                   idb_versions=idb_versions,
-                   scet_timerange=scet_timerange)
+                   idb_versions=idb_versions)
 
 
 Product = ProductFactory(registry=BaseProduct._registry, default_widget_type=DefaultProduct)

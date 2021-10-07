@@ -56,7 +56,6 @@ class ScienceProduct(GenericProduct, EnergyChanelsMixin):
         self.control = control
         self.data = data
         self.idb_versions = kwargs.get('idb_versions', None)
-        self.scet_timerange = kwargs['scet_timerange']
 
         self.type = 'sci'
         self.level = 'L0'
@@ -98,12 +97,8 @@ class ScienceProduct(GenericProduct, EnergyChanelsMixin):
             #     data_inds = np.where(self.data['control_index'] == data_index)
             #     data = self.data[data_inds]
 
-            scet_timerange = SCETimeRange(start=data['time'][0] - data['timedel'][0]/2,
-                                          end=data['time'][-1] + data['timedel'][-1]/2)
-
             yield type(self)(service_type=self.service_type, service_subtype=self.service_subtype,
-                             ssid=self.ssid, control=control, data=data,
-                             scet_timerange=scet_timerange)
+                             ssid=self.ssid, control=control, data=data)
 
     @classmethod
     def from_levelb(cls, levelb, *, parent=''):
@@ -203,10 +198,6 @@ class RawPixelData(ScienceProduct):
         for i, (pid, did, cid, cc) in enumerate(dd):
             counts[time_indices[i], did, pid, cid] = cc
 
-        scet_timerange = SCETimeRange(start=control["time_stamp"][0] + data['start_time'][0],
-                                      end=control["time_stamp"][-1] + data['start_time'][-1]
-                                      + data['integration_time'][-1])
-
         sub_index = np.searchsorted(data['start_time'], unique_times)
         data = data[sub_index]
         data['time'] = control["time_stamp"][0] \
@@ -223,8 +214,7 @@ class RawPixelData(ScienceProduct):
                    ssid=packets.ssid,
                    control=control,
                    data=data,
-                   idb_versions=idb_versions,
-                   scet_timerange=scet_timerange)
+                   idb_versions=idb_versions)
 
     @classmethod
     def is_datasource_for(cls, *, service_type, service_subtype, ssid, **kwargs):
@@ -396,10 +386,6 @@ class CompressedPixelData(ScienceProduct):
         sub_index = np.searchsorted(data['delta_time'], unique_times)
         data = data[sub_index]
 
-        scet_timerange = SCETimeRange(start=control['time_stamp'][0] + data['delta_time'][0],
-                                      end=control['time_stamp'][-1] + data['delta_time'][-1]
-                                      + data['integration_time'][-1])
-
         data['time'] = (control['time_stamp'][0]
                         + data['delta_time'] + data['integration_time']/2)
         data['timedel'] = data['integration_time']
@@ -417,8 +403,7 @@ class CompressedPixelData(ScienceProduct):
                    ssid=packets.ssid,
                    control=control,
                    data=data,
-                   idb_versions=idb_versions,
-                   scet_timerange=scet_timerange)
+                   idb_versions=idb_versions)
 
     @classmethod
     def is_datasource_for(cls, *, service_type, service_subtype, ssid, **kwargs):
@@ -541,10 +526,6 @@ class Visibility(ScienceProduct):
                                                                 num_detectors, -1))
         data.add_meta(name='imaginary', nix='NIX00264', packets=packets)
 
-        scet_timerange = SCETimeRange(start=control["time_stamp"][0] + data['delta_time'][0],
-                                      end=control["time_stamp"][-1] + data['delta_time'][-1]
-                                      + data['integration_time'][-1])
-
         data['time'] = (control["time_stamp"][0]
                         + data['delta_time'] + data['integration_time'] / 2)
         data['timedel'] = SCETimeDelta(data['integration_time'])
@@ -554,8 +535,7 @@ class Visibility(ScienceProduct):
                    ssid=packets.ssid,
                    control=control,
                    data=data,
-                   idb_versions=idb_versions,
-                   scet_timerange=scet_timerange)
+                   idb_versions=idb_versions)
 
     @classmethod
     def is_datasource_for(cls, *, service_type, service_subtype, ssid, **kwargs):
@@ -670,9 +650,6 @@ class Spectrogram(ScienceProduct):
         deltas = np.hstack(deltas)
         deltas = SCETimeDelta(deltas)
 
-        scet_timerange = SCETimeRange(start=control['time_stamp'][0] + centers[0] - deltas[0]/2,
-                                      end=control['time_stamp'][0] + centers[-1] + deltas[-1]/2)
-
         # Data
         data = Data()
         data['time'] = control['time_stamp'][0] + centers
@@ -690,8 +667,7 @@ class Spectrogram(ScienceProduct):
                    ssid=packets.ssid,
                    control=control,
                    data=data,
-                   idb_versions=idb_versions,
-                   scet_timerange=scet_timerange)
+                   idb_versions=idb_versions)
 
     @classmethod
     def is_datasource_for(cls, *, service_type, service_subtype, ssid, **kwargs):
@@ -742,9 +718,6 @@ class Aspect(ScienceProduct):
         starts = SCETime(ctimes, ftimes)
         time = starts + offsets
 
-        scet_timerange = SCETimeRange(start=time[0] - timedel[0]/2,
-                                      end=time[-1] + timedel[-1]/2)
-
         # Data
         try:
             data = Data()
@@ -764,8 +737,7 @@ class Aspect(ScienceProduct):
                    ssid=packets.ssid,
                    control=control,
                    data=data,
-                   idb_versions=idb_versions,
-                   scet_timerange=scet_timerange)
+                   idb_versions=idb_versions)
 
     @classmethod
     def is_datasource_for(cls, *, service_type, service_subtype, ssid, **kwargs):

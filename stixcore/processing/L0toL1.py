@@ -1,6 +1,8 @@
 import logging
-from time import perf_counter
+import warnings
+from time import sleep, perf_counter
 from pathlib import Path
+from multiprocessing import Manager
 from concurrent.futures import ProcessPoolExecutor
 
 from sunpy.util.datatype_factory_base import NoMatchError
@@ -9,7 +11,7 @@ from stixcore.io.fits.processors import FitsL1Processor
 from stixcore.products import Product
 from stixcore.util.logging import get_logger
 
-logger = get_logger(__name__, level=logging.DEBUG)
+logger = get_logger(__name__, level=logging.INFO)
 
 
 class Level1:
@@ -23,22 +25,34 @@ class Level1:
         if files is None:
             files = self.level0_files
 
-        with ProcessPoolExecutor() as executor:
-            jobs = [executor.submit(process_file, file, self.processor) for file in files]
+        with Manager() as manager:
+            open_files = manager.list()
+            with ProcessPoolExecutor() as executor:
+                jobs = [executor.submit(process_file, file, self.processor, open_files)
+                        for file in files]
 
         files = set()
         [files.update(set(j.result())) for j in jobs]
         return files
 
 
-def process_file(file, processor):
+def process_file(file, processor, open_files):
+    if file.name in open_files:
+        for i in range(100):
+            logger.debug('Waiting file %s in open files', file.name)
+            sleep(1)
+            if file.name not in open_files:
+                break
+        else:
+            logger.debug('File was never free %s', file.name)
+
     l0 = Product(file)
     try:
         tmp = Product._check_registered_widget(level='L1', service_type=l0.service_type,
                                                service_subtype=l0.service_subtype,
                                                ssid=l0.ssid, data=None, control=None)
         l1 = tmp.from_level0(l0, parent=file.name)
-        return processor.write_fits(l1)
+        return processor.write_fits(l1, open_files)
     except NoMatchError:
         logger.debug('No match for product %s', l0)
     except Exception:
@@ -48,6 +62,7 @@ def process_file(file, processor):
 
 if __name__ == '__main__':
     tstart = perf_counter()
+    warnings.filterwarnings('ignore', module='astropy.io.fits.card')
 
     fits_path = Path('/Users/shane/Projects/STIX/fits_new/L0')
     bd = Path('/Users/shane/Projects/STIX/fits_new/')

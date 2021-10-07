@@ -10,7 +10,7 @@ from stixcore.io.fits.processors import FitsL0Processor
 from stixcore.products.product import Product
 from stixcore.util.logging import get_logger
 
-logger = get_logger(__name__, level=logging.DEBUG)
+logger = get_logger(__name__, level=logging.INFO)
 
 
 class Level0:
@@ -58,7 +58,7 @@ class Level0:
                             res.extend(self.process_sequence(file, executor, open_files))
 
             files = set()
-            [files.update(set(r.result())) for r in res if r.result() is not None]
+            [files.update(set(r.result())) for r in res if r is not None]
             return files
 
     def process_standalone(self, file, executor, open_files):
@@ -85,7 +85,7 @@ class Level0:
                 if file.name not in open_files:
                     break
             else:
-                logger.debug('File was never free %s', file.name)
+                logger.error('File was never free %s', file.name)
 
         jobs = []
         last_incomplete = []
@@ -125,7 +125,7 @@ class Level0:
             level0 = tmp.from_levelb(prod, parent=file.name)
             return self.processor.write_fits(level0, open_files)
         except Exception as e:
-            logger.error(f'Error processing {prod.parent}, {prod.control["packet"]}')
+            logger.error(f'Error processing {file.name}, {prod.control["packet"]}')
             logger.error('%s', e)
 
 

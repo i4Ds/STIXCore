@@ -1,6 +1,8 @@
 import logging
+import warnings
 from time import perf_counter
 from pathlib import Path
+from multiprocessing import Manager
 from concurrent.futures import ThreadPoolExecutor
 
 from stixcore.config.config import CONFIG
@@ -26,14 +28,16 @@ def process_tmtc_to_levelbinary(files_to_process, archive_path=None):
         archive_path = Path(CONFIG.get('Paths', 'fits_archive'))
     fits_processor = FitsLBProcessor(archive_path)
     jobs = []
-    with ThreadPoolExecutor() as exec:
-        for tmtc_file in files_to_process:
-            logger.info(f'Started processing of file: {tmtc_file}')
-            # TODO sorting filter etc
-            for prod in LevelB.from_tm(tmtc_file):
-                if prod:
-                    jobs.append(exec.submit(fits_processor.write_fits, prod))
-            logger.info(f'Finished processing of file: {tmtc_file}')
+    with Manager() as manager:
+        open_files = manager.list()
+        with ThreadPoolExecutor() as exec:
+            for tmtc_file in files_to_process:
+                logger.info(f'Started processing of file: {tmtc_file}')
+                # TODO sorting filter etc
+                for prod in LevelB.from_tm(tmtc_file):
+                    if prod:
+                        jobs.append(exec.submit(fits_processor.write_fits, prod, open_files))
+                logger.info(f'Finished processing of file: {tmtc_file}')
     files = set()
     [files.update(set(j.result())) for j in jobs if j.result() is not None]
     return files
@@ -42,11 +46,12 @@ def process_tmtc_to_levelbinary(files_to_process, archive_path=None):
 if __name__ == '__main__':
     tstart = perf_counter()
     logger.info('LevelB run')
+    warnings.filterwarnings('ignore', module='astropy.io.fits.card')
 
     tm_path = Path('/Users/shane/Projects/STIX/tm')
-    archive_path = Path('/Users/shane/Projects/STIX/fits_new')
+    archive_path = Path('/Users/shane/Projects/STIX/fits_test')
 
     lb_files = tmtc_to_l0(tmtc_path=tm_path, archive_path=archive_path)
-
+    logger.info(lb_files)
     tend = perf_counter()
     logger.info('Time taken %f', tend - tstart)

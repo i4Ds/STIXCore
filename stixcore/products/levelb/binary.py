@@ -252,9 +252,14 @@ class LevelB(BaseProduct):
             The input data file.
         """
         packet_data = defaultdict(list)
-        for id, binary in tmfile.get_packet_binaries():
-            packet = TMPacket(binary)
-            packet.source = (tmfile.file.name, id)
+
+        for packet_no, binary in tmfile.get_packet_binaries():
+            try:
+                packet = TMPacket(binary)
+            except Exception:
+                logger.error('Error parsing %s, %d', tmfile.name, packet_no, exc_info=True)
+                return
+            packet.source = (tmfile.file.name, packet_no)
             packet_data[packet.key].append(packet)
 
         for prod_key, packets in packet_data.items():

@@ -1,5 +1,6 @@
 """Module for the different processing levels."""
 import logging
+from time import sleep
 from pathlib import Path
 from datetime import datetime
 
@@ -169,8 +170,6 @@ class FitsLBProcessor(FitsProcessor):
         ------
         ValueError
             TODO what does the length check guaranties?
-        ValueError
-            TODO what does the length check guaranties?
         """
         files = []
         for prod in product.to_days():
@@ -188,7 +187,7 @@ class FitsLBProcessor(FitsProcessor):
                 if np.abs([((len(existing.data['data'][i])/2) -
                             (existing.control['data_length'][i]+7))
                           for i in range(len(existing.data))]).sum() > 0:
-                    raise ValueError()
+                    raise ValueError('Header data lengths and data lengths do not agree')
                 logger.debug('Existing %s, New %s', existing, prod)
                 prod = prod + existing
                 logger.debug('Combined %s', prod)
@@ -201,7 +200,7 @@ class FitsLBProcessor(FitsProcessor):
 
             if np.abs([((len(data['data'][i]) / 2) - (control['data_length'][i] + 7))
                        for i in range(len(data))]).sum() > 0:
-                raise ValueError()
+                raise ValueError('Header data lengths and data lengths do not agree')
 
             primary_header = self.generate_primary_header(filename, prod)
             primary_hdu = fits.PrimaryHDU()
@@ -236,7 +235,7 @@ class FitsL0Processor:
         """
         self.archive_path = archive_path
 
-    def write_fits(self, product):
+    def write_fits(self, product, open_files=None):
         """
         Write level 0 products into fits files.
 
@@ -267,6 +266,16 @@ class FitsL0Processor:
             path.mkdir(parents=True, exist_ok=True)
 
             fitspath = path / filename
+
+            if filename in open_files:
+                for i in range(100):
+                    logger.debug('Waiting file %s in open files', filename)
+                    sleep(1)
+                    if filename not in open_files:
+                        break
+                else:
+                    logger.debug('File was never free %s', filename)
+
             if fitspath.exists():
                 logger.info('Fits file %s exists appending data', fitspath.name)
                 existing = Product(fitspath)
@@ -326,7 +335,9 @@ class FitsL0Processor:
 
             filetowrite = path / filename
             logger.debug(f'Writing fits file to {filetowrite}')
+            open_files.append(filename)
             hdul.writeto(filetowrite, overwrite=True, checksum=True)
+            open_files.remove(filename)
             created_files.append(filetowrite)
         return created_files
 

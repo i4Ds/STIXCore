@@ -1,7 +1,9 @@
 import logging
-from time import perf_counter
+import warnings
+from time import sleep, perf_counter
 from pathlib import Path
 from collections import defaultdict
+from multiprocessing import Manager
 from concurrent.futures import ProcessPoolExecutor
 
 from stixcore.io.fits.processors import FitsL0Processor
@@ -39,29 +41,53 @@ class Level0:
             pass
 
         # For each type
-        with ProcessPoolExecutor() as executor:
-            res = []
-            for tm_type, files in tm.items():
-                # Stand alone packet data
-                if (tm_type[0] == 21 and tm_type[-1] not in {20, 21, 22, 23, 24}) or \
-                        tm_type[0] != 21:
-                    for file in files:
-                        res.append(self.process_standalone(file, executor))
-                else:
-                    for file in files:
-                        res.extend(self.process_sequence(file, executor))
+        with Manager() as manager:
+            open_files = manager.list()
+            with ProcessPoolExecutor() as executor:
+                res = []
+                for tm_type, files in tm.items():
+                    # Stand alone packet data
+                    if (tm_type[0] == 21 and tm_type[-1] not in {20, 21, 22, 23, 24}) or \
+                            tm_type[0] != 21:
+                        for file in files:
+                            logger.debug('Processing stand alone packets from file %s', file.name)
+                            res.append(self.process_standalone(file, executor, open_files))
+                    else:
+                        for file in files:
+                            logger.debug('Processing packet sequence from file %s', file.name)
+                            res.extend(self.process_sequence(file, executor, open_files))
 
-        return [r.result() for r in res if r is not None]
+            files = set()
+            [files.update(set(r.result())) for r in res if r.result() is not None]
+            return files
 
-    def process_standalone(self, file, executor):
+    def process_standalone(self, file, executor, open_files):
+        if file.name in open_files:
+            for i in range(100):
+                logger.debug('Waiting file %s in open files', file.name)
+                sleep(1)
+                if file.name not in open_files:
+                    break
+            else:
+                logger.debug('File was never free %s', file.name)
+
         try:
             levelb = Product(file)
-            return executor.submit(self.process_product, levelb, file)
+            return executor.submit(self.process_product, levelb, file, open_files)
         except Exception:
             logger.error('Error processing file %s', file)
 
-    def process_sequence(self, file, executor):
-        res = []
+    def process_sequence(self, file, executor, open_files):
+        if file.name in open_files:
+            for i in range(100):
+                logger.debug('Waiting file %s in open files', file.name)
+                sleep(1)
+                if file.name not in open_files:
+                    break
+            else:
+                logger.debug('File was never free %s', file.name)
+
+        jobs = []
         last_incomplete = []
         levelb = Product(file)
         complete, incomplete = levelb.extract_sequences()
@@ -76,7 +102,7 @@ class Level0:
             for comp in complete:
                 # TODO need to carry better information for logging like index from
                 #  original files and file names
-                res.append(executor.submit(self.process_product, comp, file))
+                jobs.append(executor.submit(self.process_product, comp, file, open_files))
             complete = []
         try:
             last_incomplete = last_incomplete[0] + incomplete[0]
@@ -85,11 +111,11 @@ class Level0:
 
         if last_incomplete:
             for inc in last_incomplete:
-                res.append(executor.submit(self.process_product,  inc, file))
+                jobs.append(executor.submit(self.process_product,  inc, file, open_files))
 
-        return res
+        return jobs
 
-    def process_product(self, prod, file):
+    def process_product(self, prod, file, open_files):
         tmp = Product._check_registered_widget(level='L0',
                                                service_type=prod.service_type,
                                                service_subtype=prod.service_subtype,
@@ -97,19 +123,19 @@ class Level0:
                                                control=None)
         try:
             level0 = tmp.from_levelb(prod, parent=file.name)
-            return self.processor.write_fits(level0)
+            return self.processor.write_fits(level0, open_files)
         except Exception as e:
-            logger.error('Error processing file %s for %s, %s, %s', file,
-                         prod.service_type, prod.service_subtype, prod.ssid)
+            logger.error(f'Error processing {prod.parent}, {prod.control["packet"]}')
             logger.error('%s', e)
-            raise e
 
 
 if __name__ == '__main__':
     tstart = perf_counter()
 
-    fits_path = Path('/Users/shane/Projects/STIX/fits_new/LB/')
-    bd = Path('/Users/shane/Projects/STIX/fits_new')
+    warnings.filterwarnings('ignore', module='astropy.io.fits.card')
+
+    fits_path = Path('/Users/shane/Projects/STIX/fits_test/LB/')
+    bd = Path('/Users/shane/Projects/STIX/fits_test')
 
     l0processor = Level0(fits_path, bd)
     l0_files = l0processor.process_fits_files()

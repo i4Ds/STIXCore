@@ -38,14 +38,12 @@ def process_file(file, processor):
                                                service_subtype=l0.service_subtype,
                                                ssid=l0.ssid, data=None, control=None)
         l1 = tmp.from_level0(l0, parent=file.name)
-        files = processor.write_fits(l1)
+        return processor.write_fits(l1)
     except NoMatchError:
         logger.debug('No match for product %s', l0)
     except Exception:
         logger.error('Error processing file %s', file, exc_info=True)
         # raise e
-
-    return files
 
 
 if __name__ == '__main__':

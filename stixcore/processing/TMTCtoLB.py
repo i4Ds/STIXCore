@@ -10,7 +10,7 @@ from stixcore.products.levelb.binary import LevelB
 from stixcore.tmtc.packets import TMTC
 from stixcore.util.logging import get_logger
 
-logger = get_logger(__name__, level=logging.DEBUG)
+logger = get_logger(__name__, level=logging.INFO)
 
 
 def tmtc_to_l0(tmtc_path, archive_path):
@@ -25,15 +25,17 @@ def process_tmtc_to_levelbinary(files_to_process, archive_path=None):
     if archive_path is None:
         archive_path = Path(CONFIG.get('Paths', 'fits_archive'))
     fits_processor = FitsLBProcessor(archive_path)
-    files = []
+    jobs = []
     with ThreadPoolExecutor() as exec:
         for tmtc_file in files_to_process:
-            logger.info(f'Processing file: {tmtc_file}')
+            logger.info(f'Started processing of file: {tmtc_file}')
             # TODO sorting filter etc
             for prod in LevelB.from_tm(tmtc_file):
                 if prod:
-                    files.append(exec.submit(fits_processor.write_fits, prod))
-
+                    jobs.append(exec.submit(fits_processor.write_fits, prod))
+            logger.info(f'Finished processing of file: {tmtc_file}')
+    files = set()
+    [files.update(set(j.result())) for j in jobs if j.result() is not None]
     return files
 
 

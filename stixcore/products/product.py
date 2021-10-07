@@ -417,8 +417,8 @@ class GenericProduct(BaseProduct):
 
                 if i[0].size > 0:
                     data = self.data[i]
-                    scet_timerange = SCETimeRange(start=data['time'][0] - data['timedel'][0]/2,
-                                                  end=data['time'][-1] + data['timedel'][-1]/2)
+                    scet_timerange = SCETimeRange(start=ds,
+                                                  end=de)
                     control_indices = np.unique(data['control_index'])
                     control = self.control[np.isin(self.control['index'], control_indices)]
                     control_index_min = control_indices.min()

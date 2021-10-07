@@ -14,9 +14,27 @@ __all__ = ['MiniReport', 'MaxiReport']
 
 
 class HKProduct(GenericProduct):
-
+    """Generic house keeping product class composed of control and data."""
     def __init__(self, *, service_type, service_subtype, ssid, control, data,
                  idb_versions=defaultdict(SCETimeRange), **kwargs):
+        """Create a generic HK product composed of control and data.
+
+        Parameters
+        ----------
+        service_type : `int`
+            3
+        service_subtype : `int`
+            25
+        ssid : `int`
+            ssid of the data product
+        control : `stixcore.products.product.Control`
+            Table containing control information
+        data : `stixcore.products.product.Data`
+            Table containing data
+        idb_versions : dict<SCETimeRange, VersionLabel>, optional
+            a time range lookup what IDB versions are used within this data,
+            by default defaultdict(SCETimeRange)
+        """
         super().__init__(service_type=service_type, service_subtype=service_subtype,
                          ssid=ssid, control=control, data=data, idb_versions=idb_versions, **kwargs)
         self.level = 'L0'
@@ -24,6 +42,24 @@ class HKProduct(GenericProduct):
 
     @classmethod
     def from_levelb(cls, levelb, *, parent=''):
+        """Converts level binary HK packets to a L1 product.
+
+        Parameters
+        ----------
+        levelb : `stixcore.products.levelb.binary.LevelB`
+            The binary level product.
+        parent : `str`, optional
+            The parent data file name the binary packed comes from, by default ''
+        NIX00405_offset : int, optional
+            [description], by default 0
+
+        Returns
+        -------
+        tuple (packets, idb_versions, control)
+            the converted packets
+            all used IDB versions and time periods
+            initialized control table
+        """
         packets, idb_versions = GenericProduct.getLeveL0Packets(levelb)
 
         control = Control()
@@ -39,9 +75,11 @@ class HKProduct(GenericProduct):
 
 
 class MiniReport(HKProduct):
+    """Mini house keeping reported during start up of the flight software.
+
+    In level 0 format.
     """
-    Mini house keeping reported during start up of the flight software.
-    """
+
     def __init__(self, *, service_type, service_subtype, ssid, control, data,
                  idb_versions=defaultdict(SCETimeRange), **kwargs):
         super().__init__(service_type=service_type, service_subtype=service_subtype,
@@ -87,7 +125,10 @@ class MiniReport(HKProduct):
 class MaxiReport(HKProduct):
     """
     Maxi house keeping reported in all modes while the flight software is running.
+
+    In level 0 format.
     """
+
     def __init__(self, *, service_type, service_subtype, ssid, control, data,
                  idb_versions=defaultdict(SCETimeRange), **kwargs):
         super().__init__(service_type=service_type, service_subtype=service_subtype,

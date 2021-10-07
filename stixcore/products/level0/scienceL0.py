@@ -10,12 +10,11 @@ from stixcore.config.reader import read_energy_channels
 from stixcore.products.common import (
     _get_compression_scheme,
     _get_detector_mask,
-    _get_energies_from_mask,
     _get_pixel_mask,
     _get_unique,
     rebin_proportional,
 )
-from stixcore.products.product import ControlSci, Data, GenericProduct
+from stixcore.products.product import ControlSci, Data, EnergyChanelsMixin, GenericProduct
 from stixcore.time import SCETime, SCETimeRange
 from stixcore.time.datetime import SCETimeDelta
 from stixcore.util.logging import get_logger
@@ -30,11 +29,27 @@ __all__ = ['ScienceProduct', 'RawPixelData', 'CompressedPixelData', 'SummedPixel
            'Visibility', 'Spectrogram', 'Aspect']
 
 
-class ScienceProduct(GenericProduct):
-    """
-
-    """
+class ScienceProduct(GenericProduct, EnergyChanelsMixin):
+    """Generic science data product class composed of control and data."""
     def __init__(self, *, service_type, service_subtype, ssid, control, data, **kwargs):
+        """Create a generic science data product composed of control and data.
+
+        Parameters
+        ----------
+        service_type : `int`
+            21
+        service_subtype : `int`
+            6
+        ssid : `int`
+            ssid of the data product
+        control : `stixcore.products.product.Control`
+            Table containing control information
+        data : `stixcore.products.product.Data`
+            Table containing data
+        idb_versions : dict<SCETimeRange, VersionLabel>, optional
+            a time range lookup what IDB versions are used within this data,
+            by default defaultdict(SCETimeRange)
+        """
         self.service_type = service_type
         self.service_subtype = service_subtype
         self.ssid = ssid
@@ -66,6 +81,13 @@ class ScienceProduct(GenericProduct):
                           ssid=self.ssid, data=data, control=control)
 
     def to_requests(self):
+        """Splits the entire data into data products separated be the unique request ID.
+
+        Yields
+        -------
+        `ScienceProduct`
+            the next ScienceProduct defined by the unique request ID
+        """
         for ci in unique(self.control, keys=['tc_packet_seq_control', 'request_id'])['index']:
             control = self.control[self.control['index'] == ci]
             data = self.data[self.data['control_index'] == ci]
@@ -83,18 +105,26 @@ class ScienceProduct(GenericProduct):
                              ssid=self.ssid, control=control, data=data,
                              scet_timerange=scet_timerange)
 
-    def get_energies(self):
-        if 'energy_bin_edge_mask' in self.control.colnames:
-            energies = _get_energies_from_mask(self.control['energy_bin_edge_mask'][0])
-        elif 'energy_bin_mask' in self.control.colnames:
-            energies = _get_energies_from_mask(self.control['energy_bin_mask'][0])
-        else:
-            energies = _get_energies_from_mask()
-
-        return energies
-
     @classmethod
     def from_levelb(cls, levelb, *, parent=''):
+        """Converts level binary science packets to a L1 product.
+
+        Parameters
+        ----------
+        levelb : `stixcore.products.levelb.binary.LevelB`
+            The binary level product.
+        parent : `str`, optional
+            The parent data file name the binary packed comes from, by default ''
+        NIX00405_offset : int, optional
+            [description], by default 0
+
+        Returns
+        -------
+        tuple (packets, idb_versions, control)
+            the converted packets
+            all used IDB versions and time periods
+            initialized control table
+        """
         packets, idb_versions = GenericProduct.getLeveL0Packets(levelb)
 
         control = ControlSci.from_packets(packets)
@@ -112,6 +142,10 @@ class ScienceProduct(GenericProduct):
 
 
 class RawPixelData(ScienceProduct):
+    """Raw X-ray pixel counts: compression level 0. No aggregation.
+
+    In level 0 format.
+    """
     def __init__(self, *, service_type, service_subtype, ssid, control, data,
                  idb_versions=defaultdict(SCETimeRange), **kwargs):
         super().__init__(service_type=service_type, service_subtype=service_subtype,
@@ -199,6 +233,10 @@ class RawPixelData(ScienceProduct):
 
 
 class CompressedPixelData(ScienceProduct):
+    """Aggregated (over time and/or energies) X-ray pixel counts: compression level 1.
+
+    In level 0 format.
+    """
     def __init__(self, *, service_type, service_subtype, ssid, control, data,
                  idb_versions=defaultdict(SCETimeRange), **kwargs):
         super().__init__(service_type=service_type, service_subtype=service_subtype,
@@ -389,8 +427,9 @@ class CompressedPixelData(ScienceProduct):
 
 
 class SummedPixelData(CompressedPixelData):
-    """
-    X-ray Summed Pixels or compression Level 2 data
+    """Aggregated (over time and/or energies and pixelsets) X-ray pixel counts: compression level 2.
+
+    In level 0 format.
     """
     def __init__(self, *, service_type, service_subtype, ssid, control, data, **kwargs):
         super().__init__(service_type=service_type, service_subtype=service_subtype,
@@ -406,7 +445,10 @@ class SummedPixelData(CompressedPixelData):
 class Visibility(ScienceProduct):
     """
     X-ray Visibilities or compression Level 3 data
+
+    In level 0 format.
     """
+
     def __init__(self, *, service_type, service_subtype, ssid, control, data,
                  idb_versions=defaultdict(SCETimeRange), **kwargs):
         super().__init__(service_type=service_type, service_subtype=service_subtype,
@@ -524,6 +566,8 @@ class Visibility(ScienceProduct):
 class Spectrogram(ScienceProduct):
     """
     X-ray Spectrogram or compression Level 2 data
+
+    In level 0 format.
     """
 
     def __init__(self, *, service_type, service_subtype, ssid, control, data,
@@ -656,9 +700,11 @@ class Spectrogram(ScienceProduct):
 
 
 class Aspect(ScienceProduct):
+    """Bulk Aspect data.
+
+    In level 0 format.
     """
-    Aspect
-    """
+
     def __init__(self, *, service_type, service_subtype, ssid, control,
                  data, idb_versions=defaultdict(SCETimeRange), **kwargs):
         super().__init__(service_type=service_type, service_subtype=service_subtype,

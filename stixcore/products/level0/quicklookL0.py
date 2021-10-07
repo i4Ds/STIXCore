@@ -12,13 +12,12 @@ import astropy.units as u
 from stixcore.products.common import (
     _get_compression_scheme,
     _get_detector_mask,
-    _get_energies_from_mask,
     _get_energy_bins,
     _get_pixel_mask,
     _get_sub_spectrum_mask,
     rebin_proportional,
 )
-from stixcore.products.product import Control, Data, GenericProduct
+from stixcore.products.product import Control, Data, EnergyChanelsMixin, GenericProduct
 from stixcore.time import SCETime, SCETimeDelta, SCETimeRange
 from stixcore.util.logging import get_logger
 
@@ -29,18 +28,27 @@ logger = get_logger(__name__, level=logging.DEBUG)
 QLNIX00405_off = 0.1
 
 
-class QLProduct(GenericProduct):
+class QLProduct(GenericProduct, EnergyChanelsMixin):
+    """Generic QL product class composed of control and data."""
     def __init__(self, *, service_type, service_subtype, ssid, control, data,
                  idb_versions=defaultdict(SCETimeRange), **kwargs):
-        """
-        Generic product composed of control and data
+        """Create a generic QL product composed of control and data.
 
         Parameters
         ----------
-        control : stix_parser.products.quicklook.Control
+        service_type : `int`
+            21
+        service_subtype : `int`
+            6
+        ssid : `int`
+            ssid of the data product
+        control : `stixcore.products.product.Control`
             Table containing control information
-        data : stix_parser.products.quicklook.Data
+        data : `stixcore.products.product.Data`
             Table containing data
+        idb_versions : dict<SCETimeRange, VersionLabel>, optional
+            a time range lookup what IDB versions are used within this data,
+            by default defaultdict(SCETimeRange)
         """
         self.service_type = service_type
         self.service_subtype = service_subtype
@@ -51,19 +59,26 @@ class QLProduct(GenericProduct):
         self.idb_versions = idb_versions
         self.scet_timerange = kwargs.get('scet_timerange')
 
-    def get_energies(self):
-        if 'energy_bin_edge_mask' in self.control.colnames:
-            energies = _get_energies_from_mask(self.control['energy_bin_edge_mask'][0])
-        elif 'energy_bin_mask' in self.control.colnames:
-            energies = _get_energies_from_mask(self.control['energy_bin_mask'][0])
-        else:
-            energies = _get_energies_from_mask()
-
-        return energies
-
     @classmethod
     def from_levelb(cls, levelb, *, parent='', NIX00405_offset=0):
+        """Converts level binary packets to a L1 product.
 
+        Parameters
+        ----------
+        levelb : `stixcore.products.levelb.binary.LevelB`
+            The binary level product.
+        parent : `str`, optional
+            The parent data file name the binary packed comes from, by default ''
+        NIX00405_offset : int, optional
+            [description], by default 0
+
+        Returns
+        -------
+        tuple (packets, idb_versions, control)
+            the converted packets
+            all used IDB versions and time periods
+            initialized control table
+        """
         packets, idb_versions = GenericProduct.getLeveL0Packets(levelb)
 
         control = Control.from_packets(packets, NIX00405_offset=NIX00405_offset)
@@ -75,9 +90,11 @@ class QLProduct(GenericProduct):
 
 
 class LightCurve(QLProduct):
+    """Quick Look Light Curve data product.
+
+    In level 0 format.
     """
-    Quick Look Light Curve data product.
-    """
+
     def __init__(self, *, service_type, service_subtype, ssid, control, data,
                  idb_versions=defaultdict(SCETimeRange), **kwargs):
         super().__init__(service_type=service_type, service_subtype=service_subtype,
@@ -156,6 +173,11 @@ class LightCurve(QLProduct):
 
 
 class Background(QLProduct):
+    """Quick Look Background Light Curve data product.
+
+    In level 0 format.
+    """
+
     def __init__(self, *, service_type, service_subtype, ssid, control, data,
                  idb_versions=defaultdict(SCETimeRange), **kwargs):
         super().__init__(service_type=service_type, service_subtype=service_subtype,
@@ -221,9 +243,11 @@ class Background(QLProduct):
 
 
 class Spectra(QLProduct):
+    """Quick Look Spectra data product.
+
+    In level 0 format.
     """
-    Quick Look Light Curve data product.
-    """
+
     def __init__(self, *, service_type, service_subtype, ssid, control, data,
                  idb_versions=defaultdict(SCETimeRange), **kwargs):
         super().__init__(service_type=service_type, service_subtype=service_subtype,
@@ -351,6 +375,11 @@ class Spectra(QLProduct):
 
 
 class Variance(QLProduct):
+    """Quick Look Variance data product.
+
+    In level 0 format.
+    """
+
     def __init__(self, *, service_type, service_subtype, ssid, control, data,
                  idb_versions=defaultdict(SCETimeRange), **kwargs):
         super().__init__(service_type=service_type, service_subtype=service_subtype,
@@ -414,6 +443,11 @@ class Variance(QLProduct):
 
 
 class FlareFlag(QLProduct):
+    """Quick Look Flare Flag and Location data product.
+
+    In level 0 format.
+    """
+
     def __init__(self, *, service_type, service_subtype, ssid, control, data,
                  idb_versions=defaultdict(SCETimeRange), **kwargs):
         super().__init__(service_type=service_type, service_subtype=service_subtype,
@@ -469,6 +503,11 @@ class FlareFlag(QLProduct):
 
 
 class EnergyCalibration(QLProduct):
+    """Quick Look energy calibration data product.
+
+    In level 0 format.
+    """
+
     def __init__(self, *, service_type, service_subtype, ssid, control, data,
                  idb_versions=defaultdict(SCETimeRange), **kwargs):
         super().__init__(service_type=service_type, service_subtype=service_subtype,
@@ -589,6 +628,11 @@ class EnergyCalibration(QLProduct):
 
 
 class TMStatusFlareList(QLProduct):
+    """Quick Look TM Management status and Flare list data product.
+
+    In level 0 format.
+    """
+
     def __init__(self, *, service_type, service_subtype, ssid, control, data,
                  idb_versions=defaultdict(SCETimeRange), **kwargs):
         super().__init__(service_type=service_type, service_subtype=service_subtype,

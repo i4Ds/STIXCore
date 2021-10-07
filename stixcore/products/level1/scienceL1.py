@@ -9,6 +9,10 @@ __all__ = ['RawPixelData', 'CompressedPixelData', 'SummedPixelData', 'Visibility
 
 
 class RawPixelData(ScienceProduct, L1Mixin):
+    """Raw X-ray pixel counts: compression level 0. No aggregation.
+
+    In level 1 format.
+    """
     def __init__(self, *, service_type, service_subtype, ssid, control,
                  data, idb_versions=defaultdict(SCETimeRange), **kwargs):
         super().__init__(service_type=service_type, service_subtype=service_subtype,
@@ -23,6 +27,10 @@ class RawPixelData(ScienceProduct, L1Mixin):
 
 
 class CompressedPixelData(ScienceProduct, L1Mixin):
+    """Aggregated (over time and/or energies) X-ray pixel counts: compression level 1.
+
+    In level 1 format.
+    """
     def __init__(self, *, service_type, service_subtype, ssid, control,
                  data, idb_versions=defaultdict(SCETimeRange), **kwargs):
         super().__init__(service_type=service_type, service_subtype=service_subtype,
@@ -37,6 +45,10 @@ class CompressedPixelData(ScienceProduct, L1Mixin):
 
 
 class SummedPixelData(ScienceProduct, L1Mixin):
+    """Aggregated (over time and/or energies and pixelsets) X-ray pixel counts: compression level 2.
+
+    In level 1 format.
+    """
     def __init__(self, *, service_type, service_subtype, ssid, control,
                  data, idb_versions=defaultdict(SCETimeRange), **kwargs):
         super().__init__(service_type=service_type, service_subtype=service_subtype,
@@ -51,6 +63,11 @@ class SummedPixelData(ScienceProduct, L1Mixin):
 
 
 class Visibility(ScienceProduct, L1Mixin):
+    """
+    X-ray Visibilities or compression Level 3 data
+
+    In level 1 format.
+    """
     def __init__(self, *, service_type, service_subtype, ssid, control,
                  data, idb_versions=defaultdict(SCETimeRange), **kwargs):
         super().__init__(service_type=service_type, service_subtype=service_subtype,
@@ -65,6 +82,12 @@ class Visibility(ScienceProduct, L1Mixin):
 
 
 class Spectrogram(ScienceProduct, L1Mixin):
+    """
+    X-ray Spectrogram or compression Level 2 data
+
+    In level 1 format.
+    """
+
     def __init__(self, *, service_type, service_subtype, ssid, control,
                  data, idb_versions=defaultdict(SCETimeRange), **kwargs):
         super().__init__(service_type=service_type, service_subtype=service_subtype,
@@ -79,6 +102,10 @@ class Spectrogram(ScienceProduct, L1Mixin):
 
 
 class Aspect(ScienceProduct, L1Mixin):
+    """Bulk Aspect data.
+
+    In level 1 format.
+    """
     def __init__(self, *, service_type, service_subtype, ssid, control,
                  data, idb_versions=defaultdict(SCETimeRange), **kwargs):
         super().__init__(service_type=service_type, service_subtype=service_subtype,

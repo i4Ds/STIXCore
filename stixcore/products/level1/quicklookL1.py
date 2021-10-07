@@ -16,9 +16,11 @@ logger = get_logger(__name__)
 
 
 class LightCurve(QLProduct, L1Mixin):
+    """Quick Look Light Curve data product.
+
+    In level 1 format.
     """
-    Quick Look Light Curve data product.
-    """
+
     def __init__(self, *, service_type, service_subtype, ssid, control, data,
                  idb_versions=defaultdict(SCETimeRange), **kwargs):
         super().__init__(service_type=service_type, service_subtype=service_subtype, ssid=ssid,
@@ -34,9 +36,11 @@ class LightCurve(QLProduct, L1Mixin):
 
 
 class Background(QLProduct, L1Mixin):
+    """Quick Look Background Light Curve data product.
+
+    In level 1 format.
     """
-    Quick Look Light Curve data product.
-    """
+
     def __init__(self, *, service_type, service_subtype, ssid, control, data,
                  idb_versions=defaultdict(SCETimeRange), **kwargs):
         super().__init__(service_type=service_type, service_subtype=service_subtype, ssid=ssid,
@@ -52,9 +56,11 @@ class Background(QLProduct, L1Mixin):
 
 
 class Spectra(QLProduct, L1Mixin):
+    """Quick Look Spectra data product.
+
+    In level 1 format.
     """
-    Quick Look Light Curve data product.
-    """
+
     def __init__(self, *, service_type, service_subtype, ssid, control, data,
                  idb_versions=defaultdict(SCETimeRange), **kwargs):
         super().__init__(service_type=service_type, service_subtype=service_subtype, ssid=ssid,
@@ -70,9 +76,11 @@ class Spectra(QLProduct, L1Mixin):
 
 
 class Variance(QLProduct, L1Mixin):
+    """Quick Look Variance data product.
+
+    In level 1 format.
     """
-    Quick Look Light Curve data product.
-    """
+
     def __init__(self, *, service_type, service_subtype, ssid, control, data,
                  idb_versions=defaultdict(SCETimeRange), **kwargs):
         super().__init__(service_type=service_type, service_subtype=service_subtype, ssid=ssid,
@@ -88,9 +96,11 @@ class Variance(QLProduct, L1Mixin):
 
 
 class FlareFlag(QLProduct, L1Mixin):
+    """Quick Look Flare Flag and Location data product.
+
+    In level 1 format.
     """
-    Quick Look Light Curve data product.
-    """
+
     def __init__(self, *, service_type, service_subtype, ssid, control, data,
                  idb_versions=defaultdict(SCETimeRange), **kwargs):
         super().__init__(service_type=service_type, service_subtype=service_subtype, ssid=ssid,
@@ -106,9 +116,11 @@ class FlareFlag(QLProduct, L1Mixin):
 
 
 class EnergyCalibration(QLProduct, L1Mixin):
+    """Quick Look energy calibration data product.
+
+    In level 1 format.
     """
-    Quick Look Light Curve data product.
-    """
+
     def __init__(self, *, service_type, service_subtype, ssid, control, data,
                  idb_versions=defaultdict(SCETimeRange), **kwargs):
         super().__init__(service_type=service_type, service_subtype=service_subtype, ssid=ssid,
@@ -125,9 +137,11 @@ class EnergyCalibration(QLProduct, L1Mixin):
 
 
 class TMStatusFlareList(QLProduct, L1Mixin):
+    """Quick Look TM Management status and Flare list data product.
+
+    In level 1 format.
     """
-    Quick Look Light Curve data product.
-    """
+
     def __init__(self, *, service_type, service_subtype, ssid, control, data,
                  idb_versions=defaultdict(SCETimeRange), **kwargs):
         super().__init__(service_type=service_type, service_subtype=service_subtype, ssid=ssid,

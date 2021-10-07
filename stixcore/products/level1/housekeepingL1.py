@@ -11,9 +11,11 @@ __all__ = ['MiniReport', 'MaxiReport']
 
 
 class MiniReport(HKProduct, L1Mixin):
+    """Mini house keeping reported during start up of the flight software.
+
+    In level 1 format.
     """
-    Mini house keeping reported during start up of the flight software.
-    """
+
     def __init__(self, *, service_type, service_subtype, ssid, control, data,
                  idb_versions=defaultdict(SCETimeRange), **kwargs):
         super().__init__(service_type=service_type, service_subtype=service_subtype,
@@ -30,9 +32,11 @@ class MiniReport(HKProduct, L1Mixin):
 
 
 class MaxiReport(HKProduct, L1Mixin):
+    """Maxi house keeping reported in all modes while the flight software is running.
+
+        In level 1 format.
     """
-    Maxi house keeping reported in all modes while the flight software is running.
-    """
+
     def __init__(self, *, service_type, service_subtype, ssid, control, data,
                  idb_versions=defaultdict(SCETimeRange), **kwargs):
         super().__init__(service_type=service_type, service_subtype=service_subtype,

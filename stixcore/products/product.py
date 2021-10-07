@@ -22,10 +22,11 @@ from stixcore.tmtc.packet_factory import Packet
 from stixcore.tmtc.packets import GenericPacket, PacketSequence
 
 __all__ = ['GenericProduct', 'ProductFactory', 'Product', 'ControlSci',
-           'Control', 'Data', 'L1Mixin']
+           'Control', 'Data', 'L1Mixin', 'EnergyChanelsMixin']
 
 from collections import defaultdict
 
+from stixcore.products.common import _get_energies_from_mask
 from stixcore.util.logging import get_logger
 
 logger = get_logger(__name__)
@@ -479,6 +480,25 @@ class GenericProduct(BaseProduct):
     @classmethod
     def from_levelb(cls, levelb, *, parent=''):
         pass
+
+
+class EnergyChanelsMixin:
+    def get_energies(self):
+        """Return energy channels for this TM data. Or default ones.
+
+        Returns
+        -------
+        tuple
+            Lower and high energy edges
+        """
+        if 'energy_bin_edge_mask' in self.control.colnames:
+            energies = _get_energies_from_mask(self.control['energy_bin_edge_mask'][0])
+        elif 'energy_bin_mask' in self.control.colnames:
+            energies = _get_energies_from_mask(self.control['energy_bin_mask'][0])
+        else:
+            energies = _get_energies_from_mask()
+
+        return energies
 
 
 class L1Mixin:

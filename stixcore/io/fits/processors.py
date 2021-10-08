@@ -291,6 +291,8 @@ class FitsL0Processor:
             control_hdu.name = 'CONTROL'
 
             # Convert time to be relative to start date
+            # it is important that the change to the relative time is done after the header is
+            # generated as this will use the original SCET time data
             data['time'] = (data['time'] - prod.scet_timerange.start).as_float()
             data['timedel'] = data['timedel'].as_float()
             try:
@@ -493,7 +495,7 @@ class FitsL1Processor(FitsL0Processor):
             control_hdu.name = 'CONTROL'
 
             # Convert time to be relative to start date
-            # it is important that the chnage to the reative time is done after the header is
+            # it is important that the change to the relative time is done after the header is
             # generated as this will use the original SCET time data
             data['time'] = (data['time'] - prod.scet_timerange.start).as_float()
             data['timedel'] = data['timedel'].as_float()

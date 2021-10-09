@@ -2,6 +2,7 @@ import logging
 import warnings
 from time import sleep, perf_counter
 from pathlib import Path
+from itertools import chain
 from collections import defaultdict
 from multiprocessing import Manager
 from concurrent.futures import ProcessPoolExecutor
@@ -10,7 +11,7 @@ from stixcore.io.fits.processors import FitsL0Processor
 from stixcore.products.product import Product
 from stixcore.util.logging import get_logger
 
-logger = get_logger(__name__, level=logging.INFO)
+logger = get_logger(__name__, level=logging.WARNING)
 
 
 class Level0:
@@ -57,9 +58,10 @@ class Level0:
                             logger.debug('Processing packet sequence from file %s', file.name)
                             res.extend(self.process_sequence(file, executor, open_files))
 
-            files = set()
-            [files.update(set(r.result())) for r in res if r is not None]
-            return files
+            unique_files = set()
+            files = [r.result() for r in chain(res) if r is not None]
+            [unique_files.update(set(f)) for f in files if f is not None]
+            return unique_files
 
     def process_standalone(self, file, executor, open_files):
         if file.name in open_files:

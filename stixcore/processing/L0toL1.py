@@ -2,6 +2,7 @@ import logging
 import warnings
 from time import sleep, perf_counter
 from pathlib import Path
+from itertools import chain
 from multiprocessing import Manager
 from concurrent.futures import ProcessPoolExecutor
 
@@ -31,9 +32,10 @@ class Level1:
                 jobs = [executor.submit(process_file, file, self.processor, open_files)
                         for file in files]
 
-        files = set()
-        [files.update(set(j.result())) for j in jobs]
-        return files
+        unique_files = set()
+        files = [r.result() for r in chain(jobs) if r is not None]
+        [unique_files.update(set(f)) for f in files if f is not None]
+        return unique_files
 
 
 def process_file(file, processor, open_files):
@@ -57,15 +59,14 @@ def process_file(file, processor, open_files):
         logger.debug('No match for product %s', l0)
     except Exception:
         logger.error('Error processing file %s', file, exc_info=True)
-        # raise e
 
 
 if __name__ == '__main__':
     tstart = perf_counter()
     warnings.filterwarnings('ignore', module='astropy.io.fits.card')
 
-    fits_path = Path('/Users/shane/Projects/STIX/fits_new/L0')
-    bd = Path('/Users/shane/Projects/STIX/fits_new/')
+    fits_path = Path('/Users/shane/Projects/STIX/fits_test/L0')
+    bd = Path('/Users/shane/Projects/STIX/fits_test/')
 
     l1processor = Level1(fits_path, bd)
     all_files = l1processor.process_fits_files()

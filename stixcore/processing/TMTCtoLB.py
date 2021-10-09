@@ -2,8 +2,9 @@ import logging
 import warnings
 from time import perf_counter
 from pathlib import Path
+from itertools import chain
 from multiprocessing import Manager
-from concurrent.futures import ThreadPoolExecutor
+from concurrent.futures import ProcessPoolExecutor
 
 from stixcore.config.config import CONFIG
 from stixcore.io.fits.processors import FitsLBProcessor
@@ -19,7 +20,7 @@ def tmtc_to_l0(tmtc_path, archive_path):
     socm = SOCManager(tmtc_path)
     out_dir = archive_path
     out_dir.mkdir(parents=True, exist_ok=True)
-    files_to_process = list(socm.get_files(TMTC.TM))
+    files_to_process = list(socm.get_files(TMTC.TM))[:3]
     return process_tmtc_to_levelbinary(files_to_process, archive_path)
 
 
@@ -30,7 +31,7 @@ def process_tmtc_to_levelbinary(files_to_process, archive_path=None):
     jobs = []
     with Manager() as manager:
         open_files = manager.list()
-        with ThreadPoolExecutor() as exec:
+        with ProcessPoolExecutor() as exec:
             for tmtc_file in files_to_process:
                 logger.info(f'Started processing of file: {tmtc_file}')
                 # TODO sorting filter etc
@@ -38,9 +39,12 @@ def process_tmtc_to_levelbinary(files_to_process, archive_path=None):
                     if prod:
                         jobs.append(exec.submit(fits_processor.write_fits, prod, open_files))
                 logger.info(f'Finished processing of file: {tmtc_file}')
-    files = set()
-    [files.update(set(j.result())) for j in jobs if j.result() is not None]
-    return files
+
+    unique_files = set()
+    files = [r.result() for r in chain(jobs) if r is not None]
+    [unique_files.update(set(f)) for f in files if f is not None]
+    return unique_files
+    return unique_files
 
 
 if __name__ == '__main__':

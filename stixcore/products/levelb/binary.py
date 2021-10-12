@@ -273,6 +273,8 @@ class LevelB(BaseProduct):
                 dh.pop('datetime')
                 headers.append({**sh, **dh, 'raw_file': packet.source[0],
                                 'packet': packet.source[1]})
+            if len(headers) == 0 or len(hex_data) == 0:
+                return None
 
             control = Table(headers)
             control['index'] = np.arange(len(control), dtype=np.int64)

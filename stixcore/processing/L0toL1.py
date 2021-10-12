@@ -65,8 +65,8 @@ if __name__ == '__main__':
     tstart = perf_counter()
     warnings.filterwarnings('ignore', module='astropy.io.fits.card')
 
-    fits_path = Path('/Users/shane/Projects/STIX/fits_test/L0')
-    bd = Path('/Users/shane/Projects/STIX/fits_test/')
+    fits_path = Path('/home/shane/fits_test/L0')
+    bd = Path('/home/shane/fits_test/')
 
     l1processor = Level1(fits_path, bd)
     all_files = l1processor.process_fits_files()

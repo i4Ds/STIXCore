@@ -21,7 +21,7 @@ from stixcore.util.logging import get_logger
 __all__ = ['SEC_IN_DAY', 'FitsProcessor', 'FitsLBProcessor', 'FitsL0Processor', 'FitsL1Processor']
 
 
-logger = get_logger(__name__, level=logging.DEBUG)
+logger = get_logger(__name__, level=logging.WARNING)
 
 SEC_IN_DAY = 24 * 60 * 60
 
@@ -192,7 +192,11 @@ class FitsLBProcessor(FitsProcessor):
             fitspath = path / filename
             if fitspath.exists():
                 logger.info('Fits file %s exists appending data', fitspath.name)
-                existing = Product(fitspath)
+                try:
+                    existing = Product(fitspath)
+                except Exception:
+                    logger.error('Could not create product from file %s', filename, exc_info=True)
+                    return None
                 # existing.type = prod.type
                 if np.abs([((len(existing.data['data'][i])/2) -
                             (existing.control['data_length'][i]+7))

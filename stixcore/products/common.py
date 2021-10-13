@@ -116,7 +116,8 @@ def _get_pixel_mask(packets, param_name='NIXD0407'):
 
     pixel_masks_ints = packets.get_value(param_name)
 
-    pixel_masks = np.array([list(format(pm, '012b'))[::-1] for pm in pixel_masks_ints]).astype(int)
+    pixel_masks = np.array([list(format(pm, '012b'))[::-1]
+                            for pm in pixel_masks_ints]).astype(np.ubyte)
 
     param = packets.get(param_name)[0]
     meta = {'NIXS': param_name, 'PCF_CURTX': param.idb_info.PCF_CURTX}

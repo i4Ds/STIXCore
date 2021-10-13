@@ -316,7 +316,7 @@ def test_decompress_l1_triggers(data_dir, idbm):
     assert list(set(old_decompression_parameters.values())) ==\
         [('NIXD0007', 'NIXD0008', 'NIXD0009')]
 
-    packet.data_header.datetime = SCETime(677774250, 0)
+    packet.data_header.datetime = SCETime(677774251, 0)
     new_decompression_parameters = packet.get_decompression_parameter()
     assert old_decompression_parameters != new_decompression_parameters
     assert new_decompression_parameters['NIX00242'] == ('NIXD0010', 'NIXD0011', 'NIXD0012')

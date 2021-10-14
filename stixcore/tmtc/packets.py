@@ -608,3 +608,15 @@ class PacketSequence:
             else:
                 res.append(p)
         return np.hstack(res)
+
+    @property
+    def service_type(self):
+        return self.get('service_type')[0]
+
+    @property
+    def service_subtype(self):
+        return self.get('service_subtype')[0]
+
+    @property
+    def ssid(self):
+        return self.get('pi1_val')[0]

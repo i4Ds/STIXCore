@@ -8,18 +8,19 @@ from stixcore.data.test import test_data
 from stixcore.idb.manager import IDBManager
 from stixcore.io.fits.processors import FitsL0Processor, FitsL1Processor
 from stixcore.io.soc.manager import SOCPacketFile
-from stixcore.products.level0.housekeeping import MaxiReport as MaxiReportL0
-from stixcore.products.level0.housekeeping import MiniReport as MiniReportL0
-from stixcore.products.level1.housekeeping import MaxiReport as MaxiReportL1
+from stixcore.products.level0.housekeepingL0 import MaxiReport as MaxiReportL0
+from stixcore.products.level0.housekeepingL0 import MiniReport as MiniReportL0
+from stixcore.products.level1.housekeepingL1 import MaxiReport as MaxiReportL1
+from stixcore.products.level1.housekeepingL1 import MiniReport as MiniReportL1
 from stixcore.products.levelb.binary import LevelB
 from stixcore.products.product import Product
 from stixcore.util.logging import get_logger
 
 logger = get_logger(__name__)
 
-testpackets = [(test_data.tmtc.TM_3_25_1, MiniReportL0, 'mini',
+testpackets = [(test_data.tmtc.TM_3_25_1, MiniReportL0, MiniReportL1, 'mini',
                 '0660010031:51424', '0660010031:51424', 1),
-               (test_data.tmtc.TM_3_25_2, MaxiReportL0, 'maxi',
+               (test_data.tmtc.TM_3_25_2, MaxiReportL0, MaxiReportL1, 'maxi',
                 '0660258881:33104', '0660258881:33104', 1)]
 
 
@@ -31,20 +32,23 @@ def idbm():
 @patch('stixcore.products.levelb.binary.LevelB')
 @pytest.mark.parametrize('packets', testpackets, ids=[f[0].stem for f in testpackets])
 def test_housekeeping(levelb, packets):
-    hex_file, cl, name, beg, end, size = packets
+    hex_file, cl_l0, cl_l1, name, beg, end, size = packets
     with hex_file.open('r') as file:
         hex = file.readlines()
 
     levelb.data.__getitem__.return_value = [re.sub(r"\s+", "", h) for h in hex]
     levelb.control = {'raw_file': 'raw.xml', 'packet': 0}
 
-    hk = cl.from_levelb(levelb)
+    hk_l0 = cl_l0.from_levelb(levelb)
 
-    assert hk.level == 'L0'
-    assert hk.name == name
-    assert hk.scet_timerange.start.to_string() == beg
-    assert hk.scet_timerange.end.to_string() == end
-    assert len(hk.data) == size
+    assert hk_l0.level == 'L0'
+    assert hk_l0.name == name
+    assert hk_l0.scet_timerange.start.to_string() == beg
+    assert hk_l0.scet_timerange.end.to_string() == end
+    assert len(hk_l0.data) == size
+
+    hk_l1 = cl_l1.from_level0(hk_l0)
+    assert hk_l1.level == 'L1'
 
 
 @patch('stixcore.products.levelb.binary.LevelB')

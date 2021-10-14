@@ -12,7 +12,7 @@ def test_levelb_processor_init():
 
 
 def test_levelb_processor_generate_filename():
-    with patch('stixcore.products.level0.quicklook.QLProduct') as product:
+    with patch('stixcore.products.level0.quicklookL0.QLProduct') as product:
         processor = FitsLBProcessor('some/path')
         product.control.colnames = []
         product.service_type = 21
@@ -25,7 +25,7 @@ def test_levelb_processor_generate_filename():
         assert filename == 'solo_LB_stix-21-6-20_0000000000_V01.fits'
 
 
-@patch('stixcore.products.level0.quicklook.QLProduct')
+@patch('stixcore.products.level0.quicklookL0.QLProduct')
 @patch('stixcore.io.fits.processors.datetime')
 def test_levelb_processor_generate_primary_header(datetime, product):
     processor = FitsLBProcessor('some/path')
@@ -75,7 +75,7 @@ def test_level0_processor_init():
 
 
 def test_level0_processor_generate_filename():
-    with patch('stixcore.products.level0.quicklook.QLProduct') as product:
+    with patch('stixcore.products.level0.quicklookL0.QLProduct') as product:
         processor = FitsL0Processor('some/path')
         product.control.colnames = []
         product.type = 'ql'
@@ -85,7 +85,7 @@ def test_level0_processor_generate_filename():
         filename = processor.generate_filename(product, version=1)
         assert filename == 'solo_LB_stix-ql-a-name_0000000000_V01.fits'
 
-    with patch('stixcore.products.level0.science.ScienceProduct') as product:
+    with patch('stixcore.products.level0.scienceL0.ScienceProduct') as product:
         product.type = 'sci'
         product.control.colnames = []
         product.obs_avg.coarse = 0
@@ -109,7 +109,7 @@ def test_level0_processor_generate_filename():
                            '-123456_0000012345f06789-0000098765f04321_V01_98765.fits'
 
 
-@patch('stixcore.products.level0.quicklook.QLProduct')
+@patch('stixcore.products.level0.quicklookL0.QLProduct')
 @patch('stixcore.io.fits.processors.datetime')
 def test_level0_processor_generate_primary_header(datetime, product):
     processor = FitsL0Processor('some/path')
@@ -155,7 +155,7 @@ def test_level1_processor_init():
 
 
 def test_level1_processor_generate_filename():
-    with patch('stixcore.products.level1.quicklook.QLProduct') as product:
+    with patch('stixcore.products.level1.quicklookL1.QLProduct') as product:
         processor = FitsL1Processor('some/path')
         product.control.colnames = []
         beg = SCETime(coarse=0, fine=0)
@@ -180,7 +180,7 @@ def test_level1_processor_generate_filename():
         assert filename == 'solo_L1_stix-sci-a-name_20000101T000000_20000101T000001_V01.fits'
 
 
-@patch('stixcore.products.level1.quicklook.QLProduct')
+@patch('stixcore.products.level1.quicklookL1.QLProduct')
 def test_level1_processor_generate_primary_header(product):
     processor = FitsL1Processor('some/path')
     beg = SCETime(coarse=683769519, fine=0)

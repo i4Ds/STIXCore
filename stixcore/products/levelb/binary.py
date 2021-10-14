@@ -11,20 +11,29 @@ from stixcore.time import SCETime
 from stixcore.tmtc.packets import TMPacket
 from stixcore.util.logging import get_logger
 
-__all__ = ['LevelB']
+__all__ = ['LevelB', 'SequenceFlag']
 
 logger = get_logger(__name__)
 
 
 class SequenceFlag(IntEnum):
+    """Enum class for the packet sequence flag."""
+
     STANDALONE = 3
+    """A singelton standalone package. No sequence at all."""
+
     FIRST = 1
+    """The First package in a sequence. More to come."""
+
     MIDDLE = 0
+    """Continouse packages in a sequence. More to come."""
+
     LAST = 2
+    """The Last packet in a sequence. No more to come."""
 
 
 class LevelB(BaseProduct):
-    """Class representing level binary data."""
+    """Class representing level binary data (TM products)."""
 
     def __init__(self, *, service_type, service_subtype, ssid, control, data, **kwargs):
         """Create a new LevelB object.
@@ -58,10 +67,26 @@ class LevelB(BaseProduct):
 
     @property
     def parent(self):
+        """List of all parent data files this data product is compiled from.
+
+        For level binary this will be allways the parent raw TM file.
+
+        Returns
+        -------
+        `list(str)
+            the TM file that this data product contains.
+        """
         return np.unique(self.control['raw_file']).tolist()
 
     @property
     def raw(self):
+        """List of all TM raw files this product is compiled from.
+
+        Returns
+        -------
+        `list(str)
+            the TM file that this data product contains.
+        """
         return np.unique(self.control['raw_file']).tolist()
 
     def __repr__(self):
@@ -229,8 +254,6 @@ class LevelB(BaseProduct):
         for id, binary in tmfile.get_packet_binaries():
             packet = TMPacket(binary)
             packet.source = (tmfile.file.name, id)
-            # # TODO remove
-            # if packet.key[:2] == (21, 6):
             packet_data[packet.key].append(packet)
 
         for prod_key, packets in packet_data.items():

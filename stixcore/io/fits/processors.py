@@ -281,15 +281,6 @@ class FitsL0Processor:
                                   for version, range in product.idb_versions.items()],
                                   names=["version", "obt_start", "obt_end"])
 
-            # Convert time to be relative to start date
-            data['time'] = (data['time'] - prod.scet_timerange.start).as_float()
-            data['timedel'] = data['timedel'].as_float()
-            try:
-                control['time_stamp'] = control['time_stamp'].as_float()
-            except KeyError as e:
-                if 'time_stamp' not in repr(e):
-                    raise e
-
             primary_header = self.generate_primary_header(filename, prod)
             primary_hdu = fits.PrimaryHDU()
             primary_hdu.header.update(primary_header)
@@ -298,9 +289,21 @@ class FitsL0Processor:
             control_enc = fits.connect._encode_mixins(control)
             control_hdu = table_to_hdu(control_enc)
             control_hdu.name = 'CONTROL'
+
+            # Convert time to be relative to start date
+            # it is important that the change to the relative time is done after the header is
+            # generated as this will use the original SCET time data
+            data['time'] = (data['time'] - prod.scet_timerange.start).as_float()
+            data['timedel'] = data['timedel'].as_float()
+            try:
+                control['time_stamp'] = control['time_stamp'].as_float()
+            except KeyError as e:
+                if 'time_stamp' not in repr(e):
+                    raise e
             data_enc = fits.connect._encode_mixins(data)
             data_hdu = table_to_hdu(data_enc)
             data_hdu.name = 'DATA'
+
             idb_enc = fits.connect._encode_mixins(idb_versions)
             idb_hdu = table_to_hdu(idb_enc)
             idb_hdu.name = 'IDB_VERSIONS'
@@ -482,15 +485,6 @@ class FitsL1Processor(FitsL0Processor):
                                   for version, range in product.idb_versions.items()],
                                   names=["version", "obt_start", "obt_end"])
 
-            # Convert time to be relative to start date
-            data['time'] = (data['time'] - prod.scet_timerange.start).as_float()
-            data['timedel'] = data['timedel'].as_float()
-            try:
-                control['time_stamp'] = control['time_stamp'].as_float()
-            except KeyError as e:
-                if 'time_stamp' not in repr(e):
-                    raise e
-
             primary_header = self.generate_primary_header(filename, prod)
             primary_hdu = fits.PrimaryHDU()
             primary_hdu.header.update(primary_header)
@@ -499,9 +493,21 @@ class FitsL1Processor(FitsL0Processor):
             control_enc = fits.connect._encode_mixins(control)
             control_hdu = table_to_hdu(control_enc)
             control_hdu.name = 'CONTROL'
+
+            # Convert time to be relative to start date
+            # it is important that the change to the relative time is done after the header is
+            # generated as this will use the original SCET time data
+            data['time'] = (data['time'] - prod.scet_timerange.start).as_float()
+            data['timedel'] = data['timedel'].as_float()
+            try:
+                control['time_stamp'] = control['time_stamp'].as_float()
+            except KeyError as e:
+                if 'time_stamp' not in repr(e):
+                    raise e
             data_enc = fits.connect._encode_mixins(data)
             data_hdu = table_to_hdu(data_enc)
             data_hdu.name = 'DATA'
+
             idb_enc = fits.connect._encode_mixins(idb_versions)
             idb_hdu = table_to_hdu(idb_enc)
             idb_hdu.name = 'IDB_VERSIONS'

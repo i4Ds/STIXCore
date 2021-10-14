@@ -8,19 +8,16 @@ from collections import defaultdict
 import numpy as np
 
 import astropy.units as u
-from astropy.table import vstack
-from astropy.table.operations import unique
 
 from stixcore.products.common import (
     _get_compression_scheme,
     _get_detector_mask,
-    _get_energies_from_mask,
     _get_energy_bins,
     _get_pixel_mask,
     _get_sub_spectrum_mask,
     rebin_proportional,
 )
-from stixcore.products.product import BaseProduct, Control, Data
+from stixcore.products.product import Control, Data, EnergyChanelsMixin, GenericProduct
 from stixcore.time import SCETime, SCETimeDelta, SCETimeRange
 from stixcore.util.logging import get_logger
 
@@ -28,21 +25,30 @@ __all__ = ['QLProduct', 'LightCurve', 'Background', 'Spectra']
 
 logger = get_logger(__name__, level=logging.DEBUG)
 
-QLNIX00405_offset = 0.1
+QLNIX00405_off = 0.1
 
 
-class QLProduct(BaseProduct):
+class QLProduct(GenericProduct, EnergyChanelsMixin):
+    """Generic QL product class composed of control and data."""
     def __init__(self, *, service_type, service_subtype, ssid, control, data,
                  idb_versions=defaultdict(SCETimeRange), **kwargs):
-        """
-        Generic product composed of control and data
+        """Create a generic QL product composed of control and data.
 
         Parameters
         ----------
-        control : stix_parser.products.quicklook.Control
+        service_type : `int`
+            21
+        service_subtype : `int`
+            6
+        ssid : `int`
+            ssid of the data product
+        control : `stixcore.products.product.Control`
             Table containing control information
-        data : stix_parser.products.quicklook.Data
+        data : `stixcore.products.product.Data`
             Table containing data
+        idb_versions : dict<SCETimeRange, VersionLabel>, optional
+            a time range lookup what IDB versions are used within this data,
+            by default defaultdict(SCETimeRange)
         """
         self.service_type = service_type
         self.service_subtype = service_subtype
@@ -51,117 +57,43 @@ class QLProduct(BaseProduct):
         self.control = control
         self.data = data
         self.idb_versions = idb_versions
-        self.scet_timerange = kwargs.get('scet_timerange')
 
-    @property
-    def raw(self):
-        return np.unique(self.control['raw_file']).tolist()
-
-    @property
-    def parent(self):
-        return np.unique(self.control['parent']).tolist()
-
-    def __add__(self, other):
-        """
-        Combine two products stacking data along columns and removing duplicated data using time as
-        the primary key.
+    @classmethod
+    def from_levelb(cls, levelb, *, parent='', NIX00405_offset=0):
+        """Converts level binary packets to a L1 product.
 
         Parameters
         ----------
-        other : A subclass of stix_parser.products.quicklook.QLProduct
+        levelb : `stixcore.products.levelb.binary.LevelB`
+            The binary level product.
+        parent : `str`, optional
+            The parent data file name the binary packed comes from, by default ''
+        NIX00405_offset : int, optional
+            [description], by default 0
 
         Returns
         -------
-        A subclass of stix_parser.products.quicklook.QLProduct
-            The combined data product
+        tuple (packets, idb_versions, control)
+            the converted packets
+            all used IDB versions and time periods
+            initialized control table
         """
-        if not isinstance(other, type(self)):
-            raise TypeError(f'Products must of same type not {type(self)} and {type(other)}')
+        packets, idb_versions = GenericProduct.getLeveL0Packets(levelb)
 
-        # TODO reindex and update data control_index
-        other_control = other.control[:]
-        other_data = other.data[:]
-        other_control['index'] = other.control['index'] + self.control['index'].max() + 1
-        control = vstack((self.control, other_control))
-        # control = unique(control, keys=['scet_coarse', 'scet_fine'])
-        # control = control.group_by(['scet_coarse', 'scet_fine'])
+        control = Control.from_packets(packets, NIX00405_offset=NIX00405_offset)
+        control['raw_file'] = levelb.control['raw_file']
+        control['packet'] = levelb.control['packet']
+        control['parent'] = parent
 
-        other_data['control_index'] = other.data['control_index'] + self.control['index'].max() + 1
-
-        logger.debug('len self: %d, len other %d', len(self.data), len(other_data))
-
-        data = vstack((self.data, other_data))
-
-        logger.debug('len stacked %d', len(data))
-
-        # Not sure where the rounding issue is arising need to investigate
-        data['time_float'] = np.around(data['time'].as_float(), 2)
-
-        data = unique(data, keys=['time_float'])
-
-        logger.debug('len unique %d', len(data))
-
-        data.remove_column('time_float')
-
-        unique_control_inds = np.unique(data['control_index'])
-        control = control[np.nonzero(control['index'][:, None] == unique_control_inds)[1]]
-
-        for idb_key, date_range in other.idb_versions.items():
-            self.idb_versions[idb_key].expand(date_range)
-
-        scet_timerange = SCETimeRange(start=data['time'][0]-data['timedel'][0]/2,
-                                      end=data['time'][-1]+data['timedel'][-1]/2)
-
-        return type(self)(service_type=self.service_type, service_subtype=self.service_subtype,
-                          ssid=self.ssid, control=control, data=data,
-                          idb_versions=self.idb_versions, scet_timerange=scet_timerange)
-
-    def __repr__(self):
-        return f'<{self.__class__.__name__}, {self.scet_timerange.start} to ' \
-               f'{self.scet_timerange.start}, {len(self.control)}, {len(self.data)}>'
-
-    def to_days(self):
-        start_day = int((self.scet_timerange.start.as_float() / u.d).decompose().value)
-        end_day = int((self.scet_timerange.end.as_float() / u.d).decompose().value)
-        days = range(start_day, end_day+1)
-        # days = set([(t.year, t.month, t.day) for t in self.data['time'].to_datetime()])
-        # date_ranges = [(datetime(*day), datetime(*day) + timedelta(days=1)) for day in days]
-        for day in days:
-            ds = SCETime(((day * u.day).to_value('s')).astype(int), 0)
-            de = SCETime((((day + 1) * u.day).to_value('s')).astype(int), 0)
-            i = np.where((self.data['time'] >= ds) & (self.data['time'] < de))
-
-            if i[0].size > 0:
-                data = self.data[i]
-                scet_timerange = SCETimeRange(start=data['time'][0] - data['timedel'][0]/2,
-                                              end=data['time'][-1] + data['timedel'][-1]/2)
-                control_indices = np.unique(data['control_index'])
-                control = self.control[np.isin(self.control['index'], control_indices)]
-                control_index_min = control_indices.min()
-
-                data['control_index'] = data['control_index'] - control_index_min
-                control['index'] = control['index'] - control_index_min
-                yield type(self)(service_type=self.service_type,
-                                 service_subtype=self.service_subtype,
-                                 ssid=self.ssid, control=control, data=data,
-                                 idb_versions=self.idb_versions, scet_timerange=scet_timerange,
-                                 raw=self.raw, parent=self.parent)
-
-    def get_energies(self):
-        if 'energy_bin_edge_mask' in self.control.colnames:
-            energies = _get_energies_from_mask(self.control['energy_bin_edge_mask'][0])
-        elif 'energy_bin_mask' in self.control.colnames:
-            energies = _get_energies_from_mask(self.control['energy_bin_mask'][0])
-        else:
-            energies = _get_energies_from_mask()
-
-        return energies
+        return packets, idb_versions, control
 
 
 class LightCurve(QLProduct):
+    """Quick Look Light Curve data product.
+
+    In level 0 format.
     """
-    Quick Look Light Curve data product.
-    """
+
     def __init__(self, *, service_type, service_subtype, ssid, control, data,
                  idb_versions=defaultdict(SCETimeRange), **kwargs):
         super().__init__(service_type=service_type, service_subtype=service_subtype,
@@ -171,22 +103,13 @@ class LightCurve(QLProduct):
 
     @classmethod
     def from_levelb(cls, levelb, parent=''):
-        parent = [parent]
-        packets, idb_versions = BaseProduct.from_levelb(levelb)
+        packets, idb_versions, control = QLProduct.from_levelb(levelb, parent=parent,
+                                                               NIX00405_offset=QLNIX00405_off)
 
-        service_type = packets.get('service_type')[0]
-        service_subtype = packets.get('service_subtype')[0]
-        ssid = packets.get('pi1_val')[0]
-
-        control = Control.from_packets(packets, NIX00405_offset=QLNIX00405_offset)
         control.add_data('detector_mask', _get_detector_mask(packets))
         control.add_data('pixel_mask', _get_pixel_mask(packets))
         control.add_data('energy_bin_edge_mask', _get_energy_bins(packets, 'NIX00266', 'NIXD0107'))
         control.add_basic(name='num_energies', nix='NIX00270', packets=packets)
-
-        control['raw_file'] = levelb.control['raw_file']
-        control['packet'] = levelb.control['packet']
-        control['parent'] = parent
 
         control['num_samples'] = np.array(packets.get_value('NIX00271')).flatten()[
             np.cumsum(control['num_energies']) - 1]
@@ -234,14 +157,12 @@ class LightCurve(QLProduct):
         data.add_meta(name='counts', nix='NIX00272', packets=packets)
         data['counts_err'] = np.sqrt(counts_var).T * u.ct
 
-        return cls(service_type=service_type, service_subtype=service_subtype, ssid=ssid,
-                   control=control, data=data, idb_versions=idb_versions,
-                   scet_timerange=scet_timerange)
-
-    def __repr__(self):
-        return f'<{self.__class__.__name__}, {self.level} ' \
-               f'{self.scet_timerange.start}to {self.scet_timerange.end} ' \
-               f'{len(self.control)}, {len(self.data)}'
+        return cls(service_type=packets.service_type,
+                   service_subtype=packets.service_subtype,
+                   ssid=packets.ssid,
+                   control=control,
+                   data=data,
+                   idb_versions=idb_versions)
 
     @classmethod
     def is_datasource_for(cls, *, service_type, service_subtype, ssid, **kwargs):
@@ -250,6 +171,11 @@ class LightCurve(QLProduct):
 
 
 class Background(QLProduct):
+    """Quick Look Background Light Curve data product.
+
+    In level 0 format.
+    """
+
     def __init__(self, *, service_type, service_subtype, ssid, control, data,
                  idb_versions=defaultdict(SCETimeRange), **kwargs):
         super().__init__(service_type=service_type, service_subtype=service_subtype,
@@ -259,23 +185,15 @@ class Background(QLProduct):
 
     @classmethod
     def from_levelb(cls, levelb, parent=''):
-        packets, idb_versions = BaseProduct.from_levelb(levelb)
+        packets, idb_versions, control = QLProduct.from_levelb(levelb, parent=parent,
+                                                               NIX00405_offset=QLNIX00405_off)
 
-        service_type = packets.get('service_type')[0]
-        service_subtype = packets.get('service_subtype')[0]
-        ssid = packets.get('pi1_val')[0]
-
-        control = Control.from_packets(packets, NIX00405_offset=QLNIX00405_offset)
         control.add_data('energy_bin_edge_mask', _get_energy_bins(packets, 'NIX00266', 'NIXD0111'))
         control.add_basic(name='num_energies', nix='NIX00270', packets=packets)
 
         control['num_samples'] = np.array(packets.get_value('NIX00277')).flatten()[
             np.cumsum(control['num_energies']) - 1]
         control['num_samples'].meta = {'NIXS': 'NIX00277'}
-
-        control['raw_file'] = levelb.control['raw_file']
-        control['packet'] = levelb.control['packet']
-        control['parent'] = parent
 
         time, duration, scet_timerange = control._get_time()
         # Map a given entry back to the control info through index
@@ -308,9 +226,12 @@ class Background(QLProduct):
         data.add_meta(name='counts', nix='NIX00278', packets=packets)
         data['counts_err'] = np.sqrt(counts_var).T * u.ct
 
-        return cls(service_type=service_type, service_subtype=service_subtype, ssid=ssid,
-                   control=control, data=data, idb_versions=idb_versions,
-                   scet_timerange=scet_timerange)
+        return cls(service_type=packets.service_type,
+                   service_subtype=packets.service_subtype,
+                   ssid=packets.ssid,
+                   control=control,
+                   data=data,
+                   idb_versions=idb_versions)
 
     @classmethod
     def is_datasource_for(cls, *, service_type, service_subtype, ssid, **kwargs):
@@ -319,9 +240,11 @@ class Background(QLProduct):
 
 
 class Spectra(QLProduct):
+    """Quick Look Spectra data product.
+
+    In level 0 format.
     """
-    Quick Look Light Curve data product.
-    """
+
     def __init__(self, *, service_type, service_subtype, ssid, control, data,
                  idb_versions=defaultdict(SCETimeRange), **kwargs):
         super().__init__(service_type=service_type, service_subtype=service_subtype,
@@ -331,22 +254,14 @@ class Spectra(QLProduct):
 
     @classmethod
     def from_levelb(cls, levelb, parent=''):
-        packets, idb_versions = BaseProduct.from_levelb(levelb)
+        packets, idb_versions, control = QLProduct.from_levelb(levelb, parent=parent,
+                                                               NIX00405_offset=QLNIX00405_off)
 
-        service_type = packets.get('service_type')[0]
-        service_subtype = packets.get('service_subtype')[0]
-        ssid = packets.get('pi1_val')[0]
-
-        control = Control.from_packets(packets, NIX00405_offset=QLNIX00405_offset)
         control.add_data('pixel_mask', _get_pixel_mask(packets))
         control.add_data('compression_scheme_spectra_skm',
                          _get_compression_scheme(packets, 'NIX00452'))
         control.add_data('compression_scheme_triggers_skm',
                          _get_compression_scheme(packets, 'NIX00484'))
-
-        control['raw_file'] = levelb.control['raw_file']
-        control['packet'] = levelb.control['packet']
-        control['parent'] = parent
 
         # Fixed for spectra
         num_energies = np.unique(packets.get_value('NIX00100')).size
@@ -403,9 +318,12 @@ class Spectra(QLProduct):
         data['detector_index'] = detector_index.reshape(-1, 32) * u.ct
         data.add_meta(name='detector_index', nix='NIX00100', packets=packets)
         data['spectra'] = counts.reshape(-1, 32, num_energies) * u.ct
-        data['spectra'].meta = {'NIXS': [f'NIX00{i}' for i in range(452, 484)],
-                                'PCF_CURTX': [packets.get(f'NIX00{i}')[0].idb_info.PCF_CURTX
-                                              for i in range(452, 484)]}
+
+        # data['spectra'].meta = {'NIXS': [f'NIX00{i}' for i in range(452, 484)],
+        #                        'PCF_CURTX': [packets.get(f'NIX00{i}')[0].idb_info.PCF_CURTX
+        #                                      for i in range(452, 484)]}
+        data['spectra'].meta = {'NIXS': 'NIX00452',
+                                'PCF_CURTX': packets.get('NIX00452')[0].idb_info.PCF_CURTX}
         data['spectra_err'] = np.sqrt(counts_var.reshape(-1, 32, num_energies))
         data['triggers'] = triggers.reshape(-1, num_energies)
         data.add_meta(name='triggers', nix='NIX00484', packets=packets)
@@ -413,9 +331,12 @@ class Spectra(QLProduct):
         data['num_integrations'] = num_integrations.reshape(-1, num_energies)
         data.add_meta(name='num_integrations', nix='NIX00485', packets=packets)
 
-        return cls(service_type=service_type, service_subtype=service_subtype, ssid=ssid,
-                   control=control, data=data, idb_versions=idb_versions,
-                   scet_timerange=scet_timerange)
+        return cls(service_type=packets.service_type,
+                   service_subtype=packets.service_subtype,
+                   ssid=packets.ssid,
+                   control=control,
+                   data=data,
+                   idb_versions=idb_versions)
 
     @classmethod
     def _get_time(cls, control, num_energies, packets, pad_after):
@@ -443,11 +364,6 @@ class Spectra(QLProduct):
 
         return duration, time, scet_timerange
 
-    def __repr__(self):
-        return f'{self.name}, {self.level}\n' \
-               f'{self.scet_timerange.start}, {self.scet_timerange.end}\n ' \
-               f'{len(self.control)}, {len(self.data)}'
-
     @classmethod
     def is_datasource_for(cls, *, service_type, service_subtype, ssid, **kwargs):
         return (kwargs['level'] == 'L0' and service_type == 21
@@ -455,6 +371,11 @@ class Spectra(QLProduct):
 
 
 class Variance(QLProduct):
+    """Quick Look Variance data product.
+
+    In level 0 format.
+    """
+
     def __init__(self, *, service_type, service_subtype, ssid, control, data,
                  idb_versions=defaultdict(SCETimeRange), **kwargs):
         super().__init__(service_type=service_type, service_subtype=service_subtype,
@@ -464,13 +385,8 @@ class Variance(QLProduct):
 
     @classmethod
     def from_levelb(cls, levelb, parent=''):
-        packets, idb_versions = BaseProduct.from_levelb(levelb)
-
-        service_type = packets.get('service_type')[0]
-        service_subtype = packets.get('service_subtype')[0]
-        ssid = packets.get('pi1_val')[0]
-
-        control = Control.from_packets(packets, NIX00405_offset=QLNIX00405_offset)
+        packets, idb_versions, control = QLProduct.from_levelb(levelb, parent=parent,
+                                                               NIX00405_offset=QLNIX00405_off)
 
         # Control
         control['samples_per_variance'] = np.array(packets.get_value('NIX00279'), np.ubyte)
@@ -480,10 +396,6 @@ class Variance(QLProduct):
 
         control.add_data('compression_scheme_variance_skm',
                          _get_compression_scheme(packets, 'NIX00281'))
-
-        control['raw_file'] = levelb.control['raw_file']
-        control['packet'] = levelb.control['packet']
-        control['parent'] = parent
 
         energy_masks = np.array([
             [bool(int(x)) for x in format(packets.get_value('NIX00282')[i], '032b')]
@@ -512,9 +424,12 @@ class Variance(QLProduct):
         data.add_meta(name='variance', nix='NIX00281', packets=packets)
         data['variance_err'] = np.sqrt(variance_var)
 
-        return cls(service_type=service_type, service_subtype=service_subtype, ssid=ssid,
-                   control=control, data=data, idb_versions=idb_versions,
-                   scet_timerange=scet_timerange)
+        return cls(service_type=packets.service_type,
+                   service_subtype=packets.service_subtype,
+                   ssid=packets.ssid,
+                   control=control,
+                   data=data,
+                   idb_versions=idb_versions)
 
     @classmethod
     def is_datasource_for(cls, *, service_type, service_subtype, ssid, **kwargs):
@@ -523,6 +438,11 @@ class Variance(QLProduct):
 
 
 class FlareFlag(QLProduct):
+    """Quick Look Flare Flag and Location data product.
+
+    In level 0 format.
+    """
+
     def __init__(self, *, service_type, service_subtype, ssid, control, data,
                  idb_versions=defaultdict(SCETimeRange), **kwargs):
         super().__init__(service_type=service_type, service_subtype=service_subtype,
@@ -532,22 +452,13 @@ class FlareFlag(QLProduct):
 
     @classmethod
     def from_levelb(cls, levelb, parent=''):
-        packets, idb_versions = BaseProduct.from_levelb(levelb)
-
-        service_type = packets.get('service_type')[0]
-        service_subtype = packets.get('service_subtype')[0]
-        ssid = packets.get('pi1_val')[0]
-
-        control = Control.from_packets(packets, NIX00405_offset=QLNIX00405_offset)
+        packets, idb_versions, control = QLProduct.from_levelb(levelb, parent=parent,
+                                                               NIX00405_offset=QLNIX00405_off)
 
         control.add_basic(name='num_samples', nix='NIX00089', packets=packets)
 
         control_indices = np.hstack([np.full(ns, cind) for ns, cind in
                                      control[['num_samples', 'index']]])
-
-        control['raw_file'] = levelb.control['raw_file']
-        control['packet'] = levelb.control['packet']
-        control['parent'] = parent
 
         time, duration, scet_timerange = control._get_time()
 
@@ -572,9 +483,12 @@ class FlareFlag(QLProduct):
         except AttributeError:
             logger.warn('Missing NIXD0449')
 
-        return cls(service_type=service_type, service_subtype=service_subtype, ssid=ssid,
-                   control=control, data=data, idb_versions=idb_versions,
-                   scet_timerange=scet_timerange)
+        return cls(service_type=packets.service_type,
+                   service_subtype=packets.service_subtype,
+                   ssid=packets.ssid,
+                   control=control,
+                   data=data,
+                   idb_versions=idb_versions)
 
     @classmethod
     def is_datasource_for(cls, *, service_type, service_subtype, ssid, **kwargs):
@@ -583,6 +497,11 @@ class FlareFlag(QLProduct):
 
 
 class EnergyCalibration(QLProduct):
+    """Quick Look energy calibration data product.
+
+    In level 0 format.
+    """
+
     def __init__(self, *, service_type, service_subtype, ssid, control, data,
                  idb_versions=defaultdict(SCETimeRange), **kwargs):
         super().__init__(service_type=service_type, service_subtype=service_subtype,
@@ -593,13 +512,7 @@ class EnergyCalibration(QLProduct):
 
     @classmethod
     def from_levelb(cls, levelb, parent=''):
-        packets, idb_versions = BaseProduct.from_levelb(levelb)
-
-        service_type = packets.get('service_type')[0]
-        service_subtype = packets.get('service_subtype')[0]
-        ssid = packets.get('pi1_val')[0]
-
-        control = Control.from_packets(packets)
+        packets, idb_versions, control = QLProduct.from_levelb(levelb, parent=parent)
 
         control['integration_time'] = packets.get_value('NIX00122')
         control.add_meta(name='integration_time', nix='NIX00122', packets=packets)
@@ -619,10 +532,6 @@ class EnergyCalibration(QLProduct):
         control.add_data('subspectrum_mask', _get_sub_spectrum_mask(packets))
         control.add_data('compression_scheme_counts_skm',
                          _get_compression_scheme(packets, 'NIX00158'))
-
-        control['raw_file'] = levelb.control['raw_file']
-        control['packet'] = levelb.control['packet']
-        control['parent'] = parent
 
         subspec_data = {}
         j = 129
@@ -655,12 +564,6 @@ class EnergyCalibration(QLProduct):
         time = SCETime(control['scet_coarse'], control['scet_fine']) \
             + control['integration_time'] / 2
         duration = SCETimeDelta(control['integration_time'])
-
-        scet_timerange = SCETimeRange(start=SCETime(control['scet_coarse'][0],
-                                                    control['scet_fine'][0]),
-                                      end=SCETime(control['scet_coarse'][0],
-                                                  control['scet_fine'][0])
-                                      + control['integration_time'][0])
 
         # Data
         data = Data()
@@ -698,9 +601,12 @@ class EnergyCalibration(QLProduct):
         data.add_meta(name='counts', nix='NIX00158', packets=packets)
         data['counts_err'] = np.sqrt(full_counts_var).reshape((1, *full_counts_var.shape))
 
-        return cls(service_type=service_type, service_subtype=service_subtype, ssid=ssid,
-                   control=control, data=data, idb_versions=idb_versions,
-                   scet_timerange=scet_timerange)
+        return cls(service_type=packets.service_type,
+                   service_subtype=packets.service_subtype,
+                   ssid=packets.ssid,
+                   control=control,
+                   data=data,
+                   idb_versions=idb_versions)
 
     @classmethod
     def is_datasource_for(cls, *, service_type, service_subtype, ssid, **kwargs):
@@ -709,6 +615,11 @@ class EnergyCalibration(QLProduct):
 
 
 class TMStatusFlareList(QLProduct):
+    """Quick Look TM Management status and Flare list data product.
+
+    In level 0 format.
+    """
+
     def __init__(self, *, service_type, service_subtype, ssid, control, data,
                  idb_versions=defaultdict(SCETimeRange), **kwargs):
         super().__init__(service_type=service_type, service_subtype=service_subtype,
@@ -718,22 +629,11 @@ class TMStatusFlareList(QLProduct):
 
     @classmethod
     def from_levelb(cls, levelb, parent=''):
-        packets, idb_versions = BaseProduct.from_levelb(levelb)
+        packets, idb_versions, control = QLProduct.from_levelb(levelb, parent=parent)
 
-        service_type = packets.get('service_type')[0]
-        service_subtype = packets.get('service_subtype')[0]
-        ssid = packets.get('pi1_val')[0]
-
-        control = Control()
-        control['scet_coarse'] = packets.get('scet_coarse')
-        control['scet_fine'] = packets.get('scet_fine')
         control.add_basic(name='ubsd_counter', nix='NIX00285', packets=packets)
         control.add_basic(name='pald_counter', nix='NIX00286', packets=packets)
         control.add_basic(name='num_flares', nix='NIX00294', packets=packets)
-
-        control['raw_file'] = levelb.control['raw_file']
-        control['packet'] = levelb.control['packet']
-        control['parent'] = parent
 
         data = Data()
         if control['num_flares'].sum() > 0:
@@ -748,8 +648,12 @@ class TMStatusFlareList(QLProduct):
             data.add_basic(name='average_y_loc', nix='NIX00292', packets=packets, dtype=np.byte)
             data.add_basic(name='processing_mask', nix='NIX00293', packets=packets, dtype=np.byte)
 
-        return cls(service_type=service_type, service_subtype=service_subtype, ssid=ssid,
-                   control=control, data=data, idb_versions=idb_versions)
+        return cls(service_type=packets.service_type,
+                   service_subtype=packets.service_subtype,
+                   ssid=packets.ssid,
+                   control=control,
+                   data=data,
+                   idb_versions=idb_versions)
 
     @classmethod
     def is_datasource_for(cls, *, service_type, service_subtype, ssid, **kwargs):

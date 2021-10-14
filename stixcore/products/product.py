@@ -21,10 +21,12 @@ from stixcore.time import SCETime, SCETimeDelta, SCETimeRange
 from stixcore.tmtc.packet_factory import Packet
 from stixcore.tmtc.packets import GenericPacket, PacketSequence
 
-__all__ = ['BaseProduct', 'ProductFactory', 'Product', 'ControlSci', 'Control', 'Data']
+__all__ = ['GenericProduct', 'ProductFactory', 'Product', 'ControlSci',
+           'Control', 'Data', 'L1Mixin', 'EnergyChanelsMixin']
 
 from collections import defaultdict
 
+from stixcore.products.common import _get_energies_from_mask
 from stixcore.util.logging import get_logger
 
 logger = get_logger(__name__)
@@ -54,7 +56,7 @@ class AddParametersMixin:
 
 class BaseProduct:
     """
-    Base QLProduct that all other product inherit from contains the registry for the factory pattern
+    Base TMProduct that all other product inherit from contains the registry for the factory pattern
     """
 
     _registry = {}
@@ -69,21 +71,6 @@ class BaseProduct:
         super().__init_subclass__(**kwargs)
         if hasattr(cls, 'is_datasource_for'):
             cls._registry[cls] = cls.is_datasource_for
-
-    @classmethod
-    def from_levelb(cls, levelb):
-
-        packets = [Packet(unhexlify(d)) for d in levelb.data['data']]
-
-        idb_versions = defaultdict(SCETimeRange)
-
-        for i, packet in enumerate(packets):
-            decompression.decompress(packet)
-            engineering.raw_to_engineering(packet)
-            idb_versions[packet.get_idb().version].expand(packet.data_header.datetime)
-
-        packets = PacketSequence(packets)
-        return packets, idb_versions
 
 
 class ProductFactory(BasicRegistrationFactory):
@@ -109,9 +96,6 @@ class ProductFactory(BasicRegistrationFactory):
                     control.remove_column('time_stamp')
                     control['time_stamp'] = ts * u.s
                 data = QTable.read(file_path, hdu='DATA')
-
-                scet_timerange = SCETimeRange(start=SCETime.from_string(header.get('OBT_BEG')),
-                                              end=SCETime.from_string(header.get('OBT_END')))
 
                 if level != 'LB':
 
@@ -152,7 +136,7 @@ class ProductFactory(BasicRegistrationFactory):
                                service_subtype=service_subtype,
                                ssid=ssid, control=control,
                                data=data, energies=energies, idb_versions=idb_versions,
-                               scet_timerange=scet_timerange, raw=raw, parent=parent)
+                               raw=raw, parent=parent)
 
     def _check_registered_widget(self, *args, **kwargs):
         """
@@ -307,6 +291,8 @@ class ControlSci(QTable, AddParametersMixin):
         except AttributeError:
             logger.debug('NIX00403 not found')
 
+        control = unique(control)
+
         return control
 
 
@@ -339,8 +325,20 @@ class GenericProduct(BaseProduct):
         self.control = control
         self.data = data
         self.idb_versions = idb_versions
-        self.scet_timerange = kwargs.get('scet_timerange')
         self.level = kwargs.get('level')
+
+    @property
+    def scet_timerange(self):
+        return SCETimeRange(start=self.data['time'][0]-self.data['timedel'][0]/2,
+                            end=self.data['time'][-1]+self.data['timedel'][-1]/2)
+
+    @property
+    def raw(self):
+        return np.unique(self.control['raw_file']).tolist()
+
+    @property
+    def parent(self):
+        return np.unique(self.control['parent']).tolist()
 
     def __add__(self, other):
         """
@@ -375,6 +373,7 @@ class GenericProduct(BaseProduct):
 
         logger.debug('len stacked %d', len(data))
 
+        # Not sure where the rounding issue is arising need to investigate
         data['time_float'] = np.around(data['time'].as_float(), 2)
 
         data = unique(data, keys=['time_float'])
@@ -389,17 +388,15 @@ class GenericProduct(BaseProduct):
         for idb_key, date_range in other.idb_versions.items():
             self.idb_versions[idb_key].expand(date_range)
 
-        scet_timerange = SCETimeRange(start=data['time'][0]-data['timedel'][0]/2,
-                                      end=data['time'][-1]+data['timedel'][-1]/2)
-
         return type(self)(service_type=self.service_type, service_subtype=self.service_subtype,
                           ssid=self.ssid, control=control, data=data,
-                          idb_versions=self.idb_versions, scet_timerange=scet_timerange,
-                          level=self.level)
+                          idb_versions=self.idb_versions, level=self.level)
 
     def __repr__(self):
-        return f'<{self.__class__.__name__}, {self.scet_timerange.start} to ' \
-               f'{self.scet_timerange.start}, {len(self.control)}, {len(self.data)}>'
+        return f'<{self.__class__.__name__}' \
+               f'{self.name}, {self.level}\n' \
+               f'{self.scet_timerange.start} to {self.scet_timerange.start}, ' \
+               f'{len(self.control)}, {len(self.data)}'
 
     def to_days(self):
         if self.level == 'L0':
@@ -415,10 +412,9 @@ class GenericProduct(BaseProduct):
                 de = SCETime((((day + 1) * u.day).to_value('s')).astype(int), 0)
                 i = np.where((self.data['time'] >= ds) & (self.data['time'] < de))
 
-                scet_timerange = SCETimeRange(start=ds, end=de)
-
                 if i[0].size > 0:
                     data = self.data[i]
+
                     control_indices = np.unique(data['control_index'])
                     control = self.control[np.isin(self.control['index'], control_indices)]
                     control_index_min = control_indices.min()
@@ -429,10 +425,10 @@ class GenericProduct(BaseProduct):
                     out = type(self)(service_type=self.service_type,
                                      service_subtype=self.service_subtype,
                                      ssid=self.ssid, control=control, data=data,
-                                     idb_versions=self.idb_versions, scet_timerange=scet_timerange)
+                                     idb_versions=self.idb_versions)
                     out.level = self.level
                     yield out
-        else:
+        else:  # self.level == 'L1':
             utc_timerange = self.scet_timerange.to_timerange()
 
             for day in utc_timerange.get_dates():
@@ -444,24 +440,80 @@ class GenericProduct(BaseProduct):
                 if len(i[0]) > 0:
                     data = self.data[i]
 
-                    scet_timerange = SCETimeRange(start=self.data['time'][0]
-                                                  - self.data['timedel'][0] / 2,
-                                                  end=self.data['time'][-1]
-                                                  + self.data['timedel'][-1] / 2)
-
                     control_indices = np.unique(data['control_index'])
                     control = self.control[np.isin(self.control['index'], control_indices)]
                     control_index_min = control_indices.min()
 
                     data['control_index'] = data['control_index'] - control_index_min
                     control['index'] = control['index'] - control_index_min
-                    yield type(self)(service_type=self.service_type,
+                    out = type(self)(service_type=self.service_type,
                                      service_subtype=self.service_subtype, ssid=self.ssid,
                                      control=control, data=data, idb_versions=self.idb_versions,
-                                     scet_timerange=scet_timerange, level=self.level)
+                                     level=self.level)
+                    out.level = self.level
+                    yield out
+
+    @classmethod
+    def getLeveL0Packets(cls, levelb):
+        packets = [Packet(unhexlify(d)) for d in levelb.data['data']]
+
+        idb_versions = defaultdict(SCETimeRange)
+
+        for i, packet in enumerate(packets):
+            decompression.decompress(packet)
+            engineering.raw_to_engineering(packet)
+            idb_versions[packet.get_idb().version].expand(packet.data_header.datetime)
+
+        packets = PacketSequence(packets)
+
+        return packets, idb_versions
+
+    @classmethod
+    def from_levelb(cls, levelb, *, parent=''):
+        pass
 
 
-class DefaultProduct(GenericProduct):
+class EnergyChanelsMixin:
+    def get_energies(self):
+        """Return energy channels for this TM data. Or default ones.
+
+        Returns
+        -------
+        tuple
+            Lower and high energy edges
+        """
+        if 'energy_bin_edge_mask' in self.control.colnames:
+            energies = _get_energies_from_mask(self.control['energy_bin_edge_mask'][0])
+        elif 'energy_bin_mask' in self.control.colnames:
+            energies = _get_energies_from_mask(self.control['energy_bin_mask'][0])
+        else:
+            energies = _get_energies_from_mask()
+
+        return energies
+
+
+class L1Mixin:
+    @property
+    def utc_timerange(self):
+        return self.scet_timerange.to_timerange()
+
+    @classmethod
+    def from_level0(cls, l0product, idbm=GenericPacket.idb_manager, parent=''):
+        l1 = cls(service_type=l0product.service_type,
+                 service_subtype=l0product.service_subtype,
+                 ssid=l0product.ssid,
+                 control=l0product.control,
+                 data=l0product.data,
+                 idb_versions=l0product.idb_versions)
+
+        l1.control.replace_column('parent', [parent] * len(l1.control))
+
+        engineering.raw_to_engineering_product(l1, idbm)
+
+        return l1
+
+
+class DefaultProduct(GenericProduct, L1Mixin):
     """
     Default product use when not QL or BSD.
     """
@@ -487,17 +539,9 @@ class DefaultProduct(GenericProduct):
         self.level = kwargs.get('level', 'L0')
         self.type = f'{self.service_name_map[service_type]}'
 
-    @property
-    def utc_timerange(self):
-        return self.scet_timerange.to_timerange()
-
     @classmethod
     def from_levelb(cls, levelb):
-        packets, idb_versions = super().from_levelb(levelb)
-
-        service_type = packets.get('service_type')[0]
-        service_subtype = packets.get('service_subtype')[0]
-        ssid = packets.get('pi1_val')[0]
+        packets, idb_versions = GenericProduct.getLeveL0Packets(levelb)
 
         control = Control()
         control['scet_coarse'] = packets.get('scet_coarse')
@@ -507,7 +551,6 @@ class DefaultProduct(GenericProduct):
 
         # Create array of times as dt from date_obs
         times = SCETime(control['scet_coarse'], control['scet_fine'])
-        scet_timerange = SCETimeRange(start=times[0], end=times[-1])
 
         # Data
         data = Data()
@@ -525,23 +568,12 @@ class DefaultProduct(GenericProduct):
 
         data['control_index'] = range(len(control))
 
-        return cls(service_type=service_type, service_subtype=service_subtype, ssid=ssid,
-                   control=control, data=data, idb_versions=idb_versions,
-                   scet_timerange=scet_timerange)
-
-    @classmethod
-    def from_level0(cls, l0product, idbm=GenericPacket.idb_manager):
-        l1 = cls(service_type=l0product.service_type,
-                 service_subtype=l0product.service_subtype,
-                 ssid=l0product.ssid,
-                 control=l0product.control,
-                 data=l0product.data,
-                 idb_versions=l0product.idb_versions,
-                 scet_timerange=l0product.scet_timerange)
-
-        engineering.raw_to_engineering_product(l1, idbm)
-        l1.level = 'L1'
-        return l1
+        return cls(service_type=packets.service_type,
+                   service_subtype=packets.service_subtype,
+                   ssid=packets.ssid,
+                   control=control,
+                   data=data,
+                   idb_versions=idb_versions)
 
 
 Product = ProductFactory(registry=BaseProduct._registry, default_widget_type=DefaultProduct)

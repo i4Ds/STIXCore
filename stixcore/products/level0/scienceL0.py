@@ -138,10 +138,6 @@ class ScienceProduct(GenericProduct, EnergyChanelsMixin):
         control['raw_file'] = levelb.control['raw_file']
         control['parent'] = parent
 
-        control['raw_file'] = np.unique(levelb.control['raw_file'])
-        control['packet'] = np.array((levelb.control['packet'][0],
-                                      levelb.control['packet'][-1])).reshape(1, 2)
-
         if len(control) != 1:
             raise ValueError('Creating a science product form packets from multiple products')
 
@@ -713,8 +709,7 @@ class Aspect(ScienceProduct):
         control.add_basic(name='samples', nix='NIX00089', packets=packets)
 
         control['raw_file'] = np.unique(levelb.control['raw_file'])
-        control['packet'] = np.array((levelb.control['packet'][0],
-                                      levelb.control['packet'][-1])).reshape(1, 2)
+        control['packet'] = levelb.control['packet']
         control['parent'] = parent
 
         control['index'] = range(len(control))

@@ -180,19 +180,19 @@ class FitsLBProcessor(FitsProcessor):
             path = self.archive_path.joinpath(*[str(x) for x in parts])
             path.mkdir(parents=True, exist_ok=True)
 
-            if filename in open_files:
-                for i in range(100):
-                    logger.debug('Waiting file %s in open files', filename)
-                    sleep(1)
-                    if filename not in open_files:
-                        break
-                else:
-                    logger.error('File was never free %s', filename)
-
             fitspath = path / filename
             if fitspath.exists():
                 logger.info('Fits file %s exists appending data', fitspath.name)
                 try:
+                    if filename in open_files:
+                        for i in range(100):
+                            logger.debug('Waiting file %s in open files', filename)
+                            sleep(1)
+                            if filename not in open_files:
+                                break
+                        else:
+                            logger.error('File was never free %s', filename)
+
                     existing = Product(fitspath)
                 except Exception:
                     logger.error('Could not create product from file %s', filename, exc_info=True)
@@ -313,10 +313,6 @@ class FitsL0Processor:
             primary_hdu.header.update(primary_header)
             primary_hdu.header.update({'HISTORY': 'Processed by STIX'})
 
-            control_enc = fits.connect._encode_mixins(control)
-            control_hdu = table_to_hdu(control_enc)
-            control_hdu.name = 'CONTROL'
-
             # Convert time to be relative to start date
             # it is important that the change to the relative time is done after the header is
             # generated as this will use the original SCET time data
@@ -327,6 +323,11 @@ class FitsL0Processor:
             except KeyError as e:
                 if 'time_stamp' not in repr(e):
                     raise e
+
+            control_enc = fits.connect._encode_mixins(control)
+            control_hdu = table_to_hdu(control_enc)
+            control_hdu.name = 'CONTROL'
+
             data_enc = fits.connect._encode_mixins(data)
             data_hdu = table_to_hdu(data_enc)
             data_hdu.name = 'DATA'
@@ -531,10 +532,6 @@ class FitsL1Processor(FitsL0Processor):
             primary_hdu.header.update(primary_header)
             primary_hdu.header.update({'HISTORY': 'Processed by STIX'})
 
-            control_enc = fits.connect._encode_mixins(control)
-            control_hdu = table_to_hdu(control_enc)
-            control_hdu.name = 'CONTROL'
-
             # Convert time to be relative to start date
             # it is important that the change to the relative time is done after the header is
             # generated as this will use the original SCET time data
@@ -545,6 +542,11 @@ class FitsL1Processor(FitsL0Processor):
             except KeyError as e:
                 if 'time_stamp' not in repr(e):
                     raise e
+
+            control_enc = fits.connect._encode_mixins(control)
+            control_hdu = table_to_hdu(control_enc)
+            control_hdu.name = 'CONTROL'
+
             data_enc = fits.connect._encode_mixins(data)
             data_hdu = table_to_hdu(data_enc)
             data_hdu.name = 'DATA'

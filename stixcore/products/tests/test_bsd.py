@@ -1,6 +1,7 @@
 import re
 from unittest.mock import patch
 
+import numpy as np
 import pytest
 
 from stixcore.data.test import test_data
@@ -29,7 +30,7 @@ def test_xray(levelb, packets):
         hex = file.readlines()
 
     levelb.data.__getitem__.return_value = [re.sub(r"\s+", "", h) for h in hex]
-    levelb.control = {'raw_file': 'raw.xml', 'packet': 0}
+    levelb.control = {'raw_file': 'raw.xml', 'packet': np.array([[0, 1, 2, 3]])}
     xray_L0 = cl_l0.from_levelb(levelb, parent='parent.fits')
 
     assert xray_L0.level == 'L0'

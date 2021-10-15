@@ -1,5 +1,4 @@
 from pathlib import Path
-from binascii import unhexlify
 from itertools import chain
 
 import numpy as np
@@ -455,7 +454,11 @@ class GenericProduct(BaseProduct):
 
     @classmethod
     def getLeveL0Packets(cls, levelb):
-        packets = [Packet(unhexlify(d)) for d in levelb.data['data']]
+        # with ThreadPoolExecutor(max_workers=1) as executor:
+        #     res = [executor.submit(Packet, d) for d in levelb.data['data']]
+        # packets = [r.result() for r in res]
+
+        packets = [Packet(d) for d in levelb.data['data']]
 
         idb_versions = defaultdict(SCETimeRange)
 
@@ -507,7 +510,7 @@ class L1Mixin:
                  idb_versions=l0product.idb_versions)
 
         l1.control.replace_column('parent', [parent] * len(l1.control))
-
+        l1.level = 'L1'
         engineering.raw_to_engineering_product(l1, idbm)
 
         return l1
@@ -540,7 +543,7 @@ class DefaultProduct(GenericProduct, L1Mixin):
         self.type = f'{self.service_name_map[service_type]}'
 
     @classmethod
-    def from_levelb(cls, levelb):
+    def from_levelb(cls, levelb, parent=''):
         packets, idb_versions = GenericProduct.getLeveL0Packets(levelb)
 
         control = Control()
@@ -548,6 +551,10 @@ class DefaultProduct(GenericProduct, L1Mixin):
         control['scet_fine'] = packets.get('scet_fine')
         control['integration_time'] = 0
         control['index'] = range(len(control))
+
+        control['raw_file'] = levelb.control['raw_file']
+        control['packet'] = levelb.control['packet']
+        control['parent'] = parent
 
         # Create array of times as dt from date_obs
         times = SCETime(control['scet_coarse'], control['scet_fine'])

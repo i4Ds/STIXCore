@@ -69,11 +69,12 @@ if __name__ == '__main__':
     tstart = time.perf_counter()
     observer = Observer()
     path = Path('/home/shane/tm')
+    soop_path = Path(CONFIG.get('Paths', 'soop_files'))
     logging_handler = LoggingEventHandler(logger=logger)
     tm_handler = GFTSFileHandler(process_tm, TM_REGEX)
 
     # TODO should be an deticated path from the config
-    soop_manager = SOOPManager(path)
+    soop_manager = SOOPManager(soop_path)
     soop_handler = GFTSFileHandler(soop_manager.add_soop_file_to_index, SOOPManager.SOOP_FILE_REGEX)
 
     observer.schedule(soop_handler, soop_manager.data_root,  recursive=False)

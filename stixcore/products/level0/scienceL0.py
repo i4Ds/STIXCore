@@ -60,6 +60,14 @@ class ScienceProduct(GenericProduct, EnergyChanelsMixin):
         self.type = 'sci'
         self.level = 'L0'
 
+    @property
+    def raw(self):
+        return np.unique(self.control['raw_file'])
+
+    @property
+    def parent(self):
+        return np.unique(self.control['parent'])
+
     def __add__(self, other):
         if (np.all(self.control == other.control) and self.scet_timerange == other.scet_timerange
                 and len(self.data) == len(other.data)):
@@ -126,8 +134,8 @@ class ScienceProduct(GenericProduct, EnergyChanelsMixin):
         # control.remove_column('num_structures')
 
         control['index'] = 0
-        control['packet'] = levelb.control['packet']
-        control['raw_file'] = levelb.control['raw_file']
+        control['packet'] = levelb.control['packet'].reshape(1, -1)
+        control['raw_file'] = np.unique(levelb.control['raw_file']).reshape(1, -1)
         control['parent'] = parent
 
         if len(control) != 1:
@@ -700,7 +708,7 @@ class Aspect(ScienceProduct):
         control.add_basic(name='averaging_value', nix='NIX00490', packets=packets)
         control.add_basic(name='samples', nix='NIX00089', packets=packets)
 
-        control['raw_file'] = levelb.control['raw_file']
+        control['raw_file'] = np.unique(levelb.control['raw_file'])
         control['packet'] = levelb.control['packet']
         control['parent'] = parent
 

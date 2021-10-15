@@ -166,7 +166,7 @@ class SCETBase(ShapedLikeNDArray):
         -------
 
         """
-        return self.coarse + (self.fine / MAX_FINE) << u.s
+        return (self.coarse + (self.fine / MAX_FINE)) * u.s
 
     def min(self, axis=None, out=None, keepdims=False):
         """
@@ -501,7 +501,7 @@ class SCETime(SCETBase):
         if other.__class__ is not self.__class__:
             return NotImplemented
 
-        return op(self.as_float() - other.as_float(), 0)
+        return op(self.as_float().value - other.as_float().value, 0)
 
     def __gt__(self, other):
         return self._comparison_operator(other, operator.gt)

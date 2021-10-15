@@ -44,7 +44,7 @@ class TM_21_6_21(GenericTMPacket):
         # compression scheme so need to modify default parameters
         idb = self.idb.get_idb(obt=self.data_header.datetime)
         idb_version = tuple(map(int, idb.version.split('.')))
-        if idb_version < (2, 26, 33):
+        if idb_version < (2, 26, 35):
             count_skm = params['NIX00260']
             nixs = list(params.keys())
             nixs.remove('NIX00260')

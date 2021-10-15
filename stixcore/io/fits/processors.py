@@ -1,5 +1,6 @@
 """Module for the different processing levels."""
 import logging
+from time import sleep
 from pathlib import Path
 from datetime import datetime
 
@@ -20,7 +21,7 @@ from stixcore.util.logging import get_logger
 __all__ = ['SEC_IN_DAY', 'FitsProcessor', 'FitsLBProcessor', 'FitsL0Processor', 'FitsL1Processor']
 
 
-logger = get_logger(__name__, level=logging.DEBUG)
+logger = get_logger(__name__, level=logging.WARNING)
 
 SEC_IN_DAY = 24 * 60 * 60
 
@@ -159,7 +160,7 @@ class FitsLBProcessor(FitsProcessor):
         )
         return headers
 
-    def write_fits(self, product):
+    def write_fits(self, product, open_files=None):
         """Write or merge the product data into a FITS file.
         Parameters
         ----------
@@ -167,8 +168,6 @@ class FitsLBProcessor(FitsProcessor):
             The data product to write.
         Raises
         ------
-        ValueError
-            TODO what does the length check guaranties?
         ValueError
             TODO what does the length check guaranties?
         """
@@ -180,15 +179,29 @@ class FitsLBProcessor(FitsProcessor):
                 parts = parts[:-1]
             path = self.archive_path.joinpath(*[str(x) for x in parts])
             path.mkdir(parents=True, exist_ok=True)
+
             fitspath = path / filename
             if fitspath.exists():
                 logger.info('Fits file %s exists appending data', fitspath.name)
-                existing = Product(fitspath)
+                try:
+                    if filename in open_files:
+                        for i in range(100):
+                            logger.debug('Waiting file %s in open files', filename)
+                            sleep(1)
+                            if filename not in open_files:
+                                break
+                        else:
+                            logger.error('File was never free %s', filename)
+
+                    existing = Product(fitspath)
+                except Exception:
+                    logger.error('Could not create product from file %s', filename, exc_info=True)
+                    return None
                 # existing.type = prod.type
                 if np.abs([((len(existing.data['data'][i])/2) -
                             (existing.control['data_length'][i]+7))
                           for i in range(len(existing.data))]).sum() > 0:
-                    raise ValueError()
+                    raise ValueError('Header data lengths and data lengths do not agree')
                 logger.debug('Existing %s, New %s', existing, prod)
                 prod = prod + existing
                 logger.debug('Combined %s', prod)
@@ -201,7 +214,7 @@ class FitsLBProcessor(FitsProcessor):
 
             if np.abs([((len(data['data'][i]) / 2) - (control['data_length'][i] + 7))
                        for i in range(len(data))]).sum() > 0:
-                raise ValueError()
+                raise ValueError('Header data lengths and data lengths do not agree')
 
             primary_header = self.generate_primary_header(filename, prod)
             primary_hdu = fits.PrimaryHDU()
@@ -216,7 +229,9 @@ class FitsLBProcessor(FitsProcessor):
 
             logger.info(f'Writing fits file to {path / filename}')
             fullpath = path / filename
+            open_files.append(filename)
             hdul.writeto(fullpath, overwrite=True, checksum=True)
+            open_files.remove(filename)
             files.append(fullpath)
 
         return files
@@ -236,7 +251,7 @@ class FitsL0Processor:
         """
         self.archive_path = archive_path
 
-    def write_fits(self, product):
+    def write_fits(self, product, open_files=None):
         """
         Write level 0 products into fits files.
 
@@ -250,6 +265,8 @@ class FitsL0Processor:
             of created file as `pathlib.Path`
 
         """
+        if open_files is None:
+            open_files = []
         created_files = []
         if callable(getattr(product, 'to_days', None)):
             products = product.to_days()
@@ -267,6 +284,16 @@ class FitsL0Processor:
             path.mkdir(parents=True, exist_ok=True)
 
             fitspath = path / filename
+
+            if filename in open_files:
+                for i in range(100):
+                    logger.debug('Waiting file %s in open files', filename)
+                    sleep(1)
+                    if filename not in open_files:
+                        break
+                else:
+                    logger.error('File was never free %s', filename)
+
             if fitspath.exists():
                 logger.info('Fits file %s exists appending data', fitspath.name)
                 existing = Product(fitspath)
@@ -286,10 +313,6 @@ class FitsL0Processor:
             primary_hdu.header.update(primary_header)
             primary_hdu.header.update({'HISTORY': 'Processed by STIX'})
 
-            control_enc = fits.connect._encode_mixins(control)
-            control_hdu = table_to_hdu(control_enc)
-            control_hdu.name = 'CONTROL'
-
             # Convert time to be relative to start date
             # it is important that the change to the relative time is done after the header is
             # generated as this will use the original SCET time data
@@ -300,6 +323,11 @@ class FitsL0Processor:
             except KeyError as e:
                 if 'time_stamp' not in repr(e):
                     raise e
+
+            control_enc = fits.connect._encode_mixins(control)
+            control_hdu = table_to_hdu(control_enc)
+            control_hdu.name = 'CONTROL'
+
             data_enc = fits.connect._encode_mixins(data)
             data_hdu = table_to_hdu(data_enc)
             data_hdu.name = 'DATA'
@@ -326,7 +354,9 @@ class FitsL0Processor:
 
             filetowrite = path / filename
             logger.debug(f'Writing fits file to {filetowrite}')
+            open_files.append(filename)
             hdul.writeto(filetowrite, overwrite=True, checksum=True)
+            open_files.remove(filename)
             created_files.append(filetowrite)
         return created_files
 
@@ -441,7 +471,7 @@ class FitsL1Processor(FitsL0Processor):
 
         return headers + ephemeris_headers
 
-    def write_fits(self, product):
+    def write_fits(self, product, open_files=None):
         """
         Write level 0 products into fits files.
 
@@ -455,6 +485,8 @@ class FitsL1Processor(FitsL0Processor):
             of created file as `pathlib.Path`
 
         """
+        if open_files is None:
+            open_files = []
         created_files = []
         if callable(getattr(product, 'to_days', None)):
             products = product.to_days()
@@ -471,6 +503,16 @@ class FitsL1Processor(FitsL0Processor):
             path.mkdir(parents=True, exist_ok=True)
 
             fitspath = path / filename
+
+            if filename in open_files:
+                for i in range(100):
+                    logger.debug('Waiting file %s in open files', filename)
+                    sleep(1)
+                    if filename not in open_files:
+                        break
+                else:
+                    logger.error('File was never free %s', filename)
+
             if fitspath.exists():
                 logger.info('Fits file %s exists appending data', fitspath.name)
                 existing = Product(fitspath)
@@ -490,10 +532,6 @@ class FitsL1Processor(FitsL0Processor):
             primary_hdu.header.update(primary_header)
             primary_hdu.header.update({'HISTORY': 'Processed by STIX'})
 
-            control_enc = fits.connect._encode_mixins(control)
-            control_hdu = table_to_hdu(control_enc)
-            control_hdu.name = 'CONTROL'
-
             # Convert time to be relative to start date
             # it is important that the change to the relative time is done after the header is
             # generated as this will use the original SCET time data
@@ -504,6 +542,11 @@ class FitsL1Processor(FitsL0Processor):
             except KeyError as e:
                 if 'time_stamp' not in repr(e):
                     raise e
+
+            control_enc = fits.connect._encode_mixins(control)
+            control_hdu = table_to_hdu(control_enc)
+            control_hdu.name = 'CONTROL'
+
             data_enc = fits.connect._encode_mixins(data)
             data_hdu = table_to_hdu(data_enc)
             data_hdu.name = 'DATA'
@@ -530,6 +573,8 @@ class FitsL1Processor(FitsL0Processor):
 
             filetowrite = path / filename
             logger.debug(f'Writing fits file to {filetowrite}')
+            open_files.append(filename)
             hdul.writeto(filetowrite, overwrite=True, checksum=True)
+            open_files.remove(filename)
             created_files.append(filetowrite)
         return created_files

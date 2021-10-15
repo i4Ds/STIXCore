@@ -134,8 +134,8 @@ class ScienceProduct(GenericProduct, EnergyChanelsMixin):
         # control.remove_column('num_structures')
 
         control['index'] = 0
-        control['packet'] = levelb.control['packet']
-        control['raw_file'] = levelb.control['raw_file']
+        control['packet'] = levelb.control['packet'].reshape(1, -1)
+        control['raw_file'] = np.unique(levelb.control['raw_file']).reshape(1, -1)
         control['parent'] = parent
 
         if len(control) != 1:

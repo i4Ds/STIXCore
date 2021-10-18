@@ -2,8 +2,11 @@ from unittest.mock import patch
 
 import numpy as np
 
+from stixcore.data.test import test_data
 from stixcore.io.fits.processors import FitsL0Processor, FitsL1Processor, FitsLBProcessor
 from stixcore.time import SCETime, SCETimeRange
+
+td = test_data
 
 
 def test_levelb_processor_init():
@@ -181,7 +184,9 @@ def test_level1_processor_generate_filename():
 
 
 @patch('stixcore.products.level1.quicklookL1.QLProduct')
-def test_level1_processor_generate_primary_header(product):
+@patch('stixcore.io.fits.processors.CONFIG')
+def test_level1_processor_generate_primary_header(config, product):
+    config.get.side_effect = [td.soop.DIR, '.']
     processor = FitsL1Processor('some/path')
     beg = SCETime(coarse=683769519, fine=0)
     end = SCETime(coarse=beg.coarse+24 * 60 * 60)

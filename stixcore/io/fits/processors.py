@@ -16,6 +16,7 @@ from stixcore.config.config import CONFIG
 from stixcore.data.test import test_data
 from stixcore.ephemeris.manager import Position
 from stixcore.products.product import Product
+from stixcore.soop.manager import SOOPManager, SoopObservationType
 from stixcore.util.logging import get_logger
 
 __all__ = ['SEC_IN_DAY', 'FitsProcessor', 'FitsLBProcessor', 'FitsL0Processor', 'FitsL1Processor']
@@ -430,6 +431,10 @@ class FitsL0Processor:
 class FitsL1Processor(FitsL0Processor):
     def __init__(self, archive_path):
         self.archive_path = archive_path
+        tm_path = CONFIG.get('Paths', 'tm_archive')
+        if str(tm_path) == '.':
+            tm_path = Path(__file__).parent.parent.parent / 'data' / 'test' / 'soop'
+        self.soop_manager = SOOPManager(CONFIG.get('Paths', 'tm_archive'))
 
     @classmethod
     def generate_filename(cls, product, *, version, status=''):
@@ -442,12 +447,22 @@ class FitsL1Processor(FitsL0Processor):
         return FitsProcessor.generate_filename(product, version=version, date_range=date_range,
                                                status=status)
 
-    @classmethod
-    def generate_primary_header(cls, filename, product):
+    def generate_primary_header(self, filename, product):
         if product.level != 'L1':
             raise ValueError(f"Try to crate FITS file L1 for {product.level} data product")
 
-        headers = FitsProcessor.generate_common_header(filename, product) + (
+        headers = FitsProcessor.generate_common_header(filename, product)
+
+        try:
+            soop_keywords = self.soop_manager.get_keywords(start=product.utc_timerange.start,
+                                                           end=product.utc_timerange.end,
+                                                           otype=SoopObservationType.ALL)
+            soop_headers = tuple(kw.tuple for kw in soop_keywords)
+        except ValueError as exc:
+            logger.warn(exc)
+            soop_headers = ()
+
+        time_headers = (
             # Name, Value, Comment
             ('OBT_BEG', product.scet_timerange.start.to_string(),
              'Start of acquisition time in OBT'),
@@ -469,7 +484,7 @@ class FitsL1Processor(FitsL0Processor):
             ephemeris_headers = pos.get_fits_headers(start_time=product.utc_timerange.start,
                                                      average_time=product.utc_timerange.center)
 
-        return headers + ephemeris_headers
+        return headers + soop_headers + time_headers + ephemeris_headers
 
     def write_fits(self, product, open_files=None):
         """

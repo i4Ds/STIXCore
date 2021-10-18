@@ -44,7 +44,7 @@ class HeaderKeyword:
         Returns
         -------
         `str`
-            a concatanated string list of all unique values
+            a concatenated string list of all unique values
         """
         return ";".join(sorted(self._value))
 
@@ -55,9 +55,13 @@ class HeaderKeyword:
         Returns
         -------
         `str`
-            a concatanated string list of all unique comments
+            a concatenated string list of all unique comments
         """
         return ";".join(sorted(self._comment))
+
+    @property
+    def tuple(self):
+        return self.name, self.value, self.comment
 
     def __eq__(self, other):
         if not isinstance(other, HeaderKeyword):
@@ -92,6 +96,9 @@ class HeaderKeyword:
             return HeaderKeyword(name=self.name, value=value, comment=comment)
         else:
             raise ValueError("Keyword must address the same name")
+
+    def __repr__(self):
+        return f'{self.__class__.__name__}({self.name}, {self.value}, {self.comment})'
 
 
 class KeywordSet():

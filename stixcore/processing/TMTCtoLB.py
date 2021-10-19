@@ -31,7 +31,7 @@ def process_tmtc_to_levelbinary(files_to_process, archive_path=None):
     jobs = []
     with Manager() as manager:
         open_files = manager.list()
-        with ThreadPoolExecutor() as exec:
+        with ThreadPoolExecutor(max_workers=1) as exec:
             for tmtc_file in files_to_process:
                 logger.info(f'Started processing of file: {tmtc_file}')
                 # TODO sorting filter etc

@@ -68,6 +68,8 @@ def process_file(file, processor, open_files):
 if __name__ == '__main__':
     tstart = perf_counter()
     warnings.filterwarnings('ignore', module='astropy.io.fits.card')
+    warnings.filterwarnings('ignore', module='stixcore.soop.manager')
+    warnings.filterwarnings('ignore', module='astropy.utils.metadata')
 
     fits_path = Path('/home/shane/fits_test/L0')
     bd = Path('/home/shane/fits_test/')

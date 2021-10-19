@@ -432,9 +432,9 @@ class FitsL1Processor(FitsL0Processor):
     def __init__(self, archive_path):
         self.archive_path = archive_path
         tm_path = CONFIG.get('Paths', 'tm_archive')
-        if str(tm_path) == '.':
-            tm_path = Path(__file__).parent.parent.parent / 'data' / 'test' / 'soop'
-        self.soop_manager = SOOPManager(CONFIG.get('Paths', 'tm_archive'))
+        # if str(tm_path) == '.':
+        #     tm_path = Path(__file__).parent.parent.parent / 'data' / 'test' / 'soop'
+        self.soop_manager = SOOPManager(tm_path)
 
     @classmethod
     def generate_filename(cls, product, *, version, status=''):

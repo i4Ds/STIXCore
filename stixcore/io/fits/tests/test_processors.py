@@ -152,35 +152,40 @@ def test_level0_processor_generate_primary_header(datetime, product):
             assert value == test_data[name]
 
 
-def test_level1_processor_init():
+@patch('stixcore.io.fits.processors.CONFIG')
+def test_level1_processor_init(config):
+    config.get.side_effect = [td.soop.DIR, '.']
     pro = FitsL1Processor('some/path')
     assert pro.archive_path == 'some/path'
 
 
-def test_level1_processor_generate_filename():
-    with patch('stixcore.products.level1.quicklookL1.QLProduct') as product:
-        processor = FitsL1Processor('some/path')
-        product.control.colnames = []
-        beg = SCETime(coarse=0, fine=0)
-        end = SCETime(coarse=1, fine=2 ** 15)
-        avg = beg + (end - beg)/2
-        product.obt_beg = beg
-        product.obt_avg = avg
-        product.obt_end = end
-        product.obs_beg = beg.to_datetime()
-        product.obs_avg = avg.to_datetime()
-        product.obs_end = end.to_datetime()
-        product.type = 'ql'
-        product.scet_timerange = SCETimeRange(start=SCETime(0, 0),
-                                              end=SCETime(coarse=0, fine=2**16-1))
-        product.utc_timerange = product.scet_timerange.to_timerange()
-        product.level = 'L1'
-        product.name = 'a_name'
-        filename = processor.generate_filename(product, version=1)
-        assert filename == 'solo_L1_stix-ql-a-name_20000101_V01.fits'
-        product.type = 'sci'
-        filename = processor.generate_filename(product, version=1)
-        assert filename == 'solo_L1_stix-sci-a-name_20000101T000000_20000101T000001_V01.fits'
+@patch('stixcore.products.level1.quicklookL1.QLProduct')
+@patch('stixcore.io.fits.processors.CONFIG')
+def test_level1_processor_generate_filename(config, product):
+    config.get.side_effect = [td.soop.DIR, '.']
+    processor = FitsL1Processor('some/path')
+    config.get.side_effect = [td.soop.DIR, '.']
+    product.control.colnames = []
+    beg = SCETime(coarse=0, fine=0)
+    end = SCETime(coarse=1, fine=2 ** 15)
+    avg = beg + (end - beg)/2
+    product.obt_beg = beg
+    product.obt_avg = avg
+    product.obt_end = end
+    product.obs_beg = beg.to_datetime()
+    product.obs_avg = avg.to_datetime()
+    product.obs_end = end.to_datetime()
+    product.type = 'ql'
+    product.scet_timerange = SCETimeRange(start=SCETime(0, 0),
+                                          end=SCETime(coarse=0, fine=2**16-1))
+    product.utc_timerange = product.scet_timerange.to_timerange()
+    product.level = 'L1'
+    product.name = 'a_name'
+    filename = processor.generate_filename(product, version=1)
+    assert filename == 'solo_L1_stix-ql-a-name_20000101_V01.fits'
+    product.type = 'sci'
+    filename = processor.generate_filename(product, version=1)
+    assert filename == 'solo_L1_stix-sci-a-name_20000101T000000_20000101T000001_V01.fits'
 
 
 @patch('stixcore.products.level1.quicklookL1.QLProduct')

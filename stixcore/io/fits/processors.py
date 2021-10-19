@@ -66,27 +66,27 @@ class FitsProcessor:
     def generate_common_header(cls, filename, product):
         headers = (
             # Name, Value, Comment
-            ('TELESCOP', 'SOLO/STIX', 'Telescope/Sensor name'),
-            ('INSTRUME', 'STIX', 'Instrument name'),
-            ('OBSRVTRY', 'Solar Orbiter', 'Satellite name'),
             ('FILENAME', filename, 'FITS filename'),
-            ('DATE', datetime.now().isoformat(timespec='milliseconds'),
-                'FITS file creation date in UTC'),
-            ('ORIGIN', 'STIX Team, FHNW', 'Location where file has been generated'),
-            ('CREATOR', 'stixcore', 'FITS creation software'),
-            ('VERSION', 1, 'Version of data product'),
-            ('OBS_MODE', 'Nominal '),
-            ('VERS_SW', str(stixcore.__version__), 'Software version'),
-            # TODO figure out where this info will come from
-            ('SOOP_TYP', 'SOOP'),
-            ('OBS_ID', 'obs_id'),
-            ('TARGET', 'Sun'),
-            ('OBS_TYPE', product.type),
-            ('STYPE', product.service_type),
-            ('SSTYPE', product.service_subtype),
-            ('SSID', product.ssid if product.ssid is not None else ''),
             ('RAW_FILE', ';'.join(list(product.raw)), 'Raw filename(s)'),
             ('PARENT', ';'.join(list(product.parent)), 'Source file current data product'),
+            # ('APID', '', 'APIC number of associated TM'),
+            ('DATE', datetime.now().isoformat(timespec='milliseconds'),
+             'FITS file creation date in UTC'),
+
+            ('LEVEL', product.level, 'Data processing level'),
+            ('ORIGIN', 'STIX Team, FHNW', 'FHNW'),
+            ('CREATOR', 'stixcore', 'FITS creation software'),
+            ('VERS_SW', str(stixcore.__version__), 'Version of SW that provided FITS file'),
+            # ('VERS_CAL', '', 'Version of the calibration pack'),
+            ('VERSION', 1, 'Version of data product'),
+            ('OBSRVTRY', 'Solar Orbiter', 'Satellite name'),
+            ('TELESCOP', 'SOLO/STIX', 'Telescope/Sensor name'),
+            ('INSTRUME', 'STIX', 'Instrument name'),
+            # ('XPOSURE', '', '[s] Total effective exposure time'),
+
+            ('STYPE', product.service_type, 'Service Type'),
+            ('SSTYPE', product.service_subtype, 'Sub-service Type'),
+            ('SSID', product.ssid if product.ssid is not None else '', 'Science Structure ID'),
         )
         return headers
 
@@ -432,9 +432,9 @@ class FitsL1Processor(FitsL0Processor):
     def __init__(self, archive_path):
         self.archive_path = archive_path
         tm_path = CONFIG.get('Paths', 'tm_archive')
-        # if str(tm_path) == '.':
-        #     tm_path = Path(__file__).parent.parent.parent / 'data' / 'test' / 'soop'
-        self.soop_manager = SOOPManager(tm_path)
+        if str(tm_path) == '.':
+            tm_path = Path(__file__).parent.parent.parent / 'data' / 'test' / 'soop'
+        self.soop_manager = SOOPManager('/Users/shane/Projects/STIX/tm')
 
     @classmethod
     def generate_filename(cls, product, *, version, status=''):
@@ -453,14 +453,23 @@ class FitsL1Processor(FitsL0Processor):
 
         headers = FitsProcessor.generate_common_header(filename, product)
 
-        try:
-            soop_keywords = self.soop_manager.get_keywords(start=product.utc_timerange.start,
-                                                           end=product.utc_timerange.end,
-                                                           otype=SoopObservationType.ALL)
-            soop_headers = tuple(kw.tuple for kw in soop_keywords)
-        except ValueError as exc:
-            logger.warn(exc)
-            soop_headers = ()
+        soop_keywords = self.soop_manager.get_keywords(start=product.utc_timerange.start,
+                                                       end=product.utc_timerange.end,
+                                                       otype=SoopObservationType.ALL)
+        soop_headers = tuple(kw.tuple for kw in soop_keywords)
+        soop_defaults = (
+            ('OBS_MODE', '', 'Observation mode'),
+            ('OBS_TYPE', '', 'Encoded version of OBS_MODE'),
+            ('OBS_ID', '', 'Unique ID of the individual observation'),
+            ('SOOPNAME', '', 'Name of the SOOP Campaign that the data belong to'),
+            ('SOOPTYPE', '', 'Campaign ID(s) that the data belong to'),
+            ('TARGET', '', 'Type of target from planning')
+        )
+
+        soop_key_names = [sh[0] for sh in soop_headers]
+        for default in soop_defaults:
+            if default[0] not in soop_key_names:
+                soop_headers += tuple([default])
 
         time_headers = (
             # Name, Value, Comment

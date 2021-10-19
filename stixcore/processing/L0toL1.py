@@ -48,7 +48,11 @@ def process_file(file, processor, open_files):
         else:
             logger.debug('File was never free %s', file.name)
 
-    l0 = Product(file)
+    try:
+        l0 = Product(file)
+    except Exception:
+        logger.error('Loading file %s', file, exc_info=True)
+        return
     try:
         tmp = Product._check_registered_widget(level='L1', service_type=l0.service_type,
                                                service_subtype=l0.service_subtype,

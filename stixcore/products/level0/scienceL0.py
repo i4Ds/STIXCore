@@ -664,7 +664,7 @@ class Spectrogram(ScienceProduct):
         data['timedel'] = deltas
         data['timedel'].meta = {'NIXS': ['NIX00441', 'NIX00269']}
         data.add_basic(name='triggers', nix='NIX00267', packets=packets)
-        data.add_basic(name='triggers', nix='NIX00267', attr='error', packets=packets)
+        data.add_basic(name='triggers_err', nix='NIX00267', attr='error', packets=packets)
         data['counts'] = full_counts * u.ct
         data.add_meta(name='counts', nix='NIX00268', packets=packets)
         data['counts_err'] = np.sqrt(full_counts_var) * u.ct

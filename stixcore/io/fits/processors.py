@@ -432,8 +432,8 @@ class FitsL1Processor(FitsL0Processor):
     def __init__(self, archive_path):
         self.archive_path = archive_path
         soop_path = CONFIG.get('Paths', 'soop_files')
-        if str(soop_path) == '.':
-            Path(__file__).parent.parent.parent / 'data' / 'test' / 'soop'
+        if str(soop_path) == '':
+            soop_path = Path(__file__).parent.parent.parent / 'data' / 'test' / 'soop'
         self.soop_manager = SOOPManager(soop_path)
 
     @classmethod

@@ -69,7 +69,7 @@ def test_soop_manager_find_point(soop_manager):
     obslist = soop_manager.find_observations(start=start)
     assert len(obslist) == 2
     for obs in obslist:
-        assert obs.startDate <= start and obs.endDate >= start
+        assert obs.startDate <= start <= obs.endDate
 
 
 def test_soop_manager_find_range(soop_manager):
@@ -94,7 +94,7 @@ def test_soop_manager_get_keywords(soop_manager):
     start = dateutil.parser.parse("2021-10-04T12:00:00Z")
     end = dateutil.parser.parse("2021-10-18T00:00:00Z")
     keylist = soop_manager.get_keywords(start=start, end=end, otype=SoopObservationType.ALL)
-    assert len(keylist) == 4
+    assert len(keylist) == 6
     keyset = KeywordSet(keylist)
     assert keyset.get(HeaderKeyword(name='TARGET')).value\
         == "TBC"
@@ -109,12 +109,11 @@ def test_soop_manager_get_keywords(soop_manager):
 def test_soop_manager_get_keywords_time_not_found(soop_manager):
     start = dateutil.parser.parse("2016-10-04T12:00:00Z")
     end = dateutil.parser.parse("2016-10-18T00:00:00Z")
-    with pytest.raises(ValueError) as e:
+    with pytest.warns(UserWarning, match='No soops'):
         _ = soop_manager.get_keywords(start=start, end=end, otype=SoopObservationType.ALL)
-    assert str(e.value).startswith('No soops')
 
 
-def test_soop_manager_KeywordSet():
+def test_soop_manager_keywordset():
     a = HeaderKeyword(name="a", value="v1", comment="ca")
     a2 = HeaderKeyword(name="a", value="v2", comment="ca")
     a3 = HeaderKeyword(name="a", value="v2", comment="ca")

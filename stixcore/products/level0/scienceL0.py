@@ -298,11 +298,11 @@ class CompressedPixelData(ScienceProduct):
 
         counts_var = np.sqrt(counts_var.transpose((0, 2, 3, 1)))
         if packets.ssid == 21:
-            out_counts = np.zeros((unique_times.size, 32, data['num_pixel_sets'][0], 32))
-            out_var = np.zeros((unique_times.size, 32, data['num_pixel_sets'][0], 32))
+            out_counts = np.zeros((unique_times.size, 32, 12, 32))
+            out_var = np.zeros((unique_times.size, 32, 12, 32))
         elif packets.ssid == 22:
-            out_counts = np.zeros((unique_times.size, 32, data['num_pixel_sets'][0], 32))
-            out_var = np.zeros((unique_times.size, 32, data['num_pixel_sets'][0], 32))
+            out_counts = np.zeros((unique_times.size, 32, 12, 32))
+            out_var = np.zeros((unique_times.size, 32, 12, 32))
 
         dl_energies = np.array([[ENERGY_CHANNELS[lch].e_lower, ENERGY_CHANNELS[hch].e_upper]
                                 for lch, hch in
@@ -656,7 +656,7 @@ class Spectrogram(ScienceProduct):
         data['timedel'] = deltas
         data['timedel'].meta = {'NIXS': ['NIX00441', 'NIX00269']}
         data.add_basic(name='triggers', nix='NIX00267', packets=packets)
-        data.add_basic(name='triggers', nix='NIX00267', attr='error', packets=packets)
+        data.add_basic(name='triggers_err', nix='NIX00267', attr='error', packets=packets)
         data['counts'] = full_counts * u.ct
         data.add_meta(name='counts', nix='NIX00268', packets=packets)
         data['counts_err'] = np.sqrt(full_counts_var) * u.ct

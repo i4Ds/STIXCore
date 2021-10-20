@@ -2,6 +2,7 @@ import os
 import re
 import json
 import logging
+import warnings
 from enum import Enum
 from pathlib import Path
 from collections.abc import Iterable
@@ -44,7 +45,7 @@ class HeaderKeyword:
         Returns
         -------
         `str`
-            a concatanated string list of all unique values
+            a concatenated string list of all unique values
         """
         return ";".join(sorted(self._value))
 
@@ -55,9 +56,13 @@ class HeaderKeyword:
         Returns
         -------
         `str`
-            a concatanated string list of all unique comments
+            a concatenated string list of all unique comments
         """
         return ";".join(sorted(self._comment))
+
+    @property
+    def tuple(self):
+        return self.name, self.value, self.comment
 
     def __eq__(self, other):
         if not isinstance(other, HeaderKeyword):
@@ -92,6 +97,9 @@ class HeaderKeyword:
             return HeaderKeyword(name=self.name, value=value, comment=comment)
         else:
             raise ValueError("Keyword must address the same name")
+
+    def __repr__(self):
+        return f'{self.__class__.__name__}({self.name}, {self.value}, {self.comment})'
 
 
 class KeywordSet():
@@ -217,6 +225,10 @@ class SOOP:
                     HeaderKeyword(name="SOOPNAME", value=self.soopType,
                                   comment="Name of the SOOP Campaign that the data belong to")])
 
+    def __repr__(self):
+        return f'{__class__.__name__}<{self.encodedSoopType}, {self.soopInstanceId}, ' \
+               f'{self.soopType}, {self.startDate}, {self.endDate}>'
+
 
 class SoopObservation:
     """A observation entry from the LTP plans."""
@@ -237,7 +249,6 @@ class SoopObservation:
         self.name = jsonobj['name']
         self.type = SoopObservationType[jsonobj['name']]
         self.experiment = jsonobj['experiment']
-        self.socIds = jsonobj['socIds']
         self.startDate = dateutil.parser.parse(jsonobj['startDate'])
         self.endDate = dateutil.parser.parse(jsonobj['endDate'])
 
@@ -249,8 +260,17 @@ class SoopObservation:
         `list`
             list of `HeaderKeyword`
         """
-        return list([HeaderKeyword(name="OBS_ID", value=";".join(self.socIds),
-                                   comment="Unique ID of the individual observation")])
+        return [
+            HeaderKeyword(name="OBS_ID", value=";".join(self.socIds),
+                          comment="Unique ID of the individual observation"),
+            HeaderKeyword(name="OBS_TYPE", value=self.compositeId['obsType'],
+                          comment='Encoded version of OBS_MODE'),
+            HeaderKeyword(name="OBS_MODE", value=self.name, comment='Observation mode')
+        ]
+
+    def __repr__(self):
+        return f'{__class__.__name__}<{self.name}, {self.type}, {self.experiment}' \
+               f'{self.socIds}, {self.compositeId}, {self.startDate}, {self.endDate}>'
 
 
 class SOOPManager():
@@ -391,13 +411,13 @@ class SOOPManager():
 
         soops = self.find_soops(start=start, end=end)
         if len(soops) == 0:
-            raise ValueError(f"No soops found for time: {start} - {end}")
+            warnings.warn(f"No soops found for time: {start} - {end}", UserWarning)
         for soop in soops:
             kwset.append(soop.to_fits_keywords())
 
         obss = self.find_observations(start=start, end=end, otype=otype)
         if len(obss) == 0:
-            raise ValueError(f"No observations found for time: {start} - {end} : {otype}")
+            warnings.warn(f"No observations found for time: {start} - {end} : {otype}", UserWarning)
         for obs in obss:
             kwset.append(obs.to_fits_keywords())
 

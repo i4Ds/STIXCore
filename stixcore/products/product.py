@@ -484,8 +484,8 @@ class EnergyChanelsMixin:
         """
         if 'energy_bin_edge_mask' in self.control.colnames:
             energies = _get_energies_from_mask(self.control['energy_bin_edge_mask'][0])
-        elif 'energy_bin_mask' in self.control.colnames:
-            energies = _get_energies_from_mask(self.control['energy_bin_mask'][0])
+        # elif 'energy_bin_mask' in self.control.colnames:
+        #     energies = _get_energies_from_mask(self.control['energy_bin_mask'][0])
         else:
             energies = _get_energies_from_mask()
 

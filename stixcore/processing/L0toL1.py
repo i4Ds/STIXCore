@@ -40,8 +40,13 @@ class Level1:
         return all_files
 
 
+
 if __name__ == '__main__':
     tstart = perf_counter()
+    warnings.filterwarnings('ignore', module='astropy.io.fits.card')
+    warnings.filterwarnings('ignore', module='stixcore.soop.manager')
+    warnings.filterwarnings('ignore', module='astropy.utils.metadata')
+
 
     fits_path = Path('/home/shane/fits/L0/21/6/24')
     bd = Path('/home/shane/fits')

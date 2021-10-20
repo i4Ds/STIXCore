@@ -34,7 +34,6 @@ def process_tmtc_to_levelbinary(files_to_process, archive_path=None):
                 all_files.update(files)
     return all_files
 
-
 if __name__ == '__main__':
     tstart = perf_counter()
     logger.info('LevelB run')

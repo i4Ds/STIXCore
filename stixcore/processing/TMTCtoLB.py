@@ -1,4 +1,5 @@
 import logging
+import warnings
 from time import perf_counter
 from pathlib import Path
 from concurrent.futures import ProcessPoolExecutor
@@ -17,7 +18,7 @@ def tmtc_to_l0(tmtc_path, archive_path):
     socm = SOCManager(tmtc_path)
     out_dir = archive_path
     out_dir.mkdir(parents=True, exist_ok=True)
-    files_to_process = socm.get_files(TMTC.TM)
+    files_to_process = list(socm.get_files(TMTC.TM))
     return process_tmtc_to_levelbinary(files_to_process, archive_path)
 
 
@@ -47,12 +48,13 @@ def process_tmtc_to_levelbinary(files_to_process, archive_path=None):
 if __name__ == '__main__':
     tstart = perf_counter()
     logger.info('LevelB run')
+    warnings.filterwarnings('ignore', module='astropy.io.fits.card')
 
-    tm_path = Path('/Users/shane/Projects/STIX/tm')
-    archive_path = Path('/Users/shane/Projects/STIX/fits_test')
+    tm_path = Path('/home/shane/tm')
+    archive_path = Path('/home/shane/fits_test')
 
     lb_files = tmtc_to_l0(tmtc_path=tm_path, archive_path=archive_path)
-
+    logger.info(lb_files)
     tend = perf_counter()
     logger.info(lb_files)
     logger.info('Time taken %f', tend - tstart)

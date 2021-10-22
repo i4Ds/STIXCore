@@ -1,5 +1,4 @@
 from pathlib import Path
-from binascii import unhexlify
 from itertools import chain
 
 import numpy as np
@@ -451,7 +450,7 @@ class GenericProduct(BaseProduct):
 
     @classmethod
     def getLeveL0Packets(cls, levelb):
-        packets = [Packet(unhexlify(d)) for d in levelb.data['data']]
+        packets = [Packet(d) for d in levelb.data['data']]
 
         idb_versions = defaultdict(SCETimeRange)
 
@@ -503,9 +502,8 @@ class L1Mixin:
                  idb_versions=l0product.idb_versions)
 
         l1.control.replace_column('parent', [parent] * len(l1.control))
-
-        engineering.raw_to_engineering_product(l1, idbm)
         l1.level = 'L1'
+        engineering.raw_to_engineering_product(l1, idbm)
         return l1
 
 

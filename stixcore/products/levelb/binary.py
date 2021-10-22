@@ -14,6 +14,7 @@ from stixcore.util.logging import get_logger
 __all__ = ['LevelB', 'SequenceFlag']
 
 logger = get_logger(__name__)
+logger.setLevel('DEBUG')
 
 
 class SequenceFlag(IntEnum):
@@ -251,9 +252,14 @@ class LevelB(BaseProduct):
             The input data file.
         """
         packet_data = defaultdict(list)
-        for id, binary in tmfile.get_packet_binaries():
-            packet = TMPacket(binary)
-            packet.source = (tmfile.file.name, id)
+
+        for packet_no, binary in tmfile.get_packet_binaries():
+            try:
+                packet = TMPacket(binary)
+            except Exception:
+                logger.error('Error parsing %s, %d', tmfile.name, packet_no, exc_info=True)
+                return
+            packet.source = (tmfile.file.name, packet_no)
             packet_data[packet.key].append(packet)
 
         for prod_key, packets in packet_data.items():
@@ -267,6 +273,8 @@ class LevelB(BaseProduct):
                 dh.pop('datetime')
                 headers.append({**sh, **dh, 'raw_file': packet.source[0],
                                 'packet': packet.source[1]})
+            if len(headers) == 0 or len(hex_data) == 0:
+                return None
 
             control = Table(headers)
             control['index'] = np.arange(len(control), dtype=np.int64)

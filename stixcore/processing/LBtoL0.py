@@ -1,4 +1,5 @@
 import logging
+import warnings
 from time import perf_counter
 from pathlib import Path
 from collections import defaultdict
@@ -129,7 +130,9 @@ def process_tm_type(files, tm_type, processor):
 if __name__ == '__main__':
     tstart = perf_counter()
 
-    fits_path = Path('/Users/shane/Projects/STIX/fits_test/LB')
+    warnings.filterwarnings('ignore', module='astropy.io.fits.card')
+
+    fits_path = Path('/Users/shane/Projects/STIX/fits_test/LB/')
     bd = Path('/Users/shane/Projects/STIX/fits_test')
 
     l0processor = Level0(fits_path, bd)

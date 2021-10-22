@@ -190,6 +190,12 @@ class SoopObservationType(Enum):
     STIX_ANALYSIS = "STIX_ANALYSIS"
     """Bulk science data products: detector, aspect and calibration data"""
 
+    STIX_DOWNLOAD = "STIX_DOWNLOAD"
+    """Download of Data"""
+
+    STIX_GENERIC = "STIX_GENERIC"
+    """STIX Generic """
+
 
 class SOOP:
     """A SOOP entry from the LTP plans."""

@@ -21,7 +21,7 @@ from stixcore.util.logging import get_logger
 __all__ = ['SEC_IN_DAY', 'FitsProcessor', 'FitsLBProcessor', 'FitsL0Processor', 'FitsL1Processor']
 
 
-logger = get_logger(__name__, level=logging.DEBUG)
+logger = get_logger(__name__, level=logging.WARNING)
 
 SEC_IN_DAY = 24 * 60 * 60
 
@@ -179,15 +179,15 @@ class FitsLBProcessor(FitsProcessor):
                 parts = parts[:-1]
             path = self.archive_path.joinpath(*[str(x) for x in parts])
             path.mkdir(parents=True, exist_ok=True)
+
             fitspath = path / filename
             if fitspath.exists():
                 logger.info('Fits file %s exists appending data', fitspath.name)
                 existing = Product(fitspath)
-                # existing.type = prod.type
                 if np.abs([((len(existing.data['data'][i])/2) -
                             (existing.control['data_length'][i]+7))
                           for i in range(len(existing.data))]).sum() > 0:
-                    raise ValueError()
+                    raise ValueError('Header data lengths and data lengths do not agree')
                 logger.debug('Existing %s, New %s', existing, prod)
                 prod = prod + existing
                 logger.debug('Combined %s', prod)

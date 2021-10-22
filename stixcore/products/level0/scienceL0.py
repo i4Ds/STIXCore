@@ -60,6 +60,14 @@ class ScienceProduct(GenericProduct, EnergyChannelsMixin):
         self.type = 'sci'
         self.level = 'L0'
 
+    @property
+    def raw(self):
+        return np.unique(self.control['raw_file'])
+
+    @property
+    def parent(self):
+        return np.unique(self.control['parent'])
+
     def __add__(self, other):
         if (np.all(self.control == other.control) and self.scet_timerange == other.scet_timerange
                 and len(self.data) == len(other.data)):

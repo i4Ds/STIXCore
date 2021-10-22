@@ -1,6 +1,9 @@
 import logging
+import warnings
 from time import perf_counter
 from pathlib import Path
+from collections import defaultdict
+from concurrent.futures import ProcessPoolExecutor
 
 from sunpy.util.datatype_factory_base import NoMatchError
 
@@ -19,26 +22,46 @@ class Level1:
         self.processor = FitsL1Processor(self.output_dir)
 
     def process_fits_files(self, files=None):
-        all_files = set()
+        all_files = list()
         if files is None:
             files = self.level0_files
 
+        product_types = defaultdict(list)
         for file in files:
-            l0 = Product(file)
-            try:
-                tmp = Product._check_registered_widget(level='L1', service_type=l0.service_type,
-                                                       service_subtype=l0.service_subtype,
-                                                       ssid=l0.ssid, data=None, control=None)
-                l1 = tmp.from_level0(l0, parent=file.name)
-                files = self.processor.write_fits(l1)
-                all_files.update(files)
-            except NoMatchError:
-                logger.debug('No match for product %s', l0)
-            except Exception:
-                logger.error('Error processing file %s', file, exc_info=True)
-                # raise e
-        return all_files
+            product_types[file.parent].append(file)
 
+        jobs = []
+        with ProcessPoolExecutor() as executor:
+            for pt, files in product_types.items():
+                jobs.append(executor.submit(process_type, files, FitsL1Processor(self.output_dir)))
+
+        for job in jobs:
+            try:
+                new_files = job.result()
+                all_files.extend(new_files)
+            except Exception:
+                logger.error('error', exc_info=True)
+
+        return list(set(all_files))
+
+
+def process_type(files, processor):
+    all_files = list()
+    for file in files:
+        l0 = Product(file)
+        try:
+            tmp = Product._check_registered_widget(level='L1', service_type=l0.service_type,
+                                                   service_subtype=l0.service_subtype,
+                                                   ssid=l0.ssid, data=None, control=None)
+            l1 = tmp.from_level0(l0, parent=file.name)
+            files = processor.write_fits(l1)
+            all_files.extend(files)
+        except NoMatchError:
+            logger.debug('No match for product %s', l0)
+        except Exception:
+            logger.error('Error processing file %s', file, exc_info=True)
+            # raise e
+    return all_files
 
 
 if __name__ == '__main__':
@@ -47,9 +70,8 @@ if __name__ == '__main__':
     warnings.filterwarnings('ignore', module='stixcore.soop.manager')
     warnings.filterwarnings('ignore', module='astropy.utils.metadata')
 
-
-    fits_path = Path('/home/shane/fits/L0/21/6/24')
-    bd = Path('/home/shane/fits')
+    fits_path = Path('/Users/shane/Projects/STIX/fits_test/L0')
+    bd = Path('/Users/shane/Projects/STIX/fits_test/')
 
     l1processor = Level1(fits_path, bd)
     all_files = l1processor.process_fits_files()

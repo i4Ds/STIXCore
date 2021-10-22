@@ -49,7 +49,7 @@ def test_level_0(out_dir):
     lb = test_data.products.LB_21_6_30_fits
     l0 = Level0(out_dir / 'LB', out_dir)
     res = l0.process_fits_files(files=[lb])
-    assert len(res) == 1
+    assert len(res) == 2
     for fits in res:
         diff = FITSDiff(test_data.products.DIR / fits.name, fits,
                         ignore_keywords=['CHECKSUM', 'DATASUM', 'DATE', 'VERS_SW'])

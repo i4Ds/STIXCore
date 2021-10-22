@@ -509,7 +509,7 @@ class IDB:
                 self.conn = sqlite3.connect(uri, check_same_thread=False, uri=True)
             else:
                 source = sqlite3.connect(uri, check_same_thread=False, uri=True)
-                self.conn = sqlite3.connect(':memory:')
+                self.conn = sqlite3.connect(':memory:', check_same_thread=False)
                 source.backup(self.conn)
                 source.close()
 

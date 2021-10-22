@@ -169,9 +169,7 @@ class FitsLBProcessor(FitsProcessor):
         Raises
         ------
         ValueError
-            TODO what does the length check guaranties?
-        ValueError
-            TODO what does the length check guaranties?
+            If the data length in the header and actual data length differ
         """
         files = []
         for prod in product.to_days():
@@ -202,7 +200,7 @@ class FitsLBProcessor(FitsProcessor):
 
             if np.abs([((len(data['data'][i]) / 2) - (control['data_length'][i] + 7))
                        for i in range(len(data))]).sum() > 0:
-                raise ValueError()
+                raise ValueError('Header data lengths and data lengths do not agree')
 
             primary_header = self.generate_primary_header(filename, prod)
             primary_hdu = fits.PrimaryHDU()
@@ -287,10 +285,6 @@ class FitsL0Processor:
             primary_hdu.header.update(primary_header)
             primary_hdu.header.update({'HISTORY': 'Processed by STIX'})
 
-            control_enc = fits.connect._encode_mixins(control)
-            control_hdu = table_to_hdu(control_enc)
-            control_hdu.name = 'CONTROL'
-
             # Convert time to be relative to start date
             # it is important that the change to the relative time is done after the header is
             # generated as this will use the original SCET time data
@@ -301,6 +295,11 @@ class FitsL0Processor:
             except KeyError as e:
                 if 'time_stamp' not in repr(e):
                     raise e
+
+            control_enc = fits.connect._encode_mixins(control)
+            control_hdu = table_to_hdu(control_enc)
+            control_hdu.name = 'CONTROL'
+
             data_enc = fits.connect._encode_mixins(data)
             data_hdu = table_to_hdu(data_enc)
             data_hdu.name = 'DATA'
@@ -514,10 +513,6 @@ class FitsL1Processor(FitsL0Processor):
             primary_hdu.header.update(primary_header)
             primary_hdu.header.update({'HISTORY': 'Processed by STIX'})
 
-            control_enc = fits.connect._encode_mixins(control)
-            control_hdu = table_to_hdu(control_enc)
-            control_hdu.name = 'CONTROL'
-
             # Convert time to be relative to start date
             # it is important that the change to the relative time is done after the header is
             # generated as this will use the original SCET time data
@@ -528,6 +523,11 @@ class FitsL1Processor(FitsL0Processor):
             except KeyError as e:
                 if 'time_stamp' not in repr(e):
                     raise e
+
+            control_enc = fits.connect._encode_mixins(control)
+            control_hdu = table_to_hdu(control_enc)
+            control_hdu.name = 'CONTROL'
+
             data_enc = fits.connect._encode_mixins(data)
             data_hdu = table_to_hdu(data_enc)
             data_hdu.name = 'DATA'

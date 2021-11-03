@@ -17,7 +17,7 @@ from stixcore.products.common import (
     _get_sub_spectrum_mask,
     rebin_proportional,
 )
-from stixcore.products.product import Control, Data, EnergyChanelsMixin, GenericProduct
+from stixcore.products.product import Control, Data, EnergyChannelsMixin, GenericProduct
 from stixcore.time import SCETime, SCETimeDelta, SCETimeRange
 from stixcore.util.logging import get_logger
 
@@ -28,7 +28,7 @@ logger = get_logger(__name__, level=logging.WARNING)
 QLNIX00405_off = 0.1
 
 
-class QLProduct(GenericProduct, EnergyChanelsMixin):
+class QLProduct(GenericProduct, EnergyChannelsMixin):
     """Generic QL product class composed of control and data."""
     def __init__(self, *, service_type, service_subtype, ssid, control, data,
                  idb_versions=defaultdict(SCETimeRange), **kwargs):

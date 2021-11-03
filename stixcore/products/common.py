@@ -109,11 +109,6 @@ def _get_pixel_mask(packets, param_name='NIXD0407'):
     np.ndarray
         Pixel mask
     """
-    # pixel_masks = np.array([
-    #     [bool(int(x))
-    #      for x in format(packets.get_value(param_name)[i], '012b')][::-1]  # reverse ind
-    #     for i in range(len(packets.get_value(param_name)))], np.ubyte)
-
     pixel_masks_ints = packets.get_value(param_name)
 
     pixel_masks = np.array([list(format(pm, '012b'))[::-1]

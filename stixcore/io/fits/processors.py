@@ -1,6 +1,5 @@
 """Module for the different processing levels."""
 import logging
-from time import sleep
 from pathlib import Path
 from datetime import datetime
 
@@ -161,7 +160,7 @@ class FitsLBProcessor(FitsProcessor):
         )
         return headers
 
-    def write_fits(self, product, open_files=None):
+    def write_fits(self, product):
         """Write or merge the product data into a FITS file.
         Parameters
         ----------
@@ -170,7 +169,7 @@ class FitsLBProcessor(FitsProcessor):
         Raises
         ------
         ValueError
-            TODO what does the length check guaranties?
+            If the data length in the header and actual data length differ
         """
         files = []
         for prod in product.to_days():
@@ -184,21 +183,7 @@ class FitsLBProcessor(FitsProcessor):
             fitspath = path / filename
             if fitspath.exists():
                 logger.info('Fits file %s exists appending data', fitspath.name)
-                try:
-                    if filename in open_files:
-                        for i in range(100):
-                            logger.debug('Waiting file %s in open files', filename)
-                            sleep(1)
-                            if filename not in open_files:
-                                break
-                        else:
-                            logger.error('File was never free %s', filename)
-
-                    existing = Product(fitspath)
-                except Exception:
-                    logger.error('Could not create product from file %s', filename, exc_info=True)
-                    return None
-                # existing.type = prod.type
+                existing = Product(fitspath)
                 if np.abs([((len(existing.data['data'][i])/2) -
                             (existing.control['data_length'][i]+7))
                           for i in range(len(existing.data))]).sum() > 0:
@@ -230,9 +215,7 @@ class FitsLBProcessor(FitsProcessor):
 
             logger.info(f'Writing fits file to {path / filename}')
             fullpath = path / filename
-            open_files.append(filename)
             hdul.writeto(fullpath, overwrite=True, checksum=True)
-            open_files.remove(filename)
             files.append(fullpath)
 
         return files
@@ -252,7 +235,7 @@ class FitsL0Processor:
         """
         self.archive_path = archive_path
 
-    def write_fits(self, product, open_files=None):
+    def write_fits(self, product):
         """
         Write level 0 products into fits files.
 
@@ -266,8 +249,6 @@ class FitsL0Processor:
             of created file as `pathlib.Path`
 
         """
-        if open_files is None:
-            open_files = []
         created_files = []
         if callable(getattr(product, 'to_days', None)):
             products = product.to_days()
@@ -285,16 +266,6 @@ class FitsL0Processor:
             path.mkdir(parents=True, exist_ok=True)
 
             fitspath = path / filename
-
-            if filename in open_files:
-                for i in range(100):
-                    logger.debug('Waiting file %s in open files', filename)
-                    sleep(1)
-                    if filename not in open_files:
-                        break
-                else:
-                    logger.error('File was never free %s', filename)
-
             if fitspath.exists():
                 logger.info('Fits file %s exists appending data', fitspath.name)
                 existing = Product(fitspath)
@@ -355,9 +326,7 @@ class FitsL0Processor:
 
             filetowrite = path / filename
             logger.debug(f'Writing fits file to {filetowrite}')
-            open_files.append(filename)
             hdul.writeto(filetowrite, overwrite=True, checksum=True)
-            open_files.remove(filename)
             created_files.append(filetowrite)
         return created_files
 
@@ -495,7 +464,7 @@ class FitsL1Processor(FitsL0Processor):
 
         return headers + soop_headers + time_headers + ephemeris_headers
 
-    def write_fits(self, product, open_files=None):
+    def write_fits(self, product):
         """
         Write level 0 products into fits files.
 
@@ -509,8 +478,6 @@ class FitsL1Processor(FitsL0Processor):
             of created file as `pathlib.Path`
 
         """
-        if open_files is None:
-            open_files = []
         created_files = []
         if callable(getattr(product, 'to_days', None)):
             products = product.to_days()
@@ -527,16 +494,6 @@ class FitsL1Processor(FitsL0Processor):
             path.mkdir(parents=True, exist_ok=True)
 
             fitspath = path / filename
-
-            if filename in open_files:
-                for i in range(100):
-                    logger.debug('Waiting file %s in open files', filename)
-                    sleep(1)
-                    if filename not in open_files:
-                        break
-                else:
-                    logger.error('File was never free %s', filename)
-
             if fitspath.exists():
                 logger.info('Fits file %s exists appending data', fitspath.name)
                 existing = Product(fitspath)
@@ -597,8 +554,6 @@ class FitsL1Processor(FitsL0Processor):
 
             filetowrite = path / filename
             logger.debug(f'Writing fits file to {filetowrite}')
-            open_files.append(filename)
             hdul.writeto(filetowrite, overwrite=True, checksum=True)
-            open_files.remove(filename)
             created_files.append(filetowrite)
         return created_files

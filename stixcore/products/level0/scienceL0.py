@@ -14,7 +14,7 @@ from stixcore.products.common import (
     _get_unique,
     rebin_proportional,
 )
-from stixcore.products.product import ControlSci, Data, EnergyChanelsMixin, GenericProduct
+from stixcore.products.product import ControlSci, Data, EnergyChannelsMixin, GenericProduct
 from stixcore.time import SCETime, SCETimeRange
 from stixcore.time.datetime import SCETimeDelta
 from stixcore.util.logging import get_logger
@@ -29,7 +29,7 @@ __all__ = ['ScienceProduct', 'RawPixelData', 'CompressedPixelData', 'SummedPixel
            'Visibility', 'Spectrogram', 'Aspect']
 
 
-class ScienceProduct(GenericProduct, EnergyChanelsMixin):
+class ScienceProduct(GenericProduct, EnergyChannelsMixin):
     """Generic science data product class composed of control and data."""
     def __init__(self, *, service_type, service_subtype, ssid, control, data, **kwargs):
         """Create a generic science data product composed of control and data.
@@ -708,8 +708,8 @@ class Aspect(ScienceProduct):
         control.add_basic(name='averaging_value', nix='NIX00490', packets=packets)
         control.add_basic(name='samples', nix='NIX00089', packets=packets)
 
-        control['raw_file'] = np.unique(levelb.control['raw_file'])
-        control['packet'] = levelb.control['packet']
+        control['raw_file'] = np.unique(levelb.control['raw_file']).reshape(1, -1)
+        control['packet'] = levelb.control['packet'].reshape(1, -1)
         control['parent'] = parent
 
         control['index'] = range(len(control))

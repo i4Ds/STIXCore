@@ -21,7 +21,7 @@ from stixcore.tmtc.packet_factory import Packet
 from stixcore.tmtc.packets import GenericPacket, PacketSequence
 
 __all__ = ['GenericProduct', 'ProductFactory', 'Product', 'ControlSci',
-           'Control', 'Data', 'L1Mixin', 'EnergyChanelsMixin']
+           'Control', 'Data', 'L1Mixin', 'EnergyChannelsMixin']
 
 from collections import defaultdict
 
@@ -401,9 +401,7 @@ class GenericProduct(BaseProduct):
         if self.level == 'L0':
             start_day = int((self.scet_timerange.start.as_float() / u.d).decompose().value)
             end_day = int((self.scet_timerange.end.as_float() / u.d).decompose().value)
-            if start_day == end_day:
-                end_day += 1
-            days = range(start_day, end_day)
+            days = range(start_day, end_day+1)
             # days = set([(t.year, t.month, t.day) for t in self.data['time'].to_datetime()])
             # date_ranges = [(datetime(*day), datetime(*day) + timedelta(days=1)) for day in days]
             for day in days:
@@ -424,8 +422,7 @@ class GenericProduct(BaseProduct):
                     out = type(self)(service_type=self.service_type,
                                      service_subtype=self.service_subtype,
                                      ssid=self.ssid, control=control, data=data,
-                                     idb_versions=self.idb_versions)
-                    out.level = self.level
+                                     idb_versions=self.idb_versions, level=self.level)
                     yield out
         else:  # self.level == 'L1':
             utc_timerange = self.scet_timerange.to_timerange()
@@ -449,15 +446,10 @@ class GenericProduct(BaseProduct):
                                      service_subtype=self.service_subtype, ssid=self.ssid,
                                      control=control, data=data, idb_versions=self.idb_versions,
                                      level=self.level)
-                    out.level = self.level
                     yield out
 
     @classmethod
     def getLeveL0Packets(cls, levelb):
-        # with ThreadPoolExecutor(max_workers=1) as executor:
-        #     res = [executor.submit(Packet, d) for d in levelb.data['data']]
-        # packets = [r.result() for r in res]
-
         packets = [Packet(d) for d in levelb.data['data']]
 
         idb_versions = defaultdict(SCETimeRange)
@@ -476,7 +468,7 @@ class GenericProduct(BaseProduct):
         pass
 
 
-class EnergyChanelsMixin:
+class EnergyChannelsMixin:
     def get_energies(self):
         """Return energy channels for this TM data. Or default ones.
 
@@ -512,7 +504,6 @@ class L1Mixin:
         l1.control.replace_column('parent', [parent] * len(l1.control))
         l1.level = 'L1'
         engineering.raw_to_engineering_product(l1, idbm)
-
         return l1
 
 
@@ -543,7 +534,7 @@ class DefaultProduct(GenericProduct, L1Mixin):
         self.type = f'{self.service_name_map[service_type]}'
 
     @classmethod
-    def from_levelb(cls, levelb, parent=''):
+    def from_levelb(cls, levelb, parent):
         packets, idb_versions = GenericProduct.getLeveL0Packets(levelb)
 
         control = Control()

@@ -5,7 +5,6 @@ import shutil
 import logging
 import sqlite3
 import zipfile
-import threading
 import urllib.request
 from pathlib import Path
 
@@ -13,7 +12,7 @@ from stixcore.idb.idb import IDB
 from stixcore.time import SCETime
 from stixcore.util.logging import get_logger
 
-thread_lock = threading.Lock()
+# thread_lock = threading.Lock()
 
 __all__ = ['IDBManager']
 

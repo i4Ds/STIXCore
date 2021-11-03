@@ -28,8 +28,8 @@ class Level1:
 
         product_types = defaultdict(list)
         for file in files:
-            # group by service,subservice,ssid example: 'L0/21/6/30' 
-            product_types[str(file.parent)].append(file) 
+            # group by service,subservice,ssid example: 'L0/21/6/30'
+            product_types[str(file.parent)].append(file)
 
         jobs = []
         with ProcessPoolExecutor() as executor:

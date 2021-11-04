@@ -27,5 +27,16 @@ def test_read_elut_index(moc_table):
 def test_read_elut():
     root = Path(__file__).parent.parent.parent
     elut_file = Path(root, *['config', 'data', 'common', 'elut', 'elut_table_20201204.csv'])
-    read_elut(elut_file)
-    assert True
+    elut = read_elut(elut_file)
+
+    # make sure a few values are as expected
+    assert elut.offset[0, 0] == 897.7778
+    assert elut.offset[-1, -1] == 897.037
+    assert elut.gain[0, 0] == 0.109012
+    assert elut.gain[-1, -1] == 0.106871
+    assert elut.adc[0, 0, 0] == 934
+    assert elut.adc[-1, -1, -1] == 2301
+    assert elut.e_actual[0, 0, 0] == 3.9486544664000047
+    assert elut.e_actual[-1, -1, -1] == 150.042929773
+    assert elut.e_width_actual[0, 0, 0] == 1.0901200000000002
+    assert elut.e_width_actual[-1, -1, -1] == 30.03075100000001

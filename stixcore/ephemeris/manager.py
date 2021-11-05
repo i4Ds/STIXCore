@@ -158,8 +158,7 @@ class SpiceKernelLoader:
 
             self.mod_meta_kernel_path = Path(path)
 
-        # *_, datestamp, version = self.meta_kernel_path.name.split('_')
-        # self.kernel_date = datetime.strptime(datestamp, '%Y%m%d')
+        self.file = self.meta_kernel_path.name
 
     def __enter__(self):
         spiceypy.furnsh(str(self.mod_meta_kernel_path))
@@ -420,7 +419,7 @@ class Position(SpiceKernelLoader):
         solo_sun_hg, sun_solo_lt = spiceypy.spkezr('SOLO', et, 'SUN_EARTH_CEQU', 'None', 'Sun')
 
         # Convert to spherical and add units
-        hg_rad, hg_lat, hg_lon = spiceypy.reclat(solo_sun_hg[:3])
+        hg_rad, hg_lon, hg_lat = spiceypy.reclat(solo_sun_hg[:3])
         hg_rad = hg_rad * u.km
         hg_lat, hg_lon = (hg_lat * u.rad).to('deg'), (hg_lon * u.rad).to('deg')
         # Calculate radial velocity add units
@@ -438,6 +437,7 @@ class Position(SpiceKernelLoader):
 
         precision = 2
         headers = (
+            ('SPICE_MK', self.file, 'SPICE meta kernel file'),
             ('RSUN_ARC', rsun_arc.to_value('arcsec'),
              '[arcsec] Apparent photospheric solar radius'),
             # ('CAR_ROT', ,), Doesn't make sense as we don't have a crpix

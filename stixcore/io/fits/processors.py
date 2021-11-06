@@ -26,6 +26,19 @@ logger = get_logger(__name__, level=logging.WARNING)
 SEC_IN_DAY = 24 * 60 * 60
 
 
+def set_bscale_unsigned(table_hdu):
+    """
+    Set bscale value to 1 if unsigned int.
+
+    For mrdfits compatibility need have bscale set to 1 when using unsigned int convention
+    """
+    for col in table_hdu.columns:
+        if col.bzero and col.bscale is None:
+            col.bscale = 1
+
+    return table_hdu
+
+
 class FitsProcessor:
     # TODO abstract some general processing pattern methods
 
@@ -298,10 +311,12 @@ class FitsL0Processor:
 
             control_enc = fits.connect._encode_mixins(control)
             control_hdu = table_to_hdu(control_enc)
+            control_hdu = set_bscale_unsigned(control_hdu)
             control_hdu.name = 'CONTROL'
 
             data_enc = fits.connect._encode_mixins(data)
             data_hdu = table_to_hdu(data_enc)
+            data_hdu = set_bscale_unsigned(data_hdu)
             data_hdu.name = 'DATA'
 
             idb_enc = fits.connect._encode_mixins(idb_versions)
@@ -526,6 +541,7 @@ class FitsL1Processor(FitsL0Processor):
 
             control_enc = fits.connect._encode_mixins(control)
             control_hdu = table_to_hdu(control_enc)
+            control_hdu = set_bscale_unsigned(control_hdu)
             control_hdu.name = 'CONTROL'
 
             data_enc = fits.connect._encode_mixins(data)

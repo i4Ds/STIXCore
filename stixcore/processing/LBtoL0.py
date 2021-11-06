@@ -132,7 +132,7 @@ if __name__ == '__main__':
 
     warnings.filterwarnings('ignore', module='astropy.io.fits.card')
 
-    fits_path = Path('/Users/shane/Projects/STIX/fits_test/LB/')
+    fits_path = Path('/Users/shane/Projects/STIX/fits_test/LB/21/6/21')
     bd = Path('/Users/shane/Projects/STIX/fits_test')
 
     l0processor = Level0(fits_path, bd)

@@ -255,10 +255,10 @@ class CompressedPixelData(ScienceProduct):
 
         data = Data()
         try:
-            data['delta_time'] = np.uint32(packets.get_value('NIX00441'))
+            data['delta_time'] = np.uint32(packets.get_value('NIX00441').to(u.ds))
             data.add_meta(name='delta_time', nix='NIX00441', packets=packets)
         except AttributeError:
-            data['delta_time'] = np.uint32(packets.get_value('NIX00404'))
+            data['delta_time'] = np.uint32(packets.get_value('NIX00404').to(u.ds))
             data.add_meta(name='delta_time', nix='NIX00404', packets=packets)
         unique_times = np.unique(data['delta_time'])
 
@@ -281,7 +281,7 @@ class CompressedPixelData(ScienceProduct):
 
         data['triggers'] = get_min_unit(triggers)(triggers.T)
         data['triggers'].meta = {'NIXS': [f'NIX00{i}' for i in range(242, 258)]}
-        data['triggers_err'] = np.sqrt(triggers_var).T
+        data['triggers_err'] = np.float32(np.sqrt(triggers_var).T)
         data.add_basic(name='num_energy_groups', nix='NIX00258', packets=packets, dtype=np.ubyte)
 
         tmp = dict()
@@ -401,7 +401,7 @@ class CompressedPixelData(ScienceProduct):
         data['timedel'] = data['integration_time']
         data['counts'] = get_min_unit(out_counts)(out_counts * u.ct)
         data.add_meta(name='counts', nix='NIX00260', packets=packets)
-        data['counts_err'] = out_var * u.ct
+        data['counts_err'] = np.float32(out_var * u.ct)
         data['control_index'] = control['index'][0]
 
         data = data['time', 'timedel', 'rcr', 'pixel_masks', 'detector_masks', 'num_pixel_sets',
@@ -666,10 +666,12 @@ class Spectrogram(ScienceProduct):
         data['timedel'] = deltas
         data['timedel'].meta = {'NIXS': ['NIX00441', 'NIX00269']}
         data.add_basic(name='triggers', nix='NIX00267', packets=packets)
+        data['triggers'] = get_min_unit(data['triggers'])(data['triggers'])
         data.add_basic(name='triggers_err', nix='NIX00267', attr='error', packets=packets)
-        data['counts'] = full_counts * u.ct
+        data['triggers_err'] = np.float32(data['triggers_err'])
+        data['counts'] = get_min_unit(full_counts)(full_counts * u.ct)
         data.add_meta(name='counts', nix='NIX00268', packets=packets)
-        data['counts_err'] = np.sqrt(full_counts_var) * u.ct
+        data['counts_err'] = np.float32(np.sqrt(full_counts_var) * u.ct)
         data['control_index'] = 0
 
         return cls(service_type=packets.service_type,

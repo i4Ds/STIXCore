@@ -84,10 +84,8 @@ def _get_detector_mask(packets):
     np.ndarray
         Detector mask
     """
-    detector_masks = np.array([
-        [bool(int(x))
-         for x in format(packets.get_value('NIX00407')[i], '032b')][::-1]  # reverse ind
-        for i in range(len(packets.get_value('NIX00407')))], np.ubyte)
+    detector_masks = np.array([list(format(dm, '032b'))[::-1]
+                               for dm in packets.get_value('NIX00407')]).astype(np.ubyte)
 
     param = packets.get('NIX00407')[0]
     meta = {'NIXS': 'NIX00407', 'PCF_CURTX': param.idb_info.PCF_CURTX}

@@ -702,15 +702,19 @@ class Aspect(ScienceProduct):
     @classmethod
     def from_levelb(cls, levelb, parent=''):
         packets, idb_versions = GenericProduct.getLeveL0Packets(levelb)
+        if len(packets.data) == 0:
+            raise ValueError('No data all emepty packets %s', levelb)
         control = ControlSci()
         scet_coarse = packets.get_value('NIX00445')
         scet_fine = packets.get_value('NIX00446')
-        SCETime(scet_coarse, scet_fine)
 
-        # TODO add case for older IDB
         control.add_basic(name='summing_value', nix='NIX00088', packets=packets, dtype=np.uint8)
-        control.add_basic(name='averaging_value', nix='NIX00490', packets=packets, dtype=np.uint16)
         control.add_basic(name='samples', nix='NIX00089', packets=packets, dtype=np.uint16)
+        try:
+            control.add_basic(name='averaging_value', nix='NIX00490',
+                              packets=packets, dtype=np.uint16)
+        except AttributeError:
+            control['averaging_value'] = 16
 
         control['raw_file'] = np.unique(levelb.control['raw_file']).reshape(1, -1)
         control['packet'] = levelb.control['packet'].reshape(1, -1)

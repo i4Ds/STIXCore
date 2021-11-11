@@ -82,8 +82,14 @@ class QLProduct(GenericProduct, EnergyChannelsMixin):
         packets, idb_versions = GenericProduct.getLeveL0Packets(levelb)
 
         control = Control.from_packets(packets, NIX00405_offset=NIX00405_offset)
-        control['raw_file'] = levelb.control['raw_file']
-        control['packet'] = levelb.control['packet']
+
+        # When the packets are parse empty packets are dropped but in LB we don't parse this
+        # is not known need to compare control and levelb.control and only use matching rows
+        matching_index = np.argwhere(
+            np.in1d(levelb.control['scet_coarse'], np.array(packets.get('scet_coarse'))))
+
+        control['raw_file'] = levelb.control['raw_file'][matching_index]
+        control['packet'] = levelb.control['packet'][matching_index]
         control['parent'] = parent
 
         return packets, idb_versions, control

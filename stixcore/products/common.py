@@ -219,7 +219,7 @@ def _get_energies_from_mask(mask=None):
     return low, high
 
 
-def get_min_unit(values):
+def get_min_uint(values):
     """
     Find smallest unsigned int that can represent values
     """

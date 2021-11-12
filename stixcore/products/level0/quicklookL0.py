@@ -602,7 +602,13 @@ class EnergyCalibration(QLProduct):
                         np.ubyte).reshape(-1, num_sub_spectra[0])[:, 0]
 
         full_counts = np.zeros((32, 12, 1024))
-        full_counts[dids, pids] = counts_rebinned
+        # TODO fix bug see https://github.com/i4Ds/STIXCore/issues/168 and remove try except
+        try:
+            full_counts[dids, pids] = counts_rebinned
+        except Exception:
+            logger.error('Could not reshape counts to expected size', exc_info=True)
+            return None
+
         full_counts_var = np.zeros((32, 12, 1024))
         full_counts_var[dids, pids] = counts_var_rebinned
         data['counts'] = full_counts.reshape((1, *full_counts.shape)).astype(

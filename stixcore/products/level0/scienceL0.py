@@ -703,8 +703,16 @@ class Aspect(ScienceProduct):
     def from_levelb(cls, levelb, parent=''):
         packets, idb_versions = GenericProduct.getLeveL0Packets(levelb)
         if len(packets.data) == 0:
-            raise ValueError('No data all emepty packets %s', levelb)
+            logger.warning('No data all packets empty %s', levelb)
+            return None
         control = ControlSci()
+
+        try:
+            control.add_basic(name='request_id', nix='NIX00037', packets=packets,
+                              dtype=np.uint32)
+        except AttributeError:
+            control['request_id'] = np.uint32(0)
+
         scet_coarse = packets.get_value('NIX00445')
         scet_fine = packets.get_value('NIX00446')
 
@@ -714,7 +722,7 @@ class Aspect(ScienceProduct):
             control.add_basic(name='averaging_value', nix='NIX00490',
                               packets=packets, dtype=np.uint16)
         except AttributeError:
-            control['averaging_value'] = 16
+            control['averaging_value'] = np.uint16(1)
 
         control['raw_file'] = np.unique(levelb.control['raw_file']).reshape(1, -1)
         control['packet'] = levelb.control['packet'].reshape(1, -1)

@@ -226,8 +226,8 @@ def test_level1_processor_generate_primary_header(config, product):
         'SOOPTYPE': '',
         'TARGET': '',
         'RSUN_ARC': 1589.33,
-        'HGLT_OBS': -66.52,
-        'HGLN_OBS': -0.32,
+        'HGLT_OBS': -0.32,
+        'HGLN_OBS': -66.52,
         'RAW_FILE': 'packet1.xml;packet2.xml',
         'PARENT': 'l01.fits;l02.fts'
     }

@@ -394,7 +394,7 @@ class GenericProduct(BaseProduct):
     def __repr__(self):
         return f'<{self.__class__.__name__}' \
                f'{self.name}, {self.level}\n' \
-               f'{self.scet_timerange.start} to {self.scet_timerange.start}, ' \
+               f'{self.scet_timerange.start} to {self.scet_timerange.end}, ' \
                f'{len(self.control)}, {len(self.data)}'
 
     def to_days(self):

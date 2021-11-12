@@ -707,12 +707,6 @@ class Aspect(ScienceProduct):
             return None
         control = ControlSci()
 
-        try:
-            control.add_basic(name='request_id', nix='NIX00037', packets=packets,
-                              dtype=np.uint32)
-        except AttributeError:
-            control['request_id'] = np.uint32(0)
-
         scet_coarse = packets.get_value('NIX00445')
         scet_fine = packets.get_value('NIX00446')
 
@@ -723,6 +717,12 @@ class Aspect(ScienceProduct):
                               packets=packets, dtype=np.uint16)
         except AttributeError:
             control['averaging_value'] = np.uint16(1)
+
+        try:
+            control.add_basic(name='request_id', nix='NIX00037', packets=packets,
+                              dtype=np.uint32)
+        except AttributeError:
+            control['request_id'] = np.uint32(0)
 
         control['raw_file'] = np.unique(levelb.control['raw_file']).reshape(1, -1)
         control['packet'] = levelb.control['packet'].reshape(1, -1)

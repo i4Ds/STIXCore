@@ -62,5 +62,5 @@ def test_get_fits_headers(spicemanager):
         r2 = spice.get_fits_headers(start_time=start_scet.to_time(),
                                     average_time=avg_scet.to_time())
 
-        arr = np.array([(r1[i][1], r2[i][1]) for i in range(len(r1) - 2)])
-        assert np.allclose(arr[:, 0], arr[:, 1])
+        arr = np.array([(r1[i][1], r2[i][1]) for i in range(1, len(r1) - 2)])
+        assert np.allclose(arr[1:, 0], arr[1:, 1])

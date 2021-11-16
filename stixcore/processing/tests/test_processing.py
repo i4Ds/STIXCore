@@ -15,7 +15,7 @@ from stixcore.processing.L0toL1 import Level1
 from stixcore.processing.L1toL2 import Level2
 from stixcore.processing.LBtoL0 import Level0
 from stixcore.processing.TMTCtoLB import process_tmtc_to_levelbinary
-from stixcore.products import Product
+from stixcore.products.product import Product
 from stixcore.soop.manager import SOOPManager
 from stixcore.tmtc.packets import TMTC
 
@@ -89,9 +89,11 @@ def test_level_2(out_dir):
     l2 = Level2(out_dir / 'L1', out_dir)
     res = l2.process_fits_files(files=l1)
     assert len(res) == 4 + idlfiles
+    input_names = [f.name for f in l1]
     for ffile in res:
         pl2 = Product(ffile)
         assert pl2.level == 'L2'
+        assert pl2.parent[0] in input_names
 
 
 def test_get_calibration_polynomial(idb):

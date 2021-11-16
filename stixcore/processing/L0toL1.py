@@ -11,6 +11,7 @@ from stixcore.config.config import CONFIG
 from stixcore.ephemeris.manager import Spice, SpiceKernelManager
 from stixcore.io.fits.processors import FitsL1Processor
 from stixcore.products import Product
+from stixcore.soop.manager import SOOPManager
 from stixcore.util.logging import get_logger
 
 logger = get_logger(__name__, level=logging.INFO)

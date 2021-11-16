@@ -22,13 +22,8 @@ from stixcore.processing.LBtoL0 import Level0
 from stixcore.processing.TMTCtoLB import process_tmtc_to_levelbinary
 from stixcore.products.level0.quicklookL0 import LightCurve
 from stixcore.products.product import Product
-<<<<<<< HEAD
 from stixcore.tmtc.packets import TMTC, GenericTMPacket
 from stixcore.soop.manager import SOOPManager
-=======
-from stixcore.soop.manager import SOOPManager
-from stixcore.tmtc.packets import TMTC
->>>>>>> first IDL processor version
 from stixcore.util.logging import get_logger
 
 logger = get_logger(__name__)
@@ -37,14 +32,11 @@ logger = get_logger(__name__)
 @pytest.fixture
 def soc_manager():
     return SOCManager(Path(__file__).parent.parent.parent / 'data' / 'test' / 'io' / 'soc')
-<<<<<<< HEAD
 
 
 @pytest.fixture
 def spicekernelmanager():
     return SpiceKernelManager(test_data.ephemeris.KERNELS_DIR)
-=======
->>>>>>> first IDL processor version
 
 
 @pytest.fixture
@@ -108,11 +100,7 @@ def test_level_1(out_dir):
         assert diff.identical
 
 
-<<<<<<< HEAD
 def test_level_2(out_dir, spicekernelmanager):
-=======
-def test_level_2(out_dir):
->>>>>>> first IDL processor version
     SOOPManager.instance = SOOPManager(Path(__file__).parent.parent.parent
                                        / 'data' / 'test' / 'soop')
 
@@ -121,7 +109,6 @@ def test_level_2(out_dir):
     l1 = test_data.products.L1_fits
     l2 = Level2(out_dir / 'L1', out_dir)
     res = l2.process_fits_files(files=l1)
-<<<<<<< HEAD
     assert len(res) == len(test_data.products.L1_fits) + idlfiles
     input_names = [f.name for f in l1]
     for ffile in res:
@@ -145,9 +132,6 @@ def test_level_2_auxiliary(out_dir, spicekernelmanager):
     assert len(res) == len(l1) * 2
     Product(res[1])
     print("DONE")
-=======
-    assert len(res) == 4 + idlfiles
->>>>>>> first IDL processor version
 
 
 def test_get_calibration_polynomial(idb):

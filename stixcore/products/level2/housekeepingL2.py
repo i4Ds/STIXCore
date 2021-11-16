@@ -9,6 +9,7 @@ from collections import defaultdict
 from astropy.table import QTable
 
 from stixcore.processing.sswidl import SSWIDLProcessor, SSWIDLTask
+from stixcore.products import Product
 from stixcore.products.level0.housekeepingL0 import HKProduct
 from stixcore.products.product import GenericPacket, L2Mixin
 from stixcore.time import SCETimeRange
@@ -71,7 +72,7 @@ class MaxiReport(HKProduct, L2Mixin):
             f = {'inpath': str(parent.parent),
                  'inname': parent.name,
                  'outpath': str(tfile.parent),
-                 'outname': tfile.name,
+                 'outname': tfile.name + ".fits",
                  'error': None}
 
             idlprocessor[AspectIDLProcessing].params['hk_files'].append(f)
@@ -86,21 +87,19 @@ class MaxiReport(HKProduct, L2Mixin):
 
 class AspectIDLProcessing(SSWIDLTask):
     def __init__(self):
-        spice_dir = '/data/stix/spice/kernels/mk/'
-        spice_kernel = 'solo_ANC_soc-flown-mk_V107_20211028_001.tm'
-        work_dir = '/stix/idl/processing/aspect/'
-
         script = '''
 
-workdir = '{{ gsw_path }}' + d + '{{ work_dir }}'
-cd, workdirscript
+common config, param_dir, def_calibfile, data_dir, out_dir, sas_version
+
+workdir = '{{ work_dir }}'
+print, workdir
+cd, workdir
 
 sas_version = '2021-08-09'
 
 ; I/O directories:
 ; - location of some parameter files
 param_dir = workdir + d + 'SAS_param' + d
-
 
 ; - default file for calibration (contains relative gains and biases)
 def_calibfile = 'SAS_calib_2020'
@@ -124,9 +123,9 @@ generatedfiles = []
 FOREACH hk_file, hk_files DO BEGIN
 
     ; - location of the L1 HK data files
-    data_dir = hk_file.INPATH
+    data_dir = hk_file.INPATH + d
     ; - Output directory
-    out_dir = hk_file.OUTPATH
+    out_dir = hk_file.OUTPATH + d
 
     in_file = hk_file.INNAME
 
@@ -141,34 +140,50 @@ FOREACH hk_file, hk_files DO BEGIN
     print,"processing data..."
     process_SAS_data, in_file, cal_factor=cal_factor, outfile=hk_file.OUTNAME
 
-    generatedfiles = [result, hk_file]
+    generatedfiles = [generatedfiles, hk_file]
 ENDFOREACH
 
 undefine, data, hk_file, hk_files
 
 '''
-        super().__init__(script, {'hk_files': list(),
-                                  'spice_dir': spice_dir,
-                                  'spice_kernel': spice_kernel,
-                                  'work_dir': work_dir})
+        spice_dir = '/data/stix/spice/kernels/mk/'
+        spice_kernel = 'solo_ANC_soc-flown-mk_V107_20211028_001.tm'
+
+        super().__init__(script=script, work_dir='stix/idl/processing/aspect/',
+                         params={'hk_files': list(),
+                                 'spice_dir': spice_dir,
+                                 'spice_kernel': spice_kernel})
 
     def pack_params(self):
         packed = self.params.copy()
         packed['hk_files'] = json.dumps(packed['hk_files'])
         return packed
 
-    def postprocessing(self, result):
+    def postprocessing(self, result, fits_processor):
         files = []
 
         if 'generatedfiles' in result:
             for resfile in result.generatedfiles:
                 file_path = Path(resfile.outpath.decode()) / resfile.outname.decode()
+                control_as = QTable.read(file_path, hdu='CONTROL')
+                data_as = QTable.read(file_path, hdu='DATA')
 
-                control = QTable.read(file_path, hdu='CONTROL')
-                data = QTable.read(file_path, hdu='DATA')
+                file_path_in = Path(resfile.inpath.decode()) / resfile.inname.decode()
+                HK = Product(file_path_in)
 
-                aspect = Aspect(control=control, data=data)
-                files.extend(self.fits_processor.write_fits(aspect))
+                as_range = range(0, len(data_as))
+
+                data_as['time'] = HK.data['time'][as_range]
+                data_as['timedel'] = HK.data['timedel'][as_range]
+                data_as['control_index'] = HK.data['control_index'][as_range]
+                control_as['index'] = HK.control['index'][as_range]
+                control_as['raw_file'] = HK.control['raw_file'][as_range]
+                control_as['parent'] = resfile.inname.decode()
+
+                del data_as['TIME']
+
+                aspect = Aspect(control=control_as, data=data_as, idb_versions=HK.idb_versions)
+                files.extend(fits_processor.write_fits(aspect))
 
         return files
 

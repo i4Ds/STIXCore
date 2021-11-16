@@ -90,8 +90,6 @@ def test_level_1(out_dir):
 
     l0 = test_data.products.L0_LightCurve_fits
     l1 = Level1(out_dir / 'LB', out_dir)
-<<<<<<< HEAD
-=======
     res = sorted(l1.process_fits_files(files=l0))
     assert len(res) == 2
 
@@ -105,7 +103,6 @@ def test_level_1(out_dir):
     assert np.all((t[1:] - t[0:-1]) == td[0:-1])
     # end test for https://github.com/i4Ds/STIXCore/issues/180
 
->>>>>>> merge on pub99
     res = l1.process_fits_files(files=l0)
     assert len(res) == 1
     for fits in res:

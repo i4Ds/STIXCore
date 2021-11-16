@@ -1,3 +1,4 @@
+from stixcore.products.product import Product # noqa
 from stixcore.products.level0.housekeepingL0 import *
 from stixcore.products.level0.quicklookL0 import *
 from stixcore.products.level0.scienceL0 import *
@@ -7,4 +8,3 @@ from stixcore.products.level1.scienceL1 import *
 from stixcore.products.level2.housekeepingL2 import *
 from stixcore.products.level2.quicklookL2 import *
 from stixcore.products.levelb.binary import LevelB
-from stixcore.products.product import Product

@@ -6,19 +6,22 @@ import pytest
 
 from astropy.io.fits.diff import FITSDiff
 
+from stixcore.config.config import CONFIG
 from stixcore.data.test import test_data
 from stixcore.idb.idb import IDBPolynomialCalibration
 from stixcore.idb.manager import IDBManager
 from stixcore.io.soc.manager import SOCManager
 from stixcore.processing.L0toL1 import Level1
+from stixcore.processing.L1toL2 import Level2
 from stixcore.processing.LBtoL0 import Level0
 from stixcore.processing.TMTCtoLB import process_tmtc_to_levelbinary
+from stixcore.soop.manager import SOOPManager
 from stixcore.tmtc.packets import TMTC
 
 
 @pytest.fixture
 def soc_manager():
-    return SOCManager(Path(__file__).parent.parent.parent / "data" / "test" / "io" / 'soc')
+    return SOCManager(Path(__file__).parent.parent.parent / 'data' / 'test' / 'io' / 'soc')
 
 
 @pytest.fixture
@@ -60,16 +63,31 @@ def test_level_0(out_dir):
 
 @pytest.mark.xfail(sys.platform == "win32", reason="numpy defaults to int32 on windows")
 def test_level_1(out_dir):
+    SOOPManager.instance = SOOPManager(Path(__file__).parent.parent.parent
+                                       / 'data' / 'test' / 'soop')
+
     l0 = test_data.products.L0_LightCurve_fits
     l1 = Level1(out_dir / 'LB', out_dir)
     res = l1.process_fits_files(files=l0)
-    assert len(res) == 2
+    assert len(res) == 1
     for fits in res:
         diff = FITSDiff(test_data.products.DIR / fits.name, fits,
                         ignore_keywords=['CHECKSUM', 'DATASUM', 'DATE', 'VERS_SW'])
         if not diff.identical:
             print(diff.report())
         assert diff.identical
+
+
+def test_level_2(out_dir):
+    SOOPManager.instance = SOOPManager(Path(__file__).parent.parent.parent
+                                       / 'data' / 'test' / 'soop')
+
+    idlfiles = 4 if CONFIG.getboolean("IDLBridge", "enabled", fallback=False) else 0
+
+    l1 = test_data.products.L1_fits
+    l2 = Level2(out_dir / 'L1', out_dir)
+    res = l2.process_fits_files(files=l1)
+    assert len(res) == 4 + idlfiles
 
 
 def test_get_calibration_polynomial(idb):

@@ -73,9 +73,9 @@ if __name__ == '__main__':
     logging_handler = LoggingEventHandler(logger=logger)
     tm_handler = GFTSFileHandler(process_tm, TM_REGEX)
 
-    # TODO should be an deticated path from the config
     soop_manager = SOOPManager(soop_path)
     soop_handler = GFTSFileHandler(soop_manager.add_soop_file_to_index, SOOPManager.SOOP_FILE_REGEX)
+    SOOPManager.instance = soop_manager
 
     observer.schedule(soop_handler, soop_manager.data_root,  recursive=False)
     observer.schedule(logging_handler, path,  recursive=True)

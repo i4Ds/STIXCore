@@ -18,7 +18,8 @@ from stixcore.products.product import Product
 from stixcore.soop.manager import SOOPManager, SoopObservationType
 from stixcore.util.logging import get_logger
 
-__all__ = ['SEC_IN_DAY', 'FitsProcessor', 'FitsLBProcessor', 'FitsL0Processor', 'FitsL1Processor']
+__all__ = ['SEC_IN_DAY', 'FitsProcessor', 'FitsLBProcessor', 'FitsL0Processor',
+           'FitsL1Processor', 'FitsL2Processor']
 
 
 logger = get_logger(__name__, level=logging.WARNING)
@@ -473,10 +474,6 @@ class FitsL0Processor:
 class FitsL1Processor(FitsL0Processor):
     def __init__(self, archive_path):
         self.archive_path = archive_path
-        soop_path = CONFIG.get('Paths', 'soop_files')
-        if str(soop_path) == '':
-            soop_path = Path(__file__).parent.parent.parent / 'data' / 'test' / 'soop'
-        self.soop_manager = SOOPManager(soop_path)
 
     @classmethod
     def generate_filename(cls, product, *, version, status=''):
@@ -490,8 +487,8 @@ class FitsL1Processor(FitsL0Processor):
                                                status=status)
 
     def generate_primary_header(self, filename, product):
-        if product.level != 'L1':
-            raise ValueError(f"Try to crate FITS file L1 for {product.level} data product")
+        # if product.level != 'L1':
+        #    raise ValueError(f"Try to crate FITS file L1 for {product.level} data product")
 
         headers = FitsProcessor.generate_common_header(filename, product)
 
@@ -636,6 +633,122 @@ class FitsL1Processor(FitsL0Processor):
             FitsL0Processor.add_optional_energy_table(prod, hdul)
 
             hdul = fits.HDUList(hdul)
+
+            filetowrite = path / filename
+            logger.debug(f'Writing fits file to {filetowrite}')
+            hdul.writeto(filetowrite, overwrite=True, checksum=True)
+            created_files.append(filetowrite)
+        return created_files
+
+
+class FitsL2Processor(FitsL1Processor):
+    def __init__(self, archive_path):
+        super().__init__(archive_path)
+
+    def generate_primary_header(self, filename, product):
+        # if product.level != 'L2':
+        #    raise ValueError(f"Try to crate FITS file L2 for {product.level} data product")
+
+        L1headers = super().generate_primary_header(filename, product) if product.fits_header \
+            is None else product.fits_header.items()
+
+        # new or override keywords
+        L2headers = (
+            # Name, Value, Comment
+            ('LEVEL', 'L2', 'Processing level of the data'),
+            ('VERS_SW', str(stixcore.__version__), 'Version of SW that provided FITS file'),
+            ('HISTORY', 'Processed by STIX'),
+        )
+
+        return L1headers, L2headers
+
+    def write_fits(self, product):
+        """
+        Write level 0 products into fits files.
+
+        Parameters
+        ----------
+        product : `stixcore.product.level0`
+
+        Returns
+        -------
+        list
+            of created file as `pathlib.Path`
+
+        """
+        created_files = []
+        if callable(getattr(product, 'to_days', None)):
+            products = product.to_days()
+        else:
+            products = product.to_requests()
+
+        for prod in products:
+            filename = self.generate_filename(product=prod, version=1)
+            # start_day = np.floor((prod.obs_beg.as_float()
+            #                       // (1 * u.day).to('s')).value * SEC_IN_DAY).astype(int)
+
+            parts = [prod.level, prod.utc_timerange.center.strftime('%Y/%m/%d'), prod.type.upper()]
+            path = self.archive_path.joinpath(*[str(x) for x in parts])
+            path.mkdir(parents=True, exist_ok=True)
+
+            fitspath = path / filename
+            if fitspath.exists():
+                logger.info('Fits file %s exists appending data', fitspath.name)
+                existing = Product(fitspath)
+                logger.debug('Existing %s, Current %s', existing, prod)
+                prod = prod + existing
+                logger.debug('Combined %s', prod)
+
+            control = prod.control
+            data = prod.data
+
+            idb_versions = QTable(rows=[(version, range.start.as_float(), range.end.as_float())
+                                  for version, range in product.idb_versions.items()],
+                                  names=["version", "obt_start", "obt_end"])
+
+            l1_header, l2_header = self.generate_primary_header(filename, prod)
+            primary_hdu = fits.PrimaryHDU()
+            primary_hdu.header.update(l1_header)
+            primary_hdu.header.update(l2_header)
+
+            # Convert time to be relative to start date
+            # it is important that the change to the relative time is done after the header is
+            # generated as this will use the original SCET time data
+            data['time'] = (data['time'] - prod.scet_timerange.start).as_float()
+            data['timedel'] = data['timedel'].as_float()
+            try:
+                control['time_stamp'] = control['time_stamp'].as_float()
+            except KeyError as e:
+                if 'time_stamp' not in repr(e):
+                    raise e
+
+            control_enc = fits.connect._encode_mixins(control)
+            control_hdu = table_to_hdu(control_enc)
+            control_hdu.name = 'CONTROL'
+
+            data_enc = fits.connect._encode_mixins(data)
+            data_hdu = table_to_hdu(data_enc)
+            data_hdu.name = 'DATA'
+
+            idb_enc = fits.connect._encode_mixins(idb_versions)
+            idb_hdu = table_to_hdu(idb_enc)
+            idb_hdu.name = 'IDB_VERSIONS'
+
+            hdus = [primary_hdu, control_hdu, data_hdu, idb_hdu]
+
+            if getattr(prod, 'get_energies', False) is not False:
+                elow, ehigh = prod.get_energies()
+                energies = QTable()
+                energies['channel'] = range(len(elow))
+                energies['e_low'] = elow * u.keV
+                energies['e_high'] = ehigh * u.keV
+
+                energy_enc = fits.connect._encode_mixins(energies)
+                energy_hdu = table_to_hdu(energy_enc)
+                energy_hdu.name = 'ENERGIES'
+                hdus.append(energy_hdu)
+
+            hdul = fits.HDUList(hdus)
 
             filetowrite = path / filename
             logger.debug(f'Writing fits file to {filetowrite}')

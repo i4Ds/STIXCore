@@ -32,7 +32,7 @@ class IDBTestProduct:
                                    self.DIR / "solo_L0_stix-ql-lightcurve_0664156800_V01.fits"]
         self.L1_LightCurve_fits = [self.DIR / "solo_L1_stix-ql-lightcurve_20210117_V01.fits",
                                    self.DIR / "solo_L1_stix-ql-lightcurve_20210116_V01.fits"]
-        self.L1_fits = self.DIR.glob('solo_L1_stix-*.fits')
+        self.L1_fits = list(self.DIR.glob('solo_L1_stix-*.fits'))
         self.LB_21_6_30_fits = self.DIR / "solo_LB_stix-21-6-30_0664156800_V01.fits"
         self.__doc__ = "\n".join([f'{str(k)}: {repr(v)}\n\n' for k, v in self.__dict__.items()])
 

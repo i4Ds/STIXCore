@@ -1,8 +1,8 @@
 """Module for the interacting with SSWIDL"""
 
-
 import os
 import abc
+from pathlib import Path
 
 from stixcore.config.config import CONFIG
 
@@ -10,11 +10,15 @@ __all__ = ['SSWIDLProcessor', 'SSWIDLTask']
 
 
 class BaseTask:
-    def __init__(self, script, params):
+    def __init__(self, *, script="", work_dir=".", params=None):
         self.script = '' + script
-        self.params = {'gsw_path': "/opt/STIX-GSW",
-                       'work_dir': os.getcwd()}
-        self.params.update(params)
+        self.gsw_path = Path(CONFIG.get("IDLBridge", "gsw_path", fallback="."))
+        self.work_dir = self.gsw_path / work_dir
+
+        self.params = {'gsw_path': str(self.gsw_path),
+                       'work_dir': str(self.work_dir)}
+        if params is not None:
+            self.params.update(params)
         self._results = list()
 
     @property
@@ -34,7 +38,7 @@ class BaseTask:
         return self.params
 
     @abc.abstractmethod
-    def postprocessing(self, result, args):
+    def postprocessing(self, result, fits_processor):
         return result
 
     def __hash__(self):
@@ -50,8 +54,8 @@ if CONFIG.getboolean("IDLBridge", "enabled", fallback=False):
     import hissw
 
     class SSWIDLTask(BaseTask):
-        def __init__(self, script, params):
-            super().__init__(script, params)
+        def __init__(self, *, script="", work_dir=".", params=None):
+            super().__init__(script=script, work_dir=work_dir, params=params)
 
             self.script = '''
 
@@ -63,25 +67,30 @@ if CONFIG.getboolean("IDLBridge", "enabled", fallback=False):
 
     ''' + script
 
-        def run(self):
+        def run(self, fits_processor):
+            cur_path = os.getcwd()
+            os.chdir(self.work_dir)
             ssw = hissw.Environment(ssw_home="/usr/local/ssw",
                                     idl_home="/usr/local/idl/idl88",
                                     ssw_packages=["goes", "hessi", "spex", "xray",
                                                   "sunspice", "spice", "stix"])
 
             results = ssw.run(self.script, args=self.pack_params())
-            self._results = self.postprocessing(results)
+            self._results = self.postprocessing(results, fits_processor)
+            os.chdir(cur_path)
+            return self._results
+
 
 else:
     class SSWIDLTask(BaseTask):
 
-        def __init__(self, script, params):
-            super().__init__(script, params)
+        def __init__(self, *, script='', work_dir='.', params=None):
+            super().__init__(script=script, work_dir=work_dir, params=params)
 
-        def run(self):
+        def run(self, fits_processor):
             p = self.pack_params()
             results = p
-            self._results = self.postprocessing(results)
+            self._results = self.postprocessing(results, fits_processor)
             return self._results
 
 
@@ -106,5 +115,5 @@ class SSWIDLProcessor(dict):
     def process(self):
         files = []
         for task in self.values():
-            files.extend(task.run())
+            files.extend(task.run(self.fits_processor))
         return files

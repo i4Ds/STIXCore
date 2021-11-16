@@ -91,19 +91,6 @@ def test_level_1(out_dir):
 
     l0 = test_data.products.L0_LightCurve_fits
     l1 = Level1(out_dir / 'LB', out_dir)
-    res = sorted(l1.process_fits_files(files=l0))
-    assert len(res) == 2
-
-    # test for https://github.com/i4Ds/STIXCore/issues/180
-    # TODO remove when solved
-    lc1 = Product(res[0])
-    lc2 = Product(res[1])
-    t = np.hstack((np.array(lc1.data['time']), (np.array(lc2.data['time']))))
-    td = np.hstack((np.array(lc1.data['timedel']), (np.array(lc2.data['timedel']))))
-    range(len(lc1.data['time'])-3, len(lc1.data['time'])+3)
-    assert np.all((t[1:] - t[0:-1]) == td[0:-1])
-    # end test for https://github.com/i4Ds/STIXCore/issues/180
-
     res = l1.process_fits_files(files=l0)
     assert len(res) == 1
     for fits in res:

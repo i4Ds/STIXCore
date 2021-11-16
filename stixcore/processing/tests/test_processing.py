@@ -106,9 +106,11 @@ def test_level_2(out_dir):
     l2 = Level2(out_dir / 'L1', out_dir)
     res = l2.process_fits_files(files=l1)
     assert len(res) == 4 + idlfiles
+    input_names = [f.name for f in l1]
     for ffile in res:
         pl2 = Product(ffile)
         assert pl2.level == 'L2'
+        assert pl2.parent[0] in input_names
 
 
 def test_get_calibration_polynomial(idb):

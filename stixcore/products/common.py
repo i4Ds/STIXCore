@@ -84,10 +84,8 @@ def _get_detector_mask(packets):
     np.ndarray
         Detector mask
     """
-    detector_masks = np.array([
-        [bool(int(x))
-         for x in format(packets.get_value('NIX00407')[i], '032b')][::-1]  # reverse ind
-        for i in range(len(packets.get_value('NIX00407')))], np.ubyte)
+    detector_masks = np.array([list(format(dm, '032b'))[::-1]
+                               for dm in packets.get_value('NIX00407')]).astype(np.ubyte)
 
     param = packets.get('NIX00407')[0]
     meta = {'NIXS': 'NIX00407', 'PCF_CURTX': param.idb_info.PCF_CURTX}
@@ -219,6 +217,21 @@ def _get_energies_from_mask(mask=None):
         raise ValueError(f'Energy mask or edges must have a length of 32 or 33 not {len(mask)}')
 
     return low, high
+
+
+def get_min_uint(values):
+    """
+    Find smallest unsigned int that can represent values
+    """
+    max_value = values.max()
+    if max_value < 256:  # 2**8
+        return np.uint8
+    elif max_value < 65536:  # 2**16
+        return np.uint16
+    elif max_value < 4294967296:  # 2**32
+        return np.uint32
+    elif max_value < 18446744073709551616:  # 2**64
+        return np.uint64
 
 
 def rebin_proportional(y1, x1, x2):

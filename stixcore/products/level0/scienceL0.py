@@ -12,6 +12,7 @@ from stixcore.products.common import (
     _get_detector_mask,
     _get_pixel_mask,
     _get_unique,
+    get_min_uint,
     rebin_proportional,
 )
 from stixcore.products.product import ControlSci, Data, EnergyChannelsMixin, GenericProduct
@@ -135,6 +136,7 @@ class ScienceProduct(GenericProduct, EnergyChannelsMixin):
 
         control['index'] = 0
         control['packet'] = levelb.control['packet'].reshape(1, -1)
+        control['packet'].dtype = get_min_uint(control['packet'])
         control['raw_file'] = np.unique(levelb.control['raw_file']).reshape(1, -1)
         control['parent'] = parent
 
@@ -160,21 +162,21 @@ class RawPixelData(ScienceProduct):
         packets, idb_versions, control = ScienceProduct.from_levelb(levelb, parent=parent)
 
         data = Data()
-        data['start_time'] = packets.get_value('NIX00404')
+        data['start_time'] = packets.get_value('NIX00404').astype(np.uint32)
         data.add_meta(name='start_time', nix='NIX00404', packets=packets)
         data.add_basic(name='rcr', nix='NIX00401', attr='value', packets=packets, dtype=np.ubyte)
         # NIX00405 in BSD is 1 indexed
-        data['integration_time'] = packets.get_value('NIX00405')
+        data['integration_time'] = packets.get_value('NIX00405').astype(np.uint16)
         data.add_meta(name='integration_time', nix='NIX00405', packets=packets)
         data.add_data('pixel_masks', _get_pixel_mask(packets, 'NIXD0407'))
         data.add_data('detector_masks', _get_detector_mask(packets))
-        data['triggers'] = np.array([packets.get_value(f'NIX00{i}') for i in range(408, 424)],
-                                    np.int64).T
+        data['triggers'] = np.array([packets.get_value(f'NIX00{i}') for i in range(408, 424)]).T
+        data['triggers'].dtype = get_min_uint(data['triggers'])
         data['triggers'].meta = {'NIXS': [f'NIX00{i}' for i in range(408, 424)]}
         # ,
         # 'PCF_CURTX': [packets.get(f'NIX00{i}')[0].idb_info.PCF_CURTX
         #               for i in range(408, 424)]}
-        data.add_basic(name='num_samples', nix='NIX00406', packets=packets, dtype=np.int16)
+        data.add_basic(name='num_samples', nix='NIX00406', packets=packets, dtype=np.uint16)
 
         num_detectors = 32
         num_energies = 32
@@ -211,7 +213,7 @@ class RawPixelData(ScienceProduct):
         data['time'] = control["time_stamp"][0] \
             + data['start_time'] + data['integration_time'] / 2
         data['timedel'] = SCETimeDelta(data['integration_time'])
-        data['counts'] = counts * u.ct
+        data['counts'] = get_min_uint(counts)(counts * u.ct)
         # data.add_meta(name='counts', nix='NIX00065', packets=packets)
         data['control_index'] = control['index'][0]
 
@@ -253,10 +255,10 @@ class CompressedPixelData(ScienceProduct):
 
         data = Data()
         try:
-            data['delta_time'] = packets.get_value('NIX00441')
+            data['delta_time'] = np.uint32(packets.get_value('NIX00441').to(u.ds))
             data.add_meta(name='delta_time', nix='NIX00441', packets=packets)
         except AttributeError:
-            data['delta_time'] = packets.get_value('NIX00404')
+            data['delta_time'] = np.uint32(packets.get_value('NIX00404').to(u.ds))
             data.add_meta(name='delta_time', nix='NIX00404', packets=packets)
         unique_times = np.unique(data['delta_time'])
 
@@ -277,9 +279,9 @@ class CompressedPixelData(ScienceProduct):
         triggers_var = np.array([packets.get_value(f'NIX00{i}', attr='error')
                                  for i in range(242, 258)])
 
-        data['triggers'] = triggers.T
+        data['triggers'] = get_min_uint(triggers)(triggers.T)
         data['triggers'].meta = {'NIXS': [f'NIX00{i}' for i in range(242, 258)]}
-        data['triggers_err'] = np.sqrt(triggers_var).T
+        data['triggers_err'] = np.float32(np.sqrt(triggers_var).T)
         data.add_basic(name='num_energy_groups', nix='NIX00258', packets=packets, dtype=np.ubyte)
 
         tmp = dict()
@@ -397,9 +399,9 @@ class CompressedPixelData(ScienceProduct):
         data['time'] = (control['time_stamp'][0]
                         + data['delta_time'] + data['integration_time']/2)
         data['timedel'] = data['integration_time']
-        data['counts'] = out_counts * u.ct
+        data['counts'] = get_min_uint(out_counts)(out_counts * u.ct)
         data.add_meta(name='counts', nix='NIX00260', packets=packets)
-        data['counts_err'] = out_var * u.ct
+        data['counts_err'] = np.float32(out_var * u.ct)
         data['control_index'] = control['index'][0]
 
         data = data['time', 'timedel', 'rcr', 'pixel_masks', 'detector_masks', 'num_pixel_sets',
@@ -503,7 +505,7 @@ class Visibility(ScienceProduct):
         tids = np.searchsorted(data['delta_time'], unique_times)
         data = data[tids]
 
-        sum(packets.get_value('NIX00258'))
+        # sum(packets.get_value('NIX00258'))
 
         # Data
         e_low = np.array(packets.get_value('NIXD0016'))
@@ -664,10 +666,12 @@ class Spectrogram(ScienceProduct):
         data['timedel'] = deltas
         data['timedel'].meta = {'NIXS': ['NIX00441', 'NIX00269']}
         data.add_basic(name='triggers', nix='NIX00267', packets=packets)
+        data['triggers'] = get_min_uint(data['triggers'])(data['triggers'])
         data.add_basic(name='triggers_err', nix='NIX00267', attr='error', packets=packets)
-        data['counts'] = full_counts * u.ct
+        data['triggers_err'] = np.float32(data['triggers_err'])
+        data['counts'] = get_min_uint(full_counts)(full_counts * u.ct)
         data.add_meta(name='counts', nix='NIX00268', packets=packets)
-        data['counts_err'] = np.sqrt(full_counts_var) * u.ct
+        data['counts_err'] = np.float32(np.sqrt(full_counts_var) * u.ct)
         data['control_index'] = 0
 
         return cls(service_type=packets.service_type,
@@ -698,15 +702,27 @@ class Aspect(ScienceProduct):
     @classmethod
     def from_levelb(cls, levelb, parent=''):
         packets, idb_versions = GenericProduct.getLeveL0Packets(levelb)
+        if len(packets.data) == 0:
+            logger.warning('No data all packets empty %s', levelb)
+            return None
         control = ControlSci()
+
         scet_coarse = packets.get_value('NIX00445')
         scet_fine = packets.get_value('NIX00446')
-        SCETime(scet_coarse, scet_fine)
 
-        # TODO add case for older IDB
-        control.add_basic(name='summing_value', nix='NIX00088', packets=packets)
-        control.add_basic(name='averaging_value', nix='NIX00490', packets=packets)
-        control.add_basic(name='samples', nix='NIX00089', packets=packets)
+        control.add_basic(name='summing_value', nix='NIX00088', packets=packets, dtype=np.uint8)
+        control.add_basic(name='samples', nix='NIX00089', packets=packets, dtype=np.uint16)
+        try:
+            control.add_basic(name='averaging_value', nix='NIX00490',
+                              packets=packets, dtype=np.uint16)
+        except AttributeError:
+            control['averaging_value'] = np.uint16(1)
+
+        try:
+            control.add_basic(name='request_id', nix='NIX00037', packets=packets,
+                              dtype=np.uint32)
+        except AttributeError:
+            control['request_id'] = np.uint32(0)
 
         control['raw_file'] = np.unique(levelb.control['raw_file']).reshape(1, -1)
         control['packet'] = levelb.control['packet'].reshape(1, -1)
@@ -731,10 +747,10 @@ class Aspect(ScienceProduct):
             data = Data()
             data['time'] = time
             data['timedel'] = timedel
-            data.add_basic(name='cha_diode0', nix='NIX00090', packets=packets)
-            data.add_basic(name='cha_diode1', nix='NIX00091', packets=packets)
-            data.add_basic(name='chb_diode0', nix='NIX00092', packets=packets)
-            data.add_basic(name='chb_diode1', nix='NIX00093', packets=packets)
+            data.add_basic(name='cha_diode0', nix='NIX00090', packets=packets, dtype=np.uint16)
+            data.add_basic(name='cha_diode1', nix='NIX00091', packets=packets, dtype=np.uint16)
+            data.add_basic(name='chb_diode0', nix='NIX00092', packets=packets, dtype=np.uint16)
+            data.add_basic(name='chb_diode1', nix='NIX00093', packets=packets, dtype=np.uint16)
             data['control_index'] = np.hstack([np.full(ns, i) for i, ns in enumerate(samples)])
         except ValueError as e:
             logger.warning(e)

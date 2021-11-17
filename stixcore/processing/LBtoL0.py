@@ -68,13 +68,14 @@ def process_tm_type(files, tm_type, processor):
                 data=None, control=None)
             try:
                 level0 = tmp.from_levelb(levelb, parent=file.name)
-                fits_files = processor.write_fits(level0)
-                all_files.extend(fits_files)
+                if level0:
+                    fits_files = processor.write_fits(level0)
+                    all_files.extend(fits_files)
             except Exception as e:
                 logger.error('Error processing file %s for %s, %s, %s', file,
                              levelb.service_type, levelb.service_subtype, levelb.ssid)
                 logger.error('%s', e)
-                raise e
+                # raise e
 
     else:
         last_incomplete = []
@@ -132,8 +133,8 @@ if __name__ == '__main__':
 
     warnings.filterwarnings('ignore', module='astropy.io.fits.card')
 
-    fits_path = Path('/Users/shane/Projects/STIX/fits_test/LB/')
-    bd = Path('/Users/shane/Projects/STIX/fits_test')
+    fits_path = Path('/home/shane/fits_test_local/LB/21/6/42')
+    bd = Path('/home/shane/fits_test_local')
 
     l0processor = Level0(fits_path, bd)
     l0_files = l0processor.process_fits_files()

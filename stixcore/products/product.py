@@ -270,11 +270,11 @@ class ControlSci(QTable, AddParametersMixin):
 
         control = cls()
 
-        control.add_basic(name='tc_packet_id_ref', nix='NIX00001', packets=packets, dtype=np.int32)
+        control.add_basic(name='tc_packet_id_ref', nix='NIX00001', packets=packets, dtype=np.uint16)
         control.add_basic(name='tc_packet_seq_control', nix='NIX00002', packets=packets,
-                          dtype=np.int32)
+                          dtype=np.uint16)
         control.add_basic(name='request_id', nix='NIX00037', packets=packets,
-                          dtype=np.int32)
+                          dtype=np.uint32)
         control.add_basic(name='time_stamp', nix='NIX00402', packets=packets)
         if np.any(control['time_stamp'] > 2 ** 32 - 1):
             coarse = control['time_stamp'] >> 16
@@ -285,7 +285,7 @@ class ControlSci(QTable, AddParametersMixin):
         control['time_stamp'] = SCETime(coarse, fine)
         try:
             control['num_substructures'] = np.array(packets.get_value('NIX00403'),
-                                                    np.int32).reshape(1, -1)
+                                                    np.uint16).reshape(1, -1)
             control.add_meta(name='num_substructures', nix='NIX00403', packets=packets)
         except AttributeError:
             logger.debug('NIX00403 not found')
@@ -394,7 +394,7 @@ class GenericProduct(BaseProduct):
     def __repr__(self):
         return f'<{self.__class__.__name__}' \
                f'{self.name}, {self.level}\n' \
-               f'{self.scet_timerange.start} to {self.scet_timerange.start}, ' \
+               f'{self.scet_timerange.start} to {self.scet_timerange.end}, ' \
                f'{len(self.control)}, {len(self.data)}'
 
     def to_days(self):

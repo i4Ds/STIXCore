@@ -3,6 +3,8 @@ from unittest.mock import patch
 
 import pytest
 
+from astropy.table import Table
+
 from stixcore.data.test import test_data
 from stixcore.products.level0 import quicklookL0 as qll0
 from stixcore.products.level1 import quicklookL1 as qll1
@@ -18,7 +20,7 @@ testpackets = [(test_data.tmtc.TM_21_6_30, qll0.LightCurve, qll1.LightCurve,
                (test_data.tmtc.TM_21_6_34, qll0.FlareFlag, qll1.FlareFlag,
                 'flareflag', '0659400170f00008', '0659402958f00008', 697),
                (test_data.tmtc.TM_21_6_41_complete, qll0.EnergyCalibration, qll1.EnergyCalibration,
-                'energy', '0659318520f00000', '0659326919f58980', 1)
+                'energy', '0659318520f00000', '0659326919f00000', 1)
                ]
 
 
@@ -30,7 +32,7 @@ def test_quicklook(levelb, packets):
         hex = file.readlines()
 
     levelb.data.__getitem__.return_value = [re.sub(r"\s+", "", h) for h in hex]
-    levelb.control = {'raw_file': 'raw.xml', 'packet': 0}
+    levelb.control = Table({'raw_file': ['raw.xml'], 'packet': [0]})
 
     ql_l0 = cl_l0.from_levelb(levelb, parent='afits.fits')
     assert ql_l0.parent == ['afits.fits']
@@ -52,7 +54,7 @@ def test_lightcurve(levelb):
         hex = file.read()
 
     levelb.data.__getitem__.return_value = [re.sub(r"\s+", "", hex)]
-    levelb.control = {'raw_file': 'raw.xml', 'packet': 0}
+    levelb.control = Table({'raw_file': ['raw.xml'], 'packet': [0]})
 
     ql_lc_product_l0 = qll0.LightCurve.from_levelb(levelb, parent="raw.xml")
 

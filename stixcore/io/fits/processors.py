@@ -26,6 +26,19 @@ logger = get_logger(__name__, level=logging.WARNING)
 SEC_IN_DAY = 24 * 60 * 60
 
 
+def set_bscale_unsigned(table_hdu):
+    """
+    Set bscale value to 1 if unsigned int.
+
+    For mrdfits compatibility need have bscale set to 1 when using unsigned int convention
+    """
+    for col in table_hdu.columns:
+        if col.bzero and col.bscale is None:
+            col.bscale = 1
+
+    return table_hdu
+
+
 class FitsProcessor:
     # TODO abstract some general processing pattern methods
 
@@ -288,8 +301,11 @@ class FitsL0Processor:
             # Convert time to be relative to start date
             # it is important that the change to the relative time is done after the header is
             # generated as this will use the original SCET time data
-            data['time'] = (data['time'] - prod.scet_timerange.start).as_float()
-            data['timedel'] = data['timedel'].as_float()
+
+            # In TM sent as uint in units of 0.1 so convert back
+            data['time'] = np.uint32(np.around((data['time']
+                                                - prod.scet_timerange.start).as_float()).to(u.ds))
+            data['timedel'] = np.uint32(np.around(data['timedel'].as_float()).to(u.ds))
             try:
                 control['time_stamp'] = control['time_stamp'].as_float()
             except KeyError as e:
@@ -298,10 +314,12 @@ class FitsL0Processor:
 
             control_enc = fits.connect._encode_mixins(control)
             control_hdu = table_to_hdu(control_enc)
+            control_hdu = set_bscale_unsigned(control_hdu)
             control_hdu.name = 'CONTROL'
 
             data_enc = fits.connect._encode_mixins(data)
             data_hdu = table_to_hdu(data_enc)
+            data_hdu = set_bscale_unsigned(data_hdu)
             data_hdu.name = 'DATA'
 
             idb_enc = fits.connect._encode_mixins(idb_versions)
@@ -313,9 +331,9 @@ class FitsL0Processor:
             if getattr(prod, 'get_energies', False) is not False:
                 elow, ehigh = prod.get_energies()
                 energies = QTable()
-                energies['channel'] = range(len(elow))
-                energies['e_low'] = elow * u.keV
-                energies['e_high'] = ehigh * u.keV
+                energies['channel'] = np.float16(range(len(elow)))
+                energies['e_low'] = np.float16(elow * u.keV)
+                energies['e_high'] = np.float16(ehigh * u.keV)
 
                 energy_enc = fits.connect._encode_mixins(energies)
                 energy_hdu = table_to_hdu(energy_enc)
@@ -526,6 +544,7 @@ class FitsL1Processor(FitsL0Processor):
 
             control_enc = fits.connect._encode_mixins(control)
             control_hdu = table_to_hdu(control_enc)
+            control_hdu = set_bscale_unsigned(control_hdu)
             control_hdu.name = 'CONTROL'
 
             data_enc = fits.connect._encode_mixins(data)
@@ -541,9 +560,9 @@ class FitsL1Processor(FitsL0Processor):
             if getattr(prod, 'get_energies', False) is not False:
                 elow, ehigh = prod.get_energies()
                 energies = QTable()
-                energies['channel'] = range(len(elow))
-                energies['e_low'] = elow * u.keV
-                energies['e_high'] = ehigh * u.keV
+                energies['channel'] = np.float16(range(len(elow)))
+                energies['e_low'] = np.float16(elow * u.keV)
+                energies['e_high'] = np.float16(ehigh * u.keV)
 
                 energy_enc = fits.connect._encode_mixins(energies)
                 energy_hdu = table_to_hdu(energy_enc)

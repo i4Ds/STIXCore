@@ -50,8 +50,8 @@ if __name__ == '__main__':
     logger.info('LevelB run')
     warnings.filterwarnings('ignore', module='astropy.io.fits.card')
 
-    tm_path = Path('/home/shane/tm')
-    archive_path = Path('/home/shane/fits_test')
+    tm_path = Path('/Users/shane/Projects/STIX/tm')
+    archive_path = Path('/Users/shane/Projects/STIX/fits_test')
 
     lb_files = tmtc_to_l0(tmtc_path=tm_path, archive_path=archive_path)
     logger.info(lb_files)

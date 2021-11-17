@@ -15,6 +15,7 @@ from stixcore.products.common import (
     _get_energy_bins,
     _get_pixel_mask,
     _get_sub_spectrum_mask,
+    get_min_uint,
     rebin_proportional,
 )
 from stixcore.products.product import Control, Data, EnergyChannelsMixin, GenericProduct
@@ -81,8 +82,18 @@ class QLProduct(GenericProduct, EnergyChannelsMixin):
         packets, idb_versions = GenericProduct.getLeveL0Packets(levelb)
 
         control = Control.from_packets(packets, NIX00405_offset=NIX00405_offset)
-        control['raw_file'] = levelb.control['raw_file']
-        control['packet'] = levelb.control['packet']
+
+        # When the packets are parse empty packets are dropped but in LB we don't parse this
+        # is not known need to compare control and levelb.control and only use matching rows
+        if len(levelb.control) > len(control):
+            matching_index = np.argwhere(
+                np.in1d(levelb.control['scet_coarse'], np.array(packets.get('scet_coarse'))))
+            control['raw_file'] = levelb.control['raw_file'][matching_index].reshape(-1)
+            control['packet'] = levelb.control['packet'][matching_index].reshape(-1)
+        else:
+            control['raw_file'] = levelb.control['raw_file'].reshape(-1)
+            control['packet'] = levelb.control['packet'].reshape(-1)
+
         control['parent'] = parent
 
         return packets, idb_versions, control
@@ -148,14 +159,14 @@ class LightCurve(QLProduct):
         data['time'] = time
         data['timedel'] = duration
         data.add_meta(name='timedel', nix='NIX00405', packets=packets)
-        data['triggers'] = triggers
+        data['triggers'] = triggers.astype(get_min_uint(triggers))
         data.add_meta(name='triggers', nix='NIX00274', packets=packets)
-        data['triggers_err'] = np.sqrt(triggers_var)
-        data['rcr'] = np.hstack(packets.get_value('NIX00276')).flatten()
+        data['triggers_err'] = np.float32(np.sqrt(triggers_var))
+        data['rcr'] = np.hstack(packets.get_value('NIX00276')).flatten().astype(np.ubyte)
         data.add_meta(name='rcr', nix='NIX00276', packets=packets)
-        data['counts'] = counts.T
+        data['counts'] = counts.T.astype(get_min_uint(counts))
         data.add_meta(name='counts', nix='NIX00272', packets=packets)
-        data['counts_err'] = np.sqrt(counts_var).T * u.ct
+        data['counts_err'] = np.float32(np.sqrt(counts_var).T * u.ct)
 
         return cls(service_type=packets.service_type,
                    service_subtype=packets.service_subtype,
@@ -219,12 +230,12 @@ class Background(QLProduct):
         data['time'] = time
         data['timedel'] = duration
         data.add_meta(name='timedel', nix='NIX00405', packets=packets)
-        data['triggers'] = triggers
+        data['triggers'] = triggers.astype(get_min_uint(triggers))
         data.add_meta(name='triggers', nix='NIX00274', packets=packets)
-        data['triggers_err'] = np.sqrt(triggers_var)
-        data['counts'] = counts.T
+        data['triggers_err'] = np.float32(np.sqrt(triggers_var))
+        data['counts'] = counts.T.astype(get_min_uint(counts))
         data.add_meta(name='counts', nix='NIX00278', packets=packets)
-        data['counts_err'] = np.sqrt(counts_var).T * u.ct
+        data['counts_err'] = np.float32(np.sqrt(counts_var).T * u.ct)
 
         return cls(service_type=packets.service_type,
                    service_subtype=packets.service_subtype,
@@ -315,20 +326,20 @@ class Spectra(QLProduct):
         data['time'] = time[:, 0]
         data['timedel'] = duration[:, 0]
         data.add_meta(name='timedel', nix='NIX00405', packets=packets)
-        data['detector_index'] = detector_index.reshape(-1, 32) * u.ct
+        data['detector_index'] = detector_index.reshape(-1, 32).astype(np.ubyte)
         data.add_meta(name='detector_index', nix='NIX00100', packets=packets)
-        data['spectra'] = counts.reshape(-1, 32, num_energies) * u.ct
+        data['spectra'] = (counts.reshape(-1, 32, num_energies) * u.ct).astype(get_min_uint(counts))
 
         # data['spectra'].meta = {'NIXS': [f'NIX00{i}' for i in range(452, 484)],
         #                        'PCF_CURTX': [packets.get(f'NIX00{i}')[0].idb_info.PCF_CURTX
         #                                      for i in range(452, 484)]}
         data['spectra'].meta = {'NIXS': 'NIX00452',
                                 'PCF_CURTX': packets.get('NIX00452')[0].idb_info.PCF_CURTX}
-        data['spectra_err'] = np.sqrt(counts_var.reshape(-1, 32, num_energies))
-        data['triggers'] = triggers.reshape(-1, num_energies)
+        data['spectra_err'] = np.float32(np.sqrt(counts_var.reshape(-1, 32, num_energies)))
+        data['triggers'] = triggers.reshape(-1, num_energies).astype(get_min_uint(triggers))
         data.add_meta(name='triggers', nix='NIX00484', packets=packets)
-        data['triggers_err'] = np.sqrt(triggers_var.reshape(-1, num_energies))
-        data['num_integrations'] = num_integrations.reshape(-1, num_energies)
+        data['triggers_err'] = np.float32(np.sqrt(triggers_var.reshape(-1, num_energies)))
+        data['num_integrations'] = num_integrations.reshape(-1, num_energies).astype(np.ubyte)
         data.add_meta(name='num_integrations', nix='NIX00485', packets=packets)
 
         return cls(service_type=packets.service_type,
@@ -420,9 +431,9 @@ class Variance(QLProduct):
         data['timedel'] = duration
         data.add_meta(name='timedel', nix='NIX00405', packets=packets)
         data['control_index'] = control_indices
-        data['variance'] = variance
+        data['variance'] = variance.astype(get_min_uint(variance))
         data.add_meta(name='variance', nix='NIX00281', packets=packets)
-        data['variance_err'] = np.sqrt(variance_var)
+        data['variance_err'] = np.float32(np.sqrt(variance_var))
 
         return cls(service_type=packets.service_type,
                    service_subtype=packets.service_subtype,
@@ -514,7 +525,7 @@ class EnergyCalibration(QLProduct):
     def from_levelb(cls, levelb, parent=''):
         packets, idb_versions, control = QLProduct.from_levelb(levelb, parent=parent)
 
-        control['integration_time'] = packets.get_value('NIX00122')
+        control['integration_time'] = packets.get_value('NIX00122').astype(np.uint32)
         control.add_meta(name='integration_time', nix='NIX00122', packets=packets)
         # control['obs_beg'] = control['obs_utc']
         # control['.obs_end'] = control['obs_beg'] + timedelta(seconds=control[
@@ -522,8 +533,8 @@ class EnergyCalibration(QLProduct):
         # control['.obs_avg'] = control['obs_beg'] + (control['obs_end'] - control['obs_beg']) / 2
 
         # Control
-        control.add_basic(name='quiet_time', nix='NIX00123', packets=packets)
-        control.add_basic(name='live_time', nix='NIX00124', packets=packets)
+        control.add_basic(name='quiet_time', nix='NIX00123', packets=packets, dtype=np.uint16)
+        control.add_basic(name='live_time', nix='NIX00124', packets=packets, dtype=np.uint32)
         control.add_basic(name='average_temperature', nix='NIX00125', packets=packets,
                           dtype=np.uint16)
         control.add_data('detector_mask', _get_detector_mask(packets))
@@ -547,11 +558,12 @@ class EnergyCalibration(QLProduct):
         # control['index'] = np.arange(len(control))
 
         control['subspec_num_points'] = np.array(
-            [v['num_points'] for v in subspec_data.values()]).reshape(1, -1)
+            [v['num_points'] for v in subspec_data.values()]).reshape(1, -1).astype(np.uint16)
         control['subspec_num_summed_channel'] = np.array(
-            [v['num_summed_channel'] for v in subspec_data.values()]).reshape(1, -1)
+            [v['num_summed_channel'] for v in subspec_data.values()]
+        ).reshape(1, -1).astype(np.uint16)
         control['subspec_lowest_channel'] = np.array(
-            [v['lowest_channel'] for v in subspec_data.values()]).reshape(1, -1)
+            [v['lowest_channel'] for v in subspec_data.values()]).reshape(1, -1).astype(np.uint16)
 
         subspec_index = np.argwhere(control['subspectrum_mask'][0].flatten() == 1)
         num_sub_spectra = control['subspectrum_mask'].sum(axis=1)
@@ -594,12 +606,20 @@ class EnergyCalibration(QLProduct):
                         np.ubyte).reshape(-1, num_sub_spectra[0])[:, 0]
 
         full_counts = np.zeros((32, 12, 1024))
-        full_counts[dids, pids] = counts_rebinned
+        # TODO fix bug see https://github.com/i4Ds/STIXCore/issues/168 and remove try except
+        try:
+            full_counts[dids, pids] = counts_rebinned
+        except Exception:
+            logger.error('Could not reshape counts to expected size', exc_info=True)
+            return None
+
         full_counts_var = np.zeros((32, 12, 1024))
         full_counts_var[dids, pids] = counts_var_rebinned
-        data['counts'] = full_counts.reshape((1, *full_counts.shape))
+        data['counts'] = full_counts.reshape((1, *full_counts.shape)).astype(
+            get_min_uint(full_counts))
         data.add_meta(name='counts', nix='NIX00158', packets=packets)
-        data['counts_err'] = np.sqrt(full_counts_var).reshape((1, *full_counts_var.shape))
+        data['counts_err'] = np.float32(np.sqrt(full_counts_var).reshape(
+            (1, *full_counts_var.shape)))
 
         return cls(service_type=packets.service_type,
                    service_subtype=packets.service_subtype,

@@ -89,61 +89,61 @@ class AspectIDLProcessing(SSWIDLTask):
     def __init__(self):
         script = '''
 
-common config, param_dir, def_calibfile, data_dir, out_dir, sas_version
+            common config, param_dir, def_calibfile, data_dir, out_dir, sas_version
 
-workdir = '{{ work_dir }}'
-print, workdir
-cd, workdir
+            workdir = '{{ work_dir }}'
+            print, workdir
+            cd, workdir
 
-sas_version = '2021-08-09'
+            sas_version = '2021-08-09'
 
-; I/O directories:
-; - location of some parameter files
-param_dir = workdir + d + 'SAS_param' + d
+            ; I/O directories:
+            ; - location of some parameter files
+            param_dir = workdir + d + 'SAS_param' + d
 
-; - default file for calibration (contains relative gains and biases)
-def_calibfile = 'SAS_calib_2020'
+            ; - default file for calibration (contains relative gains and biases)
+            def_calibfile = 'SAS_calib_2020'
 
 
-; Path to the SPICE kernels
-spice_dir = "{{ spice_dir }}"
-spice_kernel = "{{ spice_kernel }}"
+            ; Path to the SPICE kernels
+            spice_dir = "{{ spice_dir }}"
+            spice_kernel = "{{ spice_kernel }}"
 
-; Load the Spice kernels that we need
-cspice_kclear
-add_sunspice_mission, 'solo'
-load_sunspice_solo
+            ; Load the Spice kernels that we need
+            cspice_kclear
+            add_sunspice_mission, 'solo'
+            load_sunspice_solo
 
-cd, spice_dir
-cspice_furnsh, spice_dir + spice_kernel
+            cd, spice_dir
+            cspice_furnsh, spice_dir + spice_kernel
 
-hk_files = JSON_PARSE('{{ hk_files }}', /TOARRAY, /TOSTRUCT)
-generatedfiles = []
+            hk_files = JSON_PARSE('{{ hk_files }}', /TOARRAY, /TOSTRUCT)
+            generatedfiles = []
 
-FOREACH hk_file, hk_files DO BEGIN
+            FOREACH hk_file, hk_files DO BEGIN
 
-    ; - location of the L1 HK data files
-    data_dir = hk_file.INPATH + d
-    ; - Output directory
-    out_dir = hk_file.OUTPATH + d
+                ; - location of the L1 HK data files
+                data_dir = hk_file.INPATH + d
+                ; - Output directory
+                out_dir = hk_file.OUTPATH + d
 
-    in_file = hk_file.INNAME
+                in_file = hk_file.INNAME
 
-    print,"Reading L1 data file: " + in_file
+                print,"Reading L1 data file: " + in_file
 
-    data = read_hk_data(in_file, quiet=0)
+                data = read_hk_data(in_file, quiet=0)
 
-    print,"Calibrating data..."
-    cal_factor = 1.10   ; roughly OK for 2021 data
-    calib_sas_data, data, factor=cal_factor
+                print,"Calibrating data..."
+                cal_factor = 1.10   ; roughly OK for 2021 data
+                calib_sas_data, data, factor=cal_factor
 
-    print,"processing data..."
-    process_SAS_data, in_file, cal_factor=cal_factor, outfile=hk_file.OUTNAME
+                print,"processing data..."
+                process_SAS_data, in_file, cal_factor=cal_factor, outfile=hk_file.OUTNAME
 
-    generatedfiles = [generatedfiles, hk_file]
-ENDFOREACH
+                generatedfiles = [generatedfiles, hk_file]
+            ENDFOREACH
 
-undefine, data, hk_file, hk_files
+            undefine, data, hk_file, hk_files
 
 '''
         spice_dir = '/data/stix/spice/kernels/mk/'

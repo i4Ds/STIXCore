@@ -12,6 +12,7 @@ from astropy.io.fits.diff import FITSDiff
 from stixcore.config.config import CONFIG
 from stixcore.data.test import test_data
 from stixcore.ephemeris.manager import Spice
+from stixcore.ephemeris.manager import SpiceKernelManager
 from stixcore.idb.idb import IDBPolynomialCalibration
 from stixcore.idb.manager import IDBManager
 from stixcore.io.soc.manager import SOCManager, SOCPacketFile
@@ -32,6 +33,11 @@ logger = get_logger(__name__)
 @pytest.fixture
 def soc_manager():
     return SOCManager(Path(__file__).parent.parent.parent / 'data' / 'test' / 'io' / 'soc')
+
+
+@pytest.fixture
+def spicekernelmanager():
+    return SpiceKernelManager(test_data.ephemeris.KERNELS_DIR)
 
 
 @pytest.fixture
@@ -106,7 +112,7 @@ def test_level_1(out_dir):
         assert diff.identical
 
 
-def test_level_2(out_dir):
+def test_level_2(out_dir, spicekernelmanager):
     SOOPManager.instance = SOOPManager(Path(__file__).parent.parent.parent
                                        / 'data' / 'test' / 'soop')
 

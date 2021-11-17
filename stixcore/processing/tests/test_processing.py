@@ -278,6 +278,8 @@ def test_single_vs_batch(out_dir):
             assert diff.identical
     finally:
         CONFIG.set('Logging', 'stop_on_error', str(CONTINUE_ON_ERROR))
+
+
 if __name__ == '__main__':
     '''TO BE REMOVED
 

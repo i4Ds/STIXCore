@@ -263,7 +263,7 @@ class IDBParameter(IDBPacketTypeInfo):
         self.S2K_TYPE = S2K_TYPE
         self.bin_format = bin_format
 
-    def get_product_attribut_name(self):
+    def get_product_attribute_name(self):
         return self.PCF_DESCR.lower().replace(' ', '_').replace('_-_', '-')
 
 

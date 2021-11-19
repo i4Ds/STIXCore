@@ -213,7 +213,7 @@ class RawPixelData(ScienceProduct):
         data['time'] = control["time_stamp"][0] \
             + data['start_time'] + data['integration_time'] / 2
         data['timedel'] = SCETimeDelta(data['integration_time'])
-        data['counts'] = get_min_uint(counts)(counts * u.ct)
+        data['counts'] = (counts * u.ct).astype(get_min_uint(counts))
         # data.add_meta(name='counts', nix='NIX00065', packets=packets)
         data['control_index'] = control['index'][0]
 
@@ -279,7 +279,7 @@ class CompressedPixelData(ScienceProduct):
         triggers_var = np.array([packets.get_value(f'NIX00{i}', attr='error')
                                  for i in range(242, 258)])
 
-        data['triggers'] = get_min_uint(triggers)(triggers.T)
+        data['triggers'] = triggers.T.astype(get_min_uint(triggers))
         data['triggers'].meta = {'NIXS': [f'NIX00{i}' for i in range(242, 258)]}
         data['triggers_err'] = np.float32(np.sqrt(triggers_var).T)
         data.add_basic(name='num_energy_groups', nix='NIX00258', packets=packets, dtype=np.ubyte)
@@ -399,7 +399,7 @@ class CompressedPixelData(ScienceProduct):
         data['time'] = (control['time_stamp'][0]
                         + data['delta_time'] + data['integration_time']/2)
         data['timedel'] = data['integration_time']
-        data['counts'] = get_min_uint(out_counts)(out_counts * u.ct)
+        data['counts'] = (out_counts * u.ct).astype(get_min_uint(out_counts))
         data.add_meta(name='counts', nix='NIX00260', packets=packets)
         data['counts_err'] = np.float32(out_var * u.ct)
         data['control_index'] = control['index'][0]
@@ -666,10 +666,10 @@ class Spectrogram(ScienceProduct):
         data['timedel'] = deltas
         data['timedel'].meta = {'NIXS': ['NIX00441', 'NIX00269']}
         data.add_basic(name='triggers', nix='NIX00267', packets=packets)
-        data['triggers'] = get_min_uint(data['triggers'])(data['triggers'])
+        data['triggers'].dtype = get_min_uint(data['triggers'])
         data.add_basic(name='triggers_err', nix='NIX00267', attr='error', packets=packets)
         data['triggers_err'] = np.float32(data['triggers_err'])
-        data['counts'] = get_min_uint(full_counts)(full_counts * u.ct)
+        data['counts'] = (full_counts * u.ct).astype(get_min_uint(full_counts))
         data.add_meta(name='counts', nix='NIX00268', packets=packets)
         data['counts_err'] = np.float32(np.sqrt(full_counts_var) * u.ct)
         data['control_index'] = 0

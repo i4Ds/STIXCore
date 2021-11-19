@@ -30,6 +30,43 @@ from stixcore.util.logging import get_logger
 
 logger = get_logger(__name__)
 
+BITS_TO_UINT = {
+    8: np.ubyte,
+    16: np.uint16,
+    32: np.uint32,
+    64: np.uint64
+}
+
+
+def read_qtable(file, hdu, hdul=None):
+    """
+    Read a fits file into a QTable and maintain dtypes of columns with units
+
+    Hack to work around QTable not respecting the dtype in fits file see
+    https://github.com/astropy/astropy/issues/12494
+    """
+    qtable = QTable.read(file, hdu)
+    if hdul is None:
+        hdul = fits.open(file)
+
+    for col in hdul[hdu].data.columns:
+        if col.unit:
+            logger.debug(f'Unit present dtype correction needed for {col}')
+            dtype = col.dtype
+
+            if col.bzero:
+                logger.debug(f'Unit present dtype and bzero correction needed for {col}')
+                bits = np.log2(col.bzero)
+                if bits.is_integer():
+                    dtype = BITS_TO_UINT[int(bits+1)]
+
+            if hasattr(dtype, 'subdtype'):
+                dtype = dtype.base
+
+            qtable[col.name] = qtable[col.name].astype(dtype)
+
+    return qtable
+
 
 class AddParametersMixin:
     def add_basic(self, *, name, nix, packets, attr=None, dtype=None, reshape=False):
@@ -88,12 +125,9 @@ class ProductFactory(BasicRegistrationFactory):
                     ssid = None
                 level = header.get('Level')
                 header.get('TIMESYS')
-                control = QTable.read(file_path, hdu='CONTROL')
-                # hack to work around QTable not respecting the dtype in fits file
-                # see https://github.com/astropy/astropy/issues/12494
+
                 hdul = fits.open(file_path)
-                control = QTable([u.Quantity(control[c.name], dtype=c.dtype)
-                                  for c in hdul['CONTROL'].data.columns])
+                control = read_qtable(file_path, hdu='CONTROL', hdul=hdul)
 
                 # Weird issue where time_stamp wasn't a proper table column?
                 if 'time_stamp' in control.colnames:
@@ -101,11 +135,7 @@ class ProductFactory(BasicRegistrationFactory):
                     control.remove_column('time_stamp')
                     control['time_stamp'] = ts * u.s
 
-                data = QTable.read(file_path, hdu='DATA')
-                # hack to work around QTable not respecting the dtype in fits file
-                # see https://github.com/astropy/astropy/issues/12494
-                data = QTable([u.Quantity(data[c.name], dtype=c.dtype)
-                               for c in hdul['DATA'].data.columns])
+                data = read_qtable(file_path, hdu='DATA', hdul=hdul)
 
                 if level != 'LB':
                     data['timedel'] = SCETimeDelta(data['timedel'])

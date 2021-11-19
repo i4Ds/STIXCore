@@ -71,8 +71,8 @@ if __name__ == '__main__':
     warnings.filterwarnings('ignore', module='stixcore.soop.manager')
     warnings.filterwarnings('ignore', module='astropy.utils.metadata')
 
-    fits_path = Path('/home/shane/fits_test/L0')
-    bd = Path('/home/shane/fits_test/')
+    fits_path = Path('/home/shane/fits_test_local/L0/21/6/21')
+    bd = Path('/home/shane/fits_test_local/')
 
     l1processor = Level1(fits_path, bd)
     all_files = l1processor.process_fits_files()

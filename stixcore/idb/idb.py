@@ -263,6 +263,9 @@ class IDBParameter(IDBPacketTypeInfo):
         self.S2K_TYPE = S2K_TYPE
         self.bin_format = bin_format
 
+    def get_product_attribute_name(self):
+        return self.PCF_DESCR.lower().replace(' ', '_').replace('_-_', '-')
+
 
 class IDBStaticParameter(IDBParameter):
     """A class to represent a parameter of a static SCOS-2000 Telemetry Packet.

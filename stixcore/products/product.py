@@ -561,7 +561,7 @@ class DefaultProduct(GenericProduct, L1Mixin):
             reshape = True
         for nix, param in packets.data[0].__dict__.items():
 
-            name = param.idb_info.PCF_DESCR.upper().replace(' ', '_')
+            name = param.idb_info.get_product_attribute_name()
             data.add_basic(name=name, nix=nix, attr='value', packets=packets, reshape=reshape)
 
         data['control_index'] = range(len(control))

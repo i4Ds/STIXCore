@@ -89,15 +89,25 @@ class ProductFactory(BasicRegistrationFactory):
                 level = header.get('Level')
                 header.get('TIMESYS')
                 control = QTable.read(file_path, hdu='CONTROL')
+                # hack to work around QTable not respecting the dtype in fits file
+                # see https://github.com/astropy/astropy/issues/12494
+                hdul = fits.open(file_path)
+                control = QTable([u.Quantity(control[c.name], dtype=c.dtype)
+                                  for c in hdul['CONTROL'].data.columns])
+
                 # Weird issue where time_stamp wasn't a proper table column?
                 if 'time_stamp' in control.colnames:
                     ts = control['time_stamp'].value
                     control.remove_column('time_stamp')
                     control['time_stamp'] = ts * u.s
+
                 data = QTable.read(file_path, hdu='DATA')
+                # hack to work around QTable not respecting the dtype in fits file
+                # see https://github.com/astropy/astropy/issues/12494
+                data = QTable([u.Quantity(data[c.name], dtype=c.dtype)
+                               for c in hdul['DATA'].data.columns])
 
                 if level != 'LB':
-
                     data['timedel'] = SCETimeDelta(data['timedel'])
                     try:
                         offset = SCETime.from_string(header['OBT_BEG'], sep=':')

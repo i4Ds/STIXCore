@@ -150,7 +150,7 @@ class MaxiReport(HKProduct):
             if nix.startswith("NIXG") or nix == 'NIX00020':
                 continue
 
-            name = param.idb_info.get_product_attribut_name()
+            name = param.idb_info.get_product_attribute_name()
             data.add_basic(name=name, nix=nix, attr='value', packets=packets)
 
         data['control_index'] = range(len(control))

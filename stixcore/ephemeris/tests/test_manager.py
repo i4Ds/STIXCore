@@ -14,7 +14,7 @@ from stixcore.ephemeris.manager import (
 
 @pytest.fixture
 def spicekernelmanager():
-    return SpiceKernelManager(test_data.ephemeris.KERNELS_DIR)
+    return SpiceKernelManager.instance
 
 
 @pytest.fixture

@@ -5,14 +5,14 @@ import pytest
 
 import astropy.units as u
 
-from stixcore.data.test import test_data
-from stixcore.ephemeris.manager import Position
+from stixcore.ephemeris.manager import Position, SpiceKernelManager
 from stixcore.time.datetime import SCETime
 
 
 @pytest.fixture
 def spicemanager():
-    return Position(meta_kernel_path=test_data.ephemeris.META_KERNEL_POS)
+    return Position(meta_kernel_path=SpiceKernelManager.instance.get_latest_mk())
+    # return Position(meta_kernel_path=test_data.ephemeris.META_KERNEL_POS)
 
 
 def test_get_position(spicemanager):

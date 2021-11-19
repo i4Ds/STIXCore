@@ -14,7 +14,9 @@ from spiceypy.utils.exceptions import SpiceBADPARTNUMBER, SpiceINVALIDSCLKSTRING
 import astropy.units as u
 from astropy.time.core import Time as ApTime
 
+from stixcore.config.config import CONFIG
 from stixcore.util.logging import get_logger
+from stixcore.util.singleton import Singleton
 
 SOLAR_ORBITER_ID = -144
 SOLAR_ORBITER_SRF_FRAME_ID = -144000
@@ -59,7 +61,7 @@ class SpiceKernelType(Enum):
     """Orbit kernels, for the spacecraft and other solar system bodies."""
 
 
-class SpiceKernelManager:
+class SpiceKernelManager(metaclass=Singleton):
     """A class to manage Spice kernels in the local file system."""
 
     def __init__(self, path):
@@ -501,3 +503,6 @@ class Position(SpiceKernelLoader):
         )
 
         return headers
+
+
+SpiceKernelManager.instance = SpiceKernelManager(Path(CONFIG.get("Paths", "spice_kernels")))

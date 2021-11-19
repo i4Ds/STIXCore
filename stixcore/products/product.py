@@ -44,6 +44,20 @@ def read_qtable(file, hdu, hdul=None):
 
     Hack to work around QTable not respecting the dtype in fits file see
     https://github.com/astropy/astropy/issues/12494
+
+    Parameters
+    ----------
+    file : `str` or `pathlib.Path`
+        Fits file
+    hdu : `str`
+        The name of the extension
+    hdul : optional `astropy.io.fits.HDUList`
+        The HDU list for the fits file
+
+    Returns
+    -------
+    `astropy.table.QTable`
+        The corrected QTable with correct data types
     """
     qtable = QTable.read(file, hdu)
     if hdul is None:

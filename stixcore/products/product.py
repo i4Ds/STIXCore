@@ -21,7 +21,7 @@ from stixcore.tmtc.packet_factory import Packet
 from stixcore.tmtc.packets import GenericPacket, PacketSequence
 
 __all__ = ['GenericProduct', 'ProductFactory', 'Product', 'ControlSci',
-           'Control', 'Data', 'L1Mixin', 'EnergyChannelsMixin']
+           'Control', 'Data', 'L1Mixin', 'L2Mixin', 'EnergyChannelsMixin']
 
 from collections import defaultdict
 
@@ -131,8 +131,8 @@ class ProductFactory(BasicRegistrationFactory):
                 header = fits.getheader(file_path)
                 service_type = int(header.get('stype'))
                 service_subtype = int(header.get('sstype'))
-                parent = header.get('parent').split(';')
-                raw = header.get('raw_file').split(';')
+                parent = header.get('parent', '').split(';')
+                raw = header.get('raw_file', '').split(';')
                 try:
                     ssid = int(header.get('ssid'))
                 except ValueError:
@@ -185,11 +185,17 @@ class ProductFactory(BasicRegistrationFactory):
                                                         ssid=ssid, control=control,
                                                         data=data, energies=energies)
 
-                return Product(level=level, service_type=service_type,
-                               service_subtype=service_subtype,
-                               ssid=ssid, control=control,
-                               data=data, energies=energies, idb_versions=idb_versions,
-                               raw=raw, parent=parent)
+                p = Product(level=level, service_type=service_type,
+                            service_subtype=service_subtype,
+                            ssid=ssid, control=control,
+                            data=data, energies=energies, idb_versions=idb_versions,
+                            raw=raw, parent=parent)
+
+                # store the old fits header for later reuse
+                if isinstance(p, (L1Mixin, L2Mixin)):
+                    p.fits_header = header
+
+                return p
 
     def _check_registered_widget(self, *args, **kwargs):
         """
@@ -541,7 +547,19 @@ class EnergyChannelsMixin:
         return energies
 
 
-class L1Mixin:
+class FitsHeaderMixin:
+    @property
+    def fits_header(self):
+        return self._fits_header if hasattr(self, '_fits_header') else None
+
+    @fits_header.setter
+    def fits_header(self, val):
+        if not isinstance(val, fits.Header):
+            raise ValueError("fits_header should be of type fits.Header")
+        self._fits_header = val.copy(strip=True)
+
+
+class L1Mixin(FitsHeaderMixin):
     @property
     def utc_timerange(self):
         return self.scet_timerange.to_timerange()
@@ -561,7 +579,28 @@ class L1Mixin:
         return l1
 
 
-class DefaultProduct(GenericProduct, L1Mixin):
+class L2Mixin(FitsHeaderMixin):
+    @property
+    def utc_timerange(self):
+        return self.scet_timerange.to_timerange()
+
+    @classmethod
+    def from_level1(cls, l1product, idbm=GenericPacket.idb_manager, parent='', idlprocessor=None):
+        l2 = cls(service_type=l1product.service_type,
+                 service_subtype=l1product.service_subtype,
+                 ssid=l1product.ssid,
+                 control=l1product.control,
+                 data=l1product.data,
+                 idb_versions=l1product.idb_versions)
+
+        l2.control.replace_column('parent', [parent] * len(l2.control))
+        l2.level = 'L2'
+        l2.fits_header = l1product.fits_header
+
+        return [l2]
+
+
+class DefaultProduct(GenericProduct, L1Mixin, L2Mixin):
     """
     Default product use when not QL or BSD.
     """

@@ -29,7 +29,6 @@ from astropy.io import fits
 
 from stixcore.data.test import test_data
 from stixcore.idb.manager import IDBManager
-from stixcore.products.level0.scienceL0 import ScienceProduct
 from stixcore.products.product import Product, read_qtable
 
 name_counter = defaultdict(int)
@@ -210,9 +209,9 @@ files = [  # L0
     "L1/2020/06/16/HK/solo_L1_stix-hk-maxi_20200616_V01.fits",
     "L1/2021/09/20/HK/solo_L1_stix-hk-mini_20210920_V01.fits"]
 
-remote = ["http://pub099.cs.technik.fhnw.ch/data/fits_test/" + x for x in files]
+# files = ["http://pub099.cs.technik.fhnw.ch/data/fits_test/" + x for x in files]
 # files = ["/home/shane/fits_test/" + x for x in files]
-files = [("D:/stixcore_ddpd/" + Path(x).name, remote[i]) for i, x in enumerate(files)]
+files = ["D:/stixcore_ddpd/" + Path(x).name for x in files]
 
 with tempfile.TemporaryDirectory() as tempdir:
     temppath = Path(tempdir)

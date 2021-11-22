@@ -159,3 +159,4 @@ docs/whatsnew/latest_changelog.txt
 stixcore/version.py
 htmlcov/
 *.prof
+pdpp.html

@@ -1,6 +1,5 @@
 """Module for the different processing levels."""
 import logging
-from pathlib import Path
 from datetime import datetime
 
 import numpy as np
@@ -11,7 +10,6 @@ from astropy.io.fits import table_to_hdu
 from astropy.table import QTable
 
 import stixcore
-from stixcore.config.config import CONFIG
 from stixcore.data.test import test_data
 from stixcore.ephemeris.manager import Position
 from stixcore.products.product import Product
@@ -469,9 +467,6 @@ class FitsL1Processor(FitsL0Processor):
         )
 
         mk_path = test_data.ephemeris.META_KERNEL_POS
-        kernel_path = Path(CONFIG.get('Paths', 'spice_kernels'))
-        if str(kernel_path) != '.':
-            mk_path = kernel_path / Path(*['kernels', 'mk', 'solo_ANC_soc-flown-mk.tm'])
 
         with Position(meta_kernel_path=mk_path) as pos:
             ephemeris_headers = pos.get_fits_headers(start_time=product.utc_timerange.start,

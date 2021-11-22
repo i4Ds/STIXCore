@@ -70,9 +70,6 @@ def test_level_0(out_dir):
 
 @pytest.mark.xfail(sys.platform == "win32", reason="numpy defaults to int32 on windows")
 def test_level_1(out_dir):
-    SOOPManager.instance = SOOPManager(Path(__file__).parent.parent.parent
-                                       / 'data' / 'test' / 'soop')
-
     l0 = test_data.products.L0_LightCurve_fits
     l1 = Level1(out_dir / 'LB', out_dir)
     res = l1.process_fits_files(files=l0)

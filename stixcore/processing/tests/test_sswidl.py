@@ -1,20 +1,21 @@
+from stixcore.io.fits.processors import FitsL2Processor
 from stixcore.processing.sswidl import SSWIDLProcessor, SSWIDLTask
 
 
 class T1(SSWIDLTask):
 
     def __init__(self):
-        super().__init__("T1", {})
+        super().__init__(script="T1", work_dir=".", params={})
 
 
 class T2(SSWIDLTask):
 
     def __init__(self):
-        super().__init__("T2", {})
+        super().__init__(script="T2", work_dir=".", params={})
 
 
 def test_processor():
-    pros = SSWIDLProcessor()
+    pros = SSWIDLProcessor(FitsL2Processor("."))
 
     t2 = T2()
     pros[T2] = t2

@@ -1,4 +1,6 @@
 import re
+import tempfile
+from pathlib import Path
 from collections import defaultdict
 
 import dominate
@@ -6,11 +8,10 @@ import numpy as np
 from dominate.tags import div, h1, h2, h3, h4, h5, table, tbody, td, th, thead, tr
 
 from astropy.io import fits
-from astropy.table.table import QTable
 
 from stixcore.data.test import test_data
 from stixcore.idb.manager import IDBManager
-from stixcore.products.product import Product
+from stixcore.products.product import Product, read_qtable
 
 name_counter = defaultdict(int)
 
@@ -90,11 +91,11 @@ def product(file):
     with div() as di:
         h4(f"{type(prod).__name__}")
         h5("PRIMARY Header")
-        hdu = fits.open(file)
-        header2table(hdu["PRIMARY"].header)
+        hdul = fits.open(file)
+        header2table(hdul["PRIMARY"].header)
         for extname in ["DATA", "CONTROL", "ENERGIES", "IDB_VERSIONS"]:
             try:
-                data = QTable.read(file, hdu=extname)
+                data = read_qtable(file, hdu=extname, hdul=hdul)
                 h5(f"Extension: '{extname}'")
                 # header2table(hdu[extname].header)
                 data2table(data)
@@ -116,61 +117,71 @@ doc = dominate.document(title='STIX DPDD')
 
 files = [  # L0
            # science
-    "/home/shane/fits_test/L0/21/6/20/solo_L0_stix-sci-xray-rpd-75684608_0640351612f58982-0640351792f58982_V01_50159.fits", # noqa
-    "/home/shane/fits_test/L0/21/6/21/solo_L0_stix-sci-xray-cpd-1267541264_0658960590f39321-0658961099f58980_V01_51710.fits", # noqa
-    "/home/shane/fits_test/L0/21/6/22/solo_L0_stix-sci-xray-spd-87031826_0642038387f06554-0642038399f06553_V01_50889.fits", # noqa
-    "/home/shane/fits_test/L0/21/6/23/solo_L0_stix-sci-xray-vis-2106280003_0678187308f65535-0678187429f58981_V01_54715.fits", # noqa
-    "/home/shane/fits_test/L0/21/6/42/solo_L0_stix-sci-aspect-burst_0670144561f22085-0670166640f63831_V01.fits", # noqa
-    "/home/shane/fits_test/L0/21/6/24/solo_L0_stix-sci-xray-spec-84794884_0641690988f00000-0641692808f00000_V01_51091.fits", # noqa
+    "L0/21/6/20/solo_L0_stix-sci-xray-rpd-75684608_0640351612f58982-0640351792f58982_V01_50159.fits", # noqa
+    "L0/21/6/21/solo_L0_stix-sci-xray-cpd-1267541264_0658960590f39321-0658961099f58980_V01_51710.fits", # noqa
+    "L0/21/6/22/solo_L0_stix-sci-xray-spd-87031826_0642038387f06554-0642038399f06553_V01_50889.fits", # noqa
+    "L0/21/6/23/solo_L0_stix-sci-xray-vis-2106280003_0678187308f65535-0678187429f58981_V01_54715.fits", # noqa
+    "L0/21/6/42/solo_L0_stix-sci-aspect-burst_0670144561f22085-0670166640f63831_V01.fits", # noqa
+    "L0/21/6/24/solo_L0_stix-sci-xray-spec-84794884_0641690988f00000-0641692808f00000_V01_51091.fits", # noqa
     # QL
-    "/home/shane/fits_test/L0/21/6/31/solo_L0_stix-ql-background_0668822400_V01.fits",
-    "/home/shane/fits_test/L0/21/6/34/solo_L0_stix-ql-flareflag_0684547200_V01.fits",
-    "/home/shane/fits_test/L0/21/6/30/solo_L0_stix-ql-lightcurve_0684892800_V01.fits",
-    "/home/shane/fits_test/L0/21/6/33/solo_L0_stix-ql-variance_0687484800_V01.fits",
-    "/home/shane/fits_test/L0/21/6/32/solo_L0_stix-ql-spectra_0680400000_V01.fits",
-    "/home/shane/fits_test/L0/21/6/41/solo_L0_stix-cal-energy_0683856000_V01.fits",
+    "L0/21/6/31/solo_L0_stix-ql-background_0668822400_V01.fits",
+    "L0/21/6/34/solo_L0_stix-ql-flareflag_0684547200_V01.fits",
+    "L0/21/6/30/solo_L0_stix-ql-lightcurve_0684892800_V01.fits",
+    "L0/21/6/33/solo_L0_stix-ql-variance_0687484800_V01.fits",
+    "L0/21/6/32/solo_L0_stix-ql-spectra_0680400000_V01.fits",
+    "L0/21/6/41/solo_L0_stix-cal-energy_0683856000_V01.fits",
     # HK
-    "/home/shane/fits_test/L0/3/25/2/solo_L0_stix-hk-maxi_0647913600_V01.fits",
-    "/home/shane/fits_test/L0/3/25/1/solo_L0_stix-hk-mini_0643507200_V01.fits",
+    "L0/3/25/2/solo_L0_stix-hk-maxi_0647913600_V01.fits",
+    "L0/3/25/1/solo_L0_stix-hk-mini_0643507200_V01.fits",
 
     # L1
     # science
-    "/home/shane/fits_test/L1/2021/06/28/SCI/solo_L1_stix-sci-xray-rpd-2106280010_20210628T092300_20210628T092501_V01_54759.fits", # noqa
-    "/home/shane/fits_test/L1/2021/04/14/SCI/solo_L1_stix-sci-xray-cpd-2104140010_20210414T050020_20210414T050810_V01_53728.fits", # noqa
-    "/home/shane/fits_test/L1/2021/06/28/SCI/solo_L1_stix-sci-xray-scpd-2106280006_20210628T092300_20210628T092501_V01_54720.fits", # noqa
-    "/home/shane/fits_test/L1/2021/06/28/SCI/solo_L1_stix-sci-xray-vis-2106280004_20210628T092300_20210628T092501_V01_54716.fits", # noqa
-    "/home/shane/fits_test/L1/2021/10/13/SCI/solo_L1_stix-sci-aspect-burst_20211013T034957_20211013T092445_V01.fits", # noqa
-    "/home/shane/fits_test/L1/2021/04/14/SCI/solo_L1_stix-sci-xray-spec-2104140004_20210414T035401_20210414T041443_V01_53654.fits", # noqa
+    "L1/2021/06/28/SCI/solo_L1_stix-sci-xray-rpd-2106280010_20210628T092300_20210628T092501_V01_54759.fits", # noqa
+    "L1/2021/04/14/SCI/solo_L1_stix-sci-xray-cpd-2104140010_20210414T050020_20210414T050810_V01_53728.fits", # noqa
+    "L1/2021/06/28/SCI/solo_L1_stix-sci-xray-scpd-2106280006_20210628T092300_20210628T092501_V01_54720.fits", # noqa
+    "L1/2021/06/28/SCI/solo_L1_stix-sci-xray-vis-2106280004_20210628T092300_20210628T092501_V01_54716.fits", # noqa
+    "L1/2021/10/13/SCI/solo_L1_stix-sci-aspect-burst_20211013T034957_20211013T092445_V01.fits", # noqa
+    "L1/2021/04/14/SCI/solo_L1_stix-sci-xray-spec-2104140004_20210414T035401_20210414T041443_V01_53654.fits", # noqa
     # QL
-    "/home/shane/fits_test/L1/2020/06/16/QL/solo_L1_stix-ql-background_20200616_V01.fits",
-    "/home/shane/fits_test/L1/2020/06/16/QL/solo_L1_stix-ql-flareflag_20200616_V01.fits",
-    "/home/shane/fits_test/L1/2020/06/16/QL/solo_L1_stix-ql-lightcurve_20200616_V01.fits",
-    "/home/shane/fits_test/L1/2020/06/16/QL/solo_L1_stix-ql-variance_20200616_V01.fits",
-    "/home/shane/fits_test/L1/2021/11/16/QL/solo_L1_stix-ql-spectra_20211116_V01.fits",
-    "/home/shane/fits_test/L1/2021/11/16/CAL/solo_L1_stix-cal-energy_20211116_V01.fits",
+    "L1/2020/06/16/QL/solo_L1_stix-ql-background_20200616_V01.fits",
+    "L1/2020/06/16/QL/solo_L1_stix-ql-flareflag_20200616_V01.fits",
+    "L1/2020/06/16/QL/solo_L1_stix-ql-lightcurve_20200616_V01.fits",
+    "L1/2020/06/16/QL/solo_L1_stix-ql-variance_20200616_V01.fits",
+    "L1/2021/11/16/QL/solo_L1_stix-ql-spectra_20211116_V01.fits",
+    "L1/2021/11/16/CAL/solo_L1_stix-cal-energy_20211116_V01.fits",
     # HK
-    "/home/shane/fits_test/L1/2020/06/16/HK/solo_L1_stix-hk-maxi_20200616_V01.fits",
-    "/home/shane/fits_test/L1/2021/09/20/HK/solo_L1_stix-hk-mini_20210920_V01.fits"]
+    "L1/2020/06/16/HK/solo_L1_stix-hk-maxi_20200616_V01.fits",
+    "L1/2021/09/20/HK/solo_L1_stix-hk-mini_20210920_V01.fits"]
 
-for f in files:
-    l, t, pr = product(f)
-    collector[l][t].append(pr)
+# files = ["http://pub099.cs.technik.fhnw.ch/data/fits_test/" + x for x in files]
+# files = ["/home/shane/fits_test/" + x for x in files]
+files = ["D:/stixcore_ddpd/" + Path(x).name for x in files]
 
-doc.add(h1("Data Product Description"))
+with tempfile.TemporaryDirectory() as tempdir:
+    temppath = Path(tempdir)
+    for f in files:
+        # lf = temppath / Path(f).name
+        # urllib.request.urlretrieve(f, lf)
+        # print(f"Download: {f} to {lf}")
+        lf = f
+        l, t, pr = product(lf)
+        collector[l][t].append(pr)
 
-for level, types in sorted(collector.items()):
-    doc.add(h2(level))
-    for t, pr in sorted(types.items()):
-        doc.add(h3(typenames[t]))
-        doc.add(pr)
+    doc.add(h1("Data Product Description"))
 
-# print(doc)
+    for level, types in sorted(collector.items()):
+        doc.add(h2(level))
+        for t, pr in sorted(types.items()):
+            doc.add(h3(typenames[t]))
+            doc.add(pr)
 
-name_counter = {k: v for k, v in sorted(name_counter.items(),
-                                        key=lambda item: item[1], reverse=True)}
+    # print(doc)
 
-for k, v in name_counter.items():
-    print(f"{v}\t{k}\t")
+    name_counter = {k: v for k, v in sorted(name_counter.items(),
+                                            key=lambda item: item[1], reverse=True)}
 
-with open("pdpp.html", "w") as fd:
-    fd.write(doc.render(xhtml=True))
+    for k, v in name_counter.items():
+        print(f"{v}\t{k}\t")
+
+    with open("pdpp.html", "w") as fd:
+        fd.write(doc.render(xhtml=True))

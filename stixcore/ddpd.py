@@ -29,7 +29,10 @@ from astropy.io import fits
 
 from stixcore.data.test import test_data
 from stixcore.idb.manager import IDBManager
+<<<<<<< HEAD
 from stixcore.products.level0.scienceL0 import ScienceProduct
+=======
+>>>>>>> use new fits table read method
 from stixcore.products.product import Product, read_qtable
 
 name_counter = defaultdict(int)
@@ -209,6 +212,7 @@ files = [  # L0
     # HK
     "L1/2020/06/16/HK/solo_L1_stix-hk-maxi_20200616_V01.fits",
     "L1/2021/09/20/HK/solo_L1_stix-hk-mini_20210920_V01.fits"]
+<<<<<<< HEAD
 
 remote = ["http://pub099.cs.technik.fhnw.ch/data/fits_test/" + x for x in files]
 # files = ["/home/shane/fits_test/" + x for x in files]
@@ -240,5 +244,38 @@ with tempfile.TemporaryDirectory() as tempdir:
     for k, v in name_counter.items():
         print(f"{v}\t{k}\t")
 
+=======
+
+# files = ["http://pub099.cs.technik.fhnw.ch/data/fits_test/" + x for x in files]
+# files = ["/home/shane/fits_test/" + x for x in files]
+files = ["D:/stixcore_ddpd/" + Path(x).name for x in files]
+
+with tempfile.TemporaryDirectory() as tempdir:
+    temppath = Path(tempdir)
+    for f in files:
+        # lf = temppath / Path(f).name
+        # urllib.request.urlretrieve(f, lf)
+        # print(f"Download: {f} to {lf}")
+        lf = f
+        l, t, pr = product(lf)
+        collector[l][t].append(pr)
+
+    doc.add(h1("Data Product Description"))
+
+    for level, types in sorted(collector.items()):
+        doc.add(h2(level))
+        for t, pr in sorted(types.items()):
+            doc.add(h3(typenames[t]))
+            doc.add(pr)
+
+    # print(doc)
+
+    name_counter = {k: v for k, v in sorted(name_counter.items(),
+                                            key=lambda item: item[1], reverse=True)}
+
+    for k, v in name_counter.items():
+        print(f"{v}\t{k}\t")
+
+>>>>>>> use new fits table read method
     with open("pdpp.html", "w") as fd:
         fd.write(doc.render(xhtml=True))

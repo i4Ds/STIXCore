@@ -8,8 +8,6 @@ test_dir = data_dir.joinpath('test')
 
 class EphemerisTestData:
     def __init__(self, data_dir):
-        self.META_KERNEL_POS = data_dir / "ephemeris" / 'mk' / "test_position_20201001_V01.mk"
-        self.META_KERNEL_TIME = data_dir / "ephemeris" / 'mk' / "test_time_20201001_V01.mk"
         self.KERNELS_DIR = data_dir / "ephemeris" / "spice" / "kernels"
         self.__doc__ = "\n".join([f'{str(k)}: {repr(v)}\n\n' for k, v in self.__dict__.items()])
 
@@ -29,7 +27,8 @@ class IDBTestData:
 class IDBTestProduct:
     def __init__(self, data_dir):
         self.DIR = data_dir / "products"
-        self.L0_LightCurve_fits = [self.DIR / "solo_L0_stix-ql-lightcurve_0664070400_V01.fits"]
+        self.L0_LightCurve_fits = [self.DIR / "solo_L0_stix-ql-lightcurve_0664070400_V01.fits",
+                                   self.DIR / "solo_L0_stix-ql-lightcurve_0664156800_V01.fits"]
         self.L1_LightCurve_fits = [self.DIR / "solo_L1_stix-ql-lightcurve_20210117_V01.fits",
                                    self.DIR / "solo_L1_stix-ql-lightcurve_20210116_V01.fits"]
         self.LB_21_6_30_fits = self.DIR / "solo_LB_stix-21-6-30_0664156800_V01.fits"

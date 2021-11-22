@@ -1,10 +1,15 @@
 import re
 <<<<<<< HEAD
 <<<<<<< HEAD
+<<<<<<< HEAD
 import tempfile
 from pathlib import Path
 =======
 >>>>>>> add first version of ddpd generator based on html
+=======
+import tempfile
+from pathlib import Path
+>>>>>>> use new fits table read method
 =======
 import tempfile
 from pathlib import Path
@@ -56,12 +61,16 @@ from stixcore.data.test import test_data
 from stixcore.idb.manager import IDBManager
 <<<<<<< HEAD
 <<<<<<< HEAD
+<<<<<<< HEAD
 from stixcore.products.product import Product
 >>>>>>> add first version of ddpd generator based on html
 =======
 =======
 from stixcore.products.level0.scienceL0 import ScienceProduct
 >>>>>>> add intro block for each product
+from stixcore.products.product import Product, read_qtable
+>>>>>>> use new fits table read method
+=======
 from stixcore.products.product import Product, read_qtable
 >>>>>>> use new fits table read method
 
@@ -249,8 +258,12 @@ def product(file):
         for extname in ["DATA", "CONTROL", "ENERGIES", "IDB_VERSIONS"]:
             try:
 <<<<<<< HEAD
+<<<<<<< HEAD
                 data = QTable.read(file, hdu=extname)
 >>>>>>> add first version of ddpd generator based on html
+=======
+                data = read_qtable(file, hdu=extname, hdul=hdul)
+>>>>>>> use new fits table read method
 =======
                 data = read_qtable(file, hdu=extname, hdul=hdul)
 >>>>>>> use new fits table read method
@@ -275,6 +288,7 @@ doc = dominate.document(title='STIX DPDD')
 
 files = [  # L0
            # science
+<<<<<<< HEAD
 <<<<<<< HEAD
 <<<<<<< HEAD
     "L0/21/6/20/solo_L0_stix-sci-xray-rpd_0678187309f00000-0678187429f00000_V01_2106280011-54760.fits", # noqa
@@ -362,12 +376,17 @@ with tempfile.TemporaryDirectory() as tempdir:
     "/home/shane/fits_test/L0/21/6/42/solo_L0_stix-sci-aspect-burst_0670144561f22085-0670166640f63831_V01.fits", # noqa
     "/home/shane/fits_test/L0/21/6/24/solo_L0_stix-sci-xray-spec-84794884_0641690988f00000-0641692808f00000_V01_51091.fits", # noqa
 =======
+=======
+>>>>>>> use new fits table read method
     "L0/21/6/20/solo_L0_stix-sci-xray-rpd-75684608_0640351612f58982-0640351792f58982_V01_50159.fits", # noqa
     "L0/21/6/21/solo_L0_stix-sci-xray-cpd-1267541264_0658960590f39321-0658961099f58980_V01_51710.fits", # noqa
     "L0/21/6/22/solo_L0_stix-sci-xray-spd-87031826_0642038387f06554-0642038399f06553_V01_50889.fits", # noqa
     "L0/21/6/23/solo_L0_stix-sci-xray-vis-2106280003_0678187308f65535-0678187429f58981_V01_54715.fits", # noqa
     "L0/21/6/42/solo_L0_stix-sci-aspect-burst_0670144561f22085-0670166640f63831_V01.fits", # noqa
     "L0/21/6/24/solo_L0_stix-sci-xray-spec-84794884_0641690988f00000-0641692808f00000_V01_51091.fits", # noqa
+<<<<<<< HEAD
+>>>>>>> use new fits table read method
+=======
 >>>>>>> use new fits table read method
     # QL
     "L0/21/6/31/solo_L0_stix-ql-background_0668822400_V01.fits",
@@ -399,9 +418,15 @@ with tempfile.TemporaryDirectory() as tempdir:
     "L1/2020/06/16/HK/solo_L1_stix-hk-maxi_20200616_V01.fits",
     "L1/2021/09/20/HK/solo_L1_stix-hk-mini_20210920_V01.fits"]
 
+<<<<<<< HEAD
 remote = ["http://pub099.cs.technik.fhnw.ch/data/fits_test/" + x for x in files]
 # files = ["/home/shane/fits_test/" + x for x in files]
 files = [("D:/stixcore_ddpd/" + Path(x).name, remote[i]) for i, x in enumerate(files)]
+=======
+# files = ["http://pub099.cs.technik.fhnw.ch/data/fits_test/" + x for x in files]
+# files = ["/home/shane/fits_test/" + x for x in files]
+files = ["D:/stixcore_ddpd/" + Path(x).name for x in files]
+>>>>>>> use new fits table read method
 
 with tempfile.TemporaryDirectory() as tempdir:
     temppath = Path(tempdir)
@@ -427,13 +452,19 @@ with tempfile.TemporaryDirectory() as tempdir:
                                             key=lambda item: item[1], reverse=True)}
 
 <<<<<<< HEAD
+<<<<<<< HEAD
 with open("pdpp.html", "w") as fd:
     fd.write(doc.render(xhtml=True))
 >>>>>>> add first version of ddpd generator based on html
 =======
+=======
+>>>>>>> use new fits table read method
     for k, v in name_counter.items():
         print(f"{v}\t{k}\t")
 
     with open("pdpp.html", "w") as fd:
         fd.write(doc.render(xhtml=True))
+<<<<<<< HEAD
+>>>>>>> use new fits table read method
+=======
 >>>>>>> use new fits table read method

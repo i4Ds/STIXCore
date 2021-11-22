@@ -21,7 +21,7 @@ from stixcore.tmtc.packet_factory import Packet
 from stixcore.tmtc.packets import GenericPacket, PacketSequence
 
 __all__ = ['GenericProduct', 'ProductFactory', 'Product', 'ControlSci',
-           'Control', 'Data', 'L1Mixin', 'EnergyChannelsMixin']
+           'Control', 'Data', 'L1Mixin', 'EnergyChannelsMixin', 'read_qtable']
 
 from collections import defaultdict
 

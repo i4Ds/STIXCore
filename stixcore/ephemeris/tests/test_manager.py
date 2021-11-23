@@ -2,13 +2,14 @@ import os
 
 import pytest
 
+from stixcore.config.config import CONFIG
 from stixcore.data.test import test_data
 from stixcore.ephemeris.manager import Spice, SpiceKernelManager, SpiceKernelType
 
 
 @pytest.fixture
 def spicekernelmanager():
-    return SpiceKernelManager.instance
+    return SpiceKernelManager(CONFIG.get("Paths", "spice_kernels"))
 
 
 def test_loader_nokernel():

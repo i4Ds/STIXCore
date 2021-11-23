@@ -82,8 +82,8 @@ if __name__ == '__main__':
     bd = Path('/home/shane/fits_test/')
 
     # possible set an alternative spice kernel if not the latest should be used
-    SpiceKernelManager.instance = SpiceKernelManager(Path(CONFIG.get("Paths", "spice_kernels")))
-    Spice.instance = Spice(SpiceKernelManager.instance.get_latest_mk())
+    spm = SpiceKernelManager(Path(CONFIG.get("Paths", "spice_kernels")))
+    Spice.instance = Spice(spm.get_latest_mk())
 
     l1processor = Level1(fits_path, bd)
     all_files = l1processor.process_fits_files()

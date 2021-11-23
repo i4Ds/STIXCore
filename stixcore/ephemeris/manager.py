@@ -58,7 +58,7 @@ class SpiceKernelType(Enum):
     """Orbit kernels, for the spacecraft and other solar system bodies."""
 
 
-class SpiceKernelManager(metaclass=Singleton):
+class SpiceKernelManager():
     """A class to manage Spice kernels in the local file system."""
 
     def __init__(self, path):
@@ -435,5 +435,5 @@ class Spice(SpiceKernelLoader, metaclass=Singleton):
 
 if 'pytest' in sys.modules:
     # only set the global in test scenario
-    SpiceKernelManager.instance = SpiceKernelManager(Path(CONFIG.get("Paths", "spice_kernels")))
-    Spice.instance = Spice(SpiceKernelManager.instance.get_latest_mk())
+    _spm = SpiceKernelManager(Path(CONFIG.get("Paths", "spice_kernels")))
+    Spice.instance = Spice(_spm.get_latest_mk())

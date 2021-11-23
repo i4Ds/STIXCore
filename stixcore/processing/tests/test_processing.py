@@ -13,6 +13,7 @@ from stixcore.io.soc.manager import SOCManager
 from stixcore.processing.L0toL1 import Level1
 from stixcore.processing.LBtoL0 import Level0
 from stixcore.processing.TMTCtoLB import process_tmtc_to_levelbinary
+from stixcore.products.product import Product
 from stixcore.tmtc.packets import TMTC
 
 
@@ -62,8 +63,20 @@ def test_level_0(out_dir):
 def test_level_1(out_dir):
     l0 = test_data.products.L0_LightCurve_fits
     l1 = Level1(out_dir / 'LB', out_dir)
-    res = l1.process_fits_files(files=l0)
+    res = sorted(l1.process_fits_files(files=l0))
     assert len(res) == 2
+
+    # test for https://github.com/i4Ds/STIXCore/issues/180
+    # TODO remove when solved
+    lc1 = Product(res[0])
+    lc2 = Product(res[1])
+    t = np.hstack((np.array(lc1.data['time']), (np.array(lc2.data['time']))))
+    td = np.hstack((np.array(lc1.data['timedel']), (np.array(lc2.data['timedel']))))
+    r = range(len(lc1.data['time'])-3, len(lc1.data['time'])+3)
+    print(t[r])
+    assert np.all((t[1:] - t[0:-1]) == td[0:-1])
+    # end test for https://github.com/i4Ds/STIXCore/issues/180
+
     for fits in res:
         diff = FITSDiff(test_data.products.DIR / fits.name, fits,
                         ignore_keywords=['CHECKSUM', 'DATASUM', 'DATE', 'VERS_SW'])

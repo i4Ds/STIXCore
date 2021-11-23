@@ -5,12 +5,31 @@ from collections import defaultdict
 
 import dominate
 import numpy as np
-from dominate.tags import div, h1, h2, h3, h4, h5, table, tbody, td, th, thead, tr
+from dominate.tags import (
+    a,
+    b,
+    div,
+    h1,
+    h2,
+    h3,
+    h4,
+    h5,
+    li,
+    span,
+    table,
+    tbody,
+    td,
+    th,
+    thead,
+    tr,
+    ul,
+)
 
 from astropy.io import fits
 
 from stixcore.data.test import test_data
 from stixcore.idb.manager import IDBManager
+from stixcore.products.level0.scienceL0 import ScienceProduct
 from stixcore.products.product import Product, read_qtable
 
 name_counter = defaultdict(int)
@@ -86,10 +105,48 @@ def data2table(data):
                    ("Description", "width: 40%")], des, "cdata")
 
 
-def product(file):
+def mydescriptor(prod):
+    return f"stix-{prod.type}-{prod.name}"
+
+
+def mydescription(prod):
+    doc = [l.strip() for l in prod.__doc__.split('\n') if len(l.strip()) > 1]
+    return doc[0] if len(doc) > 0 else "TBD"
+
+
+def myfreefield(prod):
+    return "Request ID" if isinstance(prod, ScienceProduct) else "None"
+
+
+def myfilecadence(prod):
+    return "One file per request" if isinstance(prod, ScienceProduct) else "Daily file"
+
+
+def product(file_in):
+    file, remote = file_in
     prod = Product(file)
     with div() as di:
         h4(f"{type(prod).__name__}")
+        with ul():
+            with li():
+                b("Description: ")
+                span(mydescription(prod))
+            with li():
+                b("Descriptor: ")
+                span(mydescriptor(prod))
+            with li():
+                b("Free field: ")
+                span(myfreefield(prod))
+            with li():
+                b("Level: ")
+                span(prod.level)
+            with li():
+                b("File cadence: ")
+                span(myfilecadence(prod))
+            with li():
+                b("Download example: ")
+                a(remote, href=remote)
+
         h5("PRIMARY Header")
         hdul = fits.open(file)
         header2table(hdul["PRIMARY"].header)
@@ -153,9 +210,9 @@ files = [  # L0
     "L1/2020/06/16/HK/solo_L1_stix-hk-maxi_20200616_V01.fits",
     "L1/2021/09/20/HK/solo_L1_stix-hk-mini_20210920_V01.fits"]
 
-# files = ["http://pub099.cs.technik.fhnw.ch/data/fits_test/" + x for x in files]
+remote = ["http://pub099.cs.technik.fhnw.ch/data/fits_test/" + x for x in files]
 # files = ["/home/shane/fits_test/" + x for x in files]
-files = ["D:/stixcore_ddpd/" + Path(x).name for x in files]
+files = [("D:/stixcore_ddpd/" + Path(x).name, remote[i]) for i, x in enumerate(files)]
 
 with tempfile.TemporaryDirectory() as tempdir:
     temppath = Path(tempdir)

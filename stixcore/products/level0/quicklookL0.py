@@ -525,18 +525,15 @@ class EnergyCalibration(QLProduct):
     def from_levelb(cls, levelb, parent=''):
         packets, idb_versions, control = QLProduct.from_levelb(levelb, parent=parent)
 
-        control['integration_time'] = packets.get_value('NIX00122').astype(np.uint32)
-        control.add_meta(name='integration_time', nix='NIX00122', packets=packets)
-        # control['obs_beg'] = control['obs_utc']
-        # control['.obs_end'] = control['obs_beg'] + timedelta(seconds=control[
-        # 'duration'].astype('float'))
-        # control['.obs_avg'] = control['obs_beg'] + (control['obs_end'] - control['obs_beg']) / 2
-
         # Control
-        control.add_basic(name='quiet_time', nix='NIX00123', packets=packets, dtype=np.uint16)
-        control.add_basic(name='live_time', nix='NIX00124', packets=packets, dtype=np.uint32)
+        control.add_basic(name='integration_time', nix='NIX00122', packets=packets,
+                          dtype=np.uint32, attr='value')
+        control.add_basic(name='quiet_time', nix='NIX00123', packets=packets,
+                          dtype=np.uint16, attr='value')
+        control.add_basic(name='live_time', nix='NIX00124', packets=packets,
+                          dtype=np.uint32, attr='value')
         control.add_basic(name='average_temperature', nix='NIX00125', packets=packets,
-                          dtype=np.uint16)
+                          dtype=np.uint16, attr='value')
         control.add_data('detector_mask', _get_detector_mask(packets))
         control.add_data('pixel_mask', _get_pixel_mask(packets))
 
@@ -573,9 +570,8 @@ class EnergyCalibration(QLProduct):
         channels = list(chain(*[ch.tolist() for ch in sub_channels]))
         control['num_channels'] = len(channels)
 
-        time = SCETime(control['scet_coarse'], control['scet_fine']) \
-            + control['integration_time'] / 2
-        duration = SCETimeDelta(control['integration_time'])
+        duration = SCETimeDelta(packets.get_value('NIX00122').astype(np.uint32))
+        time = SCETime(control['scet_coarse'], control['scet_fine']) + duration / 2
 
         # Data
         data = Data()

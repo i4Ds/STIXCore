@@ -14,6 +14,9 @@ from collections import defaultdict
 import dominate
 import numpy as np
 <<<<<<< HEAD
+<<<<<<< HEAD
+=======
+>>>>>>> add intro block for each product
 from dominate.tags import (
     a,
     b,
@@ -33,6 +36,7 @@ from dominate.tags import (
     tr,
     ul,
 )
+<<<<<<< HEAD
 
 from astropy.io import ascii, fits
 from astropy.table.table import Table
@@ -43,15 +47,21 @@ from stixcore.products.level0.scienceL0 import ScienceProduct
 from stixcore.products.product import Product, read_qtable
 =======
 from dominate.tags import div, h1, h2, h3, h4, h5, table, tbody, td, th, thead, tr
+=======
+>>>>>>> add intro block for each product
 
 from astropy.io import fits
 
 from stixcore.data.test import test_data
 from stixcore.idb.manager import IDBManager
 <<<<<<< HEAD
+<<<<<<< HEAD
 from stixcore.products.product import Product
 >>>>>>> add first version of ddpd generator based on html
 =======
+=======
+from stixcore.products.level0.scienceL0 import ScienceProduct
+>>>>>>> add intro block for each product
 from stixcore.products.product import Product, read_qtable
 >>>>>>> use new fits table read method
 
@@ -150,12 +160,19 @@ def data2table(data):
 
 
 <<<<<<< HEAD
+<<<<<<< HEAD
+=======
+>>>>>>> add intro block for each product
 def mydescriptor(prod):
     return f"stix-{prod.type}-{prod.name}"
 
 
 def mydescription(prod):
+<<<<<<< HEAD
     doc = [l.strip() for l in (prod.__doc__+"\n\n\n").split('\n\n\n') if len(l.strip()) > 1]
+=======
+    doc = [l.strip() for l in prod.__doc__.split('\n') if len(l.strip()) > 1]
+>>>>>>> add intro block for each product
     return doc[0] if len(doc) > 0 else "TBD"
 
 
@@ -169,6 +186,7 @@ def myfilecadence(prod):
 
 def product(file_in):
     file, remote = file_in
+<<<<<<< HEAD
     prod = Product(file)
     with div() as di:
         h4(f"{type(prod).__name__}")
@@ -200,9 +218,31 @@ def product(file_in):
                 data = read_qtable(file, hdu=extname, hdul=hdul)
 =======
 def product(file):
+=======
+>>>>>>> add intro block for each product
     prod = Product(file)
     with div() as di:
         h4(f"{type(prod).__name__}")
+        with ul():
+            with li():
+                b("Description: ")
+                span(mydescription(prod))
+            with li():
+                b("Descriptor: ")
+                span(mydescriptor(prod))
+            with li():
+                b("Free field: ")
+                span(myfreefield(prod))
+            with li():
+                b("Level: ")
+                span(prod.level)
+            with li():
+                b("File cadence: ")
+                span(myfilecadence(prod))
+            with li():
+                b("Download example: ")
+                a(remote, href=remote)
+
         h5("PRIMARY Header")
         hdul = fits.open(file)
         header2table(hdul["PRIMARY"].header)
@@ -359,9 +399,9 @@ with tempfile.TemporaryDirectory() as tempdir:
     "L1/2020/06/16/HK/solo_L1_stix-hk-maxi_20200616_V01.fits",
     "L1/2021/09/20/HK/solo_L1_stix-hk-mini_20210920_V01.fits"]
 
-# files = ["http://pub099.cs.technik.fhnw.ch/data/fits_test/" + x for x in files]
+remote = ["http://pub099.cs.technik.fhnw.ch/data/fits_test/" + x for x in files]
 # files = ["/home/shane/fits_test/" + x for x in files]
-files = ["D:/stixcore_ddpd/" + Path(x).name for x in files]
+files = [("D:/stixcore_ddpd/" + Path(x).name, remote[i]) for i, x in enumerate(files)]
 
 with tempfile.TemporaryDirectory() as tempdir:
     temppath = Path(tempdir)

@@ -528,8 +528,12 @@ class FitsL1Processor(FitsL0Processor):
             # Convert time to be relative to start date
             # it is important that the change to the relative time is done after the header is
             # generated as this will use the original SCET time data
-            data['time'] = (data['time'] - prod.scet_timerange.start).as_float()
-            data['timedel'] = data['timedel'].as_float()
+
+            # In TM sent as uint in units of 0.1 so convert back
+            data['time'] = np.uint32(np.around((data['time']
+                                                - prod.scet_timerange.start).as_float()).to(u.ds))
+            data['timedel'] = np.uint32(np.around(data['timedel'].as_float()).to(u.ds))
+
             try:
                 control['time_stamp'] = control['time_stamp'].as_float()
             except KeyError as e:

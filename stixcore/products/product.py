@@ -30,6 +30,57 @@ from stixcore.util.logging import get_logger
 
 logger = get_logger(__name__)
 
+BITS_TO_UINT = {
+    8: np.ubyte,
+    16: np.uint16,
+    32: np.uint32,
+    64: np.uint64
+}
+
+
+def read_qtable(file, hdu, hdul=None):
+    """
+    Read a fits file into a QTable and maintain dtypes of columns with units
+
+    Hack to work around QTable not respecting the dtype in fits file see
+    https://github.com/astropy/astropy/issues/12494
+
+    Parameters
+    ----------
+    file : `str` or `pathlib.Path`
+        Fits file
+    hdu : `str`
+        The name of the extension
+    hdul : optional `astropy.io.fits.HDUList`
+        The HDU list for the fits file
+
+    Returns
+    -------
+    `astropy.table.QTable`
+        The corrected QTable with correct data types
+    """
+    qtable = QTable.read(file, hdu)
+    if hdul is None:
+        hdul = fits.open(file)
+
+    for col in hdul[hdu].data.columns:
+        if col.unit:
+            logger.debug(f'Unit present dtype correction needed for {col}')
+            dtype = col.dtype
+
+            if col.bzero:
+                logger.debug(f'Unit present dtype and bzero correction needed for {col}')
+                bits = np.log2(col.bzero)
+                if bits.is_integer():
+                    dtype = BITS_TO_UINT[int(bits+1)]
+
+            if hasattr(dtype, 'subdtype'):
+                dtype = dtype.base
+
+            qtable[col.name] = qtable[col.name].astype(dtype)
+
+    return qtable
+
 
 class AddParametersMixin:
     def add_basic(self, *, name, nix, packets, attr=None, dtype=None, reshape=False):
@@ -88,16 +139,19 @@ class ProductFactory(BasicRegistrationFactory):
                     ssid = None
                 level = header.get('Level')
                 header.get('TIMESYS')
-                control = QTable.read(file_path, hdu='CONTROL')
+
+                hdul = fits.open(file_path)
+                control = read_qtable(file_path, hdu='CONTROL', hdul=hdul)
+
                 # Weird issue where time_stamp wasn't a proper table column?
                 if 'time_stamp' in control.colnames:
                     ts = control['time_stamp'].value
                     control.remove_column('time_stamp')
                     control['time_stamp'] = ts * u.s
-                data = QTable.read(file_path, hdu='DATA')
+
+                data = read_qtable(file_path, hdu='DATA', hdul=hdul)
 
                 if level != 'LB':
-
                     data['timedel'] = SCETimeDelta(data['timedel'])
                     try:
                         offset = SCETime.from_string(header['OBT_BEG'], sep=':')
@@ -561,7 +615,7 @@ class DefaultProduct(GenericProduct, L1Mixin):
             reshape = True
         for nix, param in packets.data[0].__dict__.items():
 
-            name = param.idb_info.PCF_DESCR.upper().replace(' ', '_')
+            name = param.idb_info.get_product_attribute_name()
             data.add_basic(name=name, nix=nix, attr='value', packets=packets, reshape=reshape)
 
         data['control_index'] = range(len(control))

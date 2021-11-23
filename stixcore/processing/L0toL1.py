@@ -78,8 +78,8 @@ if __name__ == '__main__':
     warnings.filterwarnings('ignore', module='stixcore.soop.manager')
     warnings.filterwarnings('ignore', module='astropy.utils.metadata')
 
-    fits_path = Path('/home/shane/fits_test/L0')
-    bd = Path('/home/shane/fits_test/')
+    fits_path = Path('/home/shane/fits_test_local/L0/21/6/21')
+    bd = Path('/home/shane/fits_test_local/')
 
     # possible set an alternative spice kernel if not the latest should be used
     spm = SpiceKernelManager(Path(CONFIG.get("Paths", "spice_kernels")))

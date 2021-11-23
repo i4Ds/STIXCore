@@ -460,7 +460,7 @@ class SummedPixelData(CompressedPixelData):
 
 class Visibility(ScienceProduct):
     """
-    X-ray Visibilities or compression Level 3 data
+    X-ray Visibilities or compression Level 3 data.
 
     In level 0 format.
     """

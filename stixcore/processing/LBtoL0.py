@@ -133,8 +133,8 @@ if __name__ == '__main__':
 
     warnings.filterwarnings('ignore', module='astropy.io.fits.card')
 
-    fits_path = Path('/home/shane/fits_test_local/LB/21/6/42')
-    bd = Path('/home/shane/fits_test_local')
+    fits_path = Path('/home/shane/fits_test_local/LB/21/6/41')
+    bd = Path('/home/shane/fits_test_cal')
 
     l0processor = Level0(fits_path, bd)
     l0_files = l0processor.process_fits_files()

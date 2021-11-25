@@ -2,7 +2,7 @@
 High level STIX data products created from single stand alone packets or a sequence of packets.
 """
 import logging
-from itertools import chain
+from itertools import chain, repeat
 from collections import defaultdict
 
 import numpy as np
@@ -544,78 +544,88 @@ class EnergyCalibration(QLProduct):
         subspec_data = {}
         j = 129
         for subspec, i in enumerate(range(300, 308)):
-            subspec_data[subspec+1] = {'num_points': packets.get_value(f'NIXD0{j}')[0],
-                                       'num_summed_channel': packets.get_value(f'NIXD0{j + 1}')[0],
-                                       'lowest_channel': packets.get_value(f'NIXD0{j + 2}')[0]}
+            subspec_data[subspec+1] = {'num_points': packets.get_value(f'NIXD0{j}'),
+                                       'num_summed_channel': packets.get_value(f'NIXD0{j + 1}'),
+                                       'lowest_channel': packets.get_value(f'NIXD0{j + 2}')}
             j += 3
 
         control.add_basic(name='num_samples', nix='NIX00159', packets=packets, dtype=np.uint16)
-        # control.remove_column('index')
-        # control = unique(control)
-        # control['index'] = np.arange(len(control))
 
-        control['subspec_num_points'] = np.array(
-            [v['num_points'] for v in subspec_data.values()]).reshape(1, -1).astype(np.uint16)
-        control['subspec_num_summed_channel'] = np.array(
-            [v['num_summed_channel'] for v in subspec_data.values()]
-        ).reshape(1, -1).astype(np.uint16)
-        control['subspec_lowest_channel'] = np.array(
-            [v['lowest_channel'] for v in subspec_data.values()]).reshape(1, -1).astype(np.uint16)
+        control['subspec_num_points'] = (
+                np.vstack([v['num_points'] for v in subspec_data.values()]).T + 1).astype(np.uint16)
+        control['subspec_num_summed_channel'] = (np.vstack(
+            [v['num_summed_channel'] for v in subspec_data.values()]).T + 1).astype(np.uint16)
+        control['subspec_lowest_channel'] = (
+            np.vstack([v['lowest_channel'] for v in subspec_data.values()]).T).astype(np.uint16)
 
-        subspec_index = np.argwhere(control['subspectrum_mask'][0].flatten() == 1)
-        num_sub_spectra = control['subspectrum_mask'].sum(axis=1)
-        sub_channels = [np.arange(control['subspec_num_points'][0, index] + 1)
-                        * (control['subspec_num_summed_channel'][0, index] + 1)
-                        + control['subspec_lowest_channel'][0, index] for index in subspec_index]
-        channels = list(chain(*[ch.tolist() for ch in sub_channels]))
-        control['num_channels'] = len(channels)
+        channels = []
+        for i, subspectrum_mask in enumerate(control['subspectrum_mask']):
+            subspec_index = np.argwhere(subspectrum_mask == 1)
+            sub_channels = [np.arange(control['subspec_num_points'][i, index])
+                            * (control['subspec_num_summed_channel'][i, index])
+                            + control['subspec_lowest_channel'][i, index] for index in
+                            subspec_index]
+            channels.append(list(chain(*[ch.tolist() for ch in sub_channels])))
+        control['num_channels'] = [len(c) for c in channels]
 
         duration = SCETimeDelta(packets.get_value('NIX00122').astype(np.uint32))
         time = SCETime(control['scet_coarse'], control['scet_fine']) + duration / 2
 
-        # Data
-        data = Data()
-        data['timedel'] = duration[0:1]
-        data['control_index'] = [0]
-        data['time'] = time[0:1]
+        dids = packets.get_value('NIXD0155')
+        pids = packets.get_value('NIXD0156')
+        ssids = packets.get_value('NIXD0157')
+        num_spec_points = packets.get_value('NIX00146')
 
-        data.add_meta(name='timedel', nix='NIX00122', packets=packets)
-        # data['detector_id'] = np.array(packets.get('NIXD0155'), np.ubyte)
-        # data['pixel_id'] = np.array(packets.get('NIXD0156'), np.ubyte)
-        # data['subspec_id'] = np.array(packets.get('NIXD0157'), np.ubyte)
-        # np.array(packets.get('NIX00146'))
+        unique_times, unique_time_indices = np.unique(time.as_float(), return_index=True)
+        unique_times_lookup = {k: v for k, v in zip(unique_times, np.arange(unique_times.size))}
+
+        # should really do the other way make a smaller lookup rather than repeating many many times
+        tids = np.hstack([[unique_times_lookup[t.as_float()]] * n
+                          for t, n in zip(time, control['num_samples'])])
+        c_in = list(chain.from_iterable([repeat(c, n)
+                                         for c, n in zip(channels, control['num_samples'])]))
 
         counts = packets.get_value('NIX00158')
         counts_var = packets.get_value('NIX00158', attr='error')
 
-        counts_rebinned = np.apply_along_axis(rebin_proportional, 1,
-                                              counts.reshape(-1, len(channels)), channels,
-                                              np.arange(1025))
+        c_out = np.arange(1025)
+        start = 0
+        count_map = defaultdict(list)
+        counts_var_map = defaultdict(list)
+        for tid, did, pid, ssid, nps, cin in zip(tids, dids, pids, ssids, num_spec_points, c_in):
+            end = start + nps
 
-        counts_var_rebinned = np.apply_along_axis(rebin_proportional, 1,
-                                                  counts_var.reshape(-1, len(channels)), channels,
-                                                  np.arange(1025))
+            logger.debug('%d, %d, %d, %d, %d, %d', tid, did, pid, ssid, nps, end)
+            count_map[tid, did, pid].append(counts[start:end])
+            counts_var_map[tid, did, pid].append(counts_var[start:end])
+            start = end
 
-        dids = np.array(packets.get_value('NIXD0155'),
-                        np.ubyte).reshape(-1, num_sub_spectra[0])[:, 0]
-        pids = np.array(packets.get_value('NIXD0156'),
-                        np.ubyte).reshape(-1, num_sub_spectra[0])[:, 0]
+        full_counts = np.zeros((unique_times.size, 32, 12, 1024))
+        full_counts_var = np.zeros((unique_times.size, 32, 12, 1024))
 
-        full_counts = np.zeros((32, 12, 1024))
-        # TODO fix bug see https://github.com/i4Ds/STIXCore/issues/168 and remove try except
-        try:
-            full_counts[dids, pids] = counts_rebinned
-        except Exception:
-            logger.error('Could not reshape counts to expected size', exc_info=True)
-            return None
+        for tid, did, pid in count_map.keys():
+            cur_counts = count_map[tid, did, pid]
+            cur_counts_var = counts_var_map[tid, did, pid]
 
-        full_counts_var = np.zeros((32, 12, 1024))
-        full_counts_var[dids, pids] = counts_var_rebinned
-        data['counts'] = full_counts.reshape((1, *full_counts.shape)).astype(
-            get_min_uint(full_counts))
+            counts_rebinned = rebin_proportional(np.hstack(cur_counts), cin, c_out)
+            counts_var_rebinned = rebin_proportional(np.hstack(cur_counts_var), cin, c_out)
+
+            full_counts[tid, did, pid] = counts_rebinned
+            full_counts_var[tid, did, pid] = counts_var_rebinned
+
+        control = control[unique_time_indices]
+        control['index'] = np.arange(len(control))
+
+        # Data
+        data = Data()
+        data['time'] = time[unique_time_indices]
+        data['timedel'] = duration[unique_time_indices]
+        data.add_meta(name='timedel', nix='NIX00122', packets=packets)
+
+        data['counts'] = full_counts.astype(get_min_uint(full_counts))
         data.add_meta(name='counts', nix='NIX00158', packets=packets)
-        data['counts_err'] = np.float32(np.sqrt(full_counts_var).reshape(
-            (1, *full_counts_var.shape)))
+        data['counts_err'] = np.sqrt(full_counts_var).astype(np.float32)
+        data['control_index'] = np.arange(len(control)).astype(np.uint16)
 
         return cls(service_type=packets.service_type,
                    service_subtype=packets.service_subtype,

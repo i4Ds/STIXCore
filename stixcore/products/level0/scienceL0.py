@@ -29,6 +29,35 @@ ENERGY_CHANNELS = read_energy_channels(Path(__file__).parent.parent.parent / "co
 __all__ = ['ScienceProduct', 'RawPixelData', 'CompressedPixelData', 'SummedPixelData',
            'Visibility', 'Spectrogram', 'Aspect']
 
+SUM_DMASK_SCET_COARSE_RANGE = range(659318490, 668863556)
+
+
+def fix_detector_mask(control, detector_mask):
+    """
+    Update the detector mask in BSD data due to misconfiguration of SumDmask
+
+    For a time the BKG and CFL event were not recorded so even if requested will be missing whihc
+    could effect normalisation in terms of detector area etc. See issue for more information
+    https://github.com/i4Ds/STIXCore/issues/115
+
+    Parameters
+    ----------
+    control :  `products.product.ControlSci`
+        Control data
+    data : `products.product.Data`
+        Data
+
+    Returns
+    -------
+    Update detector mask
+    """
+    if control['time_stamp'].coarse not in SUM_DMASK_SCET_COARSE_RANGE:
+        return detector_mask
+    else:
+        logger.info('Fixing detector mask for SumDmask misconfiguration')
+        detector_mask[:, 8:10] = 0
+        return detector_mask
+
 
 class ScienceProduct(GenericProduct, EnergyChannelsMixin):
     """Generic science data product class composed of control and data."""
@@ -169,13 +198,10 @@ class RawPixelData(ScienceProduct):
         data['integration_time'] = packets.get_value('NIX00405').astype(np.uint16)
         data.add_meta(name='integration_time', nix='NIX00405', packets=packets)
         data.add_data('pixel_masks', _get_pixel_mask(packets, 'NIXD0407'))
-        data.add_data('detector_masks', _get_detector_mask(packets))
+        data.add_data('detector_masks', fix_detector_mask(control, _get_detector_mask(packets)))
         data['triggers'] = np.array([packets.get_value(f'NIX00{i}') for i in range(408, 424)]).T
         data['triggers'].dtype = get_min_uint(data['triggers'])
         data['triggers'].meta = {'NIXS': [f'NIX00{i}' for i in range(408, 424)]}
-        # ,
-        # 'PCF_CURTX': [packets.get(f'NIX00{i}')[0].idb_info.PCF_CURTX
-        #               for i in range(408, 424)]}
         data.add_basic(name='num_samples', nix='NIX00406', packets=packets, dtype=np.uint16)
 
         num_detectors = 32
@@ -270,7 +296,7 @@ class CompressedPixelData(ScienceProduct):
         if packets.ssid == 21 and data['num_pixel_sets'][0] != 12:
             pixel_masks = np.pad(pixel_masks, ((0, 0), (0, 12 - data['num_pixel_sets'][0]), (0, 0)))
         data.add_data('pixel_masks', (pixel_masks, pm_meta))
-        data.add_data('detector_masks', _get_detector_mask(packets))
+        data.add_data('detector_masks', fix_detector_mask(control, _get_detector_mask(packets)))
         # NIX00405 in BSD is 1 indexed
         data['integration_time'] = SCETimeDelta(packets.get_value('NIX00405'))
         data.add_meta(name='integration_time', nix='NIX00405', packets=packets)
@@ -485,7 +511,7 @@ class Visibility(ScienceProduct):
         data.add_data('pixel_mask3', _get_pixel_mask(packets, 'NIXD0445'))
         data.add_data('pixel_mask4', _get_pixel_mask(packets, 'NIXD0446'))
         data.add_data('pixel_mask5', _get_pixel_mask(packets, 'NIXD0447'))
-        data.add_data('detector_masks', _get_detector_mask(packets))
+        data.add_data('detector_masks', fix_detector_mask(control, _get_detector_mask(packets)))
         # NIX00405 in BSD is 1 indexed
         data['integration_time'] = packets.get_value('NIX00405')
         data.add_meta(name='integration_time', nix='NIX00405', packets=packets)
@@ -578,7 +604,8 @@ class Spectrogram(ScienceProduct):
 
         control['pixel_mask'] = np.unique(_get_pixel_mask(packets)[0], axis=0)
         control.add_meta(name='pixel_mask', nix='NIXD0407', packets=packets)
-        control['detector_mask'] = np.unique(_get_detector_mask(packets)[0], axis=0)
+        control['detector_mask'] = np.unique(
+            fix_detector_mask(control, _get_detector_mask(packets)[0]), axis=0)
         control.add_meta(name='detector_mask', nix='NIX00407', packets=packets)
         control['rcr'] = np.unique(packets.get_value('NIX00401', attr='value'))[0]
         control.add_meta(name='rcr', nix='NIX00401', packets=packets)

@@ -25,7 +25,7 @@ __all__ = ['GenericProduct', 'ProductFactory', 'Product', 'ControlSci',
 
 from collections import defaultdict
 
-from stixcore.products.common import _get_energies_from_mask
+from stixcore.products.common import _get_energies_from_mask, get_min_uint
 from stixcore.util.logging import get_logger
 
 logger = get_logger(__name__)
@@ -169,7 +169,7 @@ class ProductFactory(BasicRegistrationFactory):
                     try:
                         energies = QTable.read(file_path, hdu='ENERGIES')
                     except KeyError:
-                        logger.warn(f"no ENERGIES data found in FITS: {file_path}")
+                        logger.info(f"no ENERGIES data found in FITS: {file_path}")
                 idb_versions = defaultdict(SCETimeRange)
                 if level in ('L0', 'L1'):
                     try:
@@ -287,7 +287,7 @@ class Control(QTable, AddParametersMixin):
             control['integration_time'] = np.zeros_like(control['scet_coarse'], np.float) * u.s
 
         # control = unique(control)
-        control['index'] = np.arange(len(control))
+        control['index'] = np.arange(len(control)).astype(get_min_uint(len(control)))
 
         return control
 
@@ -595,7 +595,7 @@ class DefaultProduct(GenericProduct, L1Mixin):
         control['scet_coarse'] = packets.get('scet_coarse')
         control['scet_fine'] = packets.get('scet_fine')
         control['integration_time'] = 0
-        control['index'] = range(len(control))
+        control['index'] = np.arange(len(control)).astype(get_min_uint(len(control)))
 
         control['raw_file'] = levelb.control['raw_file']
         control['packet'] = levelb.control['packet']
@@ -618,7 +618,7 @@ class DefaultProduct(GenericProduct, L1Mixin):
             name = param.idb_info.get_product_attribute_name()
             data.add_basic(name=name, nix=nix, attr='value', packets=packets, reshape=reshape)
 
-        data['control_index'] = range(len(control))
+        data['control_index'] = np.arange(len(control)).astype(get_min_uint(len(control)))
 
         return cls(service_type=packets.service_type,
                    service_subtype=packets.service_subtype,

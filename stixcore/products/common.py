@@ -223,6 +223,7 @@ def get_min_uint(values):
     """
     Find smallest unsigned int that can represent values
     """
+    values = np.array(values)
     max_value = values.max()
     if max_value < 256:  # 2**8
         return np.uint8

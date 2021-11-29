@@ -83,7 +83,7 @@ class QLProduct(GenericProduct, EnergyChannelsMixin):
 
         control = Control.from_packets(packets, NIX00405_offset=NIX00405_offset)
 
-        # When the packets are parse empty packets are dropped but in LB we don't parse this
+        # When the packets are parsed empty packets are dropped but in LB we don't parse so this
         # is not known need to compare control and levelb.control and only use matching rows
         if len(levelb.control) > len(control):
             matching_index = np.argwhere(
@@ -655,24 +655,72 @@ class TMStatusFlareList(QLProduct):
 
     @classmethod
     def from_levelb(cls, levelb, parent=''):
-        packets, idb_versions, control = QLProduct.from_levelb(levelb, parent=parent)
+        packets, idb_versions = GenericProduct.getLeveL0Packets(levelb)
 
-        control.add_basic(name='ubsd_counter', nix='NIX00285', packets=packets)
-        control.add_basic(name='pald_counter', nix='NIX00286', packets=packets)
-        control.add_basic(name='num_flares', nix='NIX00294', packets=packets)
+        control = Control()
+        control['scet_coarse'] = packets.get('scet_coarse')
+        control['scet_fine'] = packets.get('scet_fine')
+        control['index'] = np.arange(len(control)).astype(get_min_uint(len(control)))
 
-        data = Data()
-        if control['num_flares'].sum() > 0:
-            data.add_basic(name='start_scet_coarse', nix='NIX00287', packets=packets)
-            data.add_basic(name='end_scet_coarse', nix='NIX00288', packets=packets)
+        # When the packets are parsed empty packets are dropped but in LB we don't parse so this
+        # is not known need to compare control and levelb.control and only use matching rows
+        if len(levelb.control) > len(control):
+            matching_index = np.argwhere(
+                np.in1d(levelb.control['scet_coarse'], np.array(packets.get('scet_coarse'))))
+            control['raw_file'] = levelb.control['raw_file'][matching_index].reshape(-1)
+            control['packet'] = levelb.control['packet'][matching_index].reshape(-1)
+        else:
+            control['raw_file'] = levelb.control['raw_file'].reshape(-1)
+            control['packet'] = levelb.control['packet'].reshape(-1)
 
-            data['time'] = SCETime(packets.get_value('NIX00287'), 0)
+        control['parent'] = parent
 
-            data.add_basic(name='highest_flareflag', nix='NIX00289', packets=packets, dtype=np.byte)
-            data.add_basic(name='tm_byte_volume', nix='NIX00290', packets=packets, dtype=np.byte)
-            data.add_basic(name='average_z_loc', nix='NIX00291', packets=packets, dtype=np.byte)
-            data.add_basic(name='average_y_loc', nix='NIX00292', packets=packets, dtype=np.byte)
-            data.add_basic(name='processing_mask', nix='NIX00293', packets=packets, dtype=np.byte)
+        tmp = Data()
+        tmp.add_basic(name='ubsd_counter', nix='NIX00285', packets=packets, dtype=np.uint32)
+        tmp.add_basic(name='pald_counter', nix='NIX00286', packets=packets, dtype=np.uint32)
+        tmp.add_basic(name='num_flares', nix='NIX00294', packets=packets, dtype=np.uint16)
+
+        colnames = ['start_scet_coarse', 'end_scet_coarse', 'highest_flareflag', 'tm_byte_volume',
+                    'average_z_loc', 'average_y_loc', 'processing_mask']
+
+        flares = Data()
+        if tmp['num_flares'].sum() > 0:
+            flares.add_basic(name='start_scet_coarse', nix='NIX00287', packets=packets)
+            flares.add_basic(name='end_scet_coarse', nix='NIX00288', packets=packets)
+            flares.add_basic(name='highest_flareflag', nix='NIX00289', packets=packets,
+                             dtype=np.byte)
+            flares.add_basic(name='tm_byte_volume', nix='NIX00290', packets=packets, dtype=np.byte)
+            flares.add_basic(name='average_z_loc', nix='NIX00291', packets=packets, dtype=np.byte)
+            flares.add_basic(name='average_y_loc', nix='NIX00292', packets=packets, dtype=np.byte)
+            flares.add_basic(name='processing_mask', nix='NIX00293', packets=packets, dtype=np.byte)
+
+        tmp_data = defaultdict(list)
+        start = 0
+        for i, (ubsd, pald, n_flares) in enumerate(tmp):
+            end = start + n_flares
+            if n_flares == 0:
+                tmp_data['control_index'].append(i)
+                tmp_data['coarse'].append(control['scet_coarse'][i])
+                tmp_data['fine'].append(control['scet_fine'][i])
+                tmp_data['ubsd'].append(ubsd)
+                tmp_data['pald'].append(pald)
+                for name in colnames:
+                    tmp_data[name].append(0)
+            else:
+                tmp_data['control_index'].append([i] * n_flares)
+                tmp_data['coarse'].append([control['scet_coarse'][i]] * n_flares)
+                tmp_data['fine'].append([control['scet_fine'][i]] * n_flares)
+                ubsd['ubsd']([ubsd] * n_flares)
+                pald['pald'].append([pald] * n_flares)
+                for name in colnames:
+                    tmp_data[name].extend(flares[name][start:end])
+
+            start = end
+
+        data = Data(tmp_data)
+        data['time'] = SCETime(tmp_data['coarse'], tmp_data['fine'])
+        data['timedel'] = SCETimeDelta(np.full(len(data), 0), np.full(len(data), 0))
+        data.remove_columns(['coarse', 'fine'])
 
         return cls(service_type=packets.service_type,
                    service_subtype=packets.service_subtype,

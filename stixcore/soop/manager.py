@@ -16,7 +16,7 @@ __all__ = ['SOOPManager', 'SoopObservationType', 'KeywordSet',
            'HeaderKeyword', 'SoopObservation', 'SOOP']
 
 
-logger = get_logger(__name__, level=logging.DEBUG)
+logger = get_logger(__name__, level=logging.WARNING)
 
 
 class HeaderKeyword:

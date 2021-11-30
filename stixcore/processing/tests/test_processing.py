@@ -72,8 +72,7 @@ def test_level_1(out_dir):
     lc2 = Product(res[1])
     t = np.hstack((np.array(lc1.data['time']), (np.array(lc2.data['time']))))
     td = np.hstack((np.array(lc1.data['timedel']), (np.array(lc2.data['timedel']))))
-    r = range(len(lc1.data['time'])-3, len(lc1.data['time'])+3)
-    print(t[r])
+    range(len(lc1.data['time'])-3, len(lc1.data['time'])+3)
     assert np.all((t[1:] - t[0:-1]) == td[0:-1])
     # end test for https://github.com/i4Ds/STIXCore/issues/180
 

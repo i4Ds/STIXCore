@@ -238,7 +238,7 @@ class LevelB(BaseProduct):
                 complete.append(self[seq])
             else:
                 incomplete.append(self[seq])
-                logger.warning('Incomplete sequence')
+                logger.warning('Incomplete sequence %s, %s', self, seq)
 
         return complete, incomplete
 

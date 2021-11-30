@@ -163,7 +163,7 @@ class ScienceProduct(GenericProduct, EnergyChannelsMixin):
         control = ControlSci.from_packets(packets)
         # control.remove_column('num_structures')
 
-        control['index'] = 0
+        control['index'] = np.ubyte(0)
         control['packet'] = levelb.control['packet'].reshape(1, -1)
         control['packet'].dtype = get_min_uint(control['packet'])
         control['raw_file'] = np.unique(levelb.control['raw_file']).reshape(1, -1)
@@ -425,14 +425,15 @@ class CompressedPixelData(ScienceProduct):
         data['time'] = (control['time_stamp'][0]
                         + data['delta_time'] + data['integration_time']/2)
         data['timedel'] = data['integration_time']
-        data['counts'] = (out_counts * u.ct).astype(get_min_uint(out_counts))
+        data['counts'] = \
+            (out_counts * u.ct).astype(get_min_uint(out_counts))[..., :tmp['e_high'].max()+1]
         data.add_meta(name='counts', nix='NIX00260', packets=packets)
-        data['counts_err'] = np.float32(out_var * u.ct)
+        data['counts_err'] = np.float32(out_var * u.ct)[..., :tmp['e_high'].max()+1]
         data['control_index'] = control['index'][0]
 
         data = data['time', 'timedel', 'rcr', 'pixel_masks', 'detector_masks', 'num_pixel_sets',
                     'num_energy_groups', 'triggers', 'triggers_err', 'counts', 'counts_err']
-        data['control_index'] = 0
+        data['control_index'] = np.ubyte(0)
 
         return cls(service_type=packets.service_type,
                    service_subtype=packets.service_subtype,
@@ -696,10 +697,10 @@ class Spectrogram(ScienceProduct):
         data['triggers'].dtype = get_min_uint(data['triggers'])
         data.add_basic(name='triggers_err', nix='NIX00267', attr='error', packets=packets)
         data['triggers_err'] = np.float32(data['triggers_err'])
-        data['counts'] = (full_counts * u.ct).astype(get_min_uint(full_counts))
+        data['counts'] = (full_counts * u.ct).astype(get_min_uint(full_counts))[..., :e_max.max()+1]
         data.add_meta(name='counts', nix='NIX00268', packets=packets)
-        data['counts_err'] = np.float32(np.sqrt(full_counts_var) * u.ct)
-        data['control_index'] = 0
+        data['counts_err'] = np.float32(np.sqrt(full_counts_var) * u.ct)[..., :e_max.max()+1]
+        data['control_index'] = np.ubyte(0)
 
         return cls(service_type=packets.service_type,
                    service_subtype=packets.service_subtype,
@@ -755,7 +756,7 @@ class Aspect(ScienceProduct):
         control['packet'] = levelb.control['packet'].reshape(1, -1)
         control['parent'] = parent
 
-        control['index'] = range(len(control))
+        control['index'] = np.arange(len(control)).astype(get_min_uint(len(control)))
 
         delta_time = ((control['summing_value'] * control['averaging_value']) / 1000.0) * u.s
         samples = packets.get_value('NIX00089')

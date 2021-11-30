@@ -5,6 +5,7 @@ from pathlib import Path
 from collections import defaultdict
 from concurrent.futures import ProcessPoolExecutor
 
+from stixcore.ephemeris.manager import Spice
 from stixcore.io.fits.processors import FitsL0Processor
 from stixcore.products.product import Product
 from stixcore.util.logging import get_logger
@@ -36,7 +37,9 @@ class Level0:
         # For each type
         with ProcessPoolExecutor() as executor:
             jobs = [
-                executor.submit(process_tm_type, files, tm_type, self.processor)
+                executor.submit(process_tm_type, files, tm_type, self.processor,
+                                # keep track of the used Spice kernel
+                                spice_kernel_path=Spice.instance.meta_kernel_path)
                 for tm_type, files in tm.items()
             ]
 
@@ -46,12 +49,13 @@ class Level0:
                 all_files.extend(created_files)
             except Exception:
                 logger.error('Problem processing files', exc_info=True)
-
         return list(set(all_files))
 
 
-def process_tm_type(files, tm_type, processor):
+def process_tm_type(files, tm_type, processor, spice_kernel_path):
     all_files = []
+    Spice.instance = Spice(spice_kernel_path)
+
     # Stand alone packet data
     if (tm_type[0] == 21 and tm_type[-1] not in {20, 21, 22, 23, 24}) or tm_type[0] != 21:
         for file in files:

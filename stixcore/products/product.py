@@ -153,10 +153,8 @@ class ProductFactory(BasicRegistrationFactory):
 
                 if level != 'LB':
                     data['timedel'] = SCETimeDelta(data['timedel'])
-                    try:
-                        offset = SCETime.from_string(header['OBT_BEG'], sep=':')
-                    except ValueError:
-                        offset = SCETime.from_string(header['OBT_BEG'], sep='f')
+                    offset = SCETime.from_float(header['OBT_BEG']*u.s)
+
                     try:
                         control['time_stamp'] = SCETime.from_float(control['time_stamp'])
                     except KeyError:

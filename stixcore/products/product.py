@@ -167,13 +167,13 @@ class ProductFactory(BasicRegistrationFactory):
                 energies = None
                 if level == 'L1':
                     try:
-                        energies = QTable.read(file_path, hdu='ENERGIES')
+                        energies = read_qtable(file_path, hdu='ENERGIES')
                     except KeyError:
                         logger.info(f"no ENERGIES data found in FITS: {file_path}")
                 idb_versions = defaultdict(SCETimeRange)
                 if level in ('L0', 'L1'):
                     try:
-                        idbt = QTable.read(file_path, hdu='IDB_VERSIONS')
+                        idbt = read_qtable(file_path, hdu='IDB_VERSIONS')
                         for row in idbt.iterrows():
                             idb_versions[row[0]] = SCETimeRange(start=SCETime.from_float(row[1]),
                                                                 end=SCETime.from_float(row[2]))

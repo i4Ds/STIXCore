@@ -142,7 +142,7 @@ class LightCurve(QLProduct):
 
         counts = np.hstack([
             counts_flat[flat_indices[i]:flat_indices[i + 1]].reshape(n_eng, n_sam)
-            for i, (n_sam, n_eng) in enumerate(control[['num_samples', 'num_energies']])])
+            for i, (n_sam, n_eng) in enumerate(control[['num_samples', 'num_energies']])])*u.ct
 
         counts_var = np.hstack([
             counts_var_flat[flat_indices[i]:flat_indices[i + 1]].reshape(n_eng, n_sam)

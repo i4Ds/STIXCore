@@ -452,7 +452,8 @@ class GenericProduct(BaseProduct):
                f'{len(self.control)}, {len(self.data)}'
 
     def to_days(self):
-        if self.level == 'L0':
+        if self.level == 'LB':
+            raise ValueError("LB to_days should not be called")
             start_day = int((self.scet_timerange.start.as_float() / u.d).decompose().value)
             end_day = int((self.scet_timerange.end.as_float() / u.d).decompose().value)
             days = range(start_day, end_day+1)
@@ -478,7 +479,7 @@ class GenericProduct(BaseProduct):
                                      ssid=self.ssid, control=control, data=data,
                                      idb_versions=self.idb_versions, level=self.level)
                     yield out
-        else:  # self.level == 'L1':
+        else:  # self.level > 'LB':
             utc_timerange = self.scet_timerange.to_timerange()
 
             for day in utc_timerange.get_dates():

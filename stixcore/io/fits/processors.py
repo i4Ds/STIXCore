@@ -262,10 +262,10 @@ class FitsL0Processor:
 
         """
         created_files = []
-        if callable(getattr(product, 'to_days', None)):
-            products = product.to_days()
-        else:
+        if callable(getattr(product, 'to_requests', None)):
             products = product.to_requests()
+        else:
+            products = product.to_days()
 
         for prod in products:
             filename = self.generate_filename(product=prod, version=1)

@@ -422,8 +422,8 @@ class FitsL0Processor:
         dmax = 0.0
         bunit = ' '
         if 'counts' in product.data.colnames:
-            dmax = product.data['counts'].max()
-            dmin = product.data['counts'].min()
+            dmax = product.data['counts'].max().value
+            dmin = product.data['counts'].min().value
             bunit = 'counts'
 
         headers = FitsProcessor.generate_common_header(filename, product) + (
@@ -477,8 +477,8 @@ class FitsL1Processor(FitsL0Processor):
         bunit = ' '
         exposure = 0.0
         if 'counts' in product.data.colnames:
-            dmax = product.data['counts'].max()
-            dmin = product.data['counts'].min()
+            dmax = product.data['counts'].max().value
+            dmin = product.data['counts'].min().value
             bunit = 'counts'
             exposure = product.data['timedel'].as_float().min().to_value('s')
         data_headers = (

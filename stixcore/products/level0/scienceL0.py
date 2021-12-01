@@ -608,14 +608,15 @@ class Spectrogram(ScienceProduct):
         control['detector_mask'] = np.unique(
             fix_detector_mask(control, _get_detector_mask(packets)[0]), axis=0)
         control.add_meta(name='detector_mask', nix='NIX00407', packets=packets)
-        control['rcr'] = np.unique(packets.get_value('NIX00401', attr='value'))[0]
-        control.add_meta(name='rcr', nix='NIX00401', packets=packets)
+        raw_rcr = packets.get_value('NIX00401', attr='value')
 
         e_min = np.array(packets.get_value('NIXD0442'))
         e_max = np.array(packets.get_value('NIXD0443'))
         energy_unit = np.array(packets.get_value('NIXD0019')) + 1
         num_times = np.array(packets.get_value('NIX00089'))
         total_num_times = num_times.sum()
+
+        rcr = np.hstack([np.full(nt, rcr) for rcr, nt in zip(raw_rcr, num_times)]).astype(np.ubyte)
 
         counts = np.array(packets.get_value('NIX00268'))
         counts_var = np.array(packets.get_value('NIX00268', attr='error'))
@@ -694,6 +695,8 @@ class Spectrogram(ScienceProduct):
         data['timedel'] = deltas
         data['timedel'].meta = {'NIXS': ['NIX00441', 'NIX00269']}
         data.add_basic(name='triggers', nix='NIX00267', packets=packets)
+        data['rcr'] = rcr
+        data.add_meta(name='rcr', nix='NIX00401', packets=packets)
         data['triggers'].dtype = get_min_uint(data['triggers'])
         data.add_basic(name='triggers_err', nix='NIX00267', attr='error', packets=packets)
         data['triggers_err'] = np.float32(data['triggers_err'])

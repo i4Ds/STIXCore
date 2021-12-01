@@ -164,7 +164,7 @@ class LightCurve(QLProduct):
         data['triggers_err'] = np.float32(np.sqrt(triggers_var))
         data['rcr'] = np.hstack(packets.get_value('NIX00276')).flatten().astype(np.ubyte)
         data.add_meta(name='rcr', nix='NIX00276', packets=packets)
-        data['counts'] = counts.T.astype(get_min_uint(counts))
+        data['counts'] = (counts.T*u.ct).astype(get_min_uint(counts))
         data.add_meta(name='counts', nix='NIX00272', packets=packets)
         data['counts_err'] = np.float32(np.sqrt(counts_var).T * u.ct)
 
@@ -233,7 +233,7 @@ class Background(QLProduct):
         data['triggers'] = triggers.astype(get_min_uint(triggers))
         data.add_meta(name='triggers', nix='NIX00274', packets=packets)
         data['triggers_err'] = np.float32(np.sqrt(triggers_var))
-        data['counts'] = counts.T.astype(get_min_uint(counts))
+        data['counts'] = (counts.T*u.ct).astype(get_min_uint(counts))
         data.add_meta(name='counts', nix='NIX00278', packets=packets)
         data['counts_err'] = np.float32(np.sqrt(counts_var).T * u.ct)
 
@@ -622,9 +622,9 @@ class EnergyCalibration(QLProduct):
         data['timedel'] = duration[unique_time_indices]
         data.add_meta(name='timedel', nix='NIX00122', packets=packets)
 
-        data['counts'] = full_counts.astype(get_min_uint(full_counts))
+        data['counts'] = (full_counts*u.ct).astype(get_min_uint(full_counts))
         data.add_meta(name='counts', nix='NIX00158', packets=packets)
-        data['counts_err'] = np.sqrt(full_counts_var).astype(np.float32)
+        data['counts_err'] = (np.sqrt(full_counts_var)*u.ct).astype(np.float32)
         data['control_index'] = np.arange(len(control)).astype(np.uint16)
 
         return cls(service_type=packets.service_type,

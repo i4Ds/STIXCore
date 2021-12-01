@@ -33,12 +33,6 @@ class Level0:
             tm_type = tuple(map(int, identifier.split('-')[1:]))
             tm[tm_type].append(file)
 
-        # TODO Fix 43 not standard time axis
-        try:
-            del tm[(21, 6, 43)]
-        except Exception:
-            pass
-
         # For each type
         with ProcessPoolExecutor() as executor:
             jobs = [

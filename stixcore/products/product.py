@@ -451,57 +451,29 @@ class GenericProduct(BaseProduct):
                f'{self.scet_timerange.start} to {self.scet_timerange.end}, ' \
                f'{len(self.control)}, {len(self.data)}'
 
-    def to_days(self):
-        if self.level == 'LB':
-            raise ValueError("LB to_days should not be called")
-            start_day = int((self.scet_timerange.start.as_float() / u.d).decompose().value)
-            end_day = int((self.scet_timerange.end.as_float() / u.d).decompose().value)
-            days = range(start_day, end_day+1)
-            # days = set([(t.year, t.month, t.day) for t in self.data['time'].to_datetime()])
-            # date_ranges = [(datetime(*day), datetime(*day) + timedelta(days=1)) for day in days]
-            for day in days:
-                ds = SCETime(((day * u.day).to_value('s')).astype(int), 0)
-                de = SCETime((((day + 1) * u.day).to_value('s')).astype(int), 0)
-                i = np.where((self.data['time'] >= ds) & (self.data['time'] < de))
+    def split_to_files(self):
+        utc_timerange = self.scet_timerange.to_timerange()
 
-                if i[0].size > 0:
-                    data = self.data[i]
+        for day in utc_timerange.get_dates():
+            ds = day
+            de = day + 1 * u.day
+            utc_times = self.data['time'].to_time()
+            i = np.where((utc_times >= ds) & (utc_times < de))
 
-                    control_indices = np.unique(data['control_index'])
-                    control = self.control[np.isin(self.control['index'], control_indices)]
-                    control_index_min = control_indices.min()
+            if len(i[0]) > 0:
+                data = self.data[i]
 
-                    data['control_index'] = data['control_index'] - control_index_min
-                    control['index'] = control['index'] - control_index_min
+                control_indices = np.unique(data['control_index'])
+                control = self.control[np.isin(self.control['index'], control_indices)]
+                control_index_min = control_indices.min()
 
-                    out = type(self)(service_type=self.service_type,
-                                     service_subtype=self.service_subtype,
-                                     ssid=self.ssid, control=control, data=data,
-                                     idb_versions=self.idb_versions, level=self.level)
-                    yield out
-        else:  # self.level > 'LB':
-            utc_timerange = self.scet_timerange.to_timerange()
-
-            for day in utc_timerange.get_dates():
-                ds = day
-                de = day + 1 * u.day
-                utc_times = self.data['time'].to_time()
-                i = np.where((utc_times >= ds) & (utc_times < de))
-
-                if len(i[0]) > 0:
-                    data = self.data[i]
-
-                    control_indices = np.unique(data['control_index'])
-                    control = self.control[np.isin(self.control['index'], control_indices)]
-                    control_index_min = control_indices.min()
-
-                    data['control_index'] = data['control_index'] - control_index_min
-                    control['index'] = control['index'] - control_index_min
-                    out = type(self)(service_type=self.service_type,
-                                     service_subtype=self.service_subtype, ssid=self.ssid,
-                                     control=control, data=data, idb_versions=self.idb_versions,
-                                     level=self.level)
-                    yield out
+                data['control_index'] = data['control_index'] - control_index_min
+                control['index'] = control['index'] - control_index_min
+                out = type(self)(service_type=self.service_type,
+                                 service_subtype=self.service_subtype, ssid=self.ssid,
+                                 control=control, data=data, idb_versions=self.idb_versions,
+                                 level=self.level)
+                yield out
 
     @classmethod
     def getLeveL0Packets(cls, levelb):

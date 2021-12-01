@@ -5,6 +5,7 @@ from pathlib import Path
 from collections import defaultdict
 from concurrent.futures import ProcessPoolExecutor
 
+from stixcore.config.config import CONFIG
 from stixcore.ephemeris.manager import Spice
 from stixcore.io.fits.processors import FitsL0Processor
 from stixcore.products.product import Product
@@ -45,7 +46,8 @@ class Level0:
             jobs = [
                 executor.submit(process_tm_type, files, tm_type, self.processor,
                                 # keep track of the used Spice kernel
-                                spice_kernel_path=Spice.instance.meta_kernel_path)
+                                spice_kernel_path=Spice.instance.meta_kernel_path,
+                                config=CONFIG)
                 for tm_type, files in tm.items()
             ]
 
@@ -53,14 +55,17 @@ class Level0:
             try:
                 created_files = job.result()
                 all_files.extend(created_files)
-            except Exception:
+            except Exception as e:
                 logger.error('Problem processing files', exc_info=True)
+                if CONFIG.getboolean('Logging', 'stop_on_error', fallback=False):
+                    raise e
         return list(set(all_files))
 
 
-def process_tm_type(files, tm_type, processor, spice_kernel_path):
+def process_tm_type(files, tm_type, processor, spice_kernel_path, config):
     all_files = []
     Spice.instance = Spice(spice_kernel_path)
+    CONFIG = config
 
     # Stand alone packet data
     if (tm_type[0] == 21 and tm_type[-1] not in {20, 21, 22, 23, 24}) or tm_type[0] != 21:
@@ -79,7 +84,8 @@ def process_tm_type(files, tm_type, processor, spice_kernel_path):
                 logger.error('Error processing file %s for %s, %s, %s', file,
                              levelb.service_type, levelb.service_subtype, levelb.ssid)
                 logger.error('%s', e)
-                # raise e
+                if CONFIG.getboolean('Logging', 'stop_on_error', fallback=False):
+                    raise e
 
     else:
         last_incomplete = []
@@ -109,10 +115,11 @@ def process_tm_type(files, tm_type, processor, spice_kernel_path):
                         all_files.extend(fits_files)
                     except Exception as e:
                         logger.error('Error processing file %s for %s, %s, %s', file,
-                                     comp.service_type, comp.service_subtype, comp.ssid)
+                                     comp.service_type, comp.service_subtype, comp.ssid,
+                                     exc_info=True)
                         logger.error('%s', e)
-                        # except Exception as e:
-                        raise e
+                        if CONFIG.getboolean('Logging', 'stop_on_error', fallback=False):
+                            raise e
             try:
                 last_incomplete = last_incomplete[0] + incomplete[0]
             except IndexError:

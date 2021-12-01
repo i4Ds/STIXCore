@@ -39,7 +39,8 @@ class Level1:
                 jobs.append(executor.submit(process_type, files,
                                             processor=FitsL1Processor(self.output_dir),
                                             # keep track of the used Spice kernel
-                                            spice_kernel_path=Spice.instance.meta_kernel_path))
+                                            spice_kernel_path=Spice.instance.meta_kernel_path,
+                                            config=CONFIG))
 
         for job in jobs:
             try:
@@ -51,9 +52,10 @@ class Level1:
         return list(set(all_files))
 
 
-def process_type(files, *, processor, spice_kernel_path):
+def process_type(files, *, processor, spice_kernel_path, config):
     all_files = list()
     Spice.instance = Spice(spice_kernel_path)
+    CONFIG = config
 
     for file in files:
         l0 = Product(file)
@@ -66,9 +68,11 @@ def process_type(files, *, processor, spice_kernel_path):
             all_files.extend(files)
         except NoMatchError:
             logger.debug('No match for product %s', l0)
-        except Exception:
+        except Exception as e:
             logger.error('Error processing file %s', file, exc_info=True)
-            # raise e
+            logger.error('%s', e)
+            if CONFIG.getboolean('Logging', 'stop_on_error', fallback=False):
+                raise e
     return all_files
 
 

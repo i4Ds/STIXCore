@@ -110,12 +110,18 @@ def test_pipeline(socpacketfile, out_dir):
     all = True
     report = dict()
 
-    exclude = ['TM_21_6_20', '__doc__', 'TM_DIR', 'TM_1_2_48000']
+    exclude = ['__doc__', 'TM_DIR',
+               # the following TMs have invalid times: year 2086
+               'TM_1_2_48000', 'TM_236_19', 'TM_237_12',
+               'TM_239_14', 'TM_5_4_54304', 'TM_6_6_53250']
+    # singletest = ['TM_21_6_42_complete']
 
     for pid, fkey in enumerate([k for k in test_data.tmtc.__dict__.keys()
-                                if k not in exclude]):
+                                if ((k not in exclude)
+                                    and not (k.startswith('TM_21_6_')
+                                             and not k.endswith('_complete')))]):
         # for pid, fkey in enumerate([k for k in test_data.tmtc.__dict__.keys()
-        #                             if k in singletest]):
+        #                            if k in singletest]):
         hex_file = test_data.tmtc.__dict__[fkey]
 
         try:
@@ -124,6 +130,7 @@ def test_pipeline(socpacketfile, out_dir):
 
             socpacketfile.get_packet_binaries.return_value = list(
                 [(pid*1000 + i, unhexlify(re.sub(r"\s+", "", h))) for i, h in enumerate(hex)])
+            socpacketfile.file = hex_file
 
             lb_files = process_tmtc_to_levelbinary([socpacketfile], archive_path=out_dir)
             assert len(lb_files) > 0

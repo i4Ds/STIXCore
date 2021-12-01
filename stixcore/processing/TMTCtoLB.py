@@ -39,8 +39,10 @@ def process_tmtc_to_levelbinary(files_to_process, archive_path=None):
             try:
                 new_files = job.result()
                 all_files.update(new_files)
-            except Exception:
+            except Exception as e:
                 logger.error('Error processing', exc_info=True)
+                if CONFIG.getboolean('Logging', 'stop_on_error', fallback=False):
+                    raise e
 
     return all_files
 

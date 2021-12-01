@@ -4,7 +4,7 @@ from collections import defaultdict
 import numpy as np
 
 import astropy.units as u
-from astropy.table.operations import unique, vstack
+from astropy.table.operations import unique
 
 from stixcore.config.reader import read_energy_channels
 from stixcore.products.common import (
@@ -99,25 +99,26 @@ class ScienceProduct(GenericProduct, EnergyChannelsMixin):
         return np.unique(self.control['parent'])
 
     def __add__(self, other):
-        if (np.all(self.control == other.control) and self.scet_timerange == other.scet_timerange
-                and len(self.data) == len(other.data)):
-            return self
-        combined_control_index = other.control['index'] + self.control['index'].max() + 1
-        control = vstack((self.control, other.control))
-        cnames = control.colnames
-        cnames.remove('index')
-        control = unique(control, cnames)
+        # if (np.all(self.control == other.control) and self.scet_timerange == other.scet_timerange
+        #         and len(self.data) == len(other.data)):
+        #     return self
+        # combined_control_index = other.control['index'] + self.control['index'].max() + 1
+        # control = vstack((self.control, other.control))
+        # cnames = control.colnames
+        # cnames.remove('index')
+        # control = unique(control, cnames)
+        #
+        # combined_data_index = other.data['control_index'] + self.control['index'].max() + 1
+        # data = vstack((self.data, other.data))
+        #
+        # data_ind = np.isin(combined_data_index, combined_control_index)
+        # data = data[data_ind]
+        #
+        # return type(self)(service_type=self.service_type, service_subtype=self.service_subtype,
+        #                   ssid=self.ssid, data=data, control=control)
+        raise(ValueError(f"Tried to combine 2 BSD products: {self} and {other}"))
 
-        combined_data_index = other.data['control_index'] + self.control['index'].max() + 1
-        data = vstack((self.data, other.data))
-
-        data_ind = np.isin(combined_data_index, combined_control_index)
-        data = data[data_ind]
-
-        return type(self)(service_type=self.service_type, service_subtype=self.service_subtype,
-                          ssid=self.ssid, data=data, control=control)
-
-    def to_requests(self):
+    def split_to_files(self):
         """Splits the entire data into data products separated be the unique request ID.
 
         Yields
@@ -125,7 +126,12 @@ class ScienceProduct(GenericProduct, EnergyChannelsMixin):
         `ScienceProduct`
             the next ScienceProduct defined by the unique request ID
         """
-        for ci in unique(self.control, keys=['tc_packet_seq_control', 'request_id'])['index']:
+
+        key_cols = ['request_id']
+        if 'tc_packet_seq_control' in self.control.colnames:
+            key_cols.insert(0, 'tc_packet_seq_control')
+
+        for ci in unique(self.control, keys=key_cols)['index']:
             control = self.control[self.control['index'] == ci]
             data = self.data[self.data['control_index'] == ci]
             # for req_id in self.control['request_id']:

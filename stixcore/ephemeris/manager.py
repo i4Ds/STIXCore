@@ -142,7 +142,7 @@ class SpiceKernelLoader:
         curdir = os.getcwd()
         try:
             # change to the 'kernels' dir
-            os.chdir(self.meta_kernel_path.parent.parent)
+            os.chdir(self.meta_kernel_path.parent)
             # unload all old kernels
             spiceypy.kclear()
             # load the meta kernel

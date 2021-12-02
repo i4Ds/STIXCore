@@ -204,7 +204,7 @@ class RawPixelData(ScienceProduct):
         data['integration_time'] = packets.get_value('NIX00405').astype(np.uint16)
         data.add_meta(name='integration_time', nix='NIX00405', packets=packets)
         data.add_data('pixel_masks', _get_pixel_mask(packets, 'NIXD0407'))
-        data.add_data('detector_masks', fix_detector_mask(control, _get_detector_mask(packets)))
+        data.add_data('detector_masks', _get_detector_mask(packets))
         data['triggers'] = np.array([packets.get_value(f'NIX00{i}') for i in range(408, 424)]).T
         data['triggers'].dtype = get_min_uint(data['triggers'])
         data['triggers'].meta = {'NIXS': [f'NIX00{i}' for i in range(408, 424)]}
@@ -239,6 +239,8 @@ class RawPixelData(ScienceProduct):
         counts = np.zeros((len(unique_times), num_detectors, num_pixels, num_energies), np.uint32)
         for i, (pid, did, cid, cc) in enumerate(dd):
             counts[time_indices[i], did, pid, cid] = cc
+
+        data['detector_masks'] = fix_detector_mask(control, data['detector_masks'])
 
         sub_index = np.searchsorted(data['start_time'], unique_times)
         data = data[sub_index]
@@ -302,7 +304,7 @@ class CompressedPixelData(ScienceProduct):
         if packets.ssid == 21 and data['num_pixel_sets'][0] != 12:
             pixel_masks = np.pad(pixel_masks, ((0, 0), (0, 12 - data['num_pixel_sets'][0]), (0, 0)))
         data.add_data('pixel_masks', (pixel_masks, pm_meta))
-        data.add_data('detector_masks', fix_detector_mask(control, _get_detector_mask(packets)))
+        data.add_data('detector_masks', _get_detector_mask(packets))
         # NIX00405 in BSD is 1 indexed
         data['integration_time'] = SCETimeDelta(packets.get_value('NIX00405'))
         data.add_meta(name='integration_time', nix='NIX00405', packets=packets)
@@ -399,31 +401,15 @@ class CompressedPixelData(ScienceProduct):
             out_counts[ix] = counts
             out_var[ix] = counts_var
 
-        #     if (high - low).sum() > 0:
-        #         raise NotImplementedError()
-        #         #full_counts = rebin_proportional(dl_energies, cur_counts, sci_energies)
-        #
-        #     dids2 = data[inds[0][0]]['detector_masks']
-        #     cids2 = np.full(32, False)
-        #     cids2[low] = True
-        #     tids2 = time == unique_times
-        #
-        #     if ssid == 21:
-        #         out_counts[np.ix_(tids2, cids2, dids2, pids)] = cur_counts
-        #     elif ssid == 22:
-        #         out_counts[np.ix_(tids2, cids2, dids2)] = cur_counts
-
         if counts.sum() != out_counts.sum():
             raise ValueError('Original and reformatted count totals do not match')
 
         control['energy_bin_mask'] = np.full((1, 32), False, np.ubyte)
         all_energies = set(np.hstack([tmp['e_low'], tmp['e_high']]))
         control['energy_bin_mask'][:, list(all_energies)] = True
-        # time x energy x detector x pixel
-        # counts = np.array(
-        #     eng_packets['NIX00260'], np.uint16).reshape(unique_times.size, num_energies,
-        #                                                 num_detectors, num_pixels)
-        # time x channel x detector x pixel need to transpose to time x detector x pixel x channel
+
+        # only fix here as data is send so needed for extraction but will be all zeros
+        data['detector_masks'] = fix_detector_mask(control, data['detector_masks'])
 
         sub_index = np.searchsorted(data['delta_time'], unique_times)
         data = data[sub_index]
@@ -518,7 +504,8 @@ class Visibility(ScienceProduct):
         data.add_data('pixel_mask3', _get_pixel_mask(packets, 'NIXD0445'))
         data.add_data('pixel_mask4', _get_pixel_mask(packets, 'NIXD0446'))
         data.add_data('pixel_mask5', _get_pixel_mask(packets, 'NIXD0447'))
-        data.add_data('detector_masks', fix_detector_mask(control, _get_detector_mask(packets)))
+        data.add_data('detector_masks', _get_detector_mask(packets))
+        data['detector_masks'] = fix_detector_mask(control, data['detector_masks'])
         # NIX00405 in BSD is 1 indexed
         data['integration_time'] = packets.get_value('NIX00405')
         data.add_meta(name='integration_time', nix='NIX00405', packets=packets)
@@ -609,11 +596,11 @@ class Spectrogram(ScienceProduct):
         control.add_data('compression_scheme_triggers_skm',
                          _get_compression_scheme(packets, 'NIX00267'))
 
-        control['pixel_mask'] = np.unique(_get_pixel_mask(packets)[0], axis=0)
-        control.add_meta(name='pixel_mask', nix='NIXD0407', packets=packets)
-        control['detector_mask'] = np.unique(
-            fix_detector_mask(control, _get_detector_mask(packets)[0]), axis=0)
-        control.add_meta(name='detector_mask', nix='NIX00407', packets=packets)
+        control['pixel_masks'] = np.unique(_get_pixel_mask(packets)[0], axis=0)
+        control.add_meta(name='pixel_masks', nix='NIXD0407', packets=packets)
+        control['detector_masks'] = np.unique(_get_detector_mask(packets)[0], axis=0)
+        control['dectecor_masks'] = fix_detector_mask(control, control['detector_masks'])
+        control.add_meta(name='detector_masks', nix='NIX00407', packets=packets)
         raw_rcr = packets.get_value('NIX00401', attr='value')
 
         e_min = np.array(packets.get_value('NIXD0442'))

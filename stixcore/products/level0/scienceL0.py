@@ -701,9 +701,9 @@ class Spectrogram(ScienceProduct):
         data['timedel'] = deltas
         data['timedel'].meta = {'NIXS': ['NIX00441', 'NIX00269']}
         data.add_basic(name='triggers', nix='NIX00267', packets=packets)
+        data['triggers'] = data['triggers'].astype(get_min_uint(data['triggers']))
         data['rcr'] = rcr
         data.add_meta(name='rcr', nix='NIX00401', packets=packets)
-        data['triggers'].dtype = get_min_uint(data['triggers'])
         data.add_basic(name='triggers_err', nix='NIX00267', attr='error', packets=packets)
         data['triggers_err'] = np.float32(data['triggers_err'])
         data['counts'] = (full_counts * u.ct).astype(get_min_uint(full_counts))[..., :e_max.max()+1]

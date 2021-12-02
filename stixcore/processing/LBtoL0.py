@@ -6,7 +6,7 @@ from collections import defaultdict
 from concurrent.futures import ProcessPoolExecutor
 
 from stixcore.config.config import CONFIG
-from stixcore.ephemeris.manager import Spice
+from stixcore.ephemeris.manager import Spice, SpiceKernelManager
 from stixcore.io.fits.processors import FitsL0Processor
 from stixcore.products.product import Product
 from stixcore.util.logging import get_logger
@@ -104,7 +104,7 @@ def process_tm_type(files, tm_type, processor, spice_kernel_path, config):
                             level='L0', service_type=comp.service_type,
                             service_subtype=comp.service_subtype, ssid=comp.ssid, data=None,
                             control=None)
-                        level0 = tmp.from_levelb(comp)
+                        level0 = tmp.from_levelb(comp, parent=file.name)
                         fits_files = processor.write_fits(level0)
                         all_files.extend(fits_files)
                     except Exception as e:
@@ -126,7 +126,7 @@ def process_tm_type(files, tm_type, processor, spice_kernel_path, config):
                                                        service_subtype=inc.service_subtype,
                                                        ssid=inc.ssid, data=None,
                                                        control=None)
-                level0 = tmp.from_levelb(inc)
+                level0 = tmp.from_levelb(inc, parent=file.name)
                 fits_files = processor.write_fits(level0)
                 all_files.extend(fits_files)
 
@@ -138,12 +138,15 @@ if __name__ == '__main__':
 
     warnings.filterwarnings('ignore', module='astropy.io.fits.card')
 
-    fits_path = Path('/home/shane/fits_test_local/LB/21/6/41')
-    bd = Path('/home/shane/fits_test_cal')
+    fits_path = Path('/home/shane/fits_test_latest/LB/')
+    bd = Path('/home/shane/fits_test_latest')
+
+    _spm = SpiceKernelManager(Path(CONFIG.get("Paths", "spice_kernels")))
+    Spice.instance = Spice(_spm.get_latest_mk())
 
     l0processor = Level0(fits_path, bd)
     l0_files = l0processor.process_fits_files()
-    logger.info(l0_files)
+    logger.info(len(l0_files))
 
     tend = perf_counter()
     logger.info('Time taken %f', tend-tstart)

@@ -13,6 +13,7 @@ from astropy.table import QTable
 import stixcore
 from stixcore.config.config import CONFIG
 from stixcore.ephemeris.manager import Spice
+from stixcore.products.level0.scienceL0 import Aspect
 from stixcore.products.product import Product
 from stixcore.soop.manager import SOOPManager, SoopObservationType
 from stixcore.util.logging import get_logger
@@ -281,12 +282,7 @@ class FitsL0Processor:
 
         """
         created_files = []
-        if callable(getattr(product, 'to_days', None)):
-            products = product.to_days()
-        else:
-            products = product.to_requests()
-
-        for prod in products:
+        for prod in product.split_to_files():
             filename = self.generate_filename(product=prod, version=1)
             # start_day = np.floor((prod.obs_beg.as_float()
             #                       // (1 * u.day).to('s')).value * SEC_IN_DAY).astype(int)
@@ -320,10 +316,23 @@ class FitsL0Processor:
             # it is important that the change to the relative time is done after the header is
             # generated as this will use the original SCET time data
 
-            # In TM sent as uint in units of 0.1 so convert back
-            data['time'] = np.uint32(np.around((data['time']
-                                                - prod.scet_timerange.start).as_float()).to(u.ds))
-            data['timedel'] = np.uint32(np.around(data['timedel'].as_float()).to(u.ds))
+            if isinstance(prod, Aspect):
+                data['time'] = np.float32((data['time']
+                                           - prod.scet_timerange.start).as_float())
+                data['timedel'] = np.float32(data['timedel'].as_float())
+            else:
+                # In TM sent as uint in units of 0.1 so convert back
+                data['time'] = np.uint32(
+                                np.around((data['time']
+                                           - prod.scet_timerange.start).as_float().to(u.ds)
+                                          )
+                                         )
+                data['timedel'] = np.uint32(
+                                   np.around(
+                                       data['timedel'].as_float().to(u.ds)
+                                             )
+                                            )
+
             try:
                 control['time_stamp'] = control['time_stamp'].as_float()
             except KeyError as e:
@@ -390,7 +399,7 @@ class FitsL0Processor:
             The filename
         """
 
-        if product.type != 'sci' or product.name == 'burst-aspect':
+        if product.type != 'sci':
             date_range = f'{(product.scet_timerange.avg.coarse // (24 * 60 * 60) ) *24*60* 60:010d}'
         else:
             start_obs = product.scet_timerange.start.to_string(sep='f')
@@ -541,12 +550,7 @@ class FitsL1Processor(FitsL0Processor):
 
         """
         created_files = []
-        if callable(getattr(product, 'to_days', None)):
-            products = product.to_days()
-        else:
-            products = product.to_requests()
-
-        for prod in products:
+        for prod in product.split_to_files():
             filename = self.generate_filename(product=prod, version=1)
             # start_day = np.floor((prod.obs_beg.as_float()
             #                       // (1 * u.day).to('s')).value * SEC_IN_DAY).astype(int)

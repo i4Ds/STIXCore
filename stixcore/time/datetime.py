@@ -386,8 +386,8 @@ class SCETime(SCETBase):
             The SCETime object
         """
         sub_seconds, seconds = np.modf(scet_float.to_value('s'))
-        coarse = seconds.astype(int)
-        fine = np.round(MAX_FINE * sub_seconds).astype(np.int)
+        coarse = seconds.astype(np.uint32)
+        fine = np.round(MAX_FINE * sub_seconds).astype(np.uint16)
         return SCETime(coarse, fine)
 
     @classmethod

@@ -46,30 +46,31 @@ def correct_counts(product, method='rebin'):
         raise ValueError('Only supports L1 science products')
 
     elut = get_elut(product.utc_timerange.center.datetime)
-    if method == 'rebin':
-        # rebin back onto science channels
-        counts = product.data['counts'][...]
-        for did, pid in zip(elut.detector.flat, elut.pixel.flat):
-            sum_orig_counts = counts[:, did, pid, 1:-1].sum(axis=-1)
-            calibration_edges = elut.e_actual[did, pid, :]
+
+    # rebin back onto science channels
+    counts = product.data['counts'][...]
+    for did, pid in zip(elut.detector.flat, elut.pixel.flat):
+        sum_orig_counts = counts[:, did, pid, 1:-1].sum(axis=-1)
+        calibration_edges = elut.e_actual[did, pid, :]
+
+        if method == 'rebin':
             # need bin below 4 and above 150 to conserve total counts so [0, 4, ... 150, 160]
             sci_edges = np.hstack([elut.e, 160])
             rebinned = np.apply_along_axis(rebin_proportional, -1, counts[:, did, pid, 1:-1],
                                            calibration_edges, sci_edges)
 
             sum_rebined_counts = rebinned.sum(axis=-1)
-            if np.allclose(sum_orig_counts.value, sum_rebined_counts):
+            if not np.allclose(sum_orig_counts.value, sum_rebined_counts):
                 raise ValueError('We are losing the precious counts')
 
             # zero the counts the were rebbinned then add all 32 ch
-            counts[:, did, pid, 1:1] = 0
+            counts[:, did, pid, 1:-1] = 0
             counts[:, did, pid, :] = counts[:, did, pid, :] + rebinned * counts.unit
+        elif method == 'width':
+            real_width = np.diff(calibration_edges)
+            counts[:, pid, did, 1:-1] = counts[:, pid, did, 1:-1]/real_width
 
-        product.data['counts'] = counts
-        product.e_cal = 'rebin'
-        return product
+    product.data['counts'] = counts
+    product.e_cal = method
 
-    elif method == 'width':
-        # alter the energy table
-        product.energies = elut
-        product.e_cal = 'width'
+    return product

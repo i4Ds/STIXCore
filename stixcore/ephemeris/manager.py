@@ -1,11 +1,8 @@
 import os
-import re
+import sys
 import logging
-import tempfile
-import functools
 from enum import Enum
 from pathlib import Path
-from textwrap import wrap
 
 import numpy as np
 import spiceypy
@@ -14,14 +11,16 @@ from spiceypy.utils.exceptions import SpiceBADPARTNUMBER, SpiceINVALIDSCLKSTRING
 import astropy.units as u
 from astropy.time.core import Time as ApTime
 
+from stixcore.config.config import CONFIG
 from stixcore.util.logging import get_logger
+from stixcore.util.singleton import Singleton
 
 SOLAR_ORBITER_ID = -144
 SOLAR_ORBITER_SRF_FRAME_ID = -144000
 SOLAR_ORBITER_STIX_ILS_FRAME_ID = -144851
 SOLAR_ORBITER_STIX_OPT_FRAME_D = -144852
 
-__all__ = ['SpiceKernelLoader', 'Time', 'Position', 'SpiceKernelManager', 'SpiceKernelType']
+__all__ = ['SpiceKernelLoader', 'Spice', 'SpiceKernelManager', 'SpiceKernelType']
 
 logger = get_logger(__name__)
 logger.setLevel(logging.DEBUG)
@@ -59,7 +58,7 @@ class SpiceKernelType(Enum):
     """Orbit kernels, for the spacecraft and other solar system bodies."""
 
 
-class SpiceKernelManager:
+class SpiceKernelManager():
     """A class to manage Spice kernels in the local file system."""
 
     def __init__(self, path):
@@ -136,91 +135,48 @@ class SpiceKernelLoader:
             Path to the meta kernel
 
         """
-        self.__spice_context_manager = False
         self.meta_kernel_path = Path(meta_kernel_path)
         if not self.meta_kernel_path.exists():
             raise ValueError(f'Meta kernel not found: {self.meta_kernel_path}')
 
-        with self.meta_kernel_path.open('r') as mk:
-            original_mk = mk.read()
-            kernel_dir = str(self.meta_kernel_path.parent.parent.resolve())
-            kernel_dir = kernel_dir.replace('\\', '\\\\')
-            # spice meta kernel seems to have a max variable length of 80 characters
-            # https://naif.jpl.nasa.gov/pub/naif/toolkit_docs/C/req/kernel.html#Additional%20Meta-kernel%20Specifications # noqa
-            wrapped = self._wrap_value_field(kernel_dir)
-            path_value = f"PATH_VALUES       = ( {wrapped} )"
-            logger.debug(f'Kernel directory {kernel_dir}')
-            new_mk = re.sub(r"PATH_VALUES\s*= \( '.*' \)", path_value, original_mk)
-
-            handle, path = tempfile.mkstemp()
-            with os.fdopen(handle, 'w') as f:
-                f.write(new_mk)
-
-            self.mod_meta_kernel_path = Path(path)
-
-        self.file = self.meta_kernel_path.name
-
-    def __enter__(self):
-        spiceypy.furnsh(str(self.mod_meta_kernel_path))
-        self.__spice_context_manager = True
-        return self
-
-    def __exit__(self, exc_type, exc_val, exc_tb):
-        spiceypy.unload(str(self.mod_meta_kernel_path))
-        self.__spice_context_manager = False
-
-    def spice_context(func):
-        """A decorator to ensure functions are executed within the context manager."""
-
-        @functools.wraps(func)
-        def wrapper(self, *args, **kwargs):
-            if not self.__spice_context_manager:
-                raise NotInSpiceContext()
-            return func(self, *args, **kwargs)
-        return wrapper
-
-    @staticmethod
-    def _wrap_value_field(field):
-        """Wrap a value field according to SPICE meta kernel spec.
-
-        Parameters
-        ----------
-        field : `str`
-            The value to be wrapped
-
-        Returns
-        -------
-        The wrapped values
-        """
-        parts = wrap(field, width=78)
-        wrapped = "'"
-        for part in parts[:-1]:
-            wrapped = wrapped + part + "+'\n'"
-        wrapped = wrapped + f"{parts[-1]}'"
-        return wrapped
+        curdir = os.getcwd()
+        try:
+            # change to the 'kernels' dir
+            os.chdir(self.meta_kernel_path.parent)
+            # unload all old kernels
+            spiceypy.kclear()
+            # load the meta kernel
+            spiceypy.furnsh(str(self.meta_kernel_path))
+            # spiceypy.unload(str(self.mod_meta_kernel_path))
+        finally:
+            # change back to the old working directory
+            os.chdir(curdir)
 
 
-class NotInSpiceContext(Exception):
-    """Raised when a function decorated with `spice_context` decorator is called out side a
-    `SpiceKernelLoader` context."""
+class Spice(SpiceKernelLoader, metaclass=Singleton):
+    """Wrapper to spice functions.
 
-
-class Time(SpiceKernelLoader):
-    """Convert between spacecraft elapsed times (SCET), UTC strings and datetime objects.
+       Convert between spacecraft elapsed times (SCET), UTC strings and datetime objects.
+       Obtain spacecraft position and orientation, convert to and from instrument coordinate system
 
     Examples
     --------
-    >>> from stixcore.ephemeris.manager import Time
+    >>> from stixcore.ephemeris.manager import Spice
     >>> import stixcore.data.test
-    >>> with Time(meta_kernel_path=stixcore.data.test.test_data.ephemeris.META_KERNEL_TIME) as time:
-    ...     converted = time.scet_to_datetime('625237315:44104')
+    >>> converted = Spice.instance.scet_to_datetime('625237315:44104')
     >>> str(converted)
     '2019-10-24 13:01:50.672974+00:00'
+
+    >>> from datetime import datetime
+    >>> from stixcore.ephemeris.manager import Spice
+    >>> import stixcore.data.test
+    >>> x, y, z = Spice.instance.get_position(date=datetime(2020, 10, 1), frame='SOLO_HEE')
+    >>> x, y, z
+    (<Quantity -92089164.00717261 km>,
+    <Quantity 1.05385302e+08 km>,
+    <Quantity 44917232.72028707 km>)
     """
 
-    spice_context = SpiceKernelLoader.spice_context
-
-    @spice_context
     def scet_to_utc(self, scet):
         """
         Convert SCET to UTC time string in ISO format.
@@ -246,7 +202,6 @@ class Time(SpiceKernelLoader):
         # Digits of precision in fractional seconds: 6
         return spiceypy.et2utc(ephemeris_time, "ISOC", 3)
 
-    @spice_context
     def utc_to_scet(self, utc):
         """
         Convert UTC ISO format to SCET time strings.
@@ -266,7 +221,6 @@ class Time(SpiceKernelLoader):
         # Ephemeris time to Obt
         return spiceypy.sce2s(SOLAR_ORBITER_ID, ephemeris_time)
 
-    @spice_context
     def scet_to_datetime(self, scet):
         """
         Convert SCET to datetime.
@@ -289,7 +243,6 @@ class Time(SpiceKernelLoader):
             ephemeris_time = spiceypy.scs2e(SOLAR_ORBITER_ID, scet)
         return spiceypy.et2datetime(ephemeris_time)
 
-    @spice_context
     def datetime_to_scet(self, adatetime):
         """
         Convert datetime to SCET.
@@ -310,27 +263,6 @@ class Time(SpiceKernelLoader):
         scet = spiceypy.sce2s(SOLAR_ORBITER_ID, et)
         return scet
 
-
-class Position(SpiceKernelLoader):
-    """
-    Obtain spacecraft position and orientation, convert to and from instrument coordinate system
-
-    Examples
-    --------
-    >>> from datetime import datetime
-    >>> from stixcore.ephemeris.manager import Position
-    >>> import stixcore.data.test
-    >>> with Position(
-    ...     meta_kernel_path=stixcore.data.test.test_data.ephemeris.META_KERNEL_POS) as pos:
-    ...     x, y, z = pos.get_position(date=datetime(2020, 10, 1), frame='SOLO_HEE')
-    >>> x, y, z
-    (<Quantity -92089164.00717261 km>,
-    <Quantity 1.05385302e+08 km>,
-    <Quantity 44917232.72028707 km>)
-    """
-    spice_context = SpiceKernelLoader.spice_context
-
-    @spice_context
     def get_position(self, *, date, frame):
         """
         Get the position of SolarOrbiter at the given date in the given coordinate frame.
@@ -351,7 +283,6 @@ class Position(SpiceKernelLoader):
         (x, y, z), lt = spiceypy.spkpos('SOLO', et, frame, 'None', 'SUN')
         return x*u.km, y*u.km, z*u.km
 
-    @spice_context
     def get_orientation(self, date, frame):
         """
         Get the orientation or roll, pith and yaw of STIX (ILS or OPT).
@@ -375,7 +306,6 @@ class Position(SpiceKernelLoader):
         roll, pitch, yaw = np.rad2deg([roll, pitch, yaw])*u.deg
         return roll, pitch, yaw
 
-    @spice_context
     def convert_to_inst(self, coords):
         """
         Convert the given coordinates to the instrument frame
@@ -437,7 +367,7 @@ class Position(SpiceKernelLoader):
 
         precision = 2
         headers = (
-            ('SPICE_MK', self.file, 'SPICE meta kernel file'),
+            ('SPICE_MK', self.meta_kernel_path.name, 'SPICE meta kernel file'),
             ('RSUN_ARC', rsun_arc.to_value('arcsec'),
              '[arcsec] Apparent photospheric solar radius'),
             # ('CAR_ROT', ,), Doesn't make sense as we don't have a crpix
@@ -501,3 +431,9 @@ class Position(SpiceKernelLoader):
         )
 
         return headers
+
+
+if 'pytest' in sys.modules:
+    # only set the global in test scenario
+    _spm = SpiceKernelManager(Path(CONFIG.get("Paths", "spice_kernels")))
+    Spice.instance = Spice(_spm.get_latest_mk())

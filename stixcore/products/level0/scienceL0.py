@@ -29,6 +29,35 @@ ENERGY_CHANNELS = read_energy_channels(Path(__file__).parent.parent.parent / "co
 __all__ = ['ScienceProduct', 'RawPixelData', 'CompressedPixelData', 'SummedPixelData',
            'Visibility', 'Spectrogram', 'Aspect']
 
+SUM_DMASK_SCET_COARSE_RANGE = range(659318490, 668863556)
+
+
+def fix_detector_mask(control, detector_mask):
+    """
+    Update the detector mask in BSD data due to misconfiguration of SumDmask
+
+    For a time the BKG and CFL event were not recorded so even if requested will be missing whihc
+    could effect normalisation in terms of detector area etc. See issue for more information
+    https://github.com/i4Ds/STIXCore/issues/115
+
+    Parameters
+    ----------
+    control :  `products.product.ControlSci`
+        Control data
+    data : `products.product.Data`
+        Data
+
+    Returns
+    -------
+    Update detector mask
+    """
+    if control['time_stamp'].coarse not in SUM_DMASK_SCET_COARSE_RANGE:
+        return detector_mask
+    else:
+        logger.info('Fixing detector mask for SumDmask misconfiguration')
+        detector_mask[:, 8:10] = 0
+        return detector_mask
+
 
 class ScienceProduct(GenericProduct, EnergyChannelsMixin):
     """Generic science data product class composed of control and data."""
@@ -134,7 +163,7 @@ class ScienceProduct(GenericProduct, EnergyChannelsMixin):
         control = ControlSci.from_packets(packets)
         # control.remove_column('num_structures')
 
-        control['index'] = 0
+        control['index'] = np.ubyte(0)
         control['packet'] = levelb.control['packet'].reshape(1, -1)
         control['packet'].dtype = get_min_uint(control['packet'])
         control['raw_file'] = np.unique(levelb.control['raw_file']).reshape(1, -1)
@@ -169,13 +198,10 @@ class RawPixelData(ScienceProduct):
         data['integration_time'] = packets.get_value('NIX00405').astype(np.uint16)
         data.add_meta(name='integration_time', nix='NIX00405', packets=packets)
         data.add_data('pixel_masks', _get_pixel_mask(packets, 'NIXD0407'))
-        data.add_data('detector_masks', _get_detector_mask(packets))
+        data.add_data('detector_masks', fix_detector_mask(control, _get_detector_mask(packets)))
         data['triggers'] = np.array([packets.get_value(f'NIX00{i}') for i in range(408, 424)]).T
         data['triggers'].dtype = get_min_uint(data['triggers'])
         data['triggers'].meta = {'NIXS': [f'NIX00{i}' for i in range(408, 424)]}
-        # ,
-        # 'PCF_CURTX': [packets.get(f'NIX00{i}')[0].idb_info.PCF_CURTX
-        #               for i in range(408, 424)]}
         data.add_basic(name='num_samples', nix='NIX00406', packets=packets, dtype=np.uint16)
 
         num_detectors = 32
@@ -213,7 +239,7 @@ class RawPixelData(ScienceProduct):
         data['time'] = control["time_stamp"][0] \
             + data['start_time'] + data['integration_time'] / 2
         data['timedel'] = SCETimeDelta(data['integration_time'])
-        data['counts'] = get_min_uint(counts)(counts * u.ct)
+        data['counts'] = (counts * u.ct).astype(get_min_uint(counts))
         # data.add_meta(name='counts', nix='NIX00065', packets=packets)
         data['control_index'] = control['index'][0]
 
@@ -270,7 +296,7 @@ class CompressedPixelData(ScienceProduct):
         if packets.ssid == 21 and data['num_pixel_sets'][0] != 12:
             pixel_masks = np.pad(pixel_masks, ((0, 0), (0, 12 - data['num_pixel_sets'][0]), (0, 0)))
         data.add_data('pixel_masks', (pixel_masks, pm_meta))
-        data.add_data('detector_masks', _get_detector_mask(packets))
+        data.add_data('detector_masks', fix_detector_mask(control, _get_detector_mask(packets)))
         # NIX00405 in BSD is 1 indexed
         data['integration_time'] = SCETimeDelta(packets.get_value('NIX00405'))
         data.add_meta(name='integration_time', nix='NIX00405', packets=packets)
@@ -279,7 +305,7 @@ class CompressedPixelData(ScienceProduct):
         triggers_var = np.array([packets.get_value(f'NIX00{i}', attr='error')
                                  for i in range(242, 258)])
 
-        data['triggers'] = get_min_uint(triggers)(triggers.T)
+        data['triggers'] = triggers.T.astype(get_min_uint(triggers))
         data['triggers'].meta = {'NIXS': [f'NIX00{i}' for i in range(242, 258)]}
         data['triggers_err'] = np.float32(np.sqrt(triggers_var).T)
         data.add_basic(name='num_energy_groups', nix='NIX00258', packets=packets, dtype=np.ubyte)
@@ -399,14 +425,15 @@ class CompressedPixelData(ScienceProduct):
         data['time'] = (control['time_stamp'][0]
                         + data['delta_time'] + data['integration_time']/2)
         data['timedel'] = data['integration_time']
-        data['counts'] = get_min_uint(out_counts)(out_counts * u.ct)
+        data['counts'] = \
+            (out_counts * u.ct).astype(get_min_uint(out_counts))[..., :tmp['e_high'].max()+1]
         data.add_meta(name='counts', nix='NIX00260', packets=packets)
-        data['counts_err'] = np.float32(out_var * u.ct)
+        data['counts_err'] = np.float32(out_var * u.ct)[..., :tmp['e_high'].max()+1]
         data['control_index'] = control['index'][0]
 
         data = data['time', 'timedel', 'rcr', 'pixel_masks', 'detector_masks', 'num_pixel_sets',
                     'num_energy_groups', 'triggers', 'triggers_err', 'counts', 'counts_err']
-        data['control_index'] = 0
+        data['control_index'] = np.ubyte(0)
 
         return cls(service_type=packets.service_type,
                    service_subtype=packets.service_subtype,
@@ -485,7 +512,7 @@ class Visibility(ScienceProduct):
         data.add_data('pixel_mask3', _get_pixel_mask(packets, 'NIXD0445'))
         data.add_data('pixel_mask4', _get_pixel_mask(packets, 'NIXD0446'))
         data.add_data('pixel_mask5', _get_pixel_mask(packets, 'NIXD0447'))
-        data.add_data('detector_masks', _get_detector_mask(packets))
+        data.add_data('detector_masks', fix_detector_mask(control, _get_detector_mask(packets)))
         # NIX00405 in BSD is 1 indexed
         data['integration_time'] = packets.get_value('NIX00405')
         data.add_meta(name='integration_time', nix='NIX00405', packets=packets)
@@ -578,16 +605,18 @@ class Spectrogram(ScienceProduct):
 
         control['pixel_mask'] = np.unique(_get_pixel_mask(packets)[0], axis=0)
         control.add_meta(name='pixel_mask', nix='NIXD0407', packets=packets)
-        control['detector_mask'] = np.unique(_get_detector_mask(packets)[0], axis=0)
+        control['detector_mask'] = np.unique(
+            fix_detector_mask(control, _get_detector_mask(packets)[0]), axis=0)
         control.add_meta(name='detector_mask', nix='NIX00407', packets=packets)
-        control['rcr'] = np.unique(packets.get_value('NIX00401', attr='value'))[0]
-        control.add_meta(name='rcr', nix='NIX00401', packets=packets)
+        raw_rcr = packets.get_value('NIX00401', attr='value')
 
         e_min = np.array(packets.get_value('NIXD0442'))
         e_max = np.array(packets.get_value('NIXD0443'))
         energy_unit = np.array(packets.get_value('NIXD0019')) + 1
         num_times = np.array(packets.get_value('NIX00089'))
         total_num_times = num_times.sum()
+
+        rcr = np.hstack([np.full(nt, rcr) for rcr, nt in zip(raw_rcr, num_times)]).astype(np.ubyte)
 
         counts = np.array(packets.get_value('NIX00268'))
         counts_var = np.array(packets.get_value('NIX00268', attr='error'))
@@ -666,13 +695,15 @@ class Spectrogram(ScienceProduct):
         data['timedel'] = deltas
         data['timedel'].meta = {'NIXS': ['NIX00441', 'NIX00269']}
         data.add_basic(name='triggers', nix='NIX00267', packets=packets)
-        data['triggers'] = get_min_uint(data['triggers'])(data['triggers'])
+        data['rcr'] = rcr
+        data.add_meta(name='rcr', nix='NIX00401', packets=packets)
+        data['triggers'].dtype = get_min_uint(data['triggers'])
         data.add_basic(name='triggers_err', nix='NIX00267', attr='error', packets=packets)
         data['triggers_err'] = np.float32(data['triggers_err'])
-        data['counts'] = get_min_uint(full_counts)(full_counts * u.ct)
+        data['counts'] = (full_counts * u.ct).astype(get_min_uint(full_counts))[..., :e_max.max()+1]
         data.add_meta(name='counts', nix='NIX00268', packets=packets)
-        data['counts_err'] = np.float32(np.sqrt(full_counts_var) * u.ct)
-        data['control_index'] = 0
+        data['counts_err'] = np.float32(np.sqrt(full_counts_var) * u.ct)[..., :e_max.max()+1]
+        data['control_index'] = np.ubyte(0)
 
         return cls(service_type=packets.service_type,
                    service_subtype=packets.service_subtype,
@@ -728,7 +759,7 @@ class Aspect(ScienceProduct):
         control['packet'] = levelb.control['packet'].reshape(1, -1)
         control['parent'] = parent
 
-        control['index'] = range(len(control))
+        control['index'] = np.arange(len(control)).astype(get_min_uint(len(control)))
 
         delta_time = ((control['summing_value'] * control['averaging_value']) / 1000.0) * u.s
         samples = packets.get_value('NIX00089')

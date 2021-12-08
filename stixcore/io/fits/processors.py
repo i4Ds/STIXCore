@@ -12,8 +12,7 @@ from astropy.table import QTable
 
 import stixcore
 from stixcore.config.config import CONFIG
-from stixcore.data.test import test_data
-from stixcore.ephemeris.manager import Position
+from stixcore.ephemeris.manager import Spice
 from stixcore.products.product import Product
 from stixcore.soop.manager import SOOPManager, SoopObservationType
 from stixcore.util.logging import get_logger
@@ -36,6 +35,26 @@ def set_bscale_unsigned(table_hdu):
         if col.bzero and col.bscale is None:
             col.bscale = 1
 
+    return table_hdu
+
+
+def add_default_tuint(table_hdu):
+    """
+    Add a default empty string tunit if not already defined
+
+    Parameters
+    ----------
+    table_hdu : `astropy.io.fits.BinTableHDU`
+        Binary table to add tunit to
+
+    Returns
+    -------
+    `astropy.io.fits.BinTableHDU`
+        Table with added tunits kewords
+    """
+    for col in table_hdu.columns:
+        if not col.unit:
+            col.unit = ' '
     return table_hdu
 
 
@@ -64,15 +83,14 @@ class FitsProcessor:
 
         user_req = ''
         if 'request_id' in product.control.colnames:
-            user_req = f"-{product.control['request_id'][0]}"
+            user_req = f"_{product.control['request_id'][0]}"
 
         tc_control = ''
         if 'tc_packet_seq_control' in product.control.colnames and user_req != '':
-            tc_control = f'_{product.control["tc_packet_seq_control"][0]}'
+            tc_control = f'-{product.control["tc_packet_seq_control"][0]}'
 
-        return f'solo_{product.level}_stix-{product.type}-' \
-               f'{product.name.replace("_", "-")}{user_req}' \
-               f'_{date_range}_V{version:02d}{status}{tc_control}.fits'
+        return f'solo_{product.level}_stix-{product.type}-{product.name.replace("_", "-")}' \
+               f'_{date_range}_V{version:02d}{status}{user_req}{tc_control}.fits'
 
     @classmethod
     def generate_common_header(cls, filename, product):
@@ -315,15 +333,19 @@ class FitsL0Processor:
             control_enc = fits.connect._encode_mixins(control)
             control_hdu = table_to_hdu(control_enc)
             control_hdu = set_bscale_unsigned(control_hdu)
+            control_hdu = add_default_tuint(control_hdu)
             control_hdu.name = 'CONTROL'
 
             data_enc = fits.connect._encode_mixins(data)
             data_hdu = table_to_hdu(data_enc)
             data_hdu = set_bscale_unsigned(data_hdu)
+            data_hdu = add_default_tuint(data_hdu)
             data_hdu.name = 'DATA'
 
             idb_enc = fits.connect._encode_mixins(idb_versions)
             idb_hdu = table_to_hdu(idb_enc)
+            idb_hdu = set_bscale_unsigned(idb_hdu)
+            idb_hdu = add_default_tuint(idb_hdu)
             idb_hdu.name = 'IDB_VERSIONS'
 
             hdul = [primary_hdu, control_hdu, data_hdu, idb_hdu]
@@ -396,20 +418,30 @@ class FitsL0Processor:
         #     raise ValueError(f"Try to crate FITS file L0 for {product.level} data product")
         # if not isinstance(product.obt_beg, SCETime):
         #     raise ValueError("Expected SCETime as time format")
+        dmin = 0.0
+        dmax = 0.0
+        bunit = ' '
+        if 'counts' in product.data.colnames:
+            dmax = product.data['counts'].max().value
+            dmin = product.data['counts'].min().value
+            bunit = 'counts'
 
         headers = FitsProcessor.generate_common_header(filename, product) + (
             # Name, Value, Comment
             # ('MJDREF', product.obs_beg.mjd),
             # ('DATEREF', product.obs_beg.fits),
-            ('OBT_BEG', product.scet_timerange.start.to_string()),
-            ('OBT_END', product.scet_timerange.end.to_string()),
+            ('OBT_BEG', product.scet_timerange.start.as_float().value,
+             'Start acquisition time in OBT'),
+            ('OBT_END', product.scet_timerange.end.as_float().value, 'End acquisition time in OBT'),
             ('TIMESYS', 'OBT', 'System used for time keywords'),
             ('LEVEL', 'L0', 'Processing level of the data'),
-            ('DATE_OBS', product.scet_timerange.start.to_string(),
-             'Start of acquisition time in UT'),
-            ('DATE_BEG', product.scet_timerange.start.to_string()),
-            ('DATE_AVG', product.scet_timerange.avg.to_string()),
-            ('DATE_END', product.scet_timerange.end.to_string())
+            ('DATE_OBS', product.scet_timerange.start.to_string(), 'Depreciated, same as DATE-BEG'),
+            ('DATE_BEG', product.scet_timerange.start.to_string(), 'Start time of observation'),
+            ('DATE_AVG', product.scet_timerange.avg.to_string(), 'Average time of observation'),
+            ('DATE_END', product.scet_timerange.end.to_string(), 'End time of observation'),
+            ('DATAMIN', dmin, 'Minimum valid physical value'),
+            ('DATAMAX', dmax, 'Maximum valid physical value'),
+            ('BUNIT', bunit, 'Units of physical value, after application of BSCALE, BZERO')
         )
 
         return headers
@@ -440,6 +472,22 @@ class FitsL1Processor(FitsL0Processor):
 
         headers = FitsProcessor.generate_common_header(filename, product)
 
+        dmin = 0.0
+        dmax = 0.0
+        bunit = ' '
+        exposure = 0.0
+        if 'counts' in product.data.colnames:
+            dmax = product.data['counts'].max().value
+            dmin = product.data['counts'].min().value
+            bunit = 'counts'
+            exposure = product.data['timedel'].as_float().min().to_value('s')
+        data_headers = (
+            ('DATAMIN', dmin, 'Minimum valid physical value'),
+            ('DATAMAX', dmax, 'Maximum valid physical value'),
+            ('BUNIT', bunit, 'Units of physical value, after application of BSCALE, BZERO'),
+            ('XPOSURE', exposure, '[s] Total effective exposure time')
+        )
+
         soop_keywords = self.soop_manager.get_keywords(start=product.utc_timerange.start,
                                                        end=product.utc_timerange.end,
                                                        otype=SoopObservationType.ALL)
@@ -460,9 +508,10 @@ class FitsL1Processor(FitsL0Processor):
 
         time_headers = (
             # Name, Value, Comment
-            ('OBT_BEG', product.scet_timerange.start.to_string(),
+            ('OBT_BEG', product.scet_timerange.start.as_float().value,
              'Start of acquisition time in OBT'),
-            ('OBT_END', product.scet_timerange.end.to_string(), 'End of acquisition time in OBT'),
+            ('OBT_END', product.scet_timerange.end.as_float().value,
+             'End of acquisition time in OBT'),
             ('TIMESYS', 'UTC', 'System used for time keywords'),
             ('LEVEL', 'L1', 'Processing level of the data'),
             ('DATE_OBS', product.utc_timerange.start.fits, 'Start of acquisition time in UTC'),
@@ -471,16 +520,11 @@ class FitsL1Processor(FitsL0Processor):
             ('DATE_END', product.utc_timerange.end.fits, 'End of acquisition time in UTC')
         )
 
-        mk_path = test_data.ephemeris.META_KERNEL_POS
-        kernel_path = Path(CONFIG.get('Paths', 'spice_kernels'))
-        if str(kernel_path) != '.':
-            mk_path = kernel_path / Path(*['kernels', 'mk', 'solo_ANC_soc-flown-mk.tm'])
+        ephemeris_headers = \
+            Spice.instance.get_fits_headers(start_time=product.utc_timerange.start,
+                                            average_time=product.utc_timerange.center)
 
-        with Position(meta_kernel_path=mk_path) as pos:
-            ephemeris_headers = pos.get_fits_headers(start_time=product.utc_timerange.start,
-                                                     average_time=product.utc_timerange.center)
-
-        return headers + soop_headers + time_headers + ephemeris_headers
+        return headers + data_headers + soop_headers + time_headers + ephemeris_headers
 
     def write_fits(self, product):
         """
@@ -534,8 +578,12 @@ class FitsL1Processor(FitsL0Processor):
             # Convert time to be relative to start date
             # it is important that the change to the relative time is done after the header is
             # generated as this will use the original SCET time data
-            data['time'] = (data['time'] - prod.scet_timerange.start).as_float()
-            data['timedel'] = data['timedel'].as_float()
+
+            # In TM sent as uint in units of 0.1 so convert back
+            data['time'] = np.uint32(np.around((data['time']
+                                                - prod.scet_timerange.start).as_float()).to(u.ds))
+            data['timedel'] = np.uint32(np.around(data['timedel'].as_float()).to(u.ds))
+
             try:
                 control['time_stamp'] = control['time_stamp'].as_float()
             except KeyError as e:
@@ -545,14 +593,18 @@ class FitsL1Processor(FitsL0Processor):
             control_enc = fits.connect._encode_mixins(control)
             control_hdu = table_to_hdu(control_enc)
             control_hdu = set_bscale_unsigned(control_hdu)
+            control_hdu = add_default_tuint(control_hdu)
             control_hdu.name = 'CONTROL'
 
             data_enc = fits.connect._encode_mixins(data)
             data_hdu = table_to_hdu(data_enc)
+            data_hdu = set_bscale_unsigned(data_hdu)
+            data_hdu = add_default_tuint(data_hdu)
             data_hdu.name = 'DATA'
 
             idb_enc = fits.connect._encode_mixins(idb_versions)
             idb_hdu = table_to_hdu(idb_enc)
+            idb_hdu = add_default_tuint(idb_hdu)
             idb_hdu.name = 'IDB_VERSIONS'
 
             hdus = [primary_hdu, control_hdu, data_hdu, idb_hdu]

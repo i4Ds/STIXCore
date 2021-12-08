@@ -25,10 +25,61 @@ __all__ = ['GenericProduct', 'ProductFactory', 'Product', 'ControlSci',
 
 from collections import defaultdict
 
-from stixcore.products.common import _get_energies_from_mask
+from stixcore.products.common import _get_energies_from_mask, get_min_uint
 from stixcore.util.logging import get_logger
 
 logger = get_logger(__name__)
+
+BITS_TO_UINT = {
+    8: np.ubyte,
+    16: np.uint16,
+    32: np.uint32,
+    64: np.uint64
+}
+
+
+def read_qtable(file, hdu, hdul=None):
+    """
+    Read a fits file into a QTable and maintain dtypes of columns with units
+
+    Hack to work around QTable not respecting the dtype in fits file see
+    https://github.com/astropy/astropy/issues/12494
+
+    Parameters
+    ----------
+    file : `str` or `pathlib.Path`
+        Fits file
+    hdu : `str`
+        The name of the extension
+    hdul : optional `astropy.io.fits.HDUList`
+        The HDU list for the fits file
+
+    Returns
+    -------
+    `astropy.table.QTable`
+        The corrected QTable with correct data types
+    """
+    qtable = QTable.read(file, hdu)
+    if hdul is None:
+        hdul = fits.open(file)
+
+    for col in hdul[hdu].data.columns:
+        if col.unit:
+            logger.debug(f'Unit present dtype correction needed for {col}')
+            dtype = col.dtype
+
+            if col.bzero:
+                logger.debug(f'Unit present dtype and bzero correction needed for {col}')
+                bits = np.log2(col.bzero)
+                if bits.is_integer():
+                    dtype = BITS_TO_UINT[int(bits+1)]
+
+            if hasattr(dtype, 'subdtype'):
+                dtype = dtype.base
+
+            qtable[col.name] = qtable[col.name].astype(dtype)
+
+    return qtable
 
 
 class AddParametersMixin:
@@ -88,21 +139,22 @@ class ProductFactory(BasicRegistrationFactory):
                     ssid = None
                 level = header.get('Level')
                 header.get('TIMESYS')
-                control = QTable.read(file_path, hdu='CONTROL')
+
+                hdul = fits.open(file_path)
+                control = read_qtable(file_path, hdu='CONTROL', hdul=hdul)
+
                 # Weird issue where time_stamp wasn't a proper table column?
                 if 'time_stamp' in control.colnames:
                     ts = control['time_stamp'].value
                     control.remove_column('time_stamp')
                     control['time_stamp'] = ts * u.s
-                data = QTable.read(file_path, hdu='DATA')
+
+                data = read_qtable(file_path, hdu='DATA', hdul=hdul)
 
                 if level != 'LB':
-
                     data['timedel'] = SCETimeDelta(data['timedel'])
-                    try:
-                        offset = SCETime.from_string(header['OBT_BEG'], sep=':')
-                    except ValueError:
-                        offset = SCETime.from_string(header['OBT_BEG'], sep='f')
+                    offset = SCETime.from_float(header['OBT_BEG']*u.s)
+
                     try:
                         control['time_stamp'] = SCETime.from_float(control['time_stamp'])
                     except KeyError:
@@ -113,13 +165,13 @@ class ProductFactory(BasicRegistrationFactory):
                 energies = None
                 if level == 'L1':
                     try:
-                        energies = QTable.read(file_path, hdu='ENERGIES')
+                        energies = read_qtable(file_path, hdu='ENERGIES')
                     except KeyError:
-                        logger.warn(f"no ENERGIES data found in FITS: {file_path}")
+                        logger.info(f"no ENERGIES data found in FITS: {file_path}")
                 idb_versions = defaultdict(SCETimeRange)
                 if level in ('L0', 'L1'):
                     try:
-                        idbt = QTable.read(file_path, hdu='IDB_VERSIONS')
+                        idbt = read_qtable(file_path, hdu='IDB_VERSIONS')
                         for row in idbt.iterrows():
                             idb_versions[row[0]] = SCETimeRange(start=SCETime.from_float(row[1]),
                                                                 end=SCETime.from_float(row[2]))
@@ -233,7 +285,7 @@ class Control(QTable, AddParametersMixin):
             control['integration_time'] = np.zeros_like(control['scet_coarse'], np.float) * u.s
 
         # control = unique(control)
-        control['index'] = np.arange(len(control))
+        control['index'] = np.arange(len(control)).astype(get_min_uint(len(control)))
 
         return control
 
@@ -541,7 +593,7 @@ class DefaultProduct(GenericProduct, L1Mixin):
         control['scet_coarse'] = packets.get('scet_coarse')
         control['scet_fine'] = packets.get('scet_fine')
         control['integration_time'] = 0
-        control['index'] = range(len(control))
+        control['index'] = np.arange(len(control)).astype(get_min_uint(len(control)))
 
         control['raw_file'] = levelb.control['raw_file']
         control['packet'] = levelb.control['packet']
@@ -564,7 +616,7 @@ class DefaultProduct(GenericProduct, L1Mixin):
             name = param.idb_info.get_product_attribute_name()
             data.add_basic(name=name, nix=nix, attr='value', packets=packets, reshape=reshape)
 
-        data['control_index'] = range(len(control))
+        data['control_index'] = np.arange(len(control)).astype(get_min_uint(len(control)))
 
         return cls(service_type=packets.service_type,
                    service_subtype=packets.service_subtype,

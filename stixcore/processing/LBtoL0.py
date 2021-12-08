@@ -33,12 +33,6 @@ class Level0:
             tm_type = tuple(map(int, identifier.split('-')[1:]))
             tm[tm_type].append(file)
 
-        # TODO Fix 43 not standard time axis
-        try:
-            del tm[(21, 6, 43)]
-        except Exception:
-            pass
-
         # For each type
         with ProcessPoolExecutor() as executor:
             jobs = [
@@ -133,8 +127,8 @@ if __name__ == '__main__':
 
     warnings.filterwarnings('ignore', module='astropy.io.fits.card')
 
-    fits_path = Path('/home/shane/fits_test_local/LB/21/6/42')
-    bd = Path('/home/shane/fits_test_local')
+    fits_path = Path('/home/shane/fits_test_local/LB/21/6/41')
+    bd = Path('/home/shane/fits_test_cal')
 
     l0processor = Level0(fits_path, bd)
     l0_files = l0processor.process_fits_files()

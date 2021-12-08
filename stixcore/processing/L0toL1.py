@@ -7,6 +7,8 @@ from concurrent.futures import ProcessPoolExecutor
 
 from sunpy.util.datatype_factory_base import NoMatchError
 
+from stixcore.config.config import CONFIG
+from stixcore.ephemeris.manager import Spice, SpiceKernelManager
 from stixcore.io.fits.processors import FitsL1Processor
 from stixcore.products import Product
 from stixcore.util.logging import get_logger
@@ -34,7 +36,10 @@ class Level1:
         jobs = []
         with ProcessPoolExecutor() as executor:
             for pt, files in product_types.items():
-                jobs.append(executor.submit(process_type, files, FitsL1Processor(self.output_dir)))
+                jobs.append(executor.submit(process_type, files,
+                                            processor=FitsL1Processor(self.output_dir),
+                                            # keep track of the used Spice kernel
+                                            spice_kernel_path=Spice.instance.meta_kernel_path))
 
         for job in jobs:
             try:
@@ -46,8 +51,10 @@ class Level1:
         return list(set(all_files))
 
 
-def process_type(files, processor):
+def process_type(files, *, processor, spice_kernel_path):
     all_files = list()
+    Spice.instance = Spice(spice_kernel_path)
+
     for file in files:
         l0 = Product(file)
         try:
@@ -71,8 +78,12 @@ if __name__ == '__main__':
     warnings.filterwarnings('ignore', module='stixcore.soop.manager')
     warnings.filterwarnings('ignore', module='astropy.utils.metadata')
 
-    fits_path = Path('/home/shane/fits_test/L0')
-    bd = Path('/home/shane/fits_test/')
+    fits_path = Path('/home/shane/fits_test_local/L0/21/6/21')
+    bd = Path('/home/shane/fits_test_local/')
+
+    # possible set an alternative spice kernel if not the latest should be used
+    spm = SpiceKernelManager(Path(CONFIG.get("Paths", "spice_kernels")))
+    Spice.instance = Spice(spm.get_latest_mk())
 
     l1processor = Level1(fits_path, bd)
     all_files = l1processor.process_fits_files()

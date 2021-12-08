@@ -39,7 +39,8 @@ class Level1:
                 jobs.append(executor.submit(process_type, files,
                                             processor=FitsL1Processor(self.output_dir),
                                             # keep track of the used Spice kernel
-                                            spice_kernel_path=Spice.instance.meta_kernel_path))
+                                            spice_kernel_path=Spice.instance.meta_kernel_path,
+                                            config=CONFIG))
 
         for job in jobs:
             try:
@@ -51,9 +52,10 @@ class Level1:
         return list(set(all_files))
 
 
-def process_type(files, *, processor, spice_kernel_path):
+def process_type(files, *, processor, spice_kernel_path, config):
     all_files = list()
     Spice.instance = Spice(spice_kernel_path)
+    CONFIG = config
 
     for file in files:
         l0 = Product(file)
@@ -66,9 +68,11 @@ def process_type(files, *, processor, spice_kernel_path):
             all_files.extend(files)
         except NoMatchError:
             logger.debug('No match for product %s', l0)
-        except Exception:
+        except Exception as e:
             logger.error('Error processing file %s', file, exc_info=True)
-            # raise e
+            logger.error('%s', e)
+            if CONFIG.getboolean('Logging', 'stop_on_error', fallback=False):
+                raise e
     return all_files
 
 
@@ -78,8 +82,8 @@ if __name__ == '__main__':
     warnings.filterwarnings('ignore', module='stixcore.soop.manager')
     warnings.filterwarnings('ignore', module='astropy.utils.metadata')
 
-    fits_path = Path('/home/shane/fits_test_local/L0/21/6/21')
-    bd = Path('/home/shane/fits_test_local/')
+    fits_path = Path('/home/shane/fits_test_latest/L0')
+    bd = Path('/home/shane/fits_test_latest')
 
     # possible set an alternative spice kernel if not the latest should be used
     spm = SpiceKernelManager(Path(CONFIG.get("Paths", "spice_kernels")))
@@ -87,6 +91,6 @@ if __name__ == '__main__':
 
     l1processor = Level1(fits_path, bd)
     all_files = l1processor.process_fits_files()
-    logger.info(all_files)
+    logger.info(len(all_files))
     tend = perf_counter()
     logger.info('Time taken %f', tend-tstart)

@@ -203,7 +203,9 @@ class IDBManager:
                 zip_ref.extractall(vdir / "raw")
 
             IDBManager.convert_mib_2_sqlite(
-                in_folder=vdir / "raw" / ("STIX-IDB-" +
+                in_folder=vdir / "raw" / ("v" +
+                                          IDBManager.convert_version_label(version_label)) /
+                                         ("STIX-IDB-" +
                                           IDBManager.convert_version_label(version_label)) / "idb",
                 out_file=self._get_filename_for_version(version_label),
                 version_label=IDBManager.convert_version_label(version_label))
@@ -508,5 +510,17 @@ class IDBManager:
 
 
 if __name__ == '__main__':
-    idbm = IDBManager("/home/nicky/STIXCore/stixcore/data/idb")
-    idbm.compile_version("2.26.36")
+    # idbm = IDBManager("/home/nicky/STIXCore/stixcore/data/idb")
+    # idbm.compile_version("2.26.36")
+
+    idbm = IDBManager(Path(__file__).parent.parent / "data/idb")
+
+    idbm.compile_version("2.26.35", force=True)
+    idb35 = idbm.get_idb('2.26.35')
+    idb35.get_packet_pi1_val_position(21, 6)
+
+    idbm.compile_version("2.26.36", force=True)
+    idb36 = idbm.get_idb('2.26.36')
+    idb36.get_packet_pi1_val_position(21, 6)
+
+    print(2)

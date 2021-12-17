@@ -25,7 +25,7 @@ from dominate.tags import (
     ul,
 )
 
-from astropy.io import ascii, fits
+from astropy.io import fits
 from astropy.table.table import Table
 
 from stixcore.data.test import test_data
@@ -59,10 +59,11 @@ def mtable(columns, data, tclass):
 def header2table(header):
     headerdata = np.vstack((np.array(list(header.keys())),
                             np.array(list(header.comments)),
-                            np.array(list(header.values())))).transpose()
-    return mtable([("Name", "width: 20%"),
+                            np.array([str(v).replace(";", "; ").replace(".SOL.", ".SOL. ")
+                                      for v in header.values()]))).transpose()
+    return mtable([("Name", "width: 15%"),
                    ("Description", "width: 25%"),
-                   ("Value example", "width: 50%; overflow:hidden; white-space:nowrap;")
+                   ("Value example", "width: 60%")
                    ], headerdata, "cheader")
 
 
@@ -81,13 +82,18 @@ def mytype(dtype):
 
 def mydim(dim, n):
     o = str(dim)
-    u = o.replace("(1, ", "(")
-    u = u.replace(f"({n},", "(N,")
-    u = u.replace("(N,)", "(N)")
-    return f"{u}"
+    # u = o.replace("(1, ", "(")
+    u = str(o)
+    u = u.replace(f"({n},", "(")
+    u = u.replace("( ", "(")
+    u = u.replace("()", "(1)")
+    u = u.replace(" ", "")
+    # u = u.replace("(N,)", "(N)")
+    # u = re.sub(r"\(([0-9]+)", r"(N, \1", u)
+    return f"Nx{u}"
 
 
-def data2table(data):
+def data2table(data, level):
     global name_counter
     des = list()
     for colname in sorted(data.columns):
@@ -97,6 +103,9 @@ def data2table(data):
 
         if colname in descriptions['name']:
             _desc = str(descriptions['description'][descriptions['name'] == colname][0])
+            parts = _desc.split("|")
+            if(len(parts) > 1):
+                _desc = parts[0] if level == "L0" else parts[1]
             if _desc != '--':
                 desc = _desc
             else:
@@ -106,7 +115,7 @@ def data2table(data):
 
         if (desc == "TBD" and hasattr(c, "meta") and
            "NIXS" in c.meta and isinstance(c.meta["NIXS"], str)):
-            desc = "TBC: " + IDB.get_parameter_description(c.meta["NIXS"])
+            desc = IDB.get_parameter_description(c.meta["NIXS"])
 
         des.append((colname, mytype(c.dtype), myunit(c.unit), mydim(c.shape, len(c)), desc))
 
@@ -167,7 +176,7 @@ def product(file_in):
                 data = read_qtable(file, hdu=extname, hdul=hdul)
                 h5(f"Extension: '{extname}'")
                 # header2table(hdu[extname].header)
-                data2table(data)
+                data2table(data, prod.level)
             except KeyError:
                 pass
 
@@ -259,7 +268,7 @@ with tempfile.TemporaryDirectory() as tempdir:
 
     print(lutable)
 
-    ascii.write(table, 'ddpd.out.csv', overwrite=True, format='csv', delimiter="\t")
+    # ascii.write(table, 'ddpd.out.csv', overwrite=True, format='csv', delimiter="\t")
 
     with open("pdpp.html", "w") as fd:
         fd.write(doc.render(xhtml=True))

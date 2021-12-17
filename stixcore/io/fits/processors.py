@@ -494,7 +494,7 @@ class FitsL1Processor(FitsL0Processor):
             ('DATAMIN', dmin, 'Minimum valid physical value'),
             ('DATAMAX', dmax, 'Maximum valid physical value'),
             ('BUNIT', bunit, 'Units of physical value, after application of BSCALE, BZERO'),
-            ('XPOSURE', exposure, '[s] Total effective exposure time')
+            ('XPOSURE', exposure, '[s] shortest exposure time')
         )
 
         soop_keywords = self.soop_manager.get_keywords(start=product.utc_timerange.start,

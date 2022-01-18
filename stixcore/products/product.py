@@ -503,13 +503,13 @@ class EnergyChannelsMixin:
             Lower and high energy edges
         """
         if 'energy_bin_edge_mask' in self.control.colnames:
-            energies = _get_energies_from_mask(self.control['energy_bin_edge_mask'][0])
+            low, high = _get_energies_from_mask(self.control['energy_bin_edge_mask'][0])
         # elif 'energy_bin_mask' in self.control.colnames:
         #     energies = _get_energies_from_mask(self.control['energy_bin_mask'][0])
         else:
-            energies = _get_energies_from_mask()
+            low, high = _get_energies_from_mask()
 
-        return energies
+        return low * u.keV, high * u.keV, range(len(low))
 
 
 class L1Mixin:

@@ -505,3 +505,8 @@ class IDBManager:
             return idb
         raise ValueError(f'Version "{version_label}" not found in: '
                          f'"{self._get_filename_for_version(version_label)}"')
+
+
+if __name__ == '__main__':
+    idbm = IDBManager("/home/nicky/STIXCore/stixcore/data/idb")
+    idbm.compile_version("2.26.36")

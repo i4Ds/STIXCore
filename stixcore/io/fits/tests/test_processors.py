@@ -185,7 +185,7 @@ def test_level1_processor_generate_filename(config, product):
     assert filename == 'solo_L1_stix-ql-a-name_20000101_V01.fits'
     product.type = 'sci'
     filename = processor.generate_filename(product, version=1)
-    assert filename == 'solo_L1_stix-sci-a-name_20000101T000000_20000101T000001_V01.fits'
+    assert filename == 'solo_L1_stix-sci-a-name_20000101T000000-20000101T000001_V01.fits'
 
 
 @patch('stixcore.products.level1.quicklookL1.QLProduct')

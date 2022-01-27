@@ -352,17 +352,7 @@ class FitsL0Processor:
 
             hdul = [primary_hdu, control_hdu, data_hdu, idb_hdu]
 
-            if getattr(prod, 'get_energies', False) is not False:
-                elow, ehigh = prod.get_energies()
-                energies = QTable()
-                energies['channel'] = np.float16(range(len(elow)))
-                energies['e_low'] = np.float16(elow * u.keV)
-                energies['e_high'] = np.float16(ehigh * u.keV)
-
-                energy_enc = fits.connect._encode_mixins(energies)
-                energy_hdu = table_to_hdu(energy_enc)
-                energy_hdu.name = 'ENERGIES'
-                hdul.append((energy_hdu))
+            FitsL0Processor.add_optional_energy_table(prod, hdul)
 
             hdul = fits.HDUList(hdul)
 
@@ -371,6 +361,31 @@ class FitsL0Processor:
             hdul.writeto(filetowrite, overwrite=True, checksum=True)
             created_files.append(filetowrite)
         return created_files
+
+    @staticmethod
+    def add_optional_energy_table(product, hdul):
+        """
+        Generate and add a energy table extension if energy data is avaialable.
+
+        Parameters
+        ----------
+        product : stix_parser.product.BaseProduct
+            the product
+        hdul : list
+            list of all extensions the energy to add to
+        """
+        if getattr(product, 'get_energies', False) is not False:
+            elow, ehigh, channel = product.get_energies()
+            energies = QTable()
+            energies['channel'] = np.float16(channel)
+            energies['e_low'] = np.float16(elow)
+            energies['e_high'] = np.float16(ehigh)
+
+            energy_enc = fits.connect._encode_mixins(energies)
+            energy_hdu = table_to_hdu(energy_enc)
+            energy_hdu = add_default_tuint(energy_hdu)
+            energy_hdu.name = 'ENERGIES'
+            hdul.append((energy_hdu))
 
     @staticmethod
     def generate_filename(product, version=None, status=''):
@@ -393,7 +408,7 @@ class FitsL0Processor:
         """
 
         if product.type != 'sci':
-            date_range = f'{(product.scet_timerange.avg.coarse // (24 * 60 * 60) ) *24*60* 60:010d}'
+            date_range = f'{(product.scet_timerange.avg.coarse // SEC_IN_DAY ) * SEC_IN_DAY :010d}'
         else:
             start_obs = product.scet_timerange.start.to_string(sep='f')
             end_obs = product.scet_timerange.end.to_string(sep='f')
@@ -460,7 +475,7 @@ class FitsL1Processor(FitsL0Processor):
     @classmethod
     def generate_filename(cls, product, *, version, status=''):
 
-        date_range = f'{product.utc_timerange.start.strftime("%Y%m%dT%H%M%S")}_' +\
+        date_range = f'{product.utc_timerange.start.strftime("%Y%m%dT%H%M%S")}-' +\
                      f'{product.utc_timerange.end.strftime("%Y%m%dT%H%M%S")}'
         if product.type != 'sci' or product.name == 'burst-aspect':
             date_range = product.utc_timerange.center.strftime("%Y%m%d")
@@ -604,21 +619,11 @@ class FitsL1Processor(FitsL0Processor):
             idb_hdu = add_default_tuint(idb_hdu)
             idb_hdu.name = 'IDB_VERSIONS'
 
-            hdus = [primary_hdu, control_hdu, data_hdu, idb_hdu]
+            hdul = [primary_hdu, control_hdu, data_hdu, idb_hdu]
 
-            if getattr(prod, 'get_energies', False) is not False:
-                elow, ehigh = prod.get_energies()
-                energies = QTable()
-                energies['channel'] = np.float16(range(len(elow)))
-                energies['e_low'] = np.float16(elow * u.keV)
-                energies['e_high'] = np.float16(ehigh * u.keV)
+            FitsL0Processor.add_optional_energy_table(prod, hdul)
 
-                energy_enc = fits.connect._encode_mixins(energies)
-                energy_hdu = table_to_hdu(energy_enc)
-                energy_hdu.name = 'ENERGIES'
-                hdus.append(energy_hdu)
-
-            hdul = fits.HDUList(hdus)
+            hdul = fits.HDUList(hdul)
 
             filetowrite = path / filename
             logger.debug(f'Writing fits file to {filetowrite}')

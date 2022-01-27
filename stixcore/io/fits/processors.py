@@ -415,7 +415,7 @@ class FitsL0Processor:
         """
 
         if product.type != 'sci':
-            date_range = f'{(product.scet_timerange.avg.coarse // (24 * 60 * 60) ) *24*60* 60:010d}'
+            date_range = f'{(product.scet_timerange.avg.coarse // SEC_IN_DAY ) * SEC_IN_DAY :010d}'
         else:
             start_obs = product.scet_timerange.start.to_string(sep='f')
             end_obs = product.scet_timerange.end.to_string(sep='f')
@@ -482,7 +482,7 @@ class FitsL1Processor(FitsL0Processor):
     @classmethod
     def generate_filename(cls, product, *, version, status=''):
 
-        date_range = f'{product.utc_timerange.start.strftime("%Y%m%dT%H%M%S")}_' +\
+        date_range = f'{product.utc_timerange.start.strftime("%Y%m%dT%H%M%S")}-' +\
                      f'{product.utc_timerange.end.strftime("%Y%m%dT%H%M%S")}'
         if product.type != 'sci' or product.name == 'burst-aspect':
             date_range = product.utc_timerange.center.strftime("%Y%m%d")

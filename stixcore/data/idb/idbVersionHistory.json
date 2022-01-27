@@ -31,7 +31,8 @@
                 "version":"2.26.35",
                 "aswVersion":181,
                 "validityPeriodUTC":["2021-06-23T14:38:41.609", "2021-012-010T00:00:00.000"],
-                "validityPeriodOBT":[{"coarse":677774250, "fine":0}, {"coarse":692409503, "fine":0}]
+                "validityPeriodOBT":[{"coarse":677774250, "fine":0}, {"coarse":692333903, "fine":0}]
+
 
         },
         {

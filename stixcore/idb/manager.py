@@ -203,7 +203,9 @@ class IDBManager:
                 zip_ref.extractall(vdir / "raw")
 
             IDBManager.convert_mib_2_sqlite(
-                in_folder=vdir / "raw" / ("STIX-IDB-" +
+                in_folder=vdir / "raw" / ("v" +
+                                          IDBManager.convert_version_label(version_label)) /
+                                         ("STIX-IDB-" +
                                           IDBManager.convert_version_label(version_label)) / "idb",
                 out_file=self._get_filename_for_version(version_label),
                 version_label=IDBManager.convert_version_label(version_label))
@@ -505,8 +507,3 @@ class IDBManager:
             return idb
         raise ValueError(f'Version "{version_label}" not found in: '
                          f'"{self._get_filename_for_version(version_label)}"')
-
-
-if __name__ == '__main__':
-    idbm = IDBManager("/home/nicky/STIXCore/stixcore/data/idb")
-    idbm.compile_version("2.26.36")

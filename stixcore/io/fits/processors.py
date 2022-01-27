@@ -390,6 +390,7 @@ class FitsL0Processor:
 
             energy_enc = fits.connect._encode_mixins(energies)
             energy_hdu = table_to_hdu(energy_enc)
+            energy_hdu = add_default_tuint(energy_hdu)
             energy_hdu.name = 'ENERGIES'
             hdul.append((energy_hdu))
 

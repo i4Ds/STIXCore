@@ -58,6 +58,7 @@ class PacketData:
             if param.children:
                 for child in param.children:
                     child.flatten(root=self)
+                    # TODO nicky reactivate?
                     getattr(self, child.name).children = None
 
         return self
@@ -229,9 +230,20 @@ def parse_variable(bitstream, tree):
     """
     fields = []
     _parse_tree(bitstream, tree, fields)
+    _keep_order(fields, 0)
     pd = PacketData.parameter_list_2_PacketData(fields)
     merged = pd.merge()
-    return merged
+    return (merged, fields)
+
+
+def _keep_order(fields, counter):
+    for p in fields:
+        counter += 1
+        p.order = counter
+        if p.children:
+            counter = _keep_order(p.children, counter)
+
+    return counter
 
 
 def parse_bitstream(bitstream, structure):

@@ -483,6 +483,7 @@ class GenericProduct(BaseProduct):
             decompression.decompress(packet)
             engineering.raw_to_engineering(packet)
             idb_versions[packet.get_idb().version].expand(packet.data_header.datetime)
+            packet.export()
 
         packets = PacketSequence(packets)
 

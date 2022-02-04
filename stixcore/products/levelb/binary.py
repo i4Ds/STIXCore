@@ -1,4 +1,3 @@
-from enum import IntEnum
 from collections import defaultdict
 
 import numpy as np
@@ -8,29 +7,13 @@ from astropy.table.table import Table
 
 from stixcore.products.product import BaseProduct
 from stixcore.time import SCETime
-from stixcore.tmtc.packets import TMPacket
+from stixcore.tmtc.packets import SequenceFlag, TMPacket
 from stixcore.util.logging import get_logger
 
-__all__ = ['LevelB', 'SequenceFlag']
+__all__ = ['LevelB']
 
 logger = get_logger(__name__)
 logger.setLevel('DEBUG')
-
-
-class SequenceFlag(IntEnum):
-    """Enum class for the packet sequence flag."""
-
-    STANDALONE = 3
-    """A singelton standalone package. No sequence at all."""
-
-    FIRST = 1
-    """The First package in a sequence. More to come."""
-
-    MIDDLE = 0
-    """Continouse packages in a sequence. More to come."""
-
-    LAST = 2
-    """The Last packet in a sequence. No more to come."""
 
 
 class LevelB(BaseProduct):

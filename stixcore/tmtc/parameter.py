@@ -1,6 +1,10 @@
 from collections import defaultdict
 
+import numpy as np
+
 import astropy.units as u
+
+from stixcore.time.datetime import SCETime
 
 __all__ = ['Parameter', 'EngineeringParameter', 'CompressedParameter']
 
@@ -17,15 +21,64 @@ class Parameter:
     children : `list` optional
         Children of this parameter
     """
-    def __init__(self, name, value, idb_info, children=None):
+    def __init__(self, name, value, idb_info, *, children=None, order=-1):
         self.name = name
         self.value = value
         self.idb_info = idb_info
         self.children = children
+        self.order = order
+
+    def export(self, packetdata, exportstate, *, descr=False):
+
+        val = ''
+        convparam = getattr(packetdata, self.name)
+        if convparam:
+            if isinstance(convparam, EngineeringParameter):
+                val = convparam.engineering
+            elif isinstance(convparam, CompressedParameter):
+                val = convparam.decompressed
+
+            if isinstance(val, np.ndarray) and val.size > 1:
+                # idx = self.order-convparam.order-1
+                idx = exportstate[self.name]
+                exportstate[self.name] += 1
+                val = val[0][idx] if len(val.shape) > 1 else val[idx]
+
+            if self.name == 'NIX00445':
+                val = SCETime(coarse=self.value,
+                              fine=getattr(packetdata, "NIX00446",
+                                           Parameter('NIX00446', 0, None)).value)\
+                      .to_datetime().isoformat(timespec='milliseconds')
+            elif self.name == 'NIX00402':
+                if self.value > 2 ** 32 - 1:
+                    coarse = self.value >> 16
+                    fine = self.value & (1 << 16) - 1
+                else:
+                    coarse = self.value
+                    fine = 0
+                val = SCETime(coarse, fine).to_datetime().isoformat(timespec='milliseconds')
+            elif self.name == 'NIXD0003':
+                val = round(self.value / 2.5, 3)
+
+            if isinstance(convparam, EngineeringParameter):
+                # undo °C to K
+                if convparam.unit == 'degC':
+                    val = val.to('deg_C', equivalencies=u.temperature())
+
+                val = round(val.value, 3) if hasattr(val, "value") else str(val)
+
+        res = [self.name, self.value, val,
+               [c.export(packetdata, exportstate) for c in self.children]]
+
+        if descr:
+            res.insert(1, self.idb_info.PCF_DESCR)
+
+        return res
 
     def __repr__(self):
         return f'{self.__class__.__name__}(name={self.name}, value={self.value}, ' \
-               f'children={len(self.children) if self.children else None})'
+               f'children={len(self.children) if self.children else None}, ' \
+               f'order={self.order})'
 
     def merge_children(self):
         """
@@ -50,15 +103,17 @@ class Parameter:
                     else:
                         values[param.name].append(param.value)
 
-                children = [Parameter(name, values[name], param.idb_info)
+                children = [Parameter(name, values[name], param.idb_info, order=self.order)
                             for name, param in params.items()]
 
-                return Parameter(self.name, self.value, self.idb_info, children=children)
+                return Parameter(self.name, self.value, self.idb_info,
+                                 children=children, order=self.order)
             else:
                 return Parameter(self.name, self.value, self.idb_info,
-                                 children=[c.merge_children() for c in self.children])
+                                 children=[c.merge_children() for c in self.children],
+                                 order=self.order)
         else:
-            return Parameter(self.name, self.value, self.idb_info)
+            return Parameter(self.name, self.value, self.idb_info, order=self.order)
 
     def flatten(self, root):
         """
@@ -160,7 +215,7 @@ class EngineeringParameter(Parameter):
         The unit for the engineering values
     """
 
-    def __init__(self, *, name, value, idb_info, engineering, unit):
+    def __init__(self, *, name, value, idb_info, engineering, unit, order=-1):
         """Create a EngineeringParameter object.
 
         Parameters
@@ -170,7 +225,8 @@ class EngineeringParameter(Parameter):
         engineering : `int` | `list`
             The engineering values.
         """
-        super(EngineeringParameter, self).__init__(name=name, value=value, idb_info=idb_info)
+        super(EngineeringParameter, self).__init__(name=name, value=value,
+                                                   idb_info=idb_info, order=order)
 
         self.unit = unit
         convert = False
@@ -191,11 +247,11 @@ class EngineeringParameter(Parameter):
 
     def __repr__(self):
         return f'{self.__class__.__name__}(value={self.value}, engineering={self.engineering}, ' + \
-               f'unit={self.unit})'
+               f'unit={self.unit}, order={self.order})'
 
     def __str__(self):
         return f'{self.__class__.__name__}(value: len({len(self.value)}), engineering: ' + \
-               f'len({len(self.engineering)}), unit={self.unit})'
+               f'len({len(self.engineering)}), unit={self.unit}, order={self.order}))'
 
 
 class CompressedParameter(Parameter):
@@ -211,7 +267,7 @@ class CompressedParameter(Parameter):
         (s, k, m) settings for the decompression algorithm.
     """
 
-    def __init__(self, *, name, value, idb_info, decompressed, error, skm):
+    def __init__(self, *, name, value, idb_info, decompressed, error, skm, order=-1):
         """Create a CompressedParameter object.
 
         Parameters
@@ -225,15 +281,17 @@ class CompressedParameter(Parameter):
         skm : `numpy.array`
             [s, k, m] settings for the decompression algorithm.
         """
-        super(CompressedParameter, self).__init__(name=name, value=value, idb_info=idb_info)
+        super(CompressedParameter, self).__init__(name=name, value=value,
+                                                  idb_info=idb_info, order=order)
         self.decompressed = decompressed
         self.skm = skm
         self.error = error
 
     def __repr__(self):
         return f'{self.__class__.__name__}(raw={self.value}, decompressed={self.decompressed}, \
-        error={self.error}, skm={self.skm})'
+        error={self.error}, skm={self.skm}, order={self.order})'
 
     def __str__(self):
         return f'{self.__class__.__name__}(raw: len({len(self.value)}), decompressed: \
-        len({len(self.decompressed)}), error: len({len(self.error)}), skm={self.skm})'
+        len({len(self.decompressed)}), error: len({len(self.error)}), \
+        skm={self.skm}, order={self.order})'

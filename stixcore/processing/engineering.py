@@ -66,7 +66,7 @@ def apply_raw_to_engineering(raw, args):
         raise ValueError(er)
 
     return EngineeringParameter(name=raw.name, value=raw.value, idb_info=raw.idb_info,
-                                engineering=en, unit=param.PCF_UNIT)
+                                engineering=en, unit=param.PCF_UNIT, order=raw.order)
 
 
 def raw_to_engineering(packet):

@@ -2,7 +2,6 @@
 House Keeping data products
 """
 import json
-import tempfile
 from pathlib import Path
 from collections import defaultdict
 
@@ -66,14 +65,34 @@ class MaxiReport(HKProduct, L2Mixin):
 
         if isinstance(idlprocessor, SSWIDLProcessor):
 
-            tfile = tempfile.NamedTemporaryFile(delete=False)
-            tfile = Path(tfile.name)
+            data = QTable()
+            data['cha_diode0'] = l2.data['hk_asp_photoa0_v']
+            data['cha_diode1'] = l2.data['hk_asp_photoa1_v']
+            data['chb_diode0'] = l2.data['hk_asp_photob0_v']
+            data['chb_diode1'] = l2.data['hk_asp_photob1_v']
+            # TODO replace with proper function
+            data['time'] = [d.isoformat(timespec='milliseconds').replace('+00:00', '')
+                            for d in l2.data['time'].to_datetime()]
+            data['scet_time_f'] = l2.data['time'].coarse
+            data['scet_time_c'] = l2.data['time'].fine
 
-            f = {'inpath': str(parent.parent),
-                 'inname': parent.name,
-                 'outpath': str(tfile.parent),
-                 'outname': tfile.name + ".fits",
-                 'error': None}
+            # TODO set to seconds
+            data['duration'] = 64  # l2.data['timedel'].as_float()
+
+            # TODO calculate based on SPICE in meter
+            data['spice_disc_size'] = 800.0
+
+            data['y_srf'] = 0.0
+            data['z_srf'] = 0.0
+            data['calib'] = 0.0
+            data['error'] = ""
+
+            dataobj = dict()
+            for coln in data.colnames:
+                dataobj[coln] = data[coln].value.tolist()
+
+            f = {'parentfits': str(parent.name),
+                 'data': dataobj}
 
             idlprocessor[AspectIDLProcessing].params['hk_files'].append(f)
 
@@ -89,61 +108,72 @@ class AspectIDLProcessing(SSWIDLTask):
     def __init__(self):
         script = '''
 
-            common config, param_dir, def_calibfile, data_dir, out_dir, sas_version
-
             workdir = '{{ work_dir }}'
             print, workdir
             cd, workdir
 
-            sas_version = '2021-08-09'
-
             ; I/O directories:
             ; - location of some parameter files
             param_dir = workdir + d + 'SAS_param' + d
+            calib_file = param_dir + 'SAS_calib_20211005.sav'
+            aperfile = param_dir + 'apcoord_FM_circ.sav'
+            simu_data_file = param_dir + 'SAS_simu.sav'
 
-            ; - default file for calibration (contains relative gains and biases)
-            def_calibfile = 'SAS_calib_2020'
+            hk_files = JSON_PARSE('{{ hk_files }}', /TOSTRUCT)
 
-
-            ; Path to the SPICE kernels
-            spice_dir = "{{ spice_dir }}"
-            spice_kernel = "{{ spice_kernel }}"
-
-            ; Load the Spice kernels that we need
-            cspice_kclear
-            add_sunspice_mission, 'solo'
-            load_sunspice_solo
-
-            cd, spice_dir
-            cspice_furnsh, spice_dir + spice_kernel
-
-            hk_files = JSON_PARSE('{{ hk_files }}', /TOARRAY, /TOSTRUCT)
-            generatedfiles = []
+            data = []
+            processed_files = []
 
             FOREACH hk_file, hk_files DO BEGIN
+                print, hk_file.parentfits
+                processed_files = [processed_files, hk_file.parentfits]
+                data_f = []
+                for i=0L, n_elements(hk_file.DATA.cha_diode0)-1 do begin
+                    data_e = { stx_aspect_dto, $
+                                cha_diode0: hk_file.DATA.cha_diode0[i], $
+                                cha_diode1: hk_file.DATA.cha_diode1[i], $
+                                chb_diode0: hk_file.DATA.chb_diode0[i], $
+                                chb_diode1: hk_file.DATA.chb_diode1[i], $
+                                time: hk_file.DATA.time[i], $
+                                scet_time_c: hk_file.DATA.scet_time_c[i], $
+                                scet_time_f: hk_file.DATA.scet_time_f[i], $
+                                duration : hk_file.DATA.duration[i], $
+                                spice_disc_size : hk_file.DATA.spice_disc_size[i], $
+                                y_srf : hk_file.DATA.y_srf[i], $
+                                z_srf : hk_file.DATA.z_srf[i], $
+                                calib : hk_file.DATA.calib[i],  $
+                                error : hk_file.DATA.error[i], $
+                                parentfits : hk_file.parentfits $
+                            }
+                    data_f = [data_f, data_e]
+                endfor
 
-                ; - location of the L1 HK data files
-                data_dir = hk_file.INPATH + d
-                ; - Output directory
-                out_dir = hk_file.OUTPATH + d
+                ; START ASPECT PROCESSING
 
-                in_file = hk_file.INNAME
+                help, data_f
+                print, n_elements(data_f)
 
-                print,"Reading L1 data file: " + in_file
-
-                data = read_hk_data(in_file, quiet=0)
+                ; save, data_f, file="/home/nicky/aspect.sav"
 
                 print,"Calibrating data..."
-                cal_factor = 1.10   ; roughly OK for 2021 data
-                calib_sas_data, data, factor=cal_factor
+                ; First, substract dark currents and applies relative gains
+                calib_sas_data, data_f, calib_file
 
-                print,"processing data..."
-                process_SAS_data, in_file, cal_factor=cal_factor, outfile=hk_file.OUTNAME
+                ; Now automatically compute global calibration correction factor and applies it
+                ; Note: this takes a bit of time
+                auto_scale_sas_data, data_f, simu_data_file, aperfile
 
-                generatedfiles = [generatedfiles, hk_file]
+                print,"Computing aspect solution..."
+                ; derive_aspect_solution, data_f, simu_data_file, interpol_r=1, interpol_xy=1
+
+                print,"END Computing aspect solution..."
+                ; END ASPECT PROCESSING
+
+                data = [data, data_f]
             ENDFOREACH
 
-            undefine, data, hk_file, hk_files
+            undefine, hk_file, hk_files, data_e, i, di, data_f, d
+
 
 '''
         spice_dir = '/data/stix/spice/kernels/mk/'
@@ -162,8 +192,9 @@ class AspectIDLProcessing(SSWIDLTask):
     def postprocessing(self, result, fits_processor):
         files = []
 
-        if 'generatedfiles' in result:
-            for resfile in result.generatedfiles:
+        if 'data' in result:
+            # TODO continue N.H.
+            for resfile in result.data:
                 file_path = Path(resfile.outpath.decode()) / resfile.outname.decode()
                 control_as = QTable.read(file_path, hdu='CONTROL')
                 data_as = QTable.read(file_path, hdu='DATA')

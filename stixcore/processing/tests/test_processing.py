@@ -129,6 +129,17 @@ def test_level_2(out_dir, spicekernelmanager):
         assert pl2.parent[0] in input_names
 
 
+def test_level_2_aspect(out_dir, spicekernelmanager):
+    SOOPManager.instance = SOOPManager(Path(__file__).parent.parent.parent
+                                       / 'data' / 'test' / 'soop')
+
+    l1 = [Path('/home/shane/fits_20220202/L1/2021/08/15/HK/solo_L1_stix-hk-maxi_20210815_V01.fits')]
+    l2 = Level2(out_dir / 'L1', out_dir)
+    res = l2.process_fits_files(files=l1)
+    print(res)
+    print("DONE")
+
+
 def test_get_calibration_polynomial(idb):
     poly = idb.get_calibration_polynomial('CIX00036TM')
     assert isinstance(poly, IDBPolynomialCalibration)

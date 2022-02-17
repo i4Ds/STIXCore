@@ -11,6 +11,7 @@ from stixcore.config.config import CONFIG
 from stixcore.ephemeris.manager import Spice, SpiceKernelManager
 from stixcore.io.fits.processors import FitsL1Processor
 from stixcore.products import Product
+from stixcore.soop.manager import SOOPManager
 from stixcore.util.logging import get_logger
 
 logger = get_logger(__name__, level=logging.INFO)
@@ -38,7 +39,7 @@ class Level1:
             for pt, files in product_types.items():
                 jobs.append(executor.submit(process_type, files,
                                             processor=FitsL1Processor(self.output_dir),
-                                            # keep track of the used Spice kernel
+                                            soopmanager=SOOPManager.instance,
                                             spice_kernel_path=Spice.instance.meta_kernel_path,
                                             config=CONFIG))
 
@@ -52,7 +53,8 @@ class Level1:
         return list(set(all_files))
 
 
-def process_type(files, *, processor, spice_kernel_path, config):
+def process_type(files, *, processor, soopmanager, spice_kernel_path, config):
+    SOOPManager.instance = soopmanager
     all_files = list()
     Spice.instance = Spice(spice_kernel_path)
     CONFIG = config

@@ -23,7 +23,7 @@ logger = get_logger(__name__)
 testpackets = [(test_data.tmtc.TM_3_25_1, MiniReportL0, MiniReportL1, 'mini',
                 '0660010031:51424', '0660010031:51424', 1),
                (test_data.tmtc.TM_3_25_2, MaxiReportL0, MaxiReportL1, 'maxi',
-                '0660258881:33104', '0660258881:33104', 1)]
+                '0660258849:33104', '0660258913:33104', 1)]
 
 
 @pytest.fixture

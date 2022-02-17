@@ -1,20 +1,23 @@
+from pathlib import Path
+
+from stixcore.io.fits.processors import FitsL2Processor
 from stixcore.processing.sswidl import SSWIDLProcessor, SSWIDLTask
 
 
 class T1(SSWIDLTask):
 
     def __init__(self):
-        super().__init__("T1", {})
+        super().__init__(script="print, 'T1'")
 
 
 class T2(SSWIDLTask):
 
     def __init__(self):
-        super().__init__("T2", {})
+        super().__init__(script="print, 'T2'")
 
 
 def test_processor():
-    pros = SSWIDLProcessor()
+    pros = SSWIDLProcessor(FitsL2Processor(Path(".")))
 
     t2 = T2()
     pros[T2] = t2

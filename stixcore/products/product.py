@@ -584,7 +584,8 @@ class L2Mixin(FitsHeaderMixin):
                  data=l1product.data,
                  idb_versions=l1product.idb_versions)
 
-        l2.control.replace_column('parent', [parent] * len(l2.control))
+        l2.control.replace_column('parent', [parent.name if isinstance(parent, Path) else parent]
+                                  * len(l2.control))
         l2.level = 'L2'
         l2.fits_header = l1product.fits_header
 

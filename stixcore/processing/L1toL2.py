@@ -7,6 +7,8 @@ from concurrent.futures import ProcessPoolExecutor
 
 from sunpy.util.datatype_factory_base import NoMatchError
 
+from stixcore.config.config import CONFIG
+from stixcore.ephemeris.manager import Spice
 from stixcore.io.fits.processors import FitsL2Processor
 from stixcore.processing.sswidl import SSWIDLProcessor
 from stixcore.products import Product
@@ -38,8 +40,11 @@ class Level2:
         jobs = []
         with ProcessPoolExecutor() as executor:
             for pt, files in product_types.items():
-                jobs.append(executor.submit(process_type, files, FitsL2Processor(self.output_dir),
-                                            SOOPManager.instance))
+                jobs.append(executor.submit(process_type, files,
+                                            processor=FitsL2Processor(self.output_dir),
+                                            soopmanager=SOOPManager.instance,
+                                            spice_kernel_path=Spice.instance.meta_kernel_path,
+                                            config=CONFIG))
 
         for job in jobs:
             try:
@@ -51,14 +56,16 @@ class Level2:
         return list(set(all_files))
 
 
-def process_type(files, processor, soopmanager):
+def process_type(files, *, processor, soopmanager, spice_kernel_path, config):
     SOOPManager.instance = soopmanager
+    Spice.instance = Spice(spice_kernel_path)
+    CONFIG = config
     idlprocessor = SSWIDLProcessor(processor)
 
     all_files = list()
     for file in files:
-        l1 = Product(file)
         try:
+            l1 = Product(file)
             tmp = Product._check_registered_widget(level='L2', service_type=l1.service_type,
                                                    service_subtype=l1.service_subtype,
                                                    ssid=l1.ssid, data=None, control=None)
@@ -69,7 +76,9 @@ def process_type(files, processor, soopmanager):
             logger.debug('No match for product %s', l1)
         except Exception as e:
             logger.error('Error processing file %s', file, exc_info=True)
-            raise e
+            logger.error('%s', e)
+            if CONFIG.getboolean('Logging', 'stop_on_error', fallback=False):
+                raise e
 
     idlfitsfiles = idlprocessor.process()
     all_files.extend(idlfitsfiles)

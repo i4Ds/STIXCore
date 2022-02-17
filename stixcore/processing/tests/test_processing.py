@@ -94,8 +94,6 @@ def test_level_1(out_dir):
     assert np.all((t[1:] - t[0:-1]) == td[0:-1])
     # end test for https://github.com/i4Ds/STIXCore/issues/180
 
-    res = l1.process_fits_files(files=l0)
-    assert len(res) == 1
     for fits in res:
         diff = FITSDiff(test_data.products.DIR / fits.name, fits,
                         ignore_keywords=['CHECKSUM', 'DATASUM', 'DATE', 'VERS_SW'])
@@ -113,7 +111,7 @@ def test_level_2(out_dir, spicekernelmanager):
     l1 = test_data.products.L1_fits
     l2 = Level2(out_dir / 'L1', out_dir)
     res = l2.process_fits_files(files=l1)
-    assert len(res) == 4 + idlfiles
+    assert len(res) == len(test_data.products.L1_fits) + idlfiles
     input_names = [f.name for f in l1]
     for ffile in res:
         pl2 = Product(ffile)
@@ -131,6 +129,7 @@ def test_level_2_aspect(out_dir, spicekernelmanager):
     l2 = Level2(out_dir / 'L1', out_dir)
     res = l2.process_fits_files(files=l1)
     print(res)
+    assert len(res) == 2
     print("DONE")
 
 

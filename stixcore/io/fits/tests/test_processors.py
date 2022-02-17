@@ -1,12 +1,17 @@
 from unittest.mock import patch
 
 import numpy as np
+import pytest
 
 from stixcore.data.test import test_data
 from stixcore.io.fits.processors import FitsL0Processor, FitsL1Processor, FitsLBProcessor
+from stixcore.soop.manager import SOOPManager
 from stixcore.time import SCETime, SCETimeRange
 
-td = test_data
+
+@pytest.fixture
+def soop_manager():
+    return SOOPManager(test_data.soop.DIR)
 
 
 def test_levelb_processor_init():
@@ -152,19 +157,14 @@ def test_level0_processor_generate_primary_header(datetime, product):
             assert value == test_data[name]
 
 
-@patch('stixcore.io.fits.processors.CONFIG')
-def test_level1_processor_init(config):
-    config.get.side_effect = [td.soop.DIR, '.']
+def test_level1_processor_init():
     pro = FitsL1Processor('some/path')
     assert pro.archive_path == 'some/path'
 
 
 @patch('stixcore.products.level1.quicklookL1.QLProduct')
-@patch('stixcore.io.fits.processors.CONFIG')
-def test_level1_processor_generate_filename(config, product):
-    config.get.side_effect = [td.soop.DIR, '.']
+def test_level1_processor_generate_filename(product):
     processor = FitsL1Processor('some/path')
-    config.get.side_effect = [td.soop.DIR, '.']
     product.control.colnames = []
     beg = SCETime(coarse=0, fine=0)
     end = SCETime(coarse=1, fine=2 ** 15)
@@ -189,9 +189,8 @@ def test_level1_processor_generate_filename(config, product):
 
 
 @patch('stixcore.products.level1.quicklookL1.QLProduct')
-@patch('stixcore.io.fits.processors.CONFIG')
-def test_level1_processor_generate_primary_header(config, product):
-    config.get.side_effect = [td.soop.DIR, '.']
+def test_level1_processor_generate_primary_header(product, soop_manager):
+    SOOPManager.instance = soop_manager
     processor = FitsL1Processor('some/path')
     beg = SCETime(coarse=683769519, fine=0)
     end = SCETime(coarse=beg.coarse+24 * 60 * 60)
@@ -232,8 +231,8 @@ def test_level1_processor_generate_primary_header(config, product):
         'PARENT': 'l01.fits;l02.fts'
     }
 
-    header = processor.generate_primary_header('a_filename.fits', product)
-    for name, value, *comment in header:
+    header, o = processor.generate_primary_header('a_filename.fits', product)
+    for name, value, *comment in (header+o):
         if name in test_data.keys():
             if isinstance(value, float):
                 assert np.allclose(test_data[name], value)

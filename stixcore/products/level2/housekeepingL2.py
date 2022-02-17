@@ -5,6 +5,8 @@ import json
 from pathlib import Path
 from collections import defaultdict
 
+import numpy as np
+
 import astropy.units as u
 from astropy.table import QTable
 
@@ -205,16 +207,21 @@ class AspectIDLProcessing(SSWIDLTask):
                 control = HK.control
                 data = QTable()
 
-                idldata = result.data[result.data["parentfits"] == 0]
+                idldata = result.data[result.data["parentfits"] == file_idx]
+                n = len(idldata)
 
                 data['time'] = SCETime(coarse=idldata['scet_time_c'], fine=idldata['scet_time_f'])
                 data['timedel'] = SCETimeDelta.from_float(idldata["duration"] * u.s)
+                data['time_utc'] = [t.decode() for t in idldata['time']]
+                # [datetime.strptime(t.decode(), '%Y-%m-%dT%H:%M:%S.%f') for t in idldata['time']]
                 data['control_index'] = idldata['control_index']
                 data['spice_disc_size'] = idldata['spice_disc_size'] * u.arcsec
                 data['y_srf'] = idldata['y_srf'] * u.arcsec
                 data['z_srf'] = idldata['z_srf'] * u.arcsec
-                data['calib'] = idldata['calib']
-
+                # TODO do calculations
+                data['solo_loc_hs'] = np.tile(np.array([1, 2, 3]), (n, 1)) * u.deg
+                data['solo_loc_heeq'] = np.tile(np.array([4, 5, 6]), (n, 1)) * u.km
+                data['roll_angle'] = 0 * u.deg
                 control['parent'] = str(file_path.name)
 
                 aspect = Aspect(control=control, data=data, idb_versions=HK.idb_versions)

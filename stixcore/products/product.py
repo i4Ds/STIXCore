@@ -541,6 +541,11 @@ class GenericProduct(BaseProduct):
                                  service_subtype=self.service_subtype, ssid=self.ssid,
                                  control=control, data=data, idb_versions=self.idb_versions,
                                  level=self.level)
+
+                # TODO N.H. check if allway right or better recreate
+                if hasattr(self, "fits_header") and self.fits_header is not None:
+                    out.fits_header = self.fits_header
+
                 yield out
 
     @classmethod

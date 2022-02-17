@@ -103,8 +103,6 @@ def test_level_1(out_dir):
     assert np.all((t[1:] - t[0:-1]) == td[0:-1])
     # end test for https://github.com/i4Ds/STIXCore/issues/180
 
-    res = l1.process_fits_files(files=l0)
-    assert len(res) == 1
     for fits in res:
         diff = FITSDiff(test_data.products.DIR / fits.name, fits,
                         ignore_keywords=['CHECKSUM', 'DATASUM', 'DATE', 'VERS_SW'])

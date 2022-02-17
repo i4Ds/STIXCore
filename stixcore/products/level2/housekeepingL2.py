@@ -5,13 +5,15 @@ import json
 from pathlib import Path
 from collections import defaultdict
 
+import astropy.units as u
 from astropy.table import QTable
 
+from stixcore.ephemeris.manager import Spice
 from stixcore.processing.sswidl import SSWIDLProcessor, SSWIDLTask
 from stixcore.products import Product
 from stixcore.products.level0.housekeepingL0 import HKProduct
 from stixcore.products.product import GenericPacket, L2Mixin
-from stixcore.time import SCETimeRange
+from stixcore.time import SCETime, SCETimeDelta, SCETimeRange
 
 __all__ = ['MiniReport', 'MaxiReport', 'Aspect']
 
@@ -70,28 +72,32 @@ class MaxiReport(HKProduct, L2Mixin):
             data['cha_diode1'] = l2.data['hk_asp_photoa1_v']
             data['chb_diode0'] = l2.data['hk_asp_photob0_v']
             data['chb_diode1'] = l2.data['hk_asp_photob1_v']
-            # TODO replace with proper function
-            data['time'] = [d.isoformat(timespec='milliseconds').replace('+00:00', '')
+            data['time'] = [d.strftime('%Y-%m-%dT%H:%M:%S.%f')
                             for d in l2.data['time'].to_datetime()]
-            data['scet_time_f'] = l2.data['time'].coarse
-            data['scet_time_c'] = l2.data['time'].fine
+            data['scet_time_f'] = l2.data['time'].fine
+            data['scet_time_c'] = l2.data['time'].coarse
 
             # TODO set to seconds
-            data['duration'] = 64  # l2.data['timedel'].as_float()
+            dur = (l2.data['time'][1:] - l2.data['time'][0:-1]).as_float().value
+            data['duration'] = dur[0]
+            data['duration'][0:-1] = dur
+            data['duration'][:] = dur[-1]
 
-            # TODO calculate based on SPICE in meter
-            data['spice_disc_size'] = 800.0
+            # data['spice_disc_size'] = Spice.instance.get_sun_disc_size(date=l2.data['time'])
+            data['spice_disc_size'] = [Spice.instance.get_sun_disc_size(date=d)
+                                       for d in l2.data['time']]
 
             data['y_srf'] = 0.0
             data['z_srf'] = 0.0
             data['calib'] = 0.0
             data['error'] = ""
+            data['control_index'] = l2.data['control_index']
 
             dataobj = dict()
             for coln in data.colnames:
                 dataobj[coln] = data[coln].value.tolist()
 
-            f = {'parentfits': str(parent.name),
+            f = {'parentfits': str(parent),
                  'data': dataobj}
 
             idlprocessor[AspectIDLProcessing].params['hk_files'].append(f)
@@ -123,8 +129,7 @@ class AspectIDLProcessing(SSWIDLTask):
 
             data = []
             processed_files = []
-
-            FOREACH hk_file, hk_files DO BEGIN
+            FOREACH hk_file, hk_files, file_index DO BEGIN
                 print, hk_file.parentfits
                 processed_files = [processed_files, hk_file.parentfits]
                 data_f = []
@@ -143,7 +148,8 @@ class AspectIDLProcessing(SSWIDLTask):
                                 z_srf : hk_file.DATA.z_srf[i], $
                                 calib : hk_file.DATA.calib[i],  $
                                 error : hk_file.DATA.error[i], $
-                                parentfits : hk_file.parentfits $
+                                control_index : hk_file.DATA.control_index[i], $
+                                parentfits : file_index $
                             }
                     data_f = [data_f, data_e]
                 endfor
@@ -164,7 +170,7 @@ class AspectIDLProcessing(SSWIDLTask):
                 auto_scale_sas_data, data_f, simu_data_file, aperfile
 
                 print,"Computing aspect solution..."
-                ; derive_aspect_solution, data_f, simu_data_file, interpol_r=1, interpol_xy=1
+                derive_aspect_solution, data_f, simu_data_file, interpol_r=1, interpol_xy=1
 
                 print,"END Computing aspect solution..."
                 ; END ASPECT PROCESSING
@@ -191,29 +197,27 @@ class AspectIDLProcessing(SSWIDLTask):
 
     def postprocessing(self, result, fits_processor):
         files = []
+        if 'data' in result and 'processed_files' in result:
+            for file_idx, resfile in enumerate(result.processed_files):
+                file_path = Path(resfile.decode())
+                HK = Product(file_path)
 
-        if 'data' in result:
-            # TODO continue N.H.
-            for resfile in result.data:
-                file_path = Path(resfile.outpath.decode()) / resfile.outname.decode()
-                control_as = QTable.read(file_path, hdu='CONTROL')
-                data_as = QTable.read(file_path, hdu='DATA')
+                control = HK.control
+                data = QTable()
 
-                file_path_in = Path(resfile.inpath.decode()) / resfile.inname.decode()
-                HK = Product(file_path_in)
+                idldata = result.data[result.data["parentfits"] == 0]
 
-                as_range = range(0, len(data_as))
+                data['time'] = SCETime(coarse=idldata['scet_time_c'], fine=idldata['scet_time_f'])
+                data['timedel'] = SCETimeDelta.from_float(idldata["duration"] * u.s)
+                data['control_index'] = idldata['control_index']
+                data['spice_disc_size'] = idldata['spice_disc_size'] * u.arcsec
+                data['y_srf'] = idldata['y_srf'] * u.arcsec
+                data['z_srf'] = idldata['z_srf'] * u.arcsec
+                data['calib'] = idldata['calib']
 
-                data_as['time'] = HK.data['time'][as_range]
-                data_as['timedel'] = HK.data['timedel'][as_range]
-                data_as['control_index'] = HK.data['control_index'][as_range]
-                control_as['index'] = HK.control['index'][as_range]
-                control_as['raw_file'] = HK.control['raw_file'][as_range]
-                control_as['parent'] = resfile.inname.decode()
+                control['parent'] = str(file_path.name)
 
-                del data_as['TIME']
-
-                aspect = Aspect(control=control_as, data=data_as, idb_versions=HK.idb_versions)
+                aspect = Aspect(control=control, data=data, idb_versions=HK.idb_versions)
                 files.extend(fits_processor.write_fits(aspect))
 
         return files

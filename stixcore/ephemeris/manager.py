@@ -264,6 +264,24 @@ class Spice(SpiceKernelLoader, metaclass=Singleton):
         scet = spiceypy.sce2s(SOLAR_ORBITER_ID, et)
         return scet
 
+    def get_sun_disc_size(self, *, date):
+
+        # if hasattr(date, "size") and date.size > 0:
+        #    et = [spiceypy.scs2e(SOLAR_ORBITER_ID, str(d)) for d in date]
+        # else:
+        et = spiceypy.scs2e(SOLAR_ORBITER_ID, str(date))
+
+        # HeliographicStonyhurst
+        solo_sun_hg, sun_solo_lt = spiceypy.spkezr('SOLO', et, 'SUN_EARTH_CEQU', 'None', 'Sun')
+
+        # Convert to spherical and add units
+        hg_rad, hg_lon, hg_lat = spiceypy.reclat(solo_sun_hg[:3])
+        hg_rad = hg_rad * u.km
+
+        rsun_arc = np.arcsin((1 * u.R_sun) / hg_rad).decompose().to('arcsec')
+
+        return rsun_arc
+
     def get_position(self, *, date, frame):
         """
         Get the position of SolarOrbiter at the given date in the given coordinate frame.
@@ -342,7 +360,7 @@ class Spice(SpiceKernelLoader, metaclass=Singleton):
     def get_fits_headers(self, *, start_time, average_time):
 
         try:
-            et = spiceypy.scs2e(-144, str(average_time))
+            et = spiceypy.scs2e(SOLAR_ORBITER_ID, str(average_time))
         except (SpiceBADPARTNUMBER, SpiceINVALIDSCLKSTRING):
             et = spiceypy.utc2et(average_time.isot)
 

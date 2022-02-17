@@ -120,6 +120,8 @@ def test_level_2(out_dir, spicekernelmanager):
 
 
 def test_level_2_aspect(out_dir, spicekernelmanager):
+    # Spice.instance = Spice(Path("/data/stix/spice/kernels/mk/
+    #                              solo_ANC_soc-flown-mk_V107_20210621_001.tm"))
     SOOPManager.instance = SOOPManager(Path(__file__).parent.parent.parent
                                        / 'data' / 'test' / 'soop')
 

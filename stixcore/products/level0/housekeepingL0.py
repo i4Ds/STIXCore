@@ -143,7 +143,8 @@ class MaxiReport(HKProduct):
         # Data
         data = Data()
         data['time'] = times
-        data['timedel'] = SCETimeDelta(0, 0)
+        # TODO fix to real "calculation"
+        data['timedel'] = SCETimeDelta(64, 0)
 
         for nix, param in packets.data[0].__dict__.items():
 

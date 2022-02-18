@@ -65,10 +65,14 @@ class Parameter:
                 if convparam.unit == 'degC':
                     val = val.to('deg_C', equivalencies=u.temperature())
 
-                val = round(val.value, 3) if hasattr(val, "value") else str(val)
+                val = (val.value[0].round(3) if hasattr(val.value, "__len__")
+                       else round(val.value, 3)) if hasattr(val, "value") else str(val)
+
+        if isinstance(val, np.ndarray):
+            val = val[0]
 
         res = [self.name, self.value, val,
-               [c.export(packetdata, exportstate) for c in self.children]]
+               [c.export(packetdata, exportstate, descr=descr) for c in self.children]]
 
         if descr:
             res.insert(1, self.idb_info.PCF_DESCR)

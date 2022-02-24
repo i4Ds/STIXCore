@@ -65,6 +65,10 @@ def apply_raw_to_engineering(raw, args):
         logger.error(er)
         raise ValueError(er)
 
+    # hardcoding RCR override do not pass back "State_0" ...
+    if raw.name in ['NIX00276', 'NIX00401']:
+        en = raw.value
+
     return EngineeringParameter(name=raw.name, value=raw.value, idb_info=raw.idb_info,
                                 engineering=en, unit=param.PCF_UNIT)
 

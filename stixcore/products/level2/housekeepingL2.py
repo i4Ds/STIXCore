@@ -211,7 +211,9 @@ class AspectIDLProcessing(SSWIDLTask):
                 n = len(idldata)
 
                 data['time'] = SCETime(coarse=idldata['scet_time_c'], fine=idldata['scet_time_f'])
-                data['timedel'] = SCETimeDelta.from_float(idldata["duration"] * u.s)
+                # data['timedel'] = SCETimeDelta.from_float(idldata["duration"] * u.s)
+                # we have instantaneous data so the integration time is set to 0
+                data['timedel'] = SCETimeDelta(coarse=0, fine=0)
                 data['time_utc'] = [t.decode() for t in idldata['time']]
                 # [datetime.strptime(t.decode(), '%Y-%m-%dT%H:%M:%S.%f') for t in idldata['time']]
                 data['control_index'] = idldata['control_index']

@@ -303,6 +303,11 @@ class FitsL0Processor:
             control = prod.control
             data = prod.data
 
+            # add comment in the FITS for all error values
+            for col in data.columns:
+                if col.endswith('_err'):
+                    data[col].description = "Error due only to integer compression"
+
             idb_versions = QTable(rows=[(version, range.start.as_float(), range.end.as_float())
                                   for version, range in product.idb_versions.items()],
                                   names=["version", "obt_start", "obt_end"])
@@ -578,6 +583,11 @@ class FitsL1Processor(FitsL0Processor):
 
             control = prod.control
             data = prod.data
+
+            # add comment in the FITS for all error values
+            for col in data.columns:
+                if col.endswith('_err'):
+                    data[col].description = "Error due only to integer compression"
 
             idb_versions = QTable(rows=[(version, range.start.as_float(), range.end.as_float())
                                   for version, range in product.idb_versions.items()],

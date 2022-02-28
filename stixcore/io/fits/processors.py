@@ -303,6 +303,11 @@ class FitsL0Processor:
             control = prod.control
             data = prod.data
 
+            # add comment in the FITS for all error values
+            for col in data.columns:
+                if col.endswith('_err'):
+                    data[col].description = "Error due only to integer compression"
+
             idb_versions = QTable(rows=[(version, range.start.as_float(), range.end.as_float())
                                   for version, range in product.idb_versions.items()],
                                   names=["version", "obt_start", "obt_end"])
@@ -321,10 +326,11 @@ class FitsL0Processor:
                                            - prod.scet_timerange.start).as_float())
                 data['timedel'] = np.float32(data['timedel'].as_float())
             else:
-                # In TM sent as uint in units of 0.1 so convert back
+                # In TM sent as uint in units of 0.1 so convert to cs as the time center
+                # can be on 0.5ds points
                 data['time'] = np.uint32(np.around(
-                    (data['time'] - prod.scet_timerange.start).as_float().to(u.ds)))
-                data['timedel'] = np.uint32(np.around(data['timedel'].as_float().to(u.ds)))
+                    (data['time'] - prod.scet_timerange.start).as_float().to(u.cs)))
+                data['timedel'] = np.uint32(np.around(data['timedel'].as_float().to(u.cs)))
 
             try:
                 control['time_stamp'] = control['time_stamp'].as_float()
@@ -578,6 +584,11 @@ class FitsL1Processor(FitsL0Processor):
             control = prod.control
             data = prod.data
 
+            # add comment in the FITS for all error values
+            for col in data.columns:
+                if col.endswith('_err'):
+                    data[col].description = "Error due only to integer compression"
+
             idb_versions = QTable(rows=[(version, range.start.as_float(), range.end.as_float())
                                   for version, range in product.idb_versions.items()],
                                   names=["version", "obt_start", "obt_end"])
@@ -591,10 +602,11 @@ class FitsL1Processor(FitsL0Processor):
             # it is important that the change to the relative time is done after the header is
             # generated as this will use the original SCET time data
 
-            # In TM sent as uint in units of 0.1 so convert back
+            # In TM sent as uint in units of 0.1 so convert to cs as the time center
+            # can be on 0.5ds points
             data['time'] = np.uint32(np.around((data['time']
-                                                - prod.scet_timerange.start).as_float().to(u.ds)))
-            data['timedel'] = np.uint32(np.around(data['timedel'].as_float().to(u.ds)))
+                                                - prod.scet_timerange.start).as_float().to(u.cs)))
+            data['timedel'] = np.uint32(np.around(data['timedel'].as_float().to(u.cs)))
 
             try:
                 control['time_stamp'] = control['time_stamp'].as_float()

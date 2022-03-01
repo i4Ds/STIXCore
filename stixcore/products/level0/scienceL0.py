@@ -599,7 +599,7 @@ class Spectrogram(ScienceProduct):
         control['pixel_masks'] = np.unique(_get_pixel_mask(packets)[0], axis=0)
         control.add_meta(name='pixel_masks', nix='NIXD0407', packets=packets)
         control['detector_masks'] = np.unique(_get_detector_mask(packets)[0], axis=0)
-        control['dectecor_masks'] = fix_detector_mask(control, control['detector_masks'])
+        control['detector_masks'] = fix_detector_mask(control, control['detector_masks'])
         control.add_meta(name='detector_masks', nix='NIX00407', packets=packets)
         raw_rcr = packets.get_value('NIX00401', attr='value')
 

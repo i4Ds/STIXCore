@@ -26,3 +26,4 @@ jobs:
         run: |
           wget -qO- http://pub099.cs.technik.fhnw.ch/data/end2end/index.py
           echo "git action done"
+          echo github.repository

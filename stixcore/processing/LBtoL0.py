@@ -138,8 +138,8 @@ if __name__ == '__main__':
 
     warnings.filterwarnings('ignore', module='astropy.io.fits.card')
 
-    fits_path = Path('/home/shane/fits_test_latest/LB/')
-    bd = Path('/home/shane/fits_test_latest')
+    fits_path = Path('/Users/shane/Projects/STIX/fits_test/LB/21/6/24/')
+    bd = Path('/Users/shane/Projects/STIX/fits_test')
 
     _spm = SpiceKernelManager(Path(CONFIG.get("Paths", "spice_kernels")))
     Spice.instance = Spice(_spm.get_latest_mk())

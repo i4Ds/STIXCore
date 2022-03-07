@@ -416,9 +416,9 @@ class FitsL0Processor:
         if product.type != 'sci':
             date_range = f'{(product.scet_timerange.avg.coarse // SEC_IN_DAY ) * SEC_IN_DAY :010d}'
         else:
-            start_obs = product.scet_timerange.start.to_string(sep='f')
-            end_obs = product.scet_timerange.end.to_string(sep='f')
-            date_range = f'{start_obs}-{end_obs}'
+            start_obs = product.scet_timerange.start.coarse
+            end_obs = product.scet_timerange.end.coarse
+            date_range = f'{start_obs:010d}-{end_obs:010d}'
         return FitsProcessor.generate_filename(product, version=version,
                                                date_range=date_range, status=status)
 

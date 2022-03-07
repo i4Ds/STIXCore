@@ -41,6 +41,7 @@ def current_fits(orig_data, out_dir):
     return pipeline(orig_data, out_dir)
 
 
+@pytest.mark.end2end
 def test_compleet(orig_fits, current_fits):
     error = False
     for ofits in orig_fits:
@@ -50,9 +51,10 @@ def test_compleet(orig_fits, current_fits):
             error = True
             warnings.warn(f"no corresponding file found for {ofits} in the current fits files")
     if error:
-        pytest.skip("one or many errors\nnumber of fits files differ")
+        raise ValueError("one or many errors\nnumber of fits files differ")
 
 
+@pytest.mark.end2end
 def test_identical(orig_fits, current_fits):
     error = False
     for cfits in current_fits:
@@ -70,4 +72,4 @@ def test_identical(orig_fits, current_fits):
             warnings.warn(diff.report())
 
     if error:
-        pytest.skip("one or many errors\nthere are differentses in FITS files")
+        raise ValueError("one or many errors\nthere are differentses in FITS files")

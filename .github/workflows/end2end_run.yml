@@ -6,9 +6,10 @@ name: EndToEndRun
 on:
   push:
     branches: 
-       - '**'        # matches every branch
+      - '**'        # matches every branch
   pull_request:
-    branches: [ master ]
+    branches:
+      - '**'
 
 jobs:
   build:

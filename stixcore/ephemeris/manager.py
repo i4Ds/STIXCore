@@ -141,6 +141,7 @@ class SpiceKernelLoader:
 
         curdir = os.getcwd()
         try:
+            print(f"LOAD NEW META KERNEL: {self.meta_kernel_path}")
             # change to the 'kernels' dir
             os.chdir(self.meta_kernel_path.parent)
             # unload all old kernels

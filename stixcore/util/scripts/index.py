@@ -43,7 +43,8 @@ if __name__ == '__main__':
     print(runout)
 
     print("pack and copy test files")
-    copyout = os.popen(f"zip -FSrj ../data/{tag}.zip ./stixcore/data/test/products/end2end/").read()
+    copyout = os.popen(f"zip -FSrj ../data/{tag}.zip " +
+                       "./stixcore/data/test/products/end2end/").read()
     print(copyout)
 
     print('All end2end rebuilds done!')

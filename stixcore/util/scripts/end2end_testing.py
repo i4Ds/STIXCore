@@ -5,6 +5,7 @@ from xml.etree import ElementTree as Et
 import pytest
 
 from stixcore.data.test import test_data
+from stixcore.ephemeris.manager import Spice, SpiceKernelManager
 from stixcore.io.soc.manager import SOCManager
 from stixcore.processing.L0toL1 import Level1
 from stixcore.processing.LBtoL0 import Level0
@@ -107,13 +108,17 @@ def rebuild_end2end(files, *, splits=3, socdir=Path("/home/shane/tm/"),
         shutil.rmtree(str(fitsdir))
     print(f"saved: xml files {len(newroot)}")
 
-    fitsfiles = pipeline(outdir, fitsdir)
+    fitsfiles = en2end_pipeline(outdir, fitsdir)
     for f in fitsfiles:
         print(f)
     return fitsfiles
 
 
-def pipeline(indir, fitsdir):
+def en2end_pipeline(indir, fitsdir):
+    _spm = SpiceKernelManager(test_data.ephemeris.KERNELS_DIR)
+    Spice.instance = Spice(_spm.get_latest_mk())
+    print(f"Spice kernel @: {Spice.instance.meta_kernel_path}")
+
     soc = SOCManager(indir)
     lb_files = process_tmtc_to_levelbinary(soc.get_files(TMTC.TM), archive_path=fitsdir)
     l0_proc = Level0(indir, fitsdir)

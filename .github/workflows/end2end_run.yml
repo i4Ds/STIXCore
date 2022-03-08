@@ -34,10 +34,9 @@ jobs:
         python -m pip install -e .[dev]
         if [ -f requirements.txt ]; then pip install -r requirements.txt; fi
        # Update references
-    - name: Git Sumbodule Update
+    - name: Git Sumbodule Init
       run: |
         git submodule init
-        git pull --recurse-submodules
     - name: end2end test with pytest
       run: |
         pytest -p no:warnings --doctest-rst -m "end2end" --pyargs stixcore

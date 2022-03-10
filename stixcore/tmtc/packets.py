@@ -581,9 +581,30 @@ class GenericTMPacket:
         return None
 
     def print(self, *, descr=False, stream=None):
+        """Print the packet in a verbose and formated way to the given stream or stdout.
+
+        Parameters
+        ----------
+        descr : bool, optional
+            should a description (from IDB) be added to the printout , by default False
+        stream : IO, optional
+            the stream to print in, by default None then stdout
+        """
         pprint(self.export(descr=descr), stream=stream)
 
     def export(self, descr=False):
+        """Export the packet in dict object that can be used for JSON export.
+
+        Parameters
+        ----------
+         descr : bool, optional
+            should a description (from IDB) be added to each NIX parameter, by default False
+
+        Returns
+        -------
+        dict
+            a dict object with all data
+        """
         h = dict()
         p = dict()
         d = list()

@@ -580,6 +580,9 @@ class GenericTMPacket:
                 return dict(self._SCHEMAS[self.pi1_val])  # return a copy no reference
         return None
 
+    def print(self, *, descr=False, stream=None):
+        pprint(self.export(descr=descr), stream=stream)
+
     def export(self, descr=False):
         h = dict()
         p = dict()
@@ -624,7 +627,7 @@ class GenericTMPacket:
         p['idb_version'] = self.get_idb().version
         p['spice_kernel'] = Spice.instance.meta_kernel_path.name
         p['run_id'] = 0
-        pprint(p)
+
         return p
 
 
@@ -639,6 +642,7 @@ class PacketSequence:
         self.data = []
         self.spid = []
         self.pi1_val = []
+        self.packets = packets
         for packet in packets:
             try:
                 has_data = getattr(packet.data.get('NIX00089'), 'value', 1) > 0

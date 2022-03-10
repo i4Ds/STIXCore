@@ -58,6 +58,7 @@ class QLProduct(GenericProduct, EnergyChannelsMixin):
         self.control = control
         self.data = data
         self.idb_versions = idb_versions
+        self.__dict__.update(kwargs)
 
     @classmethod
     def from_levelb(cls, levelb, *, parent='', NIX00405_offset=0):
@@ -173,7 +174,8 @@ class LightCurve(QLProduct):
                    ssid=packets.ssid,
                    control=control,
                    data=data,
-                   idb_versions=idb_versions)
+                   idb_versions=idb_versions,
+                   packets=packets)
 
     @classmethod
     def is_datasource_for(cls, *, service_type, service_subtype, ssid, **kwargs):
@@ -242,7 +244,8 @@ class Background(QLProduct):
                    ssid=packets.ssid,
                    control=control,
                    data=data,
-                   idb_versions=idb_versions)
+                   idb_versions=idb_versions,
+                   packets=packets)
 
     @classmethod
     def is_datasource_for(cls, *, service_type, service_subtype, ssid, **kwargs):
@@ -347,7 +350,8 @@ class Spectra(QLProduct):
                    ssid=packets.ssid,
                    control=control,
                    data=data,
-                   idb_versions=idb_versions)
+                   idb_versions=idb_versions,
+                   packets=packets)
 
     @classmethod
     def _get_time(cls, control, num_energies, packets, pad_after):
@@ -440,7 +444,8 @@ class Variance(QLProduct):
                    ssid=packets.ssid,
                    control=control,
                    data=data,
-                   idb_versions=idb_versions)
+                   idb_versions=idb_versions,
+                   packets=packets)
 
     @classmethod
     def is_datasource_for(cls, *, service_type, service_subtype, ssid, **kwargs):
@@ -499,7 +504,8 @@ class FlareFlag(QLProduct):
                    ssid=packets.ssid,
                    control=control,
                    data=data,
-                   idb_versions=idb_versions)
+                   idb_versions=idb_versions,
+                   packets=packets)
 
     @classmethod
     def is_datasource_for(cls, *, service_type, service_subtype, ssid, **kwargs):
@@ -632,7 +638,8 @@ class EnergyCalibration(QLProduct):
                    ssid=packets.ssid,
                    control=control,
                    data=data,
-                   idb_versions=idb_versions)
+                   idb_versions=idb_versions,
+                   packets=packets)
 
     @classmethod
     def is_datasource_for(cls, *, service_type, service_subtype, ssid, **kwargs):
@@ -727,7 +734,8 @@ class TMStatusFlareList(QLProduct):
                    ssid=packets.ssid,
                    control=control,
                    data=data,
-                   idb_versions=idb_versions)
+                   idb_versions=idb_versions,
+                   packets=packets)
 
     @classmethod
     def is_datasource_for(cls, *, service_type, service_subtype, ssid, **kwargs):

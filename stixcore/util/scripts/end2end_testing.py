@@ -1,3 +1,5 @@
+import os
+import sys
 import shutil
 from pathlib import Path
 from xml.etree import ElementTree as Et
@@ -133,4 +135,16 @@ def en2end_pipeline(indir, fitsdir):
 
 
 if __name__ == '__main__':
+
     rebuild_end2end(files, splits=3)
+
+    if len(sys.argv) > 2:
+        zippath = Path(sys.argv[1])
+        datapath = Path(sys.argv[2])
+        if zippath.parent.exists() and datapath.exists():
+            zipcmd = f"zip -FSrj {str(zippath)} {str(datapath)}"
+            print(zipcmd)
+            copyout = os.popen(zipcmd).read()
+            print(copyout)
+            exit()
+    print("No zip")

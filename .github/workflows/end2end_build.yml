@@ -23,6 +23,6 @@ jobs:
       # Runs a set of commands using the runners shell
       - name: update end2end test data
         run: |
-          wget -qO- http://pub099.cs.technik.fhnw.ch/data/end2end/index.py
+          wget -qO- http://pub099.cs.technik.fhnw.ch/data/end2end/rebuild_hook.cgi
           echo "git action done"
-        if: github.repository == 'nicHoch2/STIXCore'
+        if: github.repository == 'i4Ds/STIXCore'

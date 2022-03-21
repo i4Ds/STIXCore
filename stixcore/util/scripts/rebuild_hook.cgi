@@ -58,4 +58,4 @@ SCRIPT="$DIR/stixcore/util/scripts/end2end_testing.py"
 echo "<br />cmd# $CMD $SCRIPT $ZIPPATH $DATAPATH<br />"
 nohup $CMD $SCRIPT $ZIPPATH $DATAPATH &>/dev/null &
 
-echo "<h2>all Done zip will be awailable soon</h2>"
+echo "<h2>Complete, zip will be available soon</h2>"

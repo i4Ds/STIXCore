@@ -27,6 +27,7 @@ class IDBTestData:
 class IDBTestProduct:
     def __init__(self, data_dir):
         self.DIR = data_dir / "products"
+        self.DIREND2END = self.DIR / "end2end"
         self.L0_LightCurve_fits = [self.DIR / "solo_L0_stix-ql-lightcurve_0664070400_V01.fits",
                                    self.DIR / "solo_L0_stix-ql-lightcurve_0664156800_V01.fits"]
         self.L1_LightCurve_fits = [self.DIR / "solo_L1_stix-ql-lightcurve_20210117_V01.fits",

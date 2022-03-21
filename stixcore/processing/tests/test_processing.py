@@ -1,6 +1,4 @@
-import io
 import re
-import sys
 from pathlib import Path
 from binascii import unhexlify
 from unittest.mock import patch
@@ -11,16 +9,14 @@ import pytest
 from astropy.io.fits.diff import FITSDiff
 
 from stixcore.data.test import test_data
-from stixcore.ephemeris.manager import Spice
 from stixcore.idb.idb import IDBPolynomialCalibration
 from stixcore.idb.manager import IDBManager
 from stixcore.io.soc.manager import SOCManager
 from stixcore.processing.L0toL1 import Level1
 from stixcore.processing.LBtoL0 import Level0
 from stixcore.processing.TMTCtoLB import process_tmtc_to_levelbinary
-from stixcore.products.level0.quicklookL0 import LightCurve
 from stixcore.products.product import Product
-from stixcore.tmtc.packets import TMTC, GenericTMPacket
+from stixcore.tmtc.packets import TMTC
 from stixcore.util.logging import get_logger
 
 logger = get_logger(__name__)
@@ -41,14 +37,7 @@ def out_dir(tmp_path):
     return tmp_path
 
 
-@pytest.fixture
-def packet():
-    data = '0da4c0090066100319000000000000000212000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000b788014000000000ffffffff000000000000000000000000000000000000000000000000000000001f114cffffff' # noqa:
-    packet = GenericTMPacket('0x' + data)
-    return packet
-
-
-@pytest.mark.xfail(sys.platform == "win32", reason="numpy defaults to int32 on windows")
+@pytest.mark.skip(reason="will be replaces with end2end test soon")
 def test_level_b(soc_manager, out_dir):
     files_to_process = list(soc_manager.get_files(TMTC.TM))
     res = process_tmtc_to_levelbinary(files_to_process=files_to_process[0:1], archive_path=out_dir)
@@ -61,7 +50,7 @@ def test_level_b(soc_manager, out_dir):
     assert diff.identical
 
 
-@pytest.mark.xfail(sys.platform == "win32", reason="numpy defaults to int32 on windows")
+@pytest.mark.skip(reason="will be replaces with end2end test soon")
 def test_level_0(out_dir):
     lb = test_data.products.LB_21_6_30_fits
     l0 = Level0(out_dir / 'LB', out_dir)
@@ -75,7 +64,7 @@ def test_level_0(out_dir):
         assert diff.identical
 
 
-@pytest.mark.xfail(sys.platform == "win32", reason="numpy defaults to int32 on windows")
+@pytest.mark.skip(reason="will be replaces with end2end test soon")
 def test_level_1(out_dir):
     l0 = test_data.products.L0_LightCurve_fits
     l1 = Level1(out_dir / 'LB', out_dir)
@@ -160,28 +149,3 @@ def test_pipeline(socpacketfile, out_dir):
             logger.error(f"Error while processing TM file: {key}")
             logger.error(error)
         raise ValueError("Pipline Test went wrong")
-
-
-def test_export_single(packet):
-    p = packet.export(descr=True)
-    assert isinstance(p, dict)
-    assert p['spice_kernel'] == Spice.instance.meta_kernel_path.name
-
-
-def test_export_all():
-    lb = Product(test_data.products.LB_21_6_30_fits)
-    l0 = LightCurve.from_levelb(lb, parent="raw.xml")
-
-    assert hasattr(l0, "packets")
-    assert len(l0.packets.packets) > 0
-    for packet in l0.packets.packets:
-        p = packet.export(descr=True)
-        assert isinstance(p, dict)
-        assert p['spice_kernel'] == Spice.instance.meta_kernel_path.name
-
-
-def test_print(packet):
-    ms = io.StringIO()
-    packet.print(descr=True, stream=ms)
-    ms.seek(0)
-    assert len(ms.read()) > 100

@@ -1,0 +1,23 @@
+# This workflow triggers the rebuild the end2end test data after each merge on master on pup099 via a web hook
+
+name: EndToEndRebuildData
+
+# Controls when the workflow will run
+on:
+  # Triggers the workflow on push or pull request events but only for the master branch
+  push:
+    branches:
+       - master
+  # Allows you to run this workflow manually from the Actions tab
+  workflow_dispatch:
+
+jobs:
+  trigger_testdata_rebuild:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: update end2end test data
+        run: |
+          wget -qO- http://pub099.cs.technik.fhnw.ch/data/end2end/rebuild_hook.cgi
+          echo "git action done"
+        if: github.repository == 'i4Ds/STIXCore'

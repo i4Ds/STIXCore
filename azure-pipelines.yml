@@ -56,7 +56,7 @@ jobs:
         pypi_connection_name : 'PyPI'
 
       test_extras: 'test'
-      test_command: 'pytest -p no:warnings --doctest-rst -m "not figure" --pyargs stixcore'
+      test_command: 'pytest -p no:warnings --doctest-rst -m "not figure and not end2end" --pyargs stixcore'
       submodules: false
       targets:
         # - wheels_linux

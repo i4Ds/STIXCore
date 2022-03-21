@@ -42,7 +42,7 @@ def current_fits(orig_data, out_dir):
 
 
 @pytest.mark.end2end
-def test_compleet(orig_fits, current_fits):
+def test_complete(orig_fits, current_fits):
     error = False
     for ofits in orig_fits:
         try:

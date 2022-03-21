@@ -8,7 +8,6 @@ from stixcore.tmtc.packets import (
     SOURCE_PACKET_HEADER_STRUCTURE,
     TC_DATA_HEADER_STRUCTURE,
     TM_DATA_HEADER_STRUCTURE,
-    GenericTMPacket,
     SourcePacketHeader,
     TCPacket,
     TMDataHeader,
@@ -60,13 +59,6 @@ def test_tc_packet():
                 for key in SOURCE_PACKET_HEADER_STRUCTURE.keys() if not key.startswith('spare')])
     assert all([getattr(tmtc_packet.data_header, key) == test_values[key]
                 for key in TC_DATA_HEADER_STRUCTURE.keys() if not key.startswith('spare')])
-
-
-def test_packet_laszlo(idb):
-    data = '0da4c0090066100319000000000000000212000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000b788014000000000ffffffff000000000000000000000000000000000000000000000000000000001f114cffffff' # noqa
-    packet = GenericTMPacket('0x' + data)
-    packet.export(descr=True)
-    print("done")
 
 
 def test_tm_1_1(idb):

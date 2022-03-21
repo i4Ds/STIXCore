@@ -15,6 +15,8 @@ from stixcore.processing.TMTCtoLB import process_tmtc_to_levelbinary
 from stixcore.products.product import Product
 from stixcore.tmtc.packets import TMTC
 
+# this is needed to keep a reference to pytest "alive" as isort/flake8 will remove it otherwise
+# but this script assumes that the test config is loaded
 pytest.skip
 
 END_TO_END_TEST_FILES = [

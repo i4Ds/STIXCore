@@ -1,4 +1,3 @@
-import io
 import re
 from pathlib import Path
 from binascii import unhexlify
@@ -10,14 +9,12 @@ import pytest
 from astropy.io.fits.diff import FITSDiff
 
 from stixcore.data.test import test_data
-from stixcore.ephemeris.manager import Spice
 from stixcore.idb.idb import IDBPolynomialCalibration
 from stixcore.idb.manager import IDBManager
 from stixcore.io.soc.manager import SOCManager
 from stixcore.processing.L0toL1 import Level1
 from stixcore.processing.LBtoL0 import Level0
 from stixcore.processing.TMTCtoLB import process_tmtc_to_levelbinary
-from stixcore.products.level0.quicklookL0 import LightCurve
 from stixcore.products.product import Product
 from stixcore.tmtc.packets import TMTC
 from stixcore.util.logging import get_logger
@@ -152,28 +149,3 @@ def test_pipeline(socpacketfile, out_dir):
             logger.error(f"Error while processing TM file: {key}")
             logger.error(error)
         raise ValueError("Pipline Test went wrong")
-
-
-def test_export_single(packet):
-    p = packet.export(descr=True)
-    assert isinstance(p, dict)
-    assert p['spice_kernel'] == Spice.instance.meta_kernel_path.name
-
-
-def test_export_all():
-    lb = Product(test_data.products.LB_21_6_30_fits)
-    l0 = LightCurve.from_levelb(lb, parent="raw.xml")
-
-    assert hasattr(l0, "packets")
-    assert len(l0.packets.packets) > 0
-    for packet in l0.packets.packets:
-        p = packet.export(descr=True)
-        assert isinstance(p, dict)
-        assert p['spice_kernel'] == Spice.instance.meta_kernel_path.name
-
-
-def test_print(packet):
-    ms = io.StringIO()
-    packet.print(descr=True, stream=ms)
-    ms.seek(0)
-    assert len(ms.read()) > 100

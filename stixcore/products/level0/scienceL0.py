@@ -258,7 +258,8 @@ class RawPixelData(ScienceProduct):
                    ssid=packets.ssid,
                    control=control,
                    data=data,
-                   idb_versions=idb_versions)
+                   idb_versions=idb_versions,
+                   packets=packets)
 
     @classmethod
     def is_datasource_for(cls, *, service_type, service_subtype, ssid, **kwargs):
@@ -432,7 +433,8 @@ class CompressedPixelData(ScienceProduct):
                    ssid=packets.ssid,
                    control=control,
                    data=data,
-                   idb_versions=idb_versions)
+                   idb_versions=idb_versions,
+                   packets=packets)
 
     @classmethod
     def is_datasource_for(cls, *, service_type, service_subtype, ssid, **kwargs):
@@ -565,7 +567,8 @@ class Visibility(ScienceProduct):
                    ssid=packets.ssid,
                    control=control,
                    data=data,
-                   idb_versions=idb_versions)
+                   idb_versions=idb_versions,
+                   packets=packets)
 
     @classmethod
     def is_datasource_for(cls, *, service_type, service_subtype, ssid, **kwargs):
@@ -703,7 +706,8 @@ class Spectrogram(ScienceProduct):
                    ssid=packets.ssid,
                    control=control,
                    data=data,
-                   idb_versions=idb_versions)
+                   idb_versions=idb_versions,
+                   packets=packets)
 
     @classmethod
     def is_datasource_for(cls, *, service_type, service_subtype, ssid, **kwargs):
@@ -785,7 +789,8 @@ class Aspect(ScienceProduct):
                    ssid=packets.ssid,
                    control=control,
                    data=data,
-                   idb_versions=idb_versions)
+                   idb_versions=idb_versions,
+                   packets=packets)
 
     @classmethod
     def is_datasource_for(cls, *, service_type, service_subtype, ssid, **kwargs):

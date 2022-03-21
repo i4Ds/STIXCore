@@ -6,6 +6,11 @@ requires = ["setuptools",
 
 build-backend = 'setuptools.build_meta'
 
+[tool.pytest.ini_options]
+markers = [
+    "end2end: marks tests to run in the optional end2end testing (deselect with '-m \"not end2end\"')",
+]
+
 [tool.towncrier]
     package = "stixcore"
     filename = "CHANGELOG.rst"

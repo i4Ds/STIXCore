@@ -1,5 +1,4 @@
 import re
-import sys
 from pathlib import Path
 from binascii import unhexlify
 from unittest.mock import patch
@@ -38,7 +37,7 @@ def out_dir(tmp_path):
     return tmp_path
 
 
-@pytest.mark.xfail(sys.platform == "win32", reason="numpy defaults to int32 on windows")
+@pytest.mark.skip(reason="will be replaces with end2end test soon")
 def test_level_b(soc_manager, out_dir):
     files_to_process = list(soc_manager.get_files(TMTC.TM))
     res = process_tmtc_to_levelbinary(files_to_process=files_to_process[0:1], archive_path=out_dir)
@@ -51,7 +50,7 @@ def test_level_b(soc_manager, out_dir):
     assert diff.identical
 
 
-@pytest.mark.xfail(sys.platform == "win32", reason="numpy defaults to int32 on windows")
+@pytest.mark.skip(reason="will be replaces with end2end test soon")
 def test_level_0(out_dir):
     lb = test_data.products.LB_21_6_30_fits
     l0 = Level0(out_dir / 'LB', out_dir)
@@ -65,7 +64,7 @@ def test_level_0(out_dir):
         assert diff.identical
 
 
-@pytest.mark.xfail(sys.platform == "win32", reason="numpy defaults to int32 on windows")
+@pytest.mark.skip(reason="will be replaces with end2end test soon")
 def test_level_1(out_dir):
     l0 = test_data.products.L0_LightCurve_fits
     l1 = Level1(out_dir / 'LB', out_dir)

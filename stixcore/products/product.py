@@ -377,6 +377,7 @@ class GenericProduct(BaseProduct):
         self.data = data
         self.idb_versions = idb_versions
         self.level = kwargs.get('level')
+        self.__dict__.update(kwargs)
 
     @property
     def scet_timerange(self):
@@ -596,7 +597,8 @@ class DefaultProduct(GenericProduct, L1Mixin):
                    ssid=packets.ssid,
                    control=control,
                    data=data,
-                   idb_versions=idb_versions)
+                   idb_versions=idb_versions,
+                   packets=packets)
 
 
 Product = ProductFactory(registry=BaseProduct._registry, default_widget_type=DefaultProduct)

@@ -273,5 +273,5 @@ if __name__ == '__main__':
 
         # ascii.write(table, 'ddpd.out.csv', overwrite=True, format='csv', delimiter="\t")
 
-        with open("pdpp.html", "w") as fd:
+        with open(Path(__file__).parent / "ddpd.html", "w") as fd:
             fd.write(doc.render(xhtml=True))

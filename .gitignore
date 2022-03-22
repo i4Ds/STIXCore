@@ -160,3 +160,4 @@ stixcore/version.py
 htmlcov/
 *.prof
 pdpp.html
+stixcore/util/scripts/ddpd.html

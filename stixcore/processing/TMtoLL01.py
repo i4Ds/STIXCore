@@ -21,7 +21,7 @@ DIR_ENVNAMES = [('requests', 'instr_input_requests'), ('output', 'instr_output')
 REQUEST_GLOB = 'request_[0-9][0-9][0-9][0-9][0-9][0-9][0-9][0-9]_[0-9][0-9][0-9][0-9][0-9][0-9]*'
 LLDP_VERSION = "00.07.00"
 
-logger = get_logger(__name__)
+logger = get_logger(__name__, level=logging.DEBUG)
 
 
 def get_paths():
@@ -43,7 +43,8 @@ def get_paths():
     paths['failed'] = paths['output'].joinpath('failed')
     paths['temporary'] = paths['output'].joinpath('temporary')
     paths['logs'] = paths['output'].joinpath('logs')
-
+    for p in paths.values():
+        p.mkdir(exist_ok=True, parents=True)
     return paths
 
 
@@ -98,43 +99,48 @@ def process_request(request, outputdir):
         processor.write_fits(prod, outputdir, curtime)
 
 
-if __name__ == "__main__":
-    PATHS = get_paths()
+def main():
+    paths = get_paths()
+    paths['logs'].mkdir(parents=True, exist_ok=True)
 
-    logger.propagate = False
-    file_handler = logging.FileHandler(PATHS['logs'] / 'lldp_processing.log')
-    file_handler.setLevel(logging.INFO)
+    # logger.propagate = False
+    file_handler = logging.FileHandler(paths['logs'] / 'lldp_processing.log')
+    file_handler.setLevel(logging.DEBUG)
     formatter = logging.Formatter('%(asctime)s %(levelname)s: %(message)s - %(name)s',
                                   datefmt='%Y-%m-%dT%H:%M:%SZ')
     file_handler.setFormatter(formatter)
-    logger.addHandler(file_handler)
+    logger.root.addHandler(file_handler)
 
     logger.root.setLevel(logging.DEBUG)
     logger.info('LLDP pipeline starting')
     while True:
-        requests = list(PATHS['requests'].glob(REQUEST_GLOB))
+        requests = list(sorted(paths['requests'].glob(REQUEST_GLOB)))
         logger.info('Found %s requests to process.', len(requests))
-        for request in PATHS['requests'].glob(REQUEST_GLOB):
-            if PATHS['failed'].joinpath(request.name).exists():
+        for request in paths['requests'].glob(REQUEST_GLOB):
+            if paths['failed'].joinpath(request.name).exists():
                 logger.info('%s found in failed (failed).', request.name)
-            elif PATHS['temporary'].joinpath(request.name).exists():
+            elif paths['temporary'].joinpath(request.name).exists():
                 logger.info('%s found in temporary (processing or failed)', request.name)
-            elif PATHS['products'].joinpath(request.name).exists():
+            elif paths['products'].joinpath(request.name).exists():
                 logger.info('%s found in products (completed)', request.name)
             else:
                 logger.info('%s to be praocessed', request.name)
-                temp_path = PATHS['temporary'] / request.name
+                temp_path = paths['temporary'] / request.name
                 temp_path.mkdir(exist_ok=True, parents=True)
                 try:
                     process_request(request, temp_path)
                 except Exception as e:
                     logger.error('%s error while processing', request.name)
                     logger.error(e, exc_info=True)
-                    failed_path = PATHS['failed']
+                    failed_path = paths['failed']
                     shutil.move(temp_path.as_posix(), failed_path.as_posix())
                     continue
 
-                shutil.move(temp_path.as_posix(), PATHS['products'].as_posix())
+                shutil.move(temp_path.as_posix(), paths['products'].as_posix())
                 logger.info('Finished Processing %s', request.name)
 
         time.sleep(5)
+
+
+if __name__ == "__main__":
+    main()

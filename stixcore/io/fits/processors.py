@@ -109,7 +109,7 @@ class FitsProcessor:
             ('CREATOR', 'stixcore', 'FITS creation software'),
             ('VERS_SW', str(stixcore.__version__), 'Version of SW that provided FITS file'),
             # ('VERS_CAL', '', 'Version of the calibration pack'),
-            ('VERSION', 1, 'Version of data product'),
+            ('VERSION', '01', 'Version of data product'),
             ('OBSRVTRY', 'Solar Orbiter', 'Satellite name'),
             ('TELESCOP', 'SOLO/STIX', 'Telescope/Sensor name'),
             ('INSTRUME', 'STIX', 'Instrument name'),
@@ -186,9 +186,9 @@ class FitsLBProcessor(FitsProcessor):
             ('OBT_END', product.obt_end.to_string(), 'End of acquisition time in OBT'),
             ('TIMESYS', 'OBT', 'System used for time keywords'),
             ('LEVEL', 'LB', 'Processing level of the data'),
-            ('DATE_OBS', product.obt_beg.to_string(), 'Start of acquisition time in OBT'),
-            ('DATE_BEG', product.obt_beg.to_string(), 'Start of acquisition time in OBT'),
-            ('DATE_END', product.obt_end.to_string(), 'End of acquisition time in OBT')
+            ('DATE-OBS', product.obt_beg.to_string(), 'Start of acquisition time in OBT'),
+            ('DATE-BEG', product.obt_beg.to_string(), 'Start of acquisition time in OBT'),
+            ('DATE-END', product.obt_end.to_string(), 'End of acquisition time in OBT')
         )
         return headers
 
@@ -383,7 +383,7 @@ class FitsL0Processor:
         if getattr(product, 'get_energies', False) is not False:
             elow, ehigh, channel = product.get_energies()
             energies = QTable()
-            energies['channel'] = np.float16(channel)
+            energies['channel'] = np.uint8(channel)
             energies['e_low'] = np.float16(elow)
             energies['e_high'] = np.float16(ehigh)
 
@@ -416,9 +416,9 @@ class FitsL0Processor:
         if product.type != 'sci':
             date_range = f'{(product.scet_timerange.avg.coarse // SEC_IN_DAY ) * SEC_IN_DAY :010d}'
         else:
-            start_obs = product.scet_timerange.start.to_string(sep='f')
-            end_obs = product.scet_timerange.end.to_string(sep='f')
-            date_range = f'{start_obs}-{end_obs}'
+            start_obs = product.scet_timerange.start.coarse
+            end_obs = product.scet_timerange.end.coarse
+            date_range = f'{start_obs:010d}-{end_obs:010d}'
         return FitsProcessor.generate_filename(product, version=version,
                                                date_range=date_range, status=status)
 
@@ -458,10 +458,10 @@ class FitsL0Processor:
             ('OBT_END', product.scet_timerange.end.as_float().value, 'End acquisition time in OBT'),
             ('TIMESYS', 'OBT', 'System used for time keywords'),
             ('LEVEL', 'L0', 'Processing level of the data'),
-            ('DATE_OBS', product.scet_timerange.start.to_string(), 'Depreciated, same as DATE-BEG'),
-            ('DATE_BEG', product.scet_timerange.start.to_string(), 'Start time of observation'),
-            ('DATE_AVG', product.scet_timerange.avg.to_string(), 'Average time of observation'),
-            ('DATE_END', product.scet_timerange.end.to_string(), 'End time of observation'),
+            ('DATE-OBS', product.scet_timerange.start.to_string(), 'Depreciated, same as DATE-BEG'),
+            ('DATE-BEG', product.scet_timerange.start.to_string(), 'Start time of observation'),
+            ('DATE-AVG', product.scet_timerange.avg.to_string(), 'Average time of observation'),
+            ('DATE-END', product.scet_timerange.end.to_string(), 'End time of observation'),
             ('DATAMIN', dmin, 'Minimum valid physical value'),
             ('DATAMAX', dmax, 'Maximum valid physical value'),
             ('BUNIT', bunit, 'Units of physical value, after application of BSCALE, BZERO')
@@ -537,10 +537,10 @@ class FitsL1Processor(FitsL0Processor):
              'End of acquisition time in OBT'),
             ('TIMESYS', 'UTC', 'System used for time keywords'),
             ('LEVEL', 'L1', 'Processing level of the data'),
-            ('DATE_OBS', product.utc_timerange.start.fits, 'Start of acquisition time in UTC'),
-            ('DATE_BEG', product.utc_timerange.start.fits, 'Start of acquisition time in UTC'),
-            ('DATE_AVG', product.utc_timerange.center.fits, 'Center of acquisition time in UTC'),
-            ('DATE_END', product.utc_timerange.end.fits, 'End of acquisition time in UTC')
+            ('DATE-OBS', product.utc_timerange.start.fits, 'Start of acquisition time in UTC'),
+            ('DATE-BEG', product.utc_timerange.start.fits, 'Start of acquisition time in UTC'),
+            ('DATE-AVG', product.utc_timerange.center.fits, 'Center of acquisition time in UTC'),
+            ('DATE-END', product.utc_timerange.end.fits, 'End of acquisition time in UTC')
         )
 
         ephemeris_headers = \

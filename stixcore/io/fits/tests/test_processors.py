@@ -96,7 +96,7 @@ def test_level0_processor_generate_filename():
         product.name = 'a_name'
         product.scet_timerange = SCETimeRange(start=SCETime(12345, 6789), end=SCETime(98765, 4321))
         filename = processor.generate_filename(product, version=1)
-        assert filename == 'solo_L0_stix-sci-a-name_0000012345f06789-0000098765f04321_V01.fits'
+        assert filename == 'solo_L0_stix-sci-a-name_0000012345-0000098765_V01.fits'
 
         dummy_control_data = {'request_id': [123456], 'tc_packet_seq_control': [98765]}
 
@@ -104,12 +104,12 @@ def test_level0_processor_generate_filename():
         product.control.colnames = ['request_id']
         filename = processor.generate_filename(product, version=1)
         assert filename == 'solo_L0_stix-sci-a-name' \
-                           '_0000012345f06789-0000098765f04321_V01_123456.fits'
+                           '_0000012345-0000098765_V01_123456.fits'
 
         product.control.colnames = ['request_id', 'tc_packet_seq_control']
         filename = processor.generate_filename(product, version=1)
         assert filename == 'solo_L0_stix-sci-a-name' \
-                           '_0000012345f06789-0000098765f04321_V01_123456-98765.fits'
+                           '_0000012345-0000098765_V01_123456-98765.fits'
 
 
 @patch('stixcore.products.level0.quicklookL0.QLProduct')

@@ -80,7 +80,7 @@ def mytype(dtype):
     return f"{u}"
 
 
-def mydim(dim, n):
+def mydim(dim, n, colname):
     o = str(dim)
     # u = o.replace("(1, ", "(")
     u = str(o)
@@ -90,6 +90,8 @@ def mydim(dim, n):
     u = u.replace(" ", "")
     # u = u.replace("(N,)", "(N)")
     # u = re.sub(r"\(([0-9]+)", r"(N, \1", u)
+    if colname == 'packet':
+        u = 'P'
     return f"Nx{u}"
 
 
@@ -117,7 +119,8 @@ def data2table(data, level):
            "NIXS" in c.meta and isinstance(c.meta["NIXS"], str)):
             desc = IDB.get_parameter_description(c.meta["NIXS"])
 
-        des.append((colname, mytype(c.dtype), myunit(c.unit), mydim(c.shape, len(c)), desc))
+        des.append((colname, mytype(c.dtype), myunit(c.unit),
+                    mydim(c.shape, len(c), colname), desc))
 
     return mtable([("Name", "width: 30%"),
                    ("Type", "width: 10%"),
@@ -196,14 +199,17 @@ if __name__ == '__main__':
 
     doc = dominate.document(title='STIX DPDD')
 
-    files = [  # L0
-            # science
-        "L0/21/6/20/solo_L0_stix-sci-xray-rpd_0678187309f00000-0678187429f00000_V01_2106280011-54760.fits", # noqa
-        "L0/21/6/21/solo_L0_stix-sci-xray-cpd_0688454771f32768-0688455372f13108_V01_2110250007-65280.fits", # noqa
-        "L0/21/6/22/solo_L0_stix-sci-xray-spd_0678187309f00000-0678187429f58982_V01_2106280006-54720.fits", # noqa
-        "L0/21/6/23/solo_L0_stix-sci-xray-vis_0678187308f65535-0678187429f58982_V01_2106280004-54716.fits", # noqa
-        "L0/21/6/42/solo_L0_stix-sci-aspect-burst_0687412111f52953-0687412634f03145_V01_0.fits", # noqa
-        "L0/21/6/24/solo_L0_stix-sci-xray-spec_0689786926f13107-0689801914f19660_V01_2111090002-50819.fits", # noqa
+    files = [  # LL
+        "LL/solo_LL01_stix-ql-lightcurve_0628185012-0628186272_V202203231133.fits",
+        "LL/solo_LL01_stix-ql-flareflag_0628185012-0628186272_V202203231133.fits",
+        # L0
+        # science
+        "L0/21/6/20/solo_L0_stix-sci-xray-rpd_0678187309-0678187429_V01_2106280011-54760.fits", # noqa
+        "L0/21/6/21/solo_L0_stix-sci-xray-cpd_0688454771-0688455372_V01_2110250007-65280.fits", # noqa
+        "L0/21/6/22/solo_L0_stix-sci-xray-spd_0678187309-0678187429_V01_2106280006-54720.fits", # noqa
+        "L0/21/6/23/solo_L0_stix-sci-xray-vis_0678187308-0678187429_V01_2106280004-54716.fits", # noqa
+        "L0/21/6/42/solo_L0_stix-sci-aspect-burst_0687412111-0687412634_V01_0.fits", # noqa
+        "L0/21/6/24/solo_L0_stix-sci-xray-spec_0689786926-0689801914_V01_2111090002-50819.fits", # noqa
         # QL
         "L0/21/6/31/solo_L0_stix-ql-background_0668822400_V01.fits",
         "L0/21/6/34/solo_L0_stix-ql-flareflag_0684547200_V01.fits",
@@ -217,12 +223,12 @@ if __name__ == '__main__':
 
         # L1
         # science
-        "L1/2021/06/28/SCI/solo_L1_stix-sci-xray-rpd_20210628T092301_20210628T092501_V01_2106280010-54759.fits", # noqa
-        "L1/2021/06/28/SCI/solo_L1_stix-sci-xray-cpd_20210628T190505_20210628T191500_V01_2106280009-54755.fits", # noqa
-        "L1/2021/06/28/SCI/solo_L1_stix-sci-xray-scpd_20210628T092301_20210628T092502_V01_2106280006-54720.fits", # noqa
-        "L1/2021/06/28/SCI/solo_L1_stix-sci-xray-vis_20210628T092301_20210628T092502_V01_2106280004-54716.fits", # noqa
-        "L1/2021/10/13/SCI/solo_L1_stix-sci-aspect-burst_20211013T034959_20211013T035842_V01_0.fits", # noqa
-        "L1/2021/06/28/SCI/solo_L1_stix-sci-xray-spec_20210628T230112_20210628T234143_V01_2106280041-54988.fits", # noqa
+        "L1/2021/06/28/SCI/solo_L1_stix-sci-xray-rpd_20210628T092301-20210628T092501_V01_2106280010-54759.fits", # noqa
+        "L1/2021/06/28/SCI/solo_L1_stix-sci-xray-cpd_20210628T190505-20210628T191459_V01_2106280009-54755.fits", # noqa
+        "L1/2021/06/28/SCI/solo_L1_stix-sci-xray-scpd_20210628T092301-20210628T092502_V01_2106280006-54720.fits", # noqa
+        "L1/2021/06/28/SCI/solo_L1_stix-sci-xray-vis_20210628T092301-20210628T092502_V01_2106280004-54716.fits", # noqa
+        "L1/2021/10/13/SCI/solo_L1_stix-sci-aspect-burst_20211013T034959-20211013T035842_V01_0.fits", # noqa
+        "L1/2021/06/28/SCI/solo_L1_stix-sci-xray-spec_20210628T230112-20210628T234143_V01_2106280041-54988.fits", # noqa
         # QL
         "L1/2020/06/16/QL/solo_L1_stix-ql-background_20200616_V01.fits",
         "L1/2020/06/16/QL/solo_L1_stix-ql-flareflag_20200616_V01.fits",
@@ -236,7 +242,7 @@ if __name__ == '__main__':
 
     remote = ["http://pub099.cs.technik.fhnw.ch/data/fits_test/" + x for x in files]
     # files = ["/home/shane/fits_test/" + x for x in files]
-    files = [("/home/shane/fits_test_latest/" + x, remote[i]) for i, x in enumerate(files)]
+    files = [("/home/shane/fits_20220321/" + x, remote[i]) for i, x in enumerate(files)]
 
     with tempfile.TemporaryDirectory() as tempdir:
         temppath = Path(tempdir)
@@ -271,7 +277,9 @@ if __name__ == '__main__':
 
         print(lutable)
 
-        # ascii.write(table, 'ddpd.out.csv', overwrite=True, format='csv', delimiter="\t")
+        # from astropy.io import ascii
+        # ascii.write(lutable, str(Path(__file__).parent / 'ddpd.out.csv'), overwrite=True,
+        #             format='csv', delimiter="\t")
 
         with open(Path(__file__).parent / "ddpd.html", "w") as fd:
             fd.write(doc.render(xhtml=True))

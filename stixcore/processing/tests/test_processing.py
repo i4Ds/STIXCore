@@ -117,7 +117,7 @@ def test_level_2(out_dir, spicekernelmanager):
         assert pl2.parent[0] in input_names
 
 
-def test_level_2_aspect(out_dir, spicekernelmanager):
+def test_level_2_auxiliary(out_dir, spicekernelmanager):
     # Spice.instance = Spice(Path("/data/stix/spice/kernels/mk/
     #                              solo_ANC_soc-flown-mk_V107_20210621_001.tm"))
     SOOPManager.instance = SOOPManager(Path(__file__).parent.parent.parent
@@ -128,6 +128,7 @@ def test_level_2_aspect(out_dir, spicekernelmanager):
     res = l2.process_fits_files(files=l1)
     print(res)
     assert len(res) == 2
+    Product(res[1])
     print("DONE")
 
 

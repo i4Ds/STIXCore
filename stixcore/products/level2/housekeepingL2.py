@@ -17,7 +17,7 @@ from stixcore.products.level0.housekeepingL0 import HKProduct
 from stixcore.products.product import GenericPacket, L2Mixin
 from stixcore.time import SCETime, SCETimeDelta, SCETimeRange
 
-__all__ = ['MiniReport', 'MaxiReport', 'Aspect']
+__all__ = ['MiniReport', 'MaxiReport', 'Auxiliary']
 
 
 class MiniReport(HKProduct, L2Mixin):
@@ -226,13 +226,13 @@ class AspectIDLProcessing(SSWIDLTask):
                 data['roll_angle'] = 0 * u.deg
                 control['parent'] = str(file_path.name)
 
-                aspect = Aspect(control=control, data=data, idb_versions=HK.idb_versions)
+                aspect = Auxiliary(control=control, data=data, idb_versions=HK.idb_versions)
                 files.extend(fits_processor.write_fits(aspect))
 
         return files
 
 
-class Aspect(HKProduct, L2Mixin):
+class Auxiliary(HKProduct, L2Mixin):
     """Aspect auxiliary data.
 
     In level 2 format.
@@ -243,9 +243,12 @@ class Aspect(HKProduct, L2Mixin):
         super().__init__(service_type=service_type, service_subtype=service_subtype,
                          ssid=ssid, control=control, data=data,
                          idb_versions=idb_versions, **kwargs)
-        self.name = 'aspect'
+        self.name = 'auxiliary'
         self.level = 'L2'
         self.type = 'aux'
+        self.ssid = 1
+        self.service_subtype = 0
+        self.service_type = 0
 
     @classmethod
     def is_datasource_for(cls, *, service_type, service_subtype, ssid, **kwargs):

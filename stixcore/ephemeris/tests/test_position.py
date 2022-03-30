@@ -23,6 +23,12 @@ def test_get_position(spice):
     assert np.allclose(ref, res)
 
 
+def test_aux(spice):
+    d = SCETime(coarse=682300783, fine=30089)
+    orient, dist, car, heeq = spice.get_auxiliary_positional_data(date=d)
+    assert True
+
+
 def test_get_orientation(spice):
     # from idl sunspice
     # CSPICE_FURNSH, 'test_position_20201001_V01.mk'

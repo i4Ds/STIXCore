@@ -103,6 +103,7 @@ class MaxiReport(HKProduct, L2Mixin):
                  'data': dataobj}
 
             idlprocessor[AspectIDLProcessing].params['hk_files'].append(f)
+            idlprocessor.opentasks += 1
 
         return [l2]
 
@@ -184,13 +185,8 @@ class AspectIDLProcessing(SSWIDLTask):
 
 
 '''
-        spice_dir = '/data/stix/spice/kernels/mk/'
-        spice_kernel = 'solo_ANC_soc-flown-mk_V107_20211028_001.tm'
-
         super().__init__(script=script, work_dir='stix/idl/processing/aspect/',
-                         params={'hk_files': list(),
-                                 'spice_dir': spice_dir,
-                                 'spice_kernel': spice_kernel})
+                         params={'hk_files': list()})
 
     def pack_params(self):
         packed = self.params.copy()
@@ -221,9 +217,20 @@ class AspectIDLProcessing(SSWIDLTask):
                 data['y_srf'] = idldata['y_srf'] * u.arcsec
                 data['z_srf'] = idldata['z_srf'] * u.arcsec
                 # TODO do calculations
-                data['solo_loc_hs'] = np.tile(np.array([1, 2, 3]), (n, 1)) * u.deg
-                data['solo_loc_heeq'] = np.tile(np.array([4, 5, 6]), (n, 1)) * u.km
-                data['roll_angle'] = 0 * u.deg
+
+                data['solo_loc_carrington_lonlat'] = np.tile(np.array([0.0, 0.0]), (n, 1)) * u.deg
+                data['solo_loc_carrington_dist'] = 0.0 * u.km
+                data['solo_loc_heeq_zxy'] = np.tile(np.array([0.0, 0.0, 0.0]), (n, 1)) * u.km
+                data['roll_angle_rpy'] = np.tile(np.array([0.0, 0.0, 0.0]), (n, 1)) * u.deg
+
+                for idx, d in enumerate(data['time']):
+                    orient, dist, car, heeq = Spice.instance.get_auxiliary_positional_data(date=d)
+
+                    data[idx]['solo_loc_carrington_lonlat'] = car.to('deg')
+                    data[idx]['solo_loc_carrington_dist'] = dist.to('km')
+                    data[idx]['solo_loc_heeq_zxy'] = heeq.to('km')
+                    data[idx]['roll_angle_rpy'] = orient.to('deg')
+
                 control['parent'] = str(file_path.name)
 
                 aspect = Auxiliary(control=control, data=data, idb_versions=HK.idb_versions)

@@ -91,7 +91,7 @@ def mydim(dim, n, colname):
     # u = u.replace("(N,)", "(N)")
     # u = re.sub(r"\(([0-9]+)", r"(N, \1", u)
     if colname == 'packet':
-        u = 'P'
+        u = '(P)'
     return f"Nx{u}"
 
 

@@ -264,6 +264,29 @@ class Spice(SpiceKernelLoader, metaclass=Singleton):
         scet = spiceypy.sce2s(SOLAR_ORBITER_ID, et)
         return scet
 
+    def get_auxiliary_positional_data(self, *, date):
+        et = spiceypy.scs2e(SOLAR_ORBITER_ID, str(date))
+        sc = spiceypy.sce2c(SOLAR_ORBITER_ID, et)
+        cmat, sc = spiceypy.ckgp(SOLAR_ORBITER_SRF_FRAME_ID, sc, 0, 'SOLO_SUN_RTN')
+        vec = cmat @ np.eye(3)
+        roll, pitch, yaw = spiceypy.m2eul(vec, 1, 2, 3)
+
+        # HeliographicStonyhurst
+        solo_sun_hg, sun_solo_lt = spiceypy.spkezr('SOLO', et, 'SUN_EARTH_CEQU', 'None', 'Sun')
+
+        # Convert to spherical and add units
+        hg_rad, hg_lon, hg_lat = spiceypy.reclat(solo_sun_hg[:3])
+        hg_rad = hg_rad * u.km
+        hg_lat, hg_lon = (hg_lat * u.rad).to('deg'), (hg_lon * u.rad).to('deg')
+        # Calculate radial velocity add units
+        rad_vel, *_ = spiceypy.reclat(solo_sun_hg[3:])
+        rad_vel = rad_vel * (u.km / u.s)
+
+        solo_sun_heeq, _ = spiceypy.spkezr('SOLO', et, 'SOLO_HEEQ', 'None', 'Sun')
+        return (np.rad2deg([roll, pitch, yaw])*u.deg, hg_rad,
+                [hg_lon.to_value("deg"), hg_lat.to_value("deg")] * u.deg,
+                solo_sun_heeq[0:3] * u.km)
+
     def get_sun_disc_size(self, *, date):
 
         # if hasattr(date, "size") and date.size > 0:

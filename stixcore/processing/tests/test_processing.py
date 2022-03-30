@@ -123,11 +123,13 @@ def test_level_2_auxiliary(out_dir, spicekernelmanager):
     SOOPManager.instance = SOOPManager(Path(__file__).parent.parent.parent
                                        / 'data' / 'test' / 'soop')
 
-    l1 = [Path('/home/shane/fits_20220202/L1/2021/08/15/HK/solo_L1_stix-hk-maxi_20210815_V01.fits')]
+    l1 = [Path('/home/shane/fits_20220321/L1/2021/08/15/HK/solo_L1_stix-hk-maxi_20210815_V01.fits'),
+          # Path('/home/shane/fits_20220321/L1/2021/06/14/HK/solo_L1_stix-hk-maxi_20210614_V01.fits')
+          ]
     l2 = Level2(out_dir / 'L1', out_dir)
     res = l2.process_fits_files(files=l1)
     print(res)
-    assert len(res) == 2
+    assert len(res) == len(l1) * 2
     Product(res[1])
     print("DONE")
 

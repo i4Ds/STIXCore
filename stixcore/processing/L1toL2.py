@@ -60,9 +60,10 @@ def process_type(files, *, processor, soopmanager, spice_kernel_path, config):
     SOOPManager.instance = soopmanager
     Spice.instance = Spice(spice_kernel_path)
     CONFIG = config
-    idlprocessor = SSWIDLProcessor(processor)
 
     all_files = list()
+    max_idlbatch = CONFIG.getint("IDLBridge", "batchsize", fallback=20)
+    idlprocessor = SSWIDLProcessor(processor)
     for file in files:
         try:
             l1 = Product(file)
@@ -72,6 +73,10 @@ def process_type(files, *, processor, soopmanager, spice_kernel_path, config):
             for l2 in tmp.from_level1(l1, parent=file, idlprocessor=idlprocessor):
                 files = processor.write_fits(l2)
                 all_files.extend(files)
+            # if a batch of X files have summed up run the IDL processing
+            if idlprocessor.opentasks > max_idlbatch:
+                all_files.extend(idlprocessor.process())
+                idlprocessor = SSWIDLProcessor(processor)
         except NoMatchError:
             logger.debug('No match for product %s', l1)
         except Exception as e:
@@ -80,8 +85,9 @@ def process_type(files, *, processor, soopmanager, spice_kernel_path, config):
             if CONFIG.getboolean('Logging', 'stop_on_error', fallback=False):
                 raise e
 
-    idlfitsfiles = idlprocessor.process()
-    all_files.extend(idlfitsfiles)
+    # if some more file batches left for IDL processing do it
+    if idlprocessor.opentasks > 0:
+        all_files.extend(idlprocessor.process())
 
     return all_files
 

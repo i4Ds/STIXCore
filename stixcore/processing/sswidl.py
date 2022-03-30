@@ -102,6 +102,7 @@ class SSWIDLProcessor(dict):
         # if not isinstance(fits_processor, FitsL2Processor):
         #    raise ValueError("processor must be of type FitsL2Processor")
         self.fits_processor = fits_processor
+        self.opentasks = 0
 
     def __getitem__(self, key):
         if key not in self:

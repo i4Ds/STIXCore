@@ -419,9 +419,11 @@ class CompressedPixelData(ScienceProduct):
                         + data['delta_time'] + data['integration_time']/2)
         data['timedel'] = data['integration_time']
         data['counts'] = \
-            (out_counts * u.ct).astype(get_min_uint(out_counts))[..., :tmp['e_high'].max()+1]
+            (out_counts * u.ct).astype(
+                get_min_uint(out_counts))[..., tmp['e_low'].min():tmp['e_high'].max()+1]
         data.add_meta(name='counts', nix='NIX00260', packets=packets)
-        data['counts_err'] = np.float32(out_var * u.ct)[..., :tmp['e_high'].max()+1]
+        data['counts_err'] = np.float32(
+            out_var * u.ct)[..., tmp['e_low'].min():tmp['e_high'].max()+1]
         data['control_index'] = control['index'][0]
 
         data = data['time', 'timedel', 'rcr', 'pixel_masks', 'detector_masks', 'num_pixel_sets',
@@ -696,9 +698,11 @@ class Spectrogram(ScienceProduct):
         data.add_meta(name='rcr', nix='NIX00401', packets=packets)
         data.add_basic(name='triggers_err', nix='NIX00267', attr='error', packets=packets)
         data['triggers_err'] = np.float32(data['triggers_err'])
-        data['counts'] = (full_counts * u.ct).astype(get_min_uint(full_counts))[..., :e_max.max()+1]
+        data['counts'] = (full_counts * u.ct).astype(
+            get_min_uint(full_counts))[..., e_min.min():e_max.max()+1]
         data.add_meta(name='counts', nix='NIX00268', packets=packets)
-        data['counts_err'] = np.float32(np.sqrt(full_counts_var) * u.ct)[..., :e_max.max()+1]
+        data['counts_err'] = np.float32(np.sqrt(
+            full_counts_var) * u.ct)[..., e_min.min():e_max.max()+1]
         data['control_index'] = np.ubyte(0)
 
         return cls(service_type=packets.service_type,

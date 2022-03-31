@@ -240,7 +240,7 @@ if __name__ == '__main__':
         "L1/2020/06/16/HK/solo_L1_stix-hk-maxi_20200616_V01.fits",
         "L1/2021/09/20/HK/solo_L1_stix-hk-mini_20210920_V01.fits"]
 
-    remote = ["http://pub099.cs.technik.fhnw.ch/data/fits_test/" + x for x in files]
+    remote = ["http://pub099.cs.technik.fhnw.ch/data/fits/" + x for x in files]
     # files = ["/home/shane/fits_test/" + x for x in files]
     files = [("/home/shane/fits_20220321/" + x, remote[i]) for i, x in enumerate(files)]
 

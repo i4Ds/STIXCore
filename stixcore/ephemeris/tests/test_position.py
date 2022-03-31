@@ -11,6 +11,8 @@ from stixcore.time.datetime import SCETime
 
 @pytest.fixture
 def spice():
+    # _spm = SpiceKernelManager(Path("/data/stix/spice/kernels/"))
+    # Spice.instance = Spice(_spm.get_latest_mk())
     return Spice.instance
 
 
@@ -24,7 +26,8 @@ def test_get_position(spice):
 
 
 def test_aux(spice):
-    d = SCETime(coarse=682300783, fine=30089)
+    d = SCETime(coarse=682300783, fine=30089)  # datetime(2021, 8, 15, 0, 1, 2, 700519
+    d = SCETime(coarse=652300783, fine=30089)  # datetime(2020, 9, 1, 18, 40, 12, 780604
     orient, dist, car, heeq = spice.get_auxiliary_positional_data(date=d)
     assert True
 
@@ -32,7 +35,7 @@ def test_aux(spice):
 def test_get_orientation(spice):
     # from idl sunspice
     # CSPICE_FURNSH, 'test_position_20201001_V01.mk'
-    # GET_SUNSPICE_ROLL( '2020-10-7T12:00:00', 'SOLO', system='HEEQ', yaw, pitch )
+    # GET_SUNSPICE_ROLL( '2020-10-7T12:00:00', 'SOLO', system='HEEQ', yaw, pitch ) SOLO_HEEQ
     res_roll, res_pitch, res_yaw = spice.get_orientation(date=datetime(2020, 10, 7, 12),
                                                          frame='SOLO_HEEQ')
     ref_roll, ref_pitch, ref_yaw = [1.1023372100542925, 6.5917480592073163,

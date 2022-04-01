@@ -1,3 +1,50 @@
+"""A helper script to generate the table parts of the DDPD document.
+
+Workflow:
+
+add all products that shoudl be included into the doc into the main.files list
+
+run the script (best on pub099).
+It will generate output in stixcore/util/scripts/ddpd.html
+
+Descriptions are derived from defferent sources doc strings, idb, fits files
+last override is from stixcore/data/test/ddpd.in.csv
+
+open the html in word.
+run the following VB script to select all tabeles:
+
+'Select all tables in a Word document.
+Sub SelectAllTables()
+  Dim objDoc As Document
+  Dim objTable As Table
+
+  Application.ScreenUpdating = False
+
+  'Initialization
+  Set objDoc = ActiveDocument
+
+  'Set each table in document as a range editable to everyone.
+  With objDoc
+  For Each objTable In .Tables
+    objTable.Range.Editors.Add wdEditorEveryone
+  Next
+  objDoc.SelectAllEditableRanges wdEditorEveryone
+  objDoc.DeleteAllEditableRanges wdEditorEveryone
+  Application.ScreenUpdating = True
+  End With
+End Sub
+
+select a table style.
+
+copy all pages (copy past) into https://v000658.fhnw.ch/index.php/f/3310201
+
+select all heading (each type once) and select "all instances" change the style to the document
+heading type (heading1 ... N)
+
+save document as new DDPD revision and publish to CDM
+
+"""
+
 import re
 import tempfile
 from pathlib import Path

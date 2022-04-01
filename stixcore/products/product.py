@@ -153,7 +153,8 @@ class ProductFactory(BasicRegistrationFactory):
                 data = read_qtable(file_path, hdu='DATA', hdul=hdul)
 
                 if level == 'LL01':
-                    # TODO remova that hack in favor for a proper header information
+                    # TODO remova that hack in favor for a proper header information after
+                    # https://github.com/i4Ds/STIXCore/issues/224 is solved
                     if "lightcurve" in args[0]:
                         service_type = 21
                         service_subtype = 6

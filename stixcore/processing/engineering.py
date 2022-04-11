@@ -35,7 +35,7 @@ def apply_raw_to_engineering(raw, args):
     """
     param, idb = args
     en = None
-    if param.PCF_CATEG == 'S':
+    if param.category == 'S':
         if isinstance(raw.value, Iterable):
             if isinstance(raw.value, list):
                 raw.value = np.array(raw.value)
@@ -45,7 +45,17 @@ def apply_raw_to_engineering(raw, args):
 
         else:
             en = idb.textual_interpret(param.PCF_CURTX, raw.value)
-    elif param.PCF_CATEG == 'N':
+    elif param.category == 'T':
+        if isinstance(raw.value, Iterable):
+            if isinstance(raw.value, list):
+                raw.value = np.array(raw.value)
+
+            en = np.array([idb.tc_interpret(param.cali_name, val.item())
+                           for val in np.ravel(raw.value)]).reshape(raw.value.shape)
+
+        else:
+            en = idb.tc_interpret(param.cali_name, raw.value)
+    elif param.category == 'N':
         prefix = re.split(r'\d+', param.PCF_CURTX)[0]
         if prefix == 'CIXP':
             curve = idb.get_calibration_curve(param)
@@ -60,8 +70,8 @@ def apply_raw_to_engineering(raw, args):
                 logger.error(f'Failed polynomial calibrate {param.PCF_NAME} / \
                                {param.PCF_CURTX} due to bad coefficients {poly}')
     else:
-        er = (f'Unsupported calibration method: {param.PCF_CATEG} for ' +
-              f'{param.PCF_NAME} / {param.PCF_CURTX}')
+        er = (f'Unsupported calibration method: {param.category} for ' +
+              f'{param.name} / {param.cali_name}')
         logger.error(er)
         raise ValueError(er)
 
@@ -70,7 +80,7 @@ def apply_raw_to_engineering(raw, args):
         en = raw.value
 
     return EngineeringParameter(name=raw.name, value=raw.value, idb_info=raw.idb_info,
-                                engineering=en, unit=param.PCF_UNIT, order=raw.order)
+                                engineering=en, unit=param.unit, order=raw.order)
 
 
 def raw_to_engineering(packet):
@@ -93,7 +103,7 @@ def raw_to_engineering(packet):
 
     c = 0
     for param in calib_parameters:
-        c += packet.data.apply(param.PCF_NAME, apply_raw_to_engineering, (param, idb))
+        c += packet.data.apply(param.name, apply_raw_to_engineering, (param, idb))
     return c
 
 

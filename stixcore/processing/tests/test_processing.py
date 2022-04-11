@@ -19,7 +19,8 @@ from stixcore.processing.L0toL1 import Level1
 from stixcore.processing.LBtoL0 import Level0
 from stixcore.processing.TMTCtoLB import process_tmtc_to_levelbinary
 from stixcore.products.level0.quicklookL0 import LightCurve
-from stixcore.products.product import Product
+from stixcore.products.levelb.binary import LevelB
+from stixcore.products.product import DefaultTC, Product
 from stixcore.tmtc.packets import TMTC, GenericTMPacket
 from stixcore.util.logging import get_logger
 
@@ -46,6 +47,17 @@ def packet():
     data = '0da4c0090066100319000000000000000212000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000b788014000000000ffffffff000000000000000000000000000000000000000000000000000000001f114cffffff' # noqa:
     packet = GenericTMPacket('0x' + data)
     return packet
+
+
+def test_level_b_tc(soc_manager, out_dir):
+    prods = []
+    for tmtc_file in soc_manager.get_files(TMTC.TC):
+        for prod in LevelB.from_tm(tmtc_file):
+            level0tc = DefaultTC.from_levelb(prod, parent="TBD")
+            prods.append(level0tc)
+            level0tc.print()
+
+    assert True
 
 
 @pytest.mark.skip(reason="will be replaces with end2end test soon")
@@ -138,7 +150,8 @@ def test_pipeline(socpacketfile, out_dir):
                 hex = file.readlines()
 
             socpacketfile.get_packet_binaries.return_value = list(
-                [(pid*1000 + i, unhexlify(re.sub(r"\s+", "", h))) for i, h in enumerate(hex)])
+                [(pid*1000 + i, unhexlify(re.sub(r"\s+", "", h)), TMTC.TM, None)
+                 for i, h in enumerate(hex)])
             socpacketfile.file = hex_file
 
             lb_files = process_tmtc_to_levelbinary([socpacketfile], archive_path=out_dir)

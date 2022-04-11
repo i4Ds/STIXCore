@@ -79,19 +79,32 @@ class TMTCPacketFactory(BaseFactory):
     """
     def __init__(self, registry=None):
         super().__init__(registry=registry)
-        self.tm_packet_factory = TMPacketFactory(registry=GenericTMPacket._registry)  # noqa
+        self.tmtc_packet_factory = TMPacketFactory(registry=GenericTMPacket._registry)  # noqa
+        # self.tc_packet_factory = TCPacketFactory(registry=GenericTCPacket._registry)  # noqa
 
     def __call__(self, data):
         if isinstance(data, str):
             data = unhexlify(data)
         sph = SourcePacketHeader(data)
+
         packet = self._check_registered(sph)
-        return self.tm_packet_factory(packet)
+        return self.tmtc_packet_factory(packet)
 
 
 class TMPacketFactory(BaseFactory):
     """
     Factory from TM packet return the correct type of based on the packet data and registered.
+    """
+    def __init__(self, registry=None):
+        super().__init__(registry=registry)
+
+    def __call__(self, data):
+        return self._check_registered(data)
+
+
+class TCPacketFactory(BaseFactory):
+    """
+    Factory from TC packet return the correct type of based on the packet data and registered.
     """
     def __init__(self, registry=None):
         super().__init__(registry=registry)

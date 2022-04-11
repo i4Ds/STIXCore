@@ -59,6 +59,99 @@ class IDBPi1ValPosition(SimpleNamespace):
         return self.PIC_PI1_WID
 
 
+class IDBTCInfo(SimpleNamespace):
+    def __init__(self, *, CCF_CNAME, CCF_DESCR, CCF_DESCR2, CCF_NPARS, COUNT_VAR_PARAMS):
+        super(IDBTCInfo, self).__init__(CCF_CNAME=CCF_CNAME, CCF_DESCR=CCF_DESCR,
+                                        CCF_DESCR2=CCF_DESCR2, CCF_NPARS=CCF_NPARS,
+                                        COUNT_VAR_PARAMS=COUNT_VAR_PARAMS)
+
+    def is_variable(self):
+        """Is the TC packet of variable length.
+
+        Returns
+        -------
+        `bool`
+            True if the TC packet has a variable size
+        """
+        return self.COUNT_VAR_PARAMS > 0
+
+
+class IDBTCParameter(SimpleNamespace):
+    def __init__(self, *, CDF_ELTYPE, CDF_DESCR, CDF_ELLEN, CDF_BIT, CDF_GRPSIZE, CDF_PNAME,
+                 CPC_DESCR, CPC_PAFREF, CPC_PTC, CPC_PFC):
+        super().__init__(CDF_ELTYPE=CDF_ELTYPE, CDF_DESCR=CDF_DESCR,
+                         CDF_ELLEN=CDF_ELLEN, CDF_BIT=CDF_BIT, CDF_GRPSIZE=CDF_GRPSIZE,
+                         CDF_PNAME=CDF_PNAME, CPC_DESCR=CPC_DESCR, CPC_PAFREF=CPC_PAFREF,
+                         CPC_PTC=CPC_PTC, CPC_PFC=CPC_PFC)
+
+    @property
+    def type(self):
+        return self.CDF_ELTYPE
+
+    @property
+    def width(self):
+        return self.CDF_ELLEN
+
+    @property
+    def name(self):
+        return self.CDF_PNAME
+
+    @property
+    def correct_width(self):
+        return 0
+
+    @property
+    def calib_ref(self):
+        return self.CPC_PAFREF
+
+
+class IDBStaticTCParameter(IDBTCParameter):
+    def __init__(self, *, CDF_ELTYPE, CDF_DESCR, CDF_ELLEN, CDF_BIT, CDF_GRPSIZE, CDF_PNAME,
+                 CPC_DESCR, CPC_PAFREF, CPC_PTC, CPC_PFC):
+        super().__init__(CDF_ELTYPE=CDF_ELTYPE, CDF_DESCR=CDF_DESCR,
+                         CDF_ELLEN=CDF_ELLEN, CDF_BIT=CDF_BIT, CDF_GRPSIZE=CDF_GRPSIZE,
+                         CDF_PNAME=CDF_PNAME, CPC_DESCR=CPC_DESCR, CPC_PAFREF=CPC_PAFREF,
+                         CPC_PTC=CPC_PTC, CPC_PFC=CPC_PFC)
+
+    @staticmethod
+    def is_variable():
+        """Is the parameter for a variable telecomand packet.
+
+        Returns
+        -------
+        `bool`
+            Always False for static parameters
+        """
+        return False
+
+    @property
+    def abs_position(self):
+        return 80 + self.CDF_BIT
+
+
+class IDBVariableTCParameter(IDBTCParameter):
+    def __init__(self, *, CDF_ELTYPE, CDF_DESCR, CDF_ELLEN, CDF_BIT, CDF_GRPSIZE, CDF_PNAME,
+                 CPC_DESCR, CPC_PAFREF, CPC_PTC, CPC_PFC):
+        super().__init__(CDF_ELTYPE=CDF_ELTYPE, CDF_DESCR=CDF_DESCR,
+                         CDF_ELLEN=CDF_ELLEN, CDF_BIT=CDF_BIT, CDF_GRPSIZE=CDF_GRPSIZE,
+                         CDF_PNAME=CDF_PNAME, CPC_DESCR=CPC_DESCR, CPC_PAFREF=CPC_PAFREF,
+                         CPC_PTC=CPC_PTC, CPC_PFC=CPC_PFC)
+
+    @staticmethod
+    def is_variable():
+        """Is the parameter for a variable telecomand packet.
+
+        Returns
+        -------
+        `bool`
+            Always False for static parameters
+        """
+        return True
+
+    def get_product_attribute_name(self):
+        return self.CPC_DESCR.lower().replace(' ', '_').replace('_-_', '-')
+
+
 class IDBPacketTypeInfo(SimpleNamespace):
     """A class to represent descriptive information for a idb packet type.
 
@@ -160,7 +253,7 @@ class IDBCalibrationCurve:
         self.orig = rows
 
         if len(self) <= 1:
-            logger.error(f'Invalid curve calibration parameter {param.PCF_NAME} / \
+            logger.error(f'Invalid curve calibration parameter {param.name} / \
                         {param.PCF_CURTX}: at least two data points needed')
             self.valid = False
 
@@ -195,7 +288,7 @@ class IDBCalibrationCurve:
             val = interpolate.splev(raw, tck)
             return val
         except Exception as e:
-            logger.error(f'Failed to curve calibrate {self.param.PCF_NAME} / \
+            logger.error(f'Failed to curve calibrate {self.param.name} / \
                         {self.param.PCF_CURTX} due to {e}')
 
 
@@ -263,6 +356,22 @@ class IDBParameter(IDBPacketTypeInfo):
         self.S2K_TYPE = S2K_TYPE
         self.bin_format = bin_format
 
+    @property
+    def type(self):
+        return self.S2K_TYPE
+
+    @property
+    def width(self):
+        return self.PCF_WIDTH
+
+    @property
+    def name(self):
+        return self.PCF_NAME
+
+    @property
+    def calib_ref(self):
+        return self.PCF_CURTX
+
     def get_product_attribute_name(self):
         return self.PCF_DESCR.lower().replace(' ', '_').replace('_-_', '-')
 
@@ -297,6 +406,10 @@ class IDBStaticParameter(IDBParameter):
             Always False for static parameters
         """
         return False
+
+    @property
+    def abs_position(self):
+        return self.PLF_OFFBY * 8 + self.PLF_OFFBI
 
 
 class IDBVariableParameter(IDBParameter):
@@ -336,6 +449,31 @@ class IDBVariableParameter(IDBParameter):
         """
         return True
 
+    @property
+    def correct_width(self):
+        return self.VPD_OFFSET
+
+
+class IDBTCCalibrationParameter(SimpleNamespace):
+    def __init__(self, **kwargs):
+        super().__init__(**kwargs)
+
+    @property
+    def name(self):
+        return self.CPC_PNAME
+
+    @property
+    def category(self):
+        return self.CPC_CATEG
+
+    @property
+    def cali_name(self):
+        return self.CPC_PAFREF
+
+    @property
+    def unit(self):
+        return None
+
 
 class IDBCalibrationParameter(IDBParameter):
     """A class to represent a parameter for calibration.
@@ -356,6 +494,22 @@ class IDBCalibrationParameter(IDBParameter):
         super(IDBCalibrationParameter, self).__init__(**kwargs)
         self.PCF_CATEG = PCF_CATEG
         self.PCF_UNIT = PCF_UNIT
+
+    @property
+    def name(self):
+        return self.PCF_NAME
+
+    @property
+    def category(self):
+        return self.PCF_CATEG
+
+    @property
+    def cali_name(self):
+        return self.PCF_CURTX
+
+    @property
+    def unit(self):
+        return self.PCF_UNIT
 
 
 class IDBPacketTree:
@@ -781,22 +935,29 @@ class IDB:
         --------
         `dict` | `None`
         """
+        if (service_type, service_subtype, subtype) in self.packet_info:
+            return self.packet_info[(service_type, service_subtype, subtype)]
 
         sql = (
-            'select  CCF_CNAME, CCF_DESCR, CCF_DESCR2, '
-            ' CCF_NPARS from CCF where CCF_TYPE=? and CCF_STYPE =? order by CCF_CNAME asc'
+            'select CCF_CNAME, CCF_DESCR, CCF_DESCR2, CCF_NPARS, '
+            '(select count(CDF_GRPSIZE) from CDF where CDF_GRPSIZE>0 and CDF_CNAME=CCF_CNAME) '
+            'as COUNT_VAR_PARAMS from CCF '
+            'where CCF_TYPE=? and CCF_STYPE =? '
+            'order by CCF_CNAME asc'
         )
         res = self._execute(sql, (service_type, service_subtype), 'dict')
         index = 0
         if len(res) > 1 and (subtype is not None):
             index = subtype - 1
         try:
-            return res[index]
+            resObj = IDBTCInfo(**res[index])
+            self.packet_info[(service_type, service_subtype, subtype)] = resObj
+            return resObj
         except IndexError:
             logger.warning("nothing found in IDB table: CCF")
             return None
 
-    def get_telecommand_structure(self, name):
+    def get_telecommand_structure(self, name, isvar):
         """Get the structure of a telecommand  by its name. The structure will be used to decode
         the TC packet.
 
@@ -809,13 +970,46 @@ class IDB:
         -------
         tm structure
         """
+
+        if (name, isvar) in self.parameter_structures:
+            return self.parameter_structures[(name, isvar)]
+
         sql = ('select CDF_ELTYPE, CDF_DESCR, CDF_ELLEN, CDF_BIT, '
                'CDF_GRPSIZE, CDF_PNAME, CPC_DESCR,  CPC_PAFREF, CPC_PTC,'
                'CPC_PFC from CDF left join CPC on  CDF_PNAME=CPC_PNAME'
                '  where  CDF_CNAME=?  order by CDF_BIT asc')
         args = (name, )
-        res = self._execute(sql, args, 'dict')
-        return res
+        parameters = self._execute(sql, args, 'dict')
+
+        if isvar:
+            repeater = [{'node': IDBPacketTree(), 'counter': 1024}]
+
+            for par in parameters:
+                parObj = IDBVariableTCParameter(**par)
+                if repeater:
+                    for e in reversed(repeater):
+                        e['counter'] -= 1
+                        if e['counter'] < 0:
+                            repeater.pop()
+                            # root will be never popped
+                parent = repeater[-1]['node']
+
+                node = self._create_parse_node(parObj.name, parObj, 0, [])
+                parent.children.append(node)
+
+                if parObj.CDF_GRPSIZE > 0:
+                    repeater.append({'node': node, 'counter': parObj.CDF_GRPSIZE})
+
+            parent = repeater[0]['node']
+        else:
+            parent = IDBPacketTree()
+            for par in parameters:
+                parObj = IDBStaticTCParameter(**par)
+                node = self._create_parse_node(parObj.name, parObj, 0, [])
+                parent.children.append(node)
+
+        self.parameter_structures[(name, isvar)] = parent
+        return parent
 
     def is_variable_length_telecommand(self, name):
         """Determines if the TM structure is of variable length
@@ -839,7 +1033,7 @@ class IDB:
 
         return False
 
-    def tcparam_interpret(self, ref, raw):
+    def get_tc_params_for_calibration(self, service_type, service_subtype):
         """interpret telecommand parameter by using the table PAS
 
         Parameters
@@ -854,14 +1048,21 @@ class IDB:
         `str`
             PAS_ALTXT
         """
-        sql = 'select PAS_ALTXT from PAS where PAS_NUMBR=? and PAS_ALVAL=?'
-        args = (ref, raw)
-        rows = self._execute(sql, args)
-        try:
-            return rows[0][0]
-        except (TypeError, IndexError):
-            logger.warning("nothing found in IDB table: PAS")
-            return ''
+        key = (service_type, service_subtype, "TC")
+        if key in self.calibration:
+            return self.calibration[key]
+
+        sql = ('select CCF_CNAME, CCF_DESCR, CCF_DESCR2, CDF_CNAME, '
+               'CPC_PNAME, CPC_PAFREF, CPC_CATEG '
+               'from CCF, CDF, CPC '
+               'where CCF_TYPE=? and CCF_STYPE =? and CDF_CNAME=CCF_CNAME '
+               'and CPC_PNAME=CDF_PNAME and CPC_PAFREF not NULL '
+               'group by CPC_PNAME')
+        args = (service_type, service_subtype)
+
+        params = self._execute(sql, args, 'dict')
+        self.calibration[key] = [IDBTCCalibrationParameter(**p) for p in params]
+        return self.calibration[key]
 
     def get_calibration_curve(self, param):
         """calibration curve defined in CAP database
@@ -886,6 +1087,42 @@ class IDB:
             curve = IDBCalibrationCurve(self._execute(sql, args), param)
             self.calibration_curves[param.PCF_CURTX] = curve
             return curve
+
+    def tc_interpret(self, ref, raw_value):
+        """gets a name for a TXP_NUMBR from TXP for given raw_value
+
+        Parameters
+        ----------
+        ref : `str`
+            CPC_PAFREF like 'CIXT0003TC'
+        raw_value : `int`
+            value in
+
+        returns
+        -------
+        `list` of `str`
+            the names
+        """
+        if (ref, raw_value) in self.textual_parameter_lut:
+            return self.textual_parameter_lut[(ref, raw_value)]
+
+        sql = 'select PAS_ALTXT from PAS where PAS_NUMBR=? and PAS_ALVAL=?'
+        args = (ref, raw_value)
+        rows = self._execute(sql, args)
+        val = rows[0][0] if rows else None
+
+        if val is None:
+            logger.error(f'Missing TC textual calibration info for: {ref} value={raw_value}')
+            val = raw_value
+
+        if val == "True":
+            val = True
+        elif val == "False":
+            val = False
+
+        self.textual_parameter_lut[(ref, raw_value)] = val
+        # lookup table
+        return val
 
     def textual_interpret(self, pcf_curtx, raw_value):
         """gets a name for a TXP_NUMBR from TXP for given raw_value
@@ -986,6 +1223,8 @@ class IDB:
             return f"uint:{nbytes}"
         elif param_type == 'I':
             return f"int:{nbytes}"
+        elif param_type == 'E':
+            return f"uint:{nbytes}"
         elif param_type == 'T':
             return f"uint:{nbytes}"
         elif param_type == 'O':
@@ -1039,7 +1278,7 @@ class IDB:
         parent = IDBPacketTree()
         for par in parameters:
             parObj = IDBStaticParameter(**par)
-            node = self._create_parse_node(parObj.PCF_NAME, parObj, 0, [])
+            node = self._create_parse_node(parObj.name, parObj, 0, [])
             parent.children.append(node)
 
         self.parameter_structures[(service_type, service_subtype, sp1_val)] = parent
@@ -1050,7 +1289,7 @@ class IDB:
         if children is None:
             children = []
 
-        parameter.bin_format = self._get_stream_type_format(parameter.S2K_TYPE, parameter.PCF_WIDTH)
+        parameter.bin_format = self._get_stream_type_format(parameter.type, parameter.width)
         node = IDBPacketTree(name=name, counter=counter, parameter=parameter, children=children)
         return node
 
@@ -1147,7 +1386,7 @@ class IDB:
                         # root will be never popped
             parent = repeater[-1]['node']
 
-            node = self._create_parse_node(parObj.PCF_NAME, parObj, 0, [])
+            node = self._create_parse_node(parObj.name, parObj, 0, [])
             parent.children.append(node)
 
             if parObj.VPD_GRPSIZE > 0:

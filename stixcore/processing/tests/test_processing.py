@@ -2,6 +2,7 @@ import io
 import re
 from pathlib import Path
 from binascii import unhexlify
+from datetime import datetime
 from unittest.mock import patch
 
 import numpy as np
@@ -129,13 +130,33 @@ def test_level_2(out_dir, spicekernelmanager):
 
 
 def test_level_2_auxiliary(out_dir, spicekernelmanager):
-    # Spice.instance = Spice(Path("/data/stix/spice/kernels/mk/
-    #                              solo_ANC_soc-flown-mk_V107_20210621_001.tm"))
+    _spm = SpiceKernelManager(Path("/data/stix/spice/kernels/"))
+    Spice.instance = Spice(_spm.get_latest_mk())
+    print(Spice.instance.meta_kernel_path)
+
     SOOPManager.instance = SOOPManager(Path(__file__).parent.parent.parent
                                        / 'data' / 'test' / 'soop')
 
-    l1 = [Path('/home/shane/fits_20220321/L1/2021/08/15/HK/solo_L1_stix-hk-maxi_20210815_V01.fits'),
-          Path('/home/shane/fits_20220321/L1/2021/06/14/HK/solo_L1_stix-hk-maxi_20210614_V01.fits')
+    dts = [datetime(2022,  4,  6, 12, 0),
+           datetime(2021, 10,  9, 12, 0),
+           datetime(2021,  9, 23, 12, 0),
+           datetime(2021,  8, 28, 12, 0),
+           datetime(2021,  8, 26, 12, 0),
+           datetime(2020,  6,  7, 12, 0)]
+
+    for d in dts:
+        try:
+            print(Spice.instance.get_orientation(date=d, frame='SOLO_SUN_RTN'))
+        except Exception as e:
+            print(e)
+
+    assert False
+
+    l1 = [Path('/home/shane/fits_20220321/L1/2020/06/07/HK/solo_L1_stix-hk-maxi_20200607_V01.fits'),
+          Path('/home/shane/fits_20220321/L1/2021/08/26/HK/solo_L1_stix-hk-maxi_20210826_V01.fits'),
+          Path('/home/shane/fits_20220321/L1/2021/08/28/HK/solo_L1_stix-hk-maxi_20210828_V01.fits'),
+          Path('/home/shane/fits_20220321/L1/2021/09/23/HK/solo_L1_stix-hk-maxi_20210923_V01.fits'),
+          Path('/home/shane/fits_20220321/L1/2021/10/09/HK/solo_L1_stix-hk-maxi_20211009_V01.fits')
           ]
     l2 = Level2(out_dir / 'L1', out_dir)
     res = l2.process_fits_files(files=l1)
@@ -230,3 +251,25 @@ def test_print(packet):
     packet.print(descr=True, stream=ms)
     ms.seek(0)
     assert len(ms.read()) > 100
+
+
+if __name__ == '__main__':
+    _spm = SpiceKernelManager(Path("/data/stix/spice/kernels/"))
+    Spice.instance = Spice(_spm.get_latest_mk())
+    print(Spice.instance.meta_kernel_path)
+
+    SOOPManager.instance = SOOPManager(Path(__file__).parent.parent.parent
+                                       / 'data' / 'test' / 'soop')
+
+    dts = [datetime(2022,  4,  6, 12, 0),
+           datetime(2021, 10,  9, 12, 0),
+           datetime(2021,  9, 23, 12, 0),
+           datetime(2021,  8, 28, 12, 0),
+           datetime(2021,  8, 26, 12, 0),
+           datetime(2020,  6,  7, 12, 0)]
+
+    for d in dts:
+        try:
+            print(Spice.instance.get_orientation(date=d, frame='SOLO_SUN_RTN'))
+        except Exception as e:
+            print(e)

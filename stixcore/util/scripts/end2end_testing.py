@@ -4,8 +4,6 @@ import shutil
 from pathlib import Path
 from xml.etree import ElementTree as Et
 
-import pytest  # noqa
-
 from stixcore.data.test import test_data
 from stixcore.ephemeris.manager import Spice, SpiceKernelManager
 from stixcore.io.soc.manager import SOCManager
@@ -14,6 +12,9 @@ from stixcore.processing.LBtoL0 import Level0
 from stixcore.processing.TMTCtoLB import process_tmtc_to_levelbinary
 from stixcore.products.product import Product
 from stixcore.tmtc.packets import TMTC
+
+import pytest  # noqa
+
 
 # import pytest  # noqa
 # this is needed to keep a reference to pytest "alive" as isort/flake8 will remove it otherwise

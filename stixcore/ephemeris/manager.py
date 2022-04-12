@@ -267,10 +267,10 @@ class Spice(SpiceKernelLoader, metaclass=Singleton):
     def get_auxiliary_positional_data(self, *, date):
         et = spiceypy.scs2e(SOLAR_ORBITER_ID, str(date))
 
-        # sc = spiceypy.sce2c(SOLAR_ORBITER_ID, et)
-        # cmat, _ = spiceypy.ckgp(SOLAR_ORBITER_STIX_ILS_FRAME_ID, sc, 1.0, 'SOLO_SUN_RTN')
-        # vec = cmat @ np.eye(3)
-        # roll, pitch, yaw = spiceypy.m2eul(vec, 1, 2, 3)
+        sc = spiceypy.sce2c(SOLAR_ORBITER_ID, et)
+        cmat, _ = spiceypy.ckgp(SOLAR_ORBITER_STIX_ILS_FRAME_ID, sc, 1.0, 'SOLO_SUN_RTN')
+        vec = cmat @ np.eye(3)
+        roll, pitch, yaw = spiceypy.m2eul(vec, 1, 2, 3)
 
         roll, pitch, yaw = 0.0, 0.0, 0.0
 
@@ -345,7 +345,7 @@ class Spice(SpiceKernelLoader, metaclass=Singleton):
         """
         et = spiceypy.datetime2et(date)
         sc = spiceypy.sce2c(SOLAR_ORBITER_ID, et)
-        cmat, sc = spiceypy.ckgp(SOLAR_ORBITER_SRF_FRAME_ID, sc, 0, frame)
+        cmat, sc = spiceypy.ckgp(SOLAR_ORBITER_SRF_FRAME_ID, sc, 1.0, frame)
         vec = cmat @ np.eye(3)
         roll, pitch, yaw = spiceypy.m2eul(vec, 1, 2, 3)
         roll, pitch, yaw = np.rad2deg([roll, pitch, yaw])*u.deg

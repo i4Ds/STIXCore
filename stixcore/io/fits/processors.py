@@ -592,7 +592,8 @@ class FitsL1Processor(FitsL0Processor):
             primary_hdu = fits.PrimaryHDU()
             primary_hdu.header.update(primary_header)
             primary_hdu.header.update(header_override)
-            primary_hdu.header.update({'HISTORY': 'Processed by STIX'})
+            primary_hdu.header.update(product.get_additional_header_keywords())
+            primary_hdu.header.update({'HISTORY': 'Processed by STIX L2'})
 
             # Convert time to be relative to start date
             # it is important that the change to the relative time is done after the header is

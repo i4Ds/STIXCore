@@ -139,7 +139,7 @@ class SpiceKernelLoader:
         if not self.meta_kernel_path.exists():
             raise ValueError(f'Meta kernel not found: {self.meta_kernel_path}')
 
-        curdir = os.getcwd()
+        os.getcwd()
         try:
             # change to the 'kernels' dir
             os.chdir(self.meta_kernel_path.parent)
@@ -150,7 +150,8 @@ class SpiceKernelLoader:
             # spiceypy.unload(str(self.mod_meta_kernel_path))
         finally:
             # change back to the old working directory
-            os.chdir(curdir)
+            # os.chdir(curdir)
+            pass
 
 
 class Spice(SpiceKernelLoader, metaclass=Singleton):
@@ -265,13 +266,11 @@ class Spice(SpiceKernelLoader, metaclass=Singleton):
 
     def get_auxiliary_positional_data(self, *, date):
         et = spiceypy.scs2e(SOLAR_ORBITER_ID, str(date))
-
         sc = spiceypy.sce2c(SOLAR_ORBITER_ID, et)
+
         cmat, _ = spiceypy.ckgp(SOLAR_ORBITER_STIX_ILS_FRAME_ID, sc, 1.0, 'SOLO_SUN_RTN')
         vec = cmat @ np.eye(3)
         roll, pitch, yaw = spiceypy.m2eul(vec, 1, 2, 3)
-
-        roll, pitch, yaw = 0.0, 0.0, 0.0
 
         # HeliographicStonyhurst
         solo_sun_hg, _ = spiceypy.spkezr('SOLO', et, 'SUN_EARTH_CEQU', 'None', 'Sun')

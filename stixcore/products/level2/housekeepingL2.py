@@ -181,6 +181,8 @@ class AspectIDLProcessing(SSWIDLTask):
                 data = [data, data_f]
             ENDFOREACH
 
+            idlgswversion="tbd"
+
             undefine, hk_file, hk_files, data_e, i, di, data_f, d
 
 
@@ -213,28 +215,38 @@ class AspectIDLProcessing(SSWIDLTask):
                 data['time_utc'] = [t.decode() for t in idldata['time']]
                 # [datetime.strptime(t.decode(), '%Y-%m-%dT%H:%M:%S.%f') for t in idldata['time']]
                 data['control_index'] = idldata['control_index']
-                data['spice_disc_size'] = idldata['spice_disc_size'] * u.arcsec
-                data['y_srf'] = idldata['y_srf'] * u.arcsec
-                data['z_srf'] = idldata['z_srf'] * u.arcsec
+                data['spice_disc_size'] = (idldata['spice_disc_size'] * u.arcsec).astype(np.float32)
+                data['y_srf'] = (idldata['y_srf'] * u.arcsec).astype(np.float32)
+                data['z_srf'] = (idldata['z_srf'] * u.arcsec).astype(np.float32)
                 # TODO do calculations
 
-                data['solo_loc_carrington_lonlat'] = np.tile(np.array([0.0, 0.0]), (n, 1)) * u.deg
-                data['solo_loc_carrington_dist'] = 0.0 * u.km
-                data['solo_loc_heeq_zxy'] = np.tile(np.array([0.0, 0.0, 0.0]), (n, 1)) * u.km
-                data['roll_angle_rpy'] = np.tile(np.array([0.0, 0.0, 0.0]), (n, 1)) * u.deg
+                data['solo_loc_carrington_lonlat'] = np.tile(np.array([0.0, 0.0]), (n, 1)).\
+                    astype(np.float32) * u.deg
+                data['solo_loc_carrington_dist'] = np.tile(np.array([0.0]), (n, 1)).\
+                    astype(np.float32) * u.km
+                data['solo_loc_heeq_zxy'] = np.tile(np.array([0.0, 0.0, 0.0]), (n, 1)).\
+                    astype(np.float32) * u.km
+                data['roll_angle_rpy'] = np.tile(np.array([0.0, 0.0, 0.0]), (n, 1)).\
+                    astype(np.float32) * u.deg
 
                 for idx, d in enumerate(data['time']):
                     orient, dist, car, heeq = Spice.instance.get_auxiliary_positional_data(date=d)
 
-                    data[idx]['solo_loc_carrington_lonlat'] = car.to('deg')
-                    data[idx]['solo_loc_carrington_dist'] = dist.to('km')
-                    data[idx]['solo_loc_heeq_zxy'] = heeq.to('km')
-                    data[idx]['roll_angle_rpy'] = orient.to('deg')
+                    data[idx]['solo_loc_carrington_lonlat'] = car.to('deg').astype(np.float32)
+                    data[idx]['solo_loc_carrington_dist'] = dist.to('km').astype(np.float32)
+                    data[idx]['solo_loc_heeq_zxy'] = heeq.to('km').astype(np.float32)
+                    data[idx]['roll_angle_rpy'] = orient.to('deg').astype(np.float32)
 
                 control['parent'] = str(file_path.name)
 
-                aspect = Auxiliary(control=control, data=data, idb_versions=HK.idb_versions)
-                files.extend(fits_processor.write_fits(aspect))
+                aux = Auxiliary(control=control, data=data, idb_versions=HK.idb_versions)
+
+                aux.add_additional_header_keywords(
+                    ('STX_GSW', result.idlgswversion.decode(),
+                     'Version of STX-GSW that provided data'))
+                aux.add_additional_header_keywords(
+                    ('HISTORY', 'some data processed by STX-GSW', ''))
+                files.extend(fits_processor.write_fits(aux))
 
         return files
 

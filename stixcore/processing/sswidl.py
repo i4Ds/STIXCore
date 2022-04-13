@@ -76,8 +76,8 @@ if CONFIG.getboolean("IDLBridge", "enabled", fallback=False):
                                                   "sunspice", "spice", "stix"])
 
             results = ssw.run(self.script, args=self.pack_params())
-            self._results = self.postprocessing(results, fits_processor)
             os.chdir(cur_path)
+            self._results = self.postprocessing(results, fits_processor)
             return self._results
 
 

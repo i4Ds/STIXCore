@@ -598,6 +598,15 @@ class FitsHeaderMixin:
             raise ValueError("fits_header should be of type fits.Header")
         self._fits_header = val.copy(strip=True)
 
+    def get_additional_header_keywords(self):
+        return self._additional_header_keywords if hasattr(self, '_additional_header_keywords')\
+            else None
+
+    def add_additional_header_keywords(self, keyword):
+        if not hasattr(self, '_additional_header_keywords'):
+            setattr(self, '_additional_header_keywords', list())
+        self._additional_header_keywords.append(keyword)
+
 
 class L1Mixin(FitsHeaderMixin):
     @property

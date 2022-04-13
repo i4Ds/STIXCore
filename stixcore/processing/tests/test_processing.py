@@ -137,21 +137,6 @@ def test_level_2_auxiliary(out_dir, spicekernelmanager):
     SOOPManager.instance = SOOPManager(Path(__file__).parent.parent.parent
                                        / 'data' / 'test' / 'soop')
 
-    dts = [datetime(2022,  4,  6, 12, 0),
-           datetime(2021, 10,  9, 12, 0),
-           datetime(2021,  9, 23, 12, 0),
-           datetime(2021,  8, 28, 12, 0),
-           datetime(2021,  8, 26, 12, 0),
-           datetime(2020,  6,  7, 12, 0)]
-
-    for d in dts:
-        try:
-            print(Spice.instance.get_orientation(date=d, frame='SOLO_SUN_RTN'))
-        except Exception as e:
-            print(e)
-
-    assert False
-
     l1 = [Path('/home/shane/fits_20220321/L1/2020/06/07/HK/solo_L1_stix-hk-maxi_20200607_V01.fits'),
           Path('/home/shane/fits_20220321/L1/2021/08/26/HK/solo_L1_stix-hk-maxi_20210826_V01.fits'),
           Path('/home/shane/fits_20220321/L1/2021/08/28/HK/solo_L1_stix-hk-maxi_20210828_V01.fits'),
@@ -162,7 +147,10 @@ def test_level_2_auxiliary(out_dir, spicekernelmanager):
     res = l2.process_fits_files(files=l1)
     print(res)
     assert len(res) == len(l1) * 2
-    Product(res[1])
+    Product(res[0])
+    # import shutil
+    # for f in res + l1:
+    #     shutil.copy(f, "/home/nicky/aux/")
     print("DONE")
 
 
@@ -305,9 +293,6 @@ if __name__ == '__main__':
     _spm = SpiceKernelManager(Path("/data/stix/spice/kernels/"))
     Spice.instance = Spice(_spm.get_latest_mk())
     print(Spice.instance.meta_kernel_path)
-
-    SOOPManager.instance = SOOPManager(Path(__file__).parent.parent.parent
-                                       / 'data' / 'test' / 'soop')
 
     dts = [datetime(2022,  4,  6, 12, 0),
            datetime(2021, 10,  9, 12, 0),

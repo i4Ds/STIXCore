@@ -63,7 +63,7 @@ def correct_counts(product, method='rebin'):
             if not np.allclose(sum_orig_counts.value, sum_rebined_counts):
                 raise ValueError('We are losing the precious counts')
 
-            # zero the counts the were rebbinned then add all 32 ch
+            # zero the counts the were rebinned then add all 32 ch
             counts[:, did, pid, 1:-1] = 0
             counts[:, did, pid, :] = counts[:, did, pid, :] + rebinned * counts.unit
         elif method == 'width':

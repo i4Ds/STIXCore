@@ -60,10 +60,12 @@ STIX-TN-0015-ETH_I1R0_Caliste_Rates
 """
 import numpy as np
 
+import astropy.units as u
+
 __all__ = ['get_livetime_fraction']
 
 
-def get_livetime_fraction(trigger_rate, *, eta, tau):
+def get_livetime_fraction(trigger_rate, *, eta=3.91*u.us, tau=11*u.us):
     """
     Return the live time fraction for the given trigger rate.
 

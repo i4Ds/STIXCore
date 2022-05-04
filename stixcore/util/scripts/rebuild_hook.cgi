@@ -3,7 +3,7 @@
 
 ################################################
 #
-# this is a webhook file to be placed on pub99 web dir: /var/www/data/end2end/rebuild_hook.py
+# this is a webhook file to be placed on pub99 web dir: /var/www/data/end2end/rebuild_hook.cgi
 #
 # the cgi will trigger to rebuild the test data for the end2end testing
 # it assumes that a dedicated stixcore environment is available at /data/stix/end2end/STIXCore/
@@ -60,4 +60,4 @@ SCRIPT="$DIR/stixcore/util/scripts/end2end_testing.py"
 echo "<br />cmd# $CMD $SCRIPT $ZIPPATH $DATAPATH<br />"
 nohup $CMD $SCRIPT $ZIPPATH $DATAPATH &>/dev/null &
 
-echo "<h2>all Done zip will be awailable soon</h2>"
+echo "<h2>Complete, zip will be available soon</h2>"

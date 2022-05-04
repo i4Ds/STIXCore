@@ -227,7 +227,7 @@ class LevelB(BaseProduct):
 
     @classmethod
     def from_tm(cls, tmfile):
-        """Process the given SOCFile and creates LevelB FITS files.
+        """Process the given SOC file and creates LevelB FITS files.
 
         Parameters
         ----------

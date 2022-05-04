@@ -162,8 +162,6 @@ class AspectIDLProcessing(SSWIDLTask):
                 help, data_f
                 print, n_elements(data_f)
 
-                ; save, data_f, file="/home/nicky/aspect.sav"
-
                 print,"Calibrating data..."
                 ; First, substract dark currents and applies relative gains
                 calib_sas_data, data_f, calib_file

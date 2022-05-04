@@ -1,5 +1,6 @@
 import io
 import re
+import glob
 from pathlib import Path
 from binascii import unhexlify
 from datetime import datetime
@@ -143,14 +144,21 @@ def test_level_2_auxiliary(out_dir, spicekernelmanager):
           Path('/home/shane/fits_20220321/L1/2021/09/23/HK/solo_L1_stix-hk-maxi_20210923_V01.fits'),
           Path('/home/shane/fits_20220321/L1/2021/10/09/HK/solo_L1_stix-hk-maxi_20211009_V01.fits')
           ]
+
+    l1 = [Path(f) for f in
+          glob.glob("/home/shane/fits_20220321/**/solo_L1_stix-hk-maxi*.fits", recursive=True)]
+
     l2 = Level2(out_dir / 'L1', out_dir)
     res = l2.process_fits_files(files=l1)
     print(res)
     assert len(res) == len(l1) * 2
     Product(res[0])
-    # import shutil
+    import shutil
+
     # for f in res + l1:
-    #     shutil.copy(f, "/home/nicky/aux/")
+    #    shutil.copy(f, "/home/shane/fits_20220321/L2/")
+
+    shutil.copytree(out_dir / 'L2', "/home/nicky/fits_20220321/L2/")
     print("DONE")
 
 

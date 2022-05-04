@@ -35,7 +35,9 @@ echo "in dir " ; pwd
 
 echo "<br />Git: "
 
-git pull
+git fetch
+git reset --hard origin/master
+git clean -f -d
 
 echo "<br />"
 
@@ -45,10 +47,8 @@ echo "<br />"
 
 TAG="head"
 ZIPPATH="/data/stix/end2end/data/$TAG.zip"
-DATAPATH="/data/stix/end2end/STIXCore/stixcore/data/test/products/end2end"
-
-echo  "clean the old data<br />"
-rm -rv $DATAPATH
+RD=$(echo $RANDOM | md5sum | head -c 20; echo;)
+DATAPATH="/data/stix/end2end/STIXCore/stixcore/data/test/products/end2end/d$RD"
 
 echo "Recreate the test files at $ZIPPATH and pack them afterwards to: $DATAPATH"
 
@@ -57,5 +57,6 @@ SCRIPT="$DIR/stixcore/util/scripts/end2end_testing.py"
 
 echo "<br />cmd# $CMD $SCRIPT $ZIPPATH $DATAPATH<br />"
 nohup $CMD $SCRIPT $ZIPPATH $DATAPATH &>/dev/null &
+#$CMD $SCRIPT $ZIPPATH $DATAPATH
 
 echo "<h2>Complete, zip will be available soon</h2>"

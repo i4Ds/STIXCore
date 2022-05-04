@@ -8,7 +8,7 @@ import pytest
 from astropy.io.fits.diff import FITSDiff
 
 from stixcore.util.logging import get_logger
-from stixcore.util.scripts.end2end_testing import en2end_pipeline
+from stixcore.util.scripts.end2end_testing import end2end_pipeline
 
 logger = get_logger(__name__)
 
@@ -38,7 +38,7 @@ def orig_fits(orig_data):
 
 @pytest.fixture(scope="session")
 def current_fits(orig_data, out_dir):
-    return en2end_pipeline(orig_data, out_dir)
+    return end2end_pipeline(orig_data, out_dir)
 
 
 @pytest.mark.end2end

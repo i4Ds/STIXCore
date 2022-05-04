@@ -21,7 +21,7 @@ from stixcore.tmtc.packet_factory import Packet
 from stixcore.tmtc.packets import GenericPacket, PacketSequence
 
 __all__ = ['GenericProduct', 'ProductFactory', 'Product', 'ControlSci',
-           'Control', 'Data', 'L1Mixin', 'EnergyChannelsMixin']
+           'Control', 'Data', 'L1Mixin', 'EnergyChannelsMixin', 'read_qtable']
 
 from collections import defaultdict
 
@@ -129,13 +129,14 @@ class ProductFactory(BasicRegistrationFactory):
             if isinstance(args[0], (str, Path)):
                 file_path = Path(args[0])
                 header = fits.getheader(file_path)
-                service_type = int(header.get('stype'))
-                service_subtype = int(header.get('sstype'))
-                parent = header.get('parent').split(';')
-                raw = header.get('raw_file').split(';')
+
+                service_type = int(header.get('stype')) if 'stype' in header else 0
+                service_subtype = int(header.get('sstype')) if 'sstype' in header else 0
+                parent = header.get('parent').split(';') if 'parent' in header else ''
+                raw = header.get('raw_file').split(';') if 'raw_file' in header else ''
                 try:
                     ssid = int(header.get('ssid'))
-                except ValueError:
+                except (ValueError, TypeError):
                     ssid = None
                 level = header.get('Level')
                 header.get('TIMESYS')
@@ -151,7 +152,19 @@ class ProductFactory(BasicRegistrationFactory):
 
                 data = read_qtable(file_path, hdu='DATA', hdul=hdul)
 
-                if level != 'LB':
+                if level == 'LL01':
+                    # TODO remova that hack in favor for a proper header information after
+                    # https://github.com/i4Ds/STIXCore/issues/224 is solved
+                    if "lightcurve" in args[0]:
+                        service_type = 21
+                        service_subtype = 6
+                        ssid = 30
+                    if "flareflag" in args[0]:
+                        service_type = 21
+                        service_subtype = 6
+                        ssid = 34
+
+                if level not in ['LB', 'LL01']:
                     data['timedel'] = SCETimeDelta(data['timedel'])
                     offset = SCETime.from_float(header['OBT_BEG']*u.s)
 
@@ -548,7 +561,8 @@ class DefaultProduct(GenericProduct, L1Mixin):
         236: 'config',
         237: 'params',
         238: 'archive',
-        239: 'diagnostics'
+        239: 'diagnostics',
+        300: 'low-latency'
     }
 
     def __init__(self, *, service_type, service_subtype, ssid, control, data,

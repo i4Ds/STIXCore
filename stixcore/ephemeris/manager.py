@@ -141,6 +141,7 @@ class SpiceKernelLoader:
 
         curdir = os.getcwd()
         try:
+            print(f"LOAD NEW META KERNEL: {self.meta_kernel_path}")
             # change to the 'kernels' dir
             os.chdir(self.meta_kernel_path.parent)
             # unload all old kernels
@@ -427,7 +428,7 @@ class Spice(SpiceKernelLoader, metaclass=Singleton):
             ('DATE_EAR', (start_time + np.around((sun_earth_lt - sun_solo_lt), precision)*u.s).fits,
              'Start time of observation, corrected to Earth'),
             ('DATE_SUN', (start_time - np.around(sun_solo_lt, precision)*u.s).fits,
-             'Start time of observation, corrected to Su'),
+             'Start time of observation, corrected to Sun'),
         )
 
         return headers

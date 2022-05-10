@@ -5,8 +5,11 @@ import abc
 from pathlib import Path
 
 from stixcore.config.config import CONFIG
+from stixcore.util.logging import get_logger
 
 __all__ = ['SSWIDLProcessor', 'SSWIDLTask']
+
+logger = get_logger(__name__)
 
 
 class BaseTask:
@@ -58,7 +61,12 @@ if CONFIG.getboolean("IDLBridge", "enabled", fallback=False):
             super().__init__(script=script, work_dir=work_dir, params=params)
 
             self.script = '''
-
+    ; handle normal errors
+    catch, error
+    if error ne 0 then begin
+        catch, /cancel
+        print, 'A normal error occured: ' + !error_state.msg
+    endif
     !PATH=!PATH+':'+Expand_Path('+{{ gsw_path }}')
     setenv, "IDL_PROJECT_NAME=stix ppl"
     setenv, "IDL_WORKSPACE_PATH={{ gsw_path }}"
@@ -75,7 +83,11 @@ if CONFIG.getboolean("IDLBridge", "enabled", fallback=False):
                                     ssw_packages=["goes", "hessi", "spex", "xray",
                                                   "sunspice", "spice", "stix"])
 
-            results = ssw.run(self.script, args=self.pack_params())
+            results = dict()
+            try:
+                results = ssw.run(self.script, args=self.pack_params())
+            except Exception as e:
+                logger.error(e)
             os.chdir(cur_path)
             self._results = self.postprocessing(results, fits_processor)
             return self._results

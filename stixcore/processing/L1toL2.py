@@ -74,7 +74,7 @@ def process_type(files, *, processor, soopmanager, spice_kernel_path, config):
                 files = processor.write_fits(l2)
                 all_files.extend(files)
             # if a batch of X files have summed up run the IDL processing
-            if idlprocessor.opentasks > max_idlbatch:
+            if idlprocessor.opentasks >= max_idlbatch:
                 all_files.extend(idlprocessor.process())
                 idlprocessor = SSWIDLProcessor(processor)
         except NoMatchError:

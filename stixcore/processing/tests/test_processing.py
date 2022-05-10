@@ -3,7 +3,6 @@ import re
 import glob
 from pathlib import Path
 from binascii import unhexlify
-from datetime import datetime
 from unittest.mock import patch
 
 import numpy as np
@@ -113,6 +112,7 @@ def test_level_1(out_dir):
         assert diff.identical
 
 
+@pytest.mark.skip(reason="needs proper spize pointing kernels")
 def test_level_2(out_dir, spicekernelmanager):
     SOOPManager.instance = SOOPManager(Path(__file__).parent.parent.parent
                                        / 'data' / 'test' / 'soop')
@@ -130,36 +130,17 @@ def test_level_2(out_dir, spicekernelmanager):
         assert pl2.parent[0] in input_names
 
 
+@pytest.mark.skip(reason="needs proper spize pointing kernels")
 def test_level_2_auxiliary(out_dir, spicekernelmanager):
-    _spm = SpiceKernelManager(Path("/data/stix/spice/kernels/"))
-    Spice.instance = Spice(_spm.get_latest_mk())
-    print(Spice.instance.meta_kernel_path)
-
     SOOPManager.instance = SOOPManager(Path(__file__).parent.parent.parent
                                        / 'data' / 'test' / 'soop')
-
-    l1 = [Path('/home/shane/fits_20220321/L1/2020/06/07/HK/solo_L1_stix-hk-maxi_20200607_V01.fits'),
-          Path('/home/shane/fits_20220321/L1/2021/08/26/HK/solo_L1_stix-hk-maxi_20210826_V01.fits'),
-          Path('/home/shane/fits_20220321/L1/2021/08/28/HK/solo_L1_stix-hk-maxi_20210828_V01.fits'),
-          Path('/home/shane/fits_20220321/L1/2021/09/23/HK/solo_L1_stix-hk-maxi_20210923_V01.fits'),
-          Path('/home/shane/fits_20220321/L1/2021/10/09/HK/solo_L1_stix-hk-maxi_20211009_V01.fits')
-          ]
-
-    l1 = [Path(f) for f in
-          glob.glob("/home/shane/fits_20220321/**/solo_L1_stix-hk-maxi*.fits", recursive=True)]
+    l1 = [p for p in test_data.products.L1_fits if p.name.startswith('solo_L1_stix-hk-maxi')]
 
     l2 = Level2(out_dir / 'L1', out_dir)
     res = l2.process_fits_files(files=l1)
     print(res)
-    assert len(res) == len(l1) * 2
-    Product(res[0])
-    import shutil
-
-    # for f in res + l1:
-    #    shutil.copy(f, "/home/shane/fits_20220321/L2/")
-
-    shutil.copytree(out_dir / 'L2', "/home/nicky/fits_20220321/L2/")
-    print("DONE")
+    assert len(res) == len(l1) * (2 if CONFIG.getboolean("IDLBridge", "enabled", fallback=False)
+                                  else 1)
 
 
 def test_get_calibration_polynomial(idb):
@@ -298,19 +279,32 @@ def test_single_vs_batch(out_dir):
     finally:
         CONFIG.set('Logging', 'stop_on_error', str(CONTINUE_ON_ERROR))
 if __name__ == '__main__':
+    '''TO BE REMOVED
+
+    currently used to start the AUX processing on an existing L1 fits dir
+    '''
     _spm = SpiceKernelManager(Path("/data/stix/spice/kernels/"))
     Spice.instance = Spice(_spm.get_latest_mk())
     print(Spice.instance.meta_kernel_path)
 
-    dts = [datetime(2022,  4,  6, 12, 0),
-           datetime(2021, 10,  9, 12, 0),
-           datetime(2021,  9, 23, 12, 0),
-           datetime(2021,  8, 28, 12, 0),
-           datetime(2021,  8, 26, 12, 0),
-           datetime(2020,  6,  7, 12, 0)]
+    out_dir_main = Path("/home/nicky/fits_20220510")
 
-    for d in dts:
-        try:
-            print(Spice.instance.get_orientation(date=d, frame='SOLO_SUN_RTN'))
-        except Exception as e:
-            print(e)
+    SOOPManager.instance = SOOPManager(Path("/data/stix/SOLSOC/from_soc"))
+
+    l1 = [Path('/home/shane/fits_20220321/L1/2020/06/07/HK/solo_L1_stix-hk-maxi_20200607_V01.fits'),
+          Path('/home/shane/fits_20220321/L1/2021/08/26/HK/solo_L1_stix-hk-maxi_20210826_V01.fits'),
+          Path('/home/shane/fits_20220321/L1/2021/08/28/HK/solo_L1_stix-hk-maxi_20210828_V01.fits'),
+          Path('/home/shane/fits_20220321/L1/2021/09/23/HK/solo_L1_stix-hk-maxi_20210923_V01.fits'),
+          Path('/home/shane/fits_20220321/L1/2021/10/09/HK/solo_L1_stix-hk-maxi_20211009_V01.fits')
+          ]
+
+    # glob.glob("/home/shane/fits_20220321/L1/2022/01/0*/**/solo_L1_stix-hk-maxi*.fits", recursive=True)]  # noqa
+    # glob.glob("/home/shane/fits_20220321/L1/**/solo_L1_stix-hk-maxi*.fits", recursive=True)]
+
+    l1 = [Path(f) for f in
+          glob.glob("/home/shane/fits_20220321/L1/**/solo_L1_stix-hk-maxi*.fits", recursive=True)]
+
+    l2 = Level2(out_dir / 'L1', out_dir_main)
+    res = l2.process_fits_files(files=l1)
+
+    print("DONE")

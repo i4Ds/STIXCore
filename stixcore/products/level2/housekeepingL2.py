@@ -16,8 +16,11 @@ from stixcore.products import Product
 from stixcore.products.level0.housekeepingL0 import HKProduct
 from stixcore.products.product import GenericPacket, L2Mixin
 from stixcore.time import SCETime, SCETimeDelta, SCETimeRange
+from stixcore.util.logging import get_logger
 
 __all__ = ['MiniReport', 'MaxiReport', 'Auxiliary']
+
+logger = get_logger(__name__)
 
 
 class MiniReport(HKProduct, L2Mixin):
@@ -116,7 +119,6 @@ class MaxiReport(HKProduct, L2Mixin):
 class AspectIDLProcessing(SSWIDLTask):
     def __init__(self):
         script = '''
-
             workdir = '{{ work_dir }}'
             print, workdir
             cd, workdir
@@ -133,7 +135,19 @@ class AspectIDLProcessing(SSWIDLTask):
             data = []
             processed_files = []
             FOREACH hk_file, hk_files, file_index DO BEGIN
+                catch, error
+                if error ne 0 then begin
+                    print, hk_file.parentfits, 'A IDL error occured: ' + !error_state.msg
+                    data_f.error = "FATAL_IDL_ERROR"
+                    data = [data, data_f]
+                    catch, /cancel
+
+                    continue
+                endif
+
                 print, hk_file.parentfits
+                print, ""
+                flush, -1
                 processed_files = [processed_files, hk_file.parentfits]
                 data_f = []
                 for i=0L, n_elements(hk_file.DATA.cha_diode0)-1 do begin
@@ -157,23 +171,33 @@ class AspectIDLProcessing(SSWIDLTask):
                     data_f = [data_f, data_e]
                 endfor
 
+                ;fake error
+                ;if file_index eq 2 then begin
+                ;    zu = processed_files[1000]
+                ;endif
                 ; START ASPECT PROCESSING
 
                 help, data_f
                 print, n_elements(data_f)
+                flush, -1
 
                 print,"Calibrating data..."
+                flush, -1
                 ; First, substract dark currents and applies relative gains
                 calib_sas_data, data_f, calib_file
 
                 ; Now automatically compute global calibration correction factor and applies it
                 ; Note: this takes a bit of time
+                print, "scale"
+                flush, -1
                 auto_scale_sas_data, data_f, simu_data_file, aperfile
 
                 print,"Computing aspect solution..."
+                flush, -1
                 derive_aspect_solution, data_f, simu_data_file, interpol_r=1, interpol_xy=1
 
                 print,"END Computing aspect solution..."
+                flush, -1
                 ; END ASPECT PROCESSING
 
                 data = [data, data_f]
@@ -183,21 +207,25 @@ class AspectIDLProcessing(SSWIDLTask):
 
             undefine, hk_file, hk_files, data_e, i, di, data_f, d
 
-
 '''
         super().__init__(script=script, work_dir='stix/idl/processing/aspect/',
                          params={'hk_files': list()})
 
     def pack_params(self):
         packed = self.params.copy()
+        print("calling IDL for hk files:")
+        for f in packed['hk_files']:
+            print(f"    {f['parentfits']}")
         packed['hk_files'] = json.dumps(packed['hk_files'])
         return packed
 
     def postprocessing(self, result, fits_processor):
         files = []
+        print("returning from IDL")
         if 'data' in result and 'processed_files' in result:
             for file_idx, resfile in enumerate(result.processed_files):
                 file_path = Path(resfile.decode())
+                print(f"IDL postprocessing HK file: {resfile}")
                 HK = Product(file_path)
 
                 control = HK.control
@@ -245,6 +273,8 @@ class AspectIDLProcessing(SSWIDLTask):
                 aux.add_additional_header_keywords(
                     ('HISTORY', 'some data processed by STX-GSW', ''))
                 files.extend(fits_processor.write_fits(aux))
+        else:
+            logger.error("IDL ERROR")
 
         return files
 

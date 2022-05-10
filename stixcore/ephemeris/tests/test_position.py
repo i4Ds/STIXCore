@@ -34,31 +34,6 @@ def test_aux(spice):
 
 
 def test_get_orientation(spice):
-
-    from stixcore.data.test import test_data
-    _spm = SpiceKernelManager(test_data.ephemeris.KERNELS_DIR)
-    sp = Spice(_spm.get_latest_mk())
-    pos = sp.get_orientation(date=datetime(2020, 10, 7, 12), frame='SOLO_HEEQ')
-    print(pos)
-    # DOES NOT WORK
-    try:
-        pos = sp.get_orientation(date=datetime(2021, 10, 7, 12), frame='SOLO_HEEQ')
-        print(pos)
-    except Exception as e:
-        print(e)
-
-    _spm = SpiceKernelManager(Path("/data/stix/spice/kernels/"))
-    sp = Spice(_spm.get_latest_mk())
-    sp.meta_kernel_path
-    # DOES NOT WORK
-    try:
-        pos = sp.get_orientation(date=datetime(2020, 10, 7, 12), frame='SOLO_HEEQ')
-        print(pos)
-    except Exception as e:
-        print(e)
-
-    assert False
-
     # from idl sunspice
     # CSPICE_FURNSH, 'test_position_20201001_V01.mk'
     # GET_SUNSPICE_ROLL( '2020-10-7T12:00:00', 'SOLO', system='HEEQ', yaw, pitch ) SOLO_HEEQ

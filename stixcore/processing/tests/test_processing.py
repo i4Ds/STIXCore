@@ -3,7 +3,6 @@ import re
 import glob
 from pathlib import Path
 from binascii import unhexlify
-from datetime import datetime
 from unittest.mock import patch
 
 import numpy as np

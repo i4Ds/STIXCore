@@ -65,6 +65,8 @@ def rebuild_end2end(files, *, splits=3, socdir=Path("/home/shane/tm/"),
     openxml = ""
     rootxml = None
 
+    print(f"rebuild_end2end output dir: {outdir}")
+
     outdir.mkdir(parents=True, exist_ok=True)
 
     newroot = [Et.Element('Response') for i in splitfiles]
@@ -113,13 +115,13 @@ def rebuild_end2end(files, *, splits=3, socdir=Path("/home/shane/tm/"),
         shutil.rmtree(str(fitsdir))
     print(f"saved: xml files {len(newroot)}")
 
-    fitsfiles = en2end_pipeline(outdir, fitsdir)
+    fitsfiles = end2end_pipeline(outdir, fitsdir)
     for f in fitsfiles:
         print(f)
     return fitsfiles
 
 
-def en2end_pipeline(indir, fitsdir):
+def end2end_pipeline(indir, fitsdir):
     _spm = SpiceKernelManager(test_data.ephemeris.KERNELS_DIR)
     Spice.instance = Spice(_spm.get_latest_mk())
     print(f"Spice kernel @: {Spice.instance.meta_kernel_path}")
@@ -138,16 +140,17 @@ def en2end_pipeline(indir, fitsdir):
 
 
 if __name__ == '__main__':
-
-    rebuild_end2end(files, splits=3)
-
     if len(sys.argv) > 2:
         zippath = Path(sys.argv[1])
         datapath = Path(sys.argv[2])
+
+        rebuild_end2end(files, splits=3, outdir=datapath)
+
         if zippath.parent.exists() and datapath.exists():
             zipcmd = f"zip -FSrj {str(zippath)} {str(datapath)}"
             print(zipcmd)
             copyout = os.popen(zipcmd).read()
             print(copyout)
+            shutil.rmtree(datapath)
             exit()
     print("No zip")

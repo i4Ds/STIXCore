@@ -11,6 +11,7 @@ from stixcore.processing.L0toL1 import Level1
 from stixcore.processing.LBtoL0 import Level0
 from stixcore.processing.TMTCtoLB import process_tmtc_to_levelbinary
 from stixcore.products.product import Product
+from stixcore.soop.manager import SOOPManager
 from stixcore.tmtc.packets import TMTC
 
 import pytest  # noqa
@@ -126,6 +127,8 @@ def end2end_pipeline(indir, fitsdir):
     _spm = SpiceKernelManager(test_data.ephemeris.KERNELS_DIR)
     Spice.instance = Spice(_spm.get_latest_mk())
     print(f"Spice kernel @: {Spice.instance.meta_kernel_path}")
+
+    SOOPManager.instance = SOOPManager(test_data.soop.DIR)
 
     soc = SOCManager(indir)
     lb_files = process_tmtc_to_levelbinary(soc.get_files(TMTC.TM), archive_path=fitsdir)

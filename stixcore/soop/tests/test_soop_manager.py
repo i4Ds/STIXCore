@@ -1,4 +1,5 @@
 import os
+import sys
 import time
 import shutil
 import platform
@@ -34,6 +35,7 @@ def test_soop_manager(soop_manager):
            str(test_data.soop.DIR)
 
 
+@pytest.mark.skipif(sys.platform.startswith('win'), reason="does not run on windows")
 def test_soop_manager_watchdog(soop_manager):
     observer = Observer()
     soop_handler = GFTSFileHandler(soop_manager.add_soop_file_to_index,

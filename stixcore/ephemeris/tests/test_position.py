@@ -6,13 +6,14 @@ import pytest
 
 import astropy.units as u
 
+from stixcore.config.config import CONFIG
 from stixcore.ephemeris.manager import Spice, SpiceKernelManager
 from stixcore.time.datetime import SCETime
 
 
 @pytest.fixture
 def spice():
-    _spm = SpiceKernelManager(Path("/data/stix/spice/kernels/"))
+    _spm = SpiceKernelManager(Path(CONFIG.get("Paths", "spice_kernels")))
     Spice.instance = Spice(_spm.get_latest_mk())
     return Spice.instance
 
@@ -22,15 +23,24 @@ def test_get_position(spice):
     # from idl sunspice
     # CSPICE_FURNSH, 'test_position_20201001_V01.mk'
     # GET_SUNSPICE_COORD( '2020-10-7T12:00:00', 'SOLO', system='HEEQ')
-    ref = [-89274134.69290607, 116495809.40033908, -16959714.69223631] * u.km
+    ref = [-89274134.69290607, 116495809.40033908, -16959307.70363023] * u.km
     assert np.allclose(ref, res)
 
 
 def test_aux(spice):
-    d = SCETime(coarse=682300783, fine=30089)  # datetime(2021, 8, 15, 0, 1, 2, 700519
-    d = SCETime(coarse=652300783, fine=30089)  # datetime(2020, 9, 1, 18, 40, 12, 780604
+    d = spice.datetime_to_scet(datetime(2020, 10, 7, 12))
     orient, dist, car, heeq = spice.get_auxiliary_positional_data(date=d)
-    assert True
+    orient_ref = [-1.10229843, 0.00039536, -0.00033562] * u.deg
+    assert np.allclose(orient, orient_ref)
+
+    dist_ref = [147745601.79847595] * u.km
+    assert np.allclose(dist, dist_ref)
+
+    car_ref = [127.46399814, -6.5913527] * u.deg
+    assert np.allclose(car, car_ref)
+
+    heeq_ref = [-89274134.6929042, 116495809.4003411, -16959307.70363055] * u.km
+    assert np.allclose(heeq, heeq_ref)
 
 
 def test_get_orientation(spice):

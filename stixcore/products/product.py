@@ -412,6 +412,35 @@ class GenericProduct(BaseProduct):
     def parent(self):
         return np.unique(self.control['parent']).tolist()
 
+    def find_parent_products(self, root):
+        """
+        Conveniant way to get access to the parent products.
+
+        Performs a (inefficient) file search in the given root dir for files with the parent name.
+        Not recursive the only the direct parent is returned.
+
+        Parameters
+        ----------
+        root : `Path`
+            The fits root dir in which to find the parent file
+
+        Returns
+        -------
+        `Product`
+            A list of parent Producs (normally just one).
+        """
+        if self.level == 'LB':
+            return []
+        p_level = 'LB'
+        if self.level == 'L2':
+            p_level = 'L1'
+        elif self.level == 'L1':
+            p_level = 'L0'
+
+        level_dir = Path(root) / p_level
+
+        return [Product(level_dir.rglob(pfile).__next__()) for pfile in self.parent]
+
     def __add__(self, other):
         """
         Combine two products stacking data along columns and removing duplicated data using time as

@@ -12,8 +12,7 @@ from astropy.io.fits.diff import FITSDiff
 
 from stixcore.config.config import CONFIG
 from stixcore.data.test import test_data
-from stixcore.ephemeris.manager import Spice
-from stixcore.ephemeris.manager import SpiceKernelManager
+from stixcore.ephemeris.manager import Spice, SpiceKernelManager
 from stixcore.idb.idb import IDBPolynomialCalibration
 from stixcore.idb.manager import IDBManager
 from stixcore.io.soc.manager import SOCManager
@@ -23,8 +22,8 @@ from stixcore.processing.LBtoL0 import Level0
 from stixcore.processing.TMTCtoLB import process_tmtc_to_levelbinary
 from stixcore.products.level0.quicklookL0 import LightCurve
 from stixcore.products.product import Product
-from stixcore.tmtc.packets import TMTC, GenericTMPacket
 from stixcore.soop.manager import SOOPManager
+from stixcore.tmtc.packets import TMTC, GenericTMPacket
 from stixcore.util.logging import get_logger
 
 logger = get_logger(__name__)
@@ -91,19 +90,8 @@ def test_level_1(out_dir):
 
     l0 = test_data.products.L0_LightCurve_fits
     l1 = Level1(out_dir / 'LB', out_dir)
-    res = sorted(l1.process_fits_files(files=l0))
-    assert len(res) == 2
-
-    # test for https://github.com/i4Ds/STIXCore/issues/180
-    # TODO remove when solved
-    lc1 = Product(res[0])
-    lc2 = Product(res[1])
-    t = np.hstack((np.array(lc1.data['time']), (np.array(lc2.data['time']))))
-    td = np.hstack((np.array(lc1.data['timedel']), (np.array(lc2.data['timedel']))))
-    range(len(lc1.data['time'])-3, len(lc1.data['time'])+3)
-    assert np.all((t[1:] - t[0:-1]) == td[0:-1])
-    # end test for https://github.com/i4Ds/STIXCore/issues/180
-
+    res = l1.process_fits_files(files=l0)
+    assert len(res) == 1
     for fits in res:
         diff = FITSDiff(test_data.products.DIR / fits.name, fits,
                         ignore_keywords=['CHECKSUM', 'DATASUM', 'DATE', 'VERS_SW'])

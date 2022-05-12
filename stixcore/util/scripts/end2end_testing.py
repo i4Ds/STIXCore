@@ -25,12 +25,12 @@ import pytest  # noqa
 END_TO_END_TEST_FILES = [
     # L1
     # science
-    "L1/2021/06/28/SCI/solo_L1_stix-sci-xray-rpd_20210628T092301_20210628T092501_V01_2106280010-54759.fits", # noqa
-    "L1/2021/06/28/SCI/solo_L1_stix-sci-xray-cpd_20210628T190505_20210628T191500_V01_2106280009-54755.fits", # noqa
-    "L1/2021/06/28/SCI/solo_L1_stix-sci-xray-scpd_20210628T092301_20210628T092502_V01_2106280006-54720.fits", # noqa
-    "L1/2021/06/28/SCI/solo_L1_stix-sci-xray-vis_20210628T092301_20210628T092502_V01_2106280004-54716.fits", # noqa
-    "L1/2021/10/13/SCI/solo_L1_stix-sci-aspect-burst_20211013T034959_20211013T035842_V01_0.fits", # noqa
-    "L1/2021/06/28/SCI/solo_L1_stix-sci-xray-spec_20210628T230112_20210628T234143_V01_2106280041-54988.fits", # noqa
+    "L1/2021/06/28/SCI/solo_L1_stix-sci-xray-rpd_20210628T092301-20210628T092501_V01_2106280010-54759.fits", # noqa
+    "L1/2021/06/28/SCI/solo_L1_stix-sci-xray-cpd_20210628T091548-20210628T095718_V01_2106280032-54897.fits", # noqa
+    "L1/2021/06/28/SCI/solo_L1_stix-sci-xray-scpd_20210628T092301-20210628T092502_V01_2106280006-54720.fits", # noqa
+    "L1/2021/06/28/SCI/solo_L1_stix-sci-xray-vis_20210628T092301-20210628T092502_V01_2106280004-54716.fits", # noqa
+    # "L1/2021/10/13/SCI/solo_L1_stix-sci-aspect-burst_20211013T035000-20211013T035121_V01_2110130054.fits", # noqa
+    "L1/2021/06/28/SCI/solo_L1_stix-sci-xray-spec_20210628T092301-20210628T092502_V01_2106280002-54712.fits", # noqa
     # QL
     "L1/2020/06/16/QL/solo_L1_stix-ql-background_20200616_V01.fits",
     "L1/2020/06/16/QL/solo_L1_stix-ql-flareflag_20200616_V01.fits",
@@ -44,7 +44,7 @@ END_TO_END_TEST_FILES = [
 
 remote = ["http://pub099.cs.technik.fhnw.ch/data/fits_test/" + x for x in END_TO_END_TEST_FILES]
 # files = ["/home/shane/fits_test/" + x for x in files]
-files = [("/home/shane/fits_test_latest/" + x, remote[i])
+files = [("/data/stix/end2end/fits/" + x, remote[i])
          for i, x in enumerate(END_TO_END_TEST_FILES)]
 
 

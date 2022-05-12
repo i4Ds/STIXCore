@@ -40,7 +40,7 @@ def calibrate_visibility(components, components_error, flare_location=(0, 0) * u
                             * real_component_err) ** 2 + (imag_component /
                             observed_amplitude * imag_component_err) ** 2)) * modulation_efficiency
     amplitude_error = np.sqrt(amplitude_stat_error ** 2 +
-                              (systematic_error * observed_amplitude)
+                              (systematic_error * calibrated_amplitude)
                               .to(observed_amplitude.unit) ** 2)
 
     # Apply pixel correction

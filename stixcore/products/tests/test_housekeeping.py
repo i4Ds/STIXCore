@@ -112,4 +112,26 @@ def test_calibration_hk_many(idbm, tmp_path):
 
 
 if __name__ == '__main__':
-    test_calibration_hk_many(IDBManager(test_data.idb.DIR))
+    # TODO to be removed
+    # test_calibration_hk_many(IDBManager(test_data.idb.DIR))
+    from pathlib import Path
+
+    l1_a = Product(Path("/home/shane/fits_20220321/L1/2021/10/13/SCI/solo_L1_stix-sci-aspect-burst_20211013T095000-20211013T095000_V01_2110130064.fits"))  # noqa
+    l0_a = l1_a.find_parent_products("/home/shane/fits_20220321/")[0]
+    lb_a = l0_a.find_parent_products("/home/shane/fits_20220321/")[0]
+
+    gaps_a = lb_a.control['data_length'] < 4000
+    print(len(lb_a.control['data_length'][gaps_a]))
+
+    print(len(l1_a.data))
+
+    l1_b = Product(Path("/home/shane/fits_20220321/L1/2021/10/13/SCI/solo_L1_stix-sci-aspect-burst_20211013T034959-20211013T035842_V01_2110130059.fits"))  # noqa
+    l0_b = l1_b.find_parent_products("/home/shane/fits_20220321/")[0]
+    lb_b = l0_b.find_parent_products("/home/shane/fits_20220321/")[0]
+
+    gaps_b = lb_b.control['data_length'] < 4000
+    print(len(lb_b.control['data_length'][gaps_b]))
+    print(len(l1_b.data))
+    print(l1_b.data['timedel'].as_float())
+
+    print("done")

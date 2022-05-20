@@ -188,8 +188,9 @@ def test_print(packet):
 
 
 def test_single_vs_batch(out_dir):
+    CONTINUE_ON_ERROR = CONFIG.getboolean('Logging', 'stop_on_error', fallback=False)
     try:
-        CONFIG.set('Logging', 'stop_on_error', False)
+        CONFIG.set('Logging', 'stop_on_error', str(False))
 
         tm_files = test_data.tmtc.XML_TM
 
@@ -233,4 +234,4 @@ def test_single_vs_batch(out_dir):
             diff = FITSDiff(f_b, f_s, ignore_keywords=['CHECKSUM', 'DATASUM', 'DATE', 'VERS_SW'])
             assert diff.identical
     finally:
-        CONFIG.set('Logging', 'stop_on_error', True)
+        CONFIG.set('Logging', 'stop_on_error', str(CONTINUE_ON_ERROR))

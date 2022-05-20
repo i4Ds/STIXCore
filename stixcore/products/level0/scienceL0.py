@@ -4,7 +4,7 @@ from collections import defaultdict
 import numpy as np
 
 import astropy.units as u
-from astropy.table.operations import unique
+from astropy.table.operations import unique, vstack
 
 from stixcore.config.reader import read_energy_channels
 from stixcore.products.common import (
@@ -86,7 +86,7 @@ class ScienceProduct(GenericProduct, EnergyChannelsMixin):
         self.control = control
         self.data = data
         self.idb_versions = kwargs.get('idb_versions', None)
-
+        self.complete = kwargs.get('complete', True)
         self.type = 'sci'
         self.level = 'L0'
 
@@ -99,24 +99,26 @@ class ScienceProduct(GenericProduct, EnergyChannelsMixin):
         return np.unique(self.control['parent'])
 
     def __add__(self, other):
-        # if (np.all(self.control == other.control) and self.scet_timerange == other.scet_timerange
-        #         and len(self.data) == len(other.data)):
-        #     return self
-        # combined_control_index = other.control['index'] + self.control['index'].max() + 1
-        # control = vstack((self.control, other.control))
-        # cnames = control.colnames
-        # cnames.remove('index')
-        # control = unique(control, cnames)
-        #
-        # combined_data_index = other.data['control_index'] + self.control['index'].max() + 1
-        # data = vstack((self.data, other.data))
-        #
-        # data_ind = np.isin(combined_data_index, combined_control_index)
-        # data = data[data_ind]
-        #
-        # return type(self)(service_type=self.service_type, service_subtype=self.service_subtype,
-        #                   ssid=self.ssid, data=data, control=control)
-        raise(ValueError(f"Tried to combine 2 BSD products: {self} and {other}"))
+        if self.complete or other.complete:
+            raise(ValueError(f"Tried to combine 2 BSD products: \n{self} and \n{other}"))
+
+        if (np.all(self.control == other.control) and self.scet_timerange == other.scet_timerange
+                and len(self.data) == len(other.data)):
+            return self
+        combined_control_index = other.control['index'] + self.control['index'].max() + 1
+        control = vstack((self.control, other.control))
+        cnames = control.colnames
+        cnames.remove('index')
+        control = unique(control, cnames)
+
+        combined_data_index = other.data['control_index'] + self.control['index'].max() + 1
+        data = vstack((self.data, other.data))
+        # TO DO Go on here
+        data_ind = np.isin(combined_data_index, combined_control_index)
+        data = data[data_ind]
+
+        return type(self)(service_type=self.service_type, service_subtype=self.service_subtype,
+                          ssid=self.ssid, data=data, control=control)
 
     def split_to_files(self):
         """Splits the entire data into data products separated be the unique request ID.
@@ -142,7 +144,7 @@ class ScienceProduct(GenericProduct, EnergyChannelsMixin):
             #     data = self.data[data_inds]
 
             yield type(self)(service_type=self.service_type, service_subtype=self.service_subtype,
-                             ssid=self.ssid, control=control, data=data)
+                             ssid=self.ssid, control=control, data=data, complete=self.complete)
 
     @classmethod
     def from_levelb(cls, levelb, *, parent=''):

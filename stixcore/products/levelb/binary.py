@@ -217,7 +217,10 @@ class LevelB(BaseProduct):
         for seq in sequences:
             if len(seq) == 1 and flags[seq[0]] == SequenceFlag.STANDALONE:
                 complete.append(self[seq])
-            elif flags[seq[0]] == SequenceFlag.FIRST and flags[seq[-1]] == SequenceFlag.LAST:
+            elif (flags[seq[0]] == SequenceFlag.FIRST
+                  and flags[seq[-1]] == SequenceFlag.LAST
+                  and ((self.control['sequence_count'][seq[-1]] -
+                        self.control['sequence_count'][seq[0]] + 1) == len(seq))):
                 complete.append(self[seq])
             else:
                 incomplete.append(self[seq])

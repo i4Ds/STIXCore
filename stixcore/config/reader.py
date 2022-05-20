@@ -1,4 +1,5 @@
 import csv
+from pathlib import Path
 
 import numpy as np
 
@@ -87,7 +88,7 @@ def read_energy_channels(path):
     return energy_channels
 
 
-def read_subc_params(path):
+def read_subc_params(path=None):
     """Read the configuration of the sub-collimator from the configuration file.
 
     Parameters
@@ -100,4 +101,6 @@ def read_subc_params(path):
     `Table`
         params for all 32 sub-collimators
     """
+    if path is None:
+        path = Path(__file__).parent.joinpath('data', 'common', 'detector', 'stx_subc_params.csv')
     return Table.read(path, format='ascii')

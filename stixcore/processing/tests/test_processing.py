@@ -9,6 +9,7 @@ import pytest
 
 from astropy.io.fits.diff import FITSDiff
 
+from stixcore.config.config import CONFIG
 from stixcore.data.test import test_data
 from stixcore.ephemeris.manager import Spice
 from stixcore.idb.idb import IDBPolynomialCalibration
@@ -187,44 +188,49 @@ def test_print(packet):
 
 
 def test_single_vs_batch(out_dir):
-    tm_files = test_data.tmtc.XML_TM
+    try:
+        CONFIG.set('Logging', 'stop_on_error', False)
 
-    tm_files = [SOCPacketFile(f) for f in tm_files]
+        tm_files = test_data.tmtc.XML_TM
 
-    # run all as batch
-    oud_batch = out_dir / "batch"
-    l0_proc_b = Level0(oud_batch, oud_batch)
-    l1_proc_b = Level1(oud_batch, oud_batch)
-    lb_files_b = process_tmtc_to_levelbinary(tm_files, archive_path=oud_batch)
-    l0_files_b = l0_proc_b.process_fits_files(files=lb_files_b)
-    l1_files_b = l1_proc_b.process_fits_files(files=l0_files_b)
+        tm_files = [SOCPacketFile(f) for f in tm_files]
 
-    files_b = list(lb_files_b)
-    files_b.extend(l0_files_b)
-    files_b.extend(l1_files_b)
-    files_b = sorted(list(set(files_b)), key=lambda f: f.name)
+        # run all as batch
+        oud_batch = out_dir / "batch"
+        l0_proc_b = Level0(oud_batch, oud_batch)
+        l1_proc_b = Level1(oud_batch, oud_batch)
+        lb_files_b = process_tmtc_to_levelbinary(tm_files, archive_path=oud_batch)
+        l0_files_b = l0_proc_b.process_fits_files(files=lb_files_b)
+        l1_files_b = l1_proc_b.process_fits_files(files=l0_files_b)
 
-    # run step by step
-    oud_single = out_dir / "single"
-    l0_proc_s = Level0(oud_single, oud_single)
-    l1_proc_s = Level1(oud_single, oud_single)
+        files_b = list(lb_files_b)
+        files_b.extend(l0_files_b)
+        files_b.extend(l1_files_b)
+        files_b = sorted(list(set(files_b)), key=lambda f: f.name)
 
-    files_s = []
+        # run step by step
+        oud_single = out_dir / "single"
+        l0_proc_s = Level0(oud_single, oud_single)
+        l1_proc_s = Level1(oud_single, oud_single)
 
-    for tm_file in tm_files:
-        tmfile = [tm_file]
-        lb_files_s = process_tmtc_to_levelbinary(tmfile, archive_path=oud_single)
-        l0_files_s = l0_proc_s.process_fits_files(files=lb_files_s)
-        l1_files_s = l1_proc_s.process_fits_files(files=l0_files_s)
-        files_s.extend(lb_files_s)
-        files_s.extend(l0_files_s)
-        files_s.extend(l1_files_s)
+        files_s = []
 
-    files_s = sorted(list(set(files_s)), key=lambda f: f.name)
+        for tm_file in tm_files:
+            tmfile = [tm_file]
+            lb_files_s = process_tmtc_to_levelbinary(tmfile, archive_path=oud_single)
+            l0_files_s = l0_proc_s.process_fits_files(files=lb_files_s)
+            l1_files_s = l1_proc_s.process_fits_files(files=l0_files_s)
+            files_s.extend(lb_files_s)
+            files_s.extend(l0_files_s)
+            files_s.extend(l1_files_s)
 
-    assert len(files_s) == len(files_b)
+        files_s = sorted(list(set(files_s)), key=lambda f: f.name)
 
-    for i, f_b in enumerate(files_b):
-        f_s = files_s[i]
-        diff = FITSDiff(f_b, f_s, ignore_keywords=['CHECKSUM', 'DATASUM', 'DATE', 'VERS_SW'])
-        assert diff.identical
+        assert len(files_s) == len(files_b)
+
+        for i, f_b in enumerate(files_b):
+            f_s = files_s[i]
+            diff = FITSDiff(f_b, f_s, ignore_keywords=['CHECKSUM', 'DATASUM', 'DATE', 'VERS_SW'])
+            assert diff.identical
+    finally:
+        CONFIG.set('Logging', 'stop_on_error', True)

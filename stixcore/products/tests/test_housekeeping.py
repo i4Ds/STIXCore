@@ -5,7 +5,6 @@ from unittest.mock import patch
 import pytest
 
 from stixcore.data.test import test_data
-from stixcore.ephemeris.manager import Spice, SpiceKernelManager
 from stixcore.idb.manager import IDBManager
 from stixcore.io.fits.processors import FitsL0Processor, FitsL1Processor
 from stixcore.io.soc.manager import SOCPacketFile
@@ -123,30 +122,30 @@ if __name__ == '__main__':
     l0_a = l1_a.find_parent_products("/home/shane/fits_20220321/")[0]
     lb_a = l0_a.find_parent_products("/home/shane/fits_20220321/")[0]
 
-    gaps_a = lb_a.control['data_length'] < 4000
-    print(len(lb_a.control['data_length'][gaps_a]))
+    # gaps_a = lb_a.control['data_length'] < 4000
+    # print(len(lb_a.control['data_length'][gaps_a]))
 
-    print(len(l1_a.data))
+    # print(len(l1_a.data))
 
-    l1_b = Product(Path("/home/shane/fits_20220321/L1/2021/10/13/SCI/solo_L1_stix-sci-aspect-burst_20211013T034959-20211013T035842_V01_2110130059.fits"))  # noqa
-    l0_b = l1_b.find_parent_products("/home/shane/fits_20220321/")[0]
-    lb_b = l0_b.find_parent_products("/home/shane/fits_20220321/")[0]
+    # l1_b = Product(Path("/home/shane/fits_20220321/L1/2021/10/13/SCI/solo_L1_stix-sci-aspect-burst_20211013T034959-20211013T035842_V01_2110130059.fits"))  # noqa
+    # l0_b = l1_b.find_parent_products("/home/shane/fits_20220321/")[0]
+    # lb_b = l0_b.find_parent_products("/home/shane/fits_20220321/")[0]
 
-    gaps_b = lb_b.control['data_length'] < 4000
-    print(len(lb_b.control['data_length'][gaps_b]))
-    print(len(l1_b.data))
-    print(l1_b.data['timedel'].as_float())
+    # gaps_b = lb_b.control['data_length'] < 4000
+    # print(len(lb_b.control['data_length'][gaps_b]))
+    # print(len(l1_b.data))
+    # print(l1_b.data['timedel'].as_float())
 
-    #l1_f = Product(Path("/home/shane/fits_20220321/L1/2021/10/13/SCI/solo_L1_stix-sci-aspect-burst_20211013T035000-20211013T035121_V01_2110130054.fits"))  # noqa
-    l1_f = Product(Path("/home/shane/fits_20220321/L1/2021/10/13/SCI/solo_L1_stix-sci-aspect-burst_20211013T095000-20211013T095000_V01_2110130064.fits"))  # noqa
-    # l1_f = Product(Path("/home/shane/fits_20220321/L1/2021/06/28/SCI/solo_L1_stix-sci-xray-rpd_20210628T092301-20210628T092501_V01_2106280010-54759.fits"))  # noqa
+    # #l1_f = Product(Path("/home/shane/fits_20220321/L1/2021/10/13/SCI/solo_L1_stix-sci-aspect-burst_20211013T035000-20211013T035121_V01_2110130054.fits"))  # noqa
+    # l1_f = Product(Path("/home/shane/fits_20220321/L1/2021/10/13/SCI/solo_L1_stix-sci-aspect-burst_20211013T095000-20211013T095000_V01_2110130064.fits"))  # noqa
+    # # l1_f = Product(Path("/home/shane/fits_20220321/L1/2021/06/28/SCI/solo_L1_stix-sci-xray-rpd_20210628T092301-20210628T092501_V01_2106280010-54759.fits"))  # noqa
 
-    l0_f = l1_f.find_parent_products("/home/shane/fits_20220321/")[0]
-    lb_f = l0_f.find_parent_products("/home/shane/fits_20220321/")[0]
+    # l0_f = l1_f.find_parent_products("/home/shane/fits_20220321/")[0]
+    # lb_f = l0_f.find_parent_products("/home/shane/fits_20220321/")[0]
 
-    _spm = SpiceKernelManager(test_data.ephemeris.KERNELS_DIR)
-    Spice.instance = Spice(_spm.get_latest_mk())
-    print(f"Spice kernel @: {Spice.instance.meta_kernel_path}")
+    # _spm = SpiceKernelManager(test_data.ephemeris.KERNELS_DIR)
+    # Spice.instance = Spice(_spm.get_latest_mk())
+    # print(f"Spice kernel @: {Spice.instance.meta_kernel_path}")
 
     SOOPManager.instance = SOOPManager(test_data.soop.DIR)
     tmp_path = Path("/home/nicky/fitstest/")
@@ -155,7 +154,7 @@ if __name__ == '__main__':
     # "/home/shane/fits_20220321/"))
 
     l0_files = l0_proc.process_fits_files(files=[Path(
-        "/home/shane/fits_20220321/LB/21/6/20/solo_LB_stix-21-6-20_0640310400_V01.fits")])
+        "/home/shane/fits_20220321/LB/21/6/42/solo_LB_stix-21-6-42_0700358400_V01.fits")])
     p = [Product(f) for f in l0_files]
 
     print("done")

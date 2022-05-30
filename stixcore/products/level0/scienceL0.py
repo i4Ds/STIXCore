@@ -4,7 +4,6 @@ from collections import defaultdict
 import numpy as np
 
 import astropy.units as u
-from astropy.table.operations import unique
 
 from stixcore.config.reader import read_energy_channels
 from stixcore.products.common import (
@@ -131,15 +130,8 @@ class ScienceProduct(GenericProduct, EnergyChannelsMixin):
         if 'tc_packet_seq_control' in self.control.colnames:
             key_cols.insert(0, 'tc_packet_seq_control')
 
-        for ci in unique(self.control, keys=key_cols)['index']:
-            control = self.control[self.control['index'] == ci]
-            data = self.data[self.data['control_index'] == ci]
-            # for req_id in self.control['request_id']:
-            #     ctrl_inds = np.where(self.control['request_id'] == req_id)
-            #     control = self.control[ctrl_inds]
-            #     data_index = control['index'][0]
-            #     data_inds = np.where(self.data['control_index'] == data_index)
-            #     data = self.data[data_inds]
+        for control in self.control.group_by(key_cols).groups:
+            data = self.data[np.in1d(self.data['control_index'], control['index'])]
 
             yield type(self)(service_type=self.service_type, service_subtype=self.service_subtype,
                              ssid=self.ssid, control=control, data=data)

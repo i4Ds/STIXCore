@@ -13,8 +13,10 @@ from stixcore.config.config import CONFIG
 from stixcore.ephemeris.manager import Spice, SpiceKernelManager
 from stixcore.io.soc.manager import SOCManager
 from stixcore.processing.L0toL1 import Level1
+from stixcore.processing.L1toL2 import Level2
 from stixcore.processing.LBtoL0 import Level0
 from stixcore.processing.TMTCtoLB import process_tmtc_to_levelbinary
+from stixcore.soop.manager import SOOPManager
 from stixcore.tmtc.packets import TMTC
 
 
@@ -33,6 +35,7 @@ class ProductLevel(Enum):
     L0 = 0
     L1 = 1
     L2 = 2
+    ALL = 100
 
     def __str__(self):
         return self.name
@@ -159,11 +162,14 @@ if __name__ == '__main__':
 
     soc = SOCManager(Path(CONFIG.get('Paths', 'tm_archive')))
 
+    SOOPManager.instance = SOOPManager(Path(CONFIG.get('Paths', 'soop_files')))
+
     fitsdir = Path(CONFIG.get('Paths', 'fits_archive'))
     FILTER = args.filter
 
     l0_proc = Level0(fitsdir, fitsdir)
     l1_proc = Level1(fitsdir, fitsdir)
+    l2_proc = Level2(fitsdir, fitsdir)
 
     processed_files = defaultdict(list)
 
@@ -210,13 +216,11 @@ if __name__ == '__main__':
 
     if ((ProductLevel.L2.value >= args.start_level.value)
             and (args.end_level.value >= ProductLevel.L2.value)):
-        # TODO add level 2
         processed_files[ProductLevel.L2].extend(
-            # l2_proc.process_fits_files(files=processed_files[ProductLevel.L1]))
-            processed_files[ProductLevel.L1])
+            l2_proc.process_fits_files(files=processed_files[ProductLevel.L1]))
         FILTER = None
 
-    outstream = sys.stdout if not args.out_file else open(args.out_file, 'a')
+    outstream = sys.stdout if not args.out_file else open(args.out_file, 'w')
     for le in processed_files.keys():
         for f in processed_files[le]:
             print(str(f), file=outstream)

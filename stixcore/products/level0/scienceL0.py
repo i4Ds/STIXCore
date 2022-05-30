@@ -4,7 +4,6 @@ from collections import defaultdict
 import numpy as np
 
 import astropy.units as u
-from astropy.table.operations import unique
 
 from stixcore.config.reader import read_energy_channels
 from stixcore.products.common import (

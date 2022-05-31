@@ -26,11 +26,11 @@ Follow the instructions to publish a new IDB `2.26.36` version
     idbm = IDBManager()
     idbm.compile_version("2.26.36")
 
-* zip the `stixcore\data\idb\v2.26.36` folder into `v2.26.36.zip`
+* zip the `stixcore/data/idb/v2.26.36` folder into `v2.26.36.zip`
 * upload `v2.26.36.zip` to `http://pub099.cs.technik.fhnw.ch/data/idb/` (`/var/www/data/idb/v2.26.36.zip`)
-* add a new entry to `stixcore\data\idb\idbVersionHistory.json`
+* add a new entry to `stixcore/data/idb/idbVersionHistory.json`
     * use https://pub023.cs.technik.fhnw.ch/request/time-conversion/scet2utc
-    * or https://pub023.cs.technik.fhnw.ch/request/time-conversion/utc2scet
+    * or https://pub023.cs.technik.fhnw.ch/request/time-conversion/utc2scet/2021-12-09T00:00:00
 
 .. code-block::
 

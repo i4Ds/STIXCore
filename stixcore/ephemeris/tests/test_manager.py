@@ -1,61 +1,21 @@
 import os
-from unittest import mock
 
 import pytest
 
+from stixcore.config.config import CONFIG
 from stixcore.data.test import test_data
-from stixcore.ephemeris.manager import (
-    NotInSpiceContext,
-    SpiceKernelLoader,
-    SpiceKernelManager,
-    SpiceKernelType,
-)
+from stixcore.ephemeris.manager import Spice, SpiceKernelManager, SpiceKernelType
 
 
 @pytest.fixture
 def spicekernelmanager():
-    return SpiceKernelManager(test_data.ephemeris.KERNELS_DIR)
+    return SpiceKernelManager(CONFIG.get("Paths", "spice_kernels"))
 
 
-@pytest.fixture
-def TestLoader():
-    class TestSpiceKernelLoader(SpiceKernelLoader):
-        @SpiceKernelLoader.spice_context
-        def test_function(self, arg):
-            return arg
-
-    return TestSpiceKernelLoader
-
-
-def test_loader_nokernel(TestLoader):
+def test_loader_nokernel():
     with pytest.raises(ValueError) as e:
-        TestLoader(meta_kernel_path='notreal.mk')
+        Spice(meta_kernel_path='notreal.mk')
     assert str(e.value).startswith('Meta kernel not found')
-
-
-@mock.patch('spiceypy.furnsh')
-@mock.patch('spiceypy.unload')
-def test_loader_context(mock_furnsh, mock_unload, TestLoader, tmpdir):
-    tmp_file = tmpdir.join('test_20200101_V01.mk')
-    tmp_file.write('')
-    tm = TestLoader(meta_kernel_path=str(tmp_file))
-    # assert tm.kernel_date == datetime(2020, 1, 1)
-    with pytest.raises(NotInSpiceContext):
-        tm.test_function()
-
-    with tm as context:
-        res = context.test_function(1)
-
-    assert res == 1
-    assert mock_furnsh.called_once_with(str(tmp_file))
-    assert mock_unload.called_once_with(str(tmp_file))
-
-
-def test_wrap_value_field(TestLoader):
-    wrapped = TestLoader._wrap_value_field(''.join([str(i) for i in range(100)]))
-    assert wrapped == """'012345678910111213141516171819202122232425262728293031323334353637383940414243+'
-'444546474849505152535455565758596061626364656667686970717273747576777879808182+'
-'8384858687888990919293949596979899'"""
 
 
 def test_manager_fail_create():

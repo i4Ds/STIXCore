@@ -67,7 +67,7 @@ class SOCPacketFile:
         elif self.tmtc == TMTC.TM:
             for node in root.iter('PktRawResponseElement'):
                 packet_id = int(node.attrib['packetID'])
-                packet = node.getchildren()[0]
+                packet = list(node)[0]
                 packet_binary = unhexlify(packet.text)
                 # Not sure why guess and extra moc header
                 yield packet_id, packet_binary[76:]

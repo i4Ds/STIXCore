@@ -1,4 +1,3 @@
-from enum import IntEnum
 from collections import defaultdict
 
 import numpy as np
@@ -8,29 +7,13 @@ from astropy.table.table import Table
 
 from stixcore.products.product import BaseProduct
 from stixcore.time import SCETime
-from stixcore.tmtc.packets import TMPacket
+from stixcore.tmtc.packets import SequenceFlag, TMPacket
 from stixcore.util.logging import get_logger
 
-__all__ = ['LevelB', 'SequenceFlag']
+__all__ = ['LevelB']
 
 logger = get_logger(__name__)
 logger.setLevel('DEBUG')
-
-
-class SequenceFlag(IntEnum):
-    """Enum class for the packet sequence flag."""
-
-    STANDALONE = 3
-    """A singelton standalone package. No sequence at all."""
-
-    FIRST = 1
-    """The First package in a sequence. More to come."""
-
-    MIDDLE = 0
-    """Continouse packages in a sequence. More to come."""
-
-    LAST = 2
-    """The Last packet in a sequence. No more to come."""
 
 
 class LevelB(BaseProduct):
@@ -234,17 +217,20 @@ class LevelB(BaseProduct):
         for seq in sequences:
             if len(seq) == 1 and flags[seq[0]] == SequenceFlag.STANDALONE:
                 complete.append(self[seq])
-            elif flags[seq[0]] == SequenceFlag.FIRST and flags[seq[-1]] == SequenceFlag.LAST:
+            elif (flags[seq[0]] == SequenceFlag.FIRST
+                  and flags[seq[-1]] == SequenceFlag.LAST
+                  and ((self.control['sequence_count'][seq[-1]] -
+                        self.control['sequence_count'][seq[0]] + 1) == len(seq))):
                 complete.append(self[seq])
             else:
                 incomplete.append(self[seq])
-                logger.warning('Incomplete sequence')
+                logger.warning('Incomplete sequence %s, %s', self, seq)
 
         return complete, incomplete
 
     @classmethod
     def from_tm(cls, tmfile):
-        """Process the given SOCFile and creates LevelB FITS files.
+        """Process the given SOC file and creates LevelB FITS files.
 
         Parameters
         ----------

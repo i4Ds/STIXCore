@@ -65,8 +65,12 @@ def apply_raw_to_engineering(raw, args):
         logger.error(er)
         raise ValueError(er)
 
+    # hardcoding RCR override do not pass back "State_0" ...
+    if raw.name in ['NIX00276', 'NIX00401']:
+        en = raw.value
+
     return EngineeringParameter(name=raw.name, value=raw.value, idb_info=raw.idb_info,
-                                engineering=en, unit=param.PCF_UNIT)
+                                engineering=en, unit=param.PCF_UNIT, order=raw.order)
 
 
 def raw_to_engineering(packet):
@@ -118,62 +122,74 @@ def raw_to_engineering_product(product, idbm):
         idb_ranges['obt_end'][i] = idb_ranges['obt_start'][i+1]
     idb_ranges['obt_end'][-1] = SCETime.max_time().as_float()
 
-    for col in product.data.colnames:
-        if not (hasattr(product.data[col], "meta")
-                and product.data[col].meta.get("PCF_CURTX", None) is not None
-                and product.data[col].meta["NIXS"] is not None):
-            continue
-        col_n += 1
-        c = 0
-
-        # clone the current column into a new column as the content might be replaced chunk wise
-        product.data[CCN] = product.data[col]
-
-        for idbversion, starttime, endtime in idb_ranges.iterrows():
-            idb = idbm.get_idb(idbversion)
-            idb_time_period = np.where((starttime <= product.data['time'].as_float()) &
-                                       (product.data['time'].as_float() < endtime))[0]
-            if len(idb_time_period) < 1:
+    for table, timecol in [(product.data, 'time'), (product.control, 'scet_coarse')]:
+        if timecol == 'scet_coarse':
+            if 'scet_coarse' in table.colnames:
+                timevector = SCETime(coarse=table['scet_coarse'],
+                                     fine=table['scet_fine']).as_float()
+            else:
+                # product per request (xray: no 'scet_coarse' in control)
+                # do not have engineering values in control
                 continue
-            c += len(idb_time_period)
-            calib_param = idb.get_params_for_calibration(
-                                    product.service_type,
-                                    product.service_subtype,
-                                    (product.ssid if hasattr(product, "ssid") else None),
-                                    product.data[col].meta["NIXS"],
-                                    product.data[col].meta["PCF_CURTX"])[0]
+        else:  # time
+            timevector = table['time'].as_float()
 
-            raw = Parameter(product.data[col].meta["NIXS"],
-                            product.data[idb_time_period][col], None)
+        for col in table.colnames:
+            if not (hasattr(table[col], "meta")
+                    # and table[col].meta.get("PCF_CURTX", None) is not None
+                    and not isinstance(table[col].meta.get("PCF_CURTX", None), (type(None), list))
+                    and table[col].meta["NIXS"] is not None):
+                continue
+            col_n += 1
+            c = 0
 
-            eng = apply_raw_to_engineering(raw, (calib_param, idb))
+            # clone the current column into a new column as the content might be replaced chunk wise
+            table[CCN] = table[col]
 
-            # cast the type of the column if needed
-            if product.data[CCN].dtype != eng.engineering.dtype:
-                product.data[CCN] = product.data[CCN].astype(eng.engineering.dtype)
+            for idbversion, starttime, endtime in idb_ranges.iterrows():
+                idb = idbm.get_idb(idbversion)
 
-            # set the unit if needed
-            if hasattr(eng.engineering, "unit") and \
-               product.data[CCN].unit != eng.engineering.unit:
-                meta = product.data[col].meta
-                product.data[CCN].unit = eng.engineering.unit
-                # restore the meta info
-                setattr(product.data[CCN], "meta", meta)
+                idb_time_period = np.where((starttime <= timevector) & (timevector < endtime))[0]
+                if len(idb_time_period) < 1:
+                    continue
+                c += len(idb_time_period)
+                calib_param = idb.get_params_for_calibration(
+                                        product.service_type,
+                                        product.service_subtype,
+                                        (product.ssid if hasattr(product, "ssid") else None),
+                                        table[col].meta["NIXS"],
+                                        table[col].meta["PCF_CURTX"])[0]
 
-            # override the data into the new column
-            product.data[CCN][idb_time_period] = eng.engineering
+                raw = Parameter(table[col].meta["NIXS"],
+                                table[idb_time_period][col], None)
 
-        # replace the old column with the converted
-        product.data[col] = product.data[CCN]
-        product.data[col].meta = product.data[CCN].meta
-        # delete the generic column for conversion
-        del product.data[CCN]
-        # delete the calibration key from meta as it is now processed
-        del product.data[col].meta["PCF_CURTX"]
+                eng = apply_raw_to_engineering(raw, (calib_param, idb))
 
-        if c != len(product.data):
-            logger.warning("Not all time bins got converted to engineering" +
-                           "values due to bad idb periods." +
-                           f"\n Converted bins: {c}\ntotal bins {len(product.data)}")
+                # cast the type of the column if needed
+                if table[CCN].dtype != eng.engineering.dtype:
+                    table[CCN] = table[CCN].astype(eng.engineering.dtype)
+
+                # set the unit if needed
+                if hasattr(eng.engineering, "unit") and table[CCN].unit != eng.engineering.unit:
+                    meta = table[col].meta
+                    table[CCN].unit = eng.engineering.unit
+                    # restore the meta info
+                    setattr(table[CCN], "meta", meta)
+
+                # override the data into the new column
+                table[CCN][idb_time_period] = eng.engineering
+
+            # replace the old column with the converted
+            table[col] = table[CCN]
+            table[col].meta = table[CCN].meta
+            # delete the generic column for conversion
+            del table[CCN]
+            # delete the calibration key from meta as it is now processed
+            del table[col].meta["PCF_CURTX"]
+
+            if c != len(table):
+                logger.warning("Not all time bins got converted to engineering" +
+                               "values due to bad idb periods." +
+                               f"\n Converted bins: {c}\ntotal bins {len(table)}")
 
     return col_n

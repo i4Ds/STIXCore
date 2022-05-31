@@ -1,5 +1,4 @@
 """Wrap all test files into data object."""
-import os
 from pathlib import Path
 
 data_dir = Path(__file__).parent
@@ -8,8 +7,6 @@ test_dir = data_dir.joinpath('test')
 
 class EphemerisTestData:
     def __init__(self, data_dir):
-        self.META_KERNEL_POS = data_dir / "ephemeris" / 'mk' / "test_position_20201001_V01.mk"
-        self.META_KERNEL_TIME = data_dir / "ephemeris" / 'mk' / "test_time_20201001_V01.mk"
         self.KERNELS_DIR = data_dir / "ephemeris" / "spice" / "kernels"
         self.__doc__ = "\n".join([f'{str(k)}: {repr(v)}\n\n' for k, v in self.__dict__.items()])
 
@@ -29,7 +26,9 @@ class IDBTestData:
 class IDBTestProduct:
     def __init__(self, data_dir):
         self.DIR = data_dir / "products"
-        self.L0_LightCurve_fits = [self.DIR / "solo_L0_stix-ql-lightcurve_0664070400_V01.fits"]
+        self.DIREND2END = self.DIR / "end2end"
+        self.L0_LightCurve_fits = [self.DIR / "solo_L0_stix-ql-lightcurve_0664070400_V01.fits",
+                                   self.DIR / "solo_L0_stix-ql-lightcurve_0664156800_V01.fits"]
         self.L1_LightCurve_fits = [self.DIR / "solo_L1_stix-ql-lightcurve_20210117_V01.fits",
                                    self.DIR / "solo_L1_stix-ql-lightcurve_20210116_V01.fits"]
         self.LB_21_6_30_fits = self.DIR / "solo_LB_stix-21-6-30_0664156800_V01.fits"
@@ -39,10 +38,10 @@ class IDBTestProduct:
 class TMTCTestData:
     def __init__(self, data_dir):
         self.TM_DIR = data_dir / "tmtc" / "tm"
-        for path, subdirs, files in os.walk(self.TM_DIR):
-            for name in files:
-                p_name = f"TM_{name.replace('.hex','')}"
-                self.__dict__[p_name] = Path(os.path.join(path, name))
+        for f in self.TM_DIR.rglob("*.hex"):
+            p_name = f"TM_{f.name.replace('.hex','')}"
+            self.__dict__[p_name] = f
+        self.XML_TM = list(self.TM_DIR.rglob("*.xml"))
         self.__doc__ = "\n".join([f'{str(k)}: {repr(v)}\n\n' for k, v in self.__dict__.items()])
 
 

@@ -1,19 +1,29 @@
-import sys
+import io
+import re
 from pathlib import Path
+from binascii import unhexlify
+from unittest.mock import patch
 
 import numpy as np
 import pytest
 
 from astropy.io.fits.diff import FITSDiff
 
+from stixcore.config.config import CONFIG
 from stixcore.data.test import test_data
+from stixcore.ephemeris.manager import Spice
 from stixcore.idb.idb import IDBPolynomialCalibration
 from stixcore.idb.manager import IDBManager
-from stixcore.io.soc.manager import SOCManager
+from stixcore.io.soc.manager import SOCManager, SOCPacketFile
 from stixcore.processing.L0toL1 import Level1
 from stixcore.processing.LBtoL0 import Level0
 from stixcore.processing.TMTCtoLB import process_tmtc_to_levelbinary
-from stixcore.tmtc.packets import TMTC
+from stixcore.products.level0.quicklookL0 import LightCurve
+from stixcore.products.product import Product
+from stixcore.tmtc.packets import TMTC, GenericTMPacket
+from stixcore.util.logging import get_logger
+
+logger = get_logger(__name__)
 
 
 @pytest.fixture
@@ -31,7 +41,14 @@ def out_dir(tmp_path):
     return tmp_path
 
 
-@pytest.mark.xfail(sys.platform == "win32", reason="numpy defaults to int32 on windows")
+@pytest.fixture
+def packet():
+    data = '0da4c0090066100319000000000000000212000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000b788014000000000ffffffff000000000000000000000000000000000000000000000000000000001f114cffffff' # noqa:
+    packet = GenericTMPacket('0x' + data)
+    return packet
+
+
+@pytest.mark.skip(reason="will be replaces with end2end test soon")
 def test_level_b(soc_manager, out_dir):
     files_to_process = list(soc_manager.get_files(TMTC.TM))
     res = process_tmtc_to_levelbinary(files_to_process=files_to_process[0:1], archive_path=out_dir)
@@ -44,7 +61,7 @@ def test_level_b(soc_manager, out_dir):
     assert diff.identical
 
 
-@pytest.mark.xfail(sys.platform == "win32", reason="numpy defaults to int32 on windows")
+@pytest.mark.skip(reason="will be replaces with end2end test soon")
 def test_level_0(out_dir):
     lb = test_data.products.LB_21_6_30_fits
     l0 = Level0(out_dir / 'LB', out_dir)
@@ -58,12 +75,23 @@ def test_level_0(out_dir):
         assert diff.identical
 
 
-@pytest.mark.xfail(sys.platform == "win32", reason="numpy defaults to int32 on windows")
+@pytest.mark.skip(reason="will be replaces with end2end test soon")
 def test_level_1(out_dir):
     l0 = test_data.products.L0_LightCurve_fits
     l1 = Level1(out_dir / 'LB', out_dir)
-    res = l1.process_fits_files(files=l0)
+    res = sorted(l1.process_fits_files(files=l0))
     assert len(res) == 2
+
+    # test for https://github.com/i4Ds/STIXCore/issues/180
+    # TODO remove when solved
+    lc1 = Product(res[0])
+    lc2 = Product(res[1])
+    t = np.hstack((np.array(lc1.data['time']), (np.array(lc2.data['time']))))
+    td = np.hstack((np.array(lc1.data['timedel']), (np.array(lc2.data['timedel']))))
+    range(len(lc1.data['time'])-3, len(lc1.data['time'])+3)
+    assert np.all((t[1:] - t[0:-1]) == td[0:-1])
+    # end test for https://github.com/i4Ds/STIXCore/issues/180
+
     for fits in res:
         diff = FITSDiff(test_data.products.DIR / fits.name, fits,
                         ignore_keywords=['CHECKSUM', 'DATASUM', 'DATE', 'VERS_SW'])
@@ -80,3 +108,130 @@ def test_get_calibration_polynomial(idb):
 
     assert (poly(np.array([1, 2, 3])) == np.array([poly.A[1], poly.A[1] * 2, poly.A[1] * 3])).all()
     assert poly([1, 2, 3]) == [poly.A[1], poly.A[1] * 2, poly.A[1] * 3]
+
+
+@patch('stixcore.io.soc.manager.SOCPacketFile')
+def test_pipeline(socpacketfile, out_dir):
+
+    l0_proc = Level0(out_dir / 'LB', out_dir)
+    l1_proc = Level1(out_dir / 'LB', out_dir)
+
+    all = True
+    report = dict()
+
+    exclude = ['__doc__', 'TM_DIR', 'XML_TM',
+               # the following TMs have invalid times: year 2086
+               'TM_1_2_48000', 'TM_236_19', 'TM_237_12',
+               'TM_239_14', 'TM_5_4_54304', 'TM_6_6_53250']
+    # singletest = ['TM_21_6_42_complete']
+
+    for pid, fkey in enumerate([k for k in test_data.tmtc.__dict__.keys()
+                                if ((k not in exclude)
+                                    and not (k.startswith('TM_21_6_')
+                                             and not k.endswith('_complete')))]):
+        # for pid, fkey in enumerate([k for k in test_data.tmtc.__dict__.keys()
+        #                            if k in singletest]):
+        hex_file = test_data.tmtc.__dict__[fkey]
+
+        try:
+            with hex_file.open('r') as file:
+                hex = file.readlines()
+
+            socpacketfile.get_packet_binaries.return_value = list(
+                [(pid*1000 + i, unhexlify(re.sub(r"\s+", "", h))) for i, h in enumerate(hex)])
+            socpacketfile.file = hex_file
+
+            lb_files = process_tmtc_to_levelbinary([socpacketfile], archive_path=out_dir)
+            assert len(lb_files) > 0
+
+            l0_files = l0_proc.process_fits_files(files=lb_files)
+            assert len(l0_files) > 0
+
+            l1_files = l1_proc.process_fits_files(files=l0_files)
+            assert len(l1_files) > 0
+
+            print(f"OK {fkey}: {l1_files}")
+        except Exception as e:
+            report[fkey] = e
+            all = False
+
+    if not all:
+        for key, error in report.items():
+            logger.error(f"Error while processing TM file: {key}")
+            logger.error(error)
+        raise ValueError("Pipline Test went wrong")
+
+
+def test_export_single(packet):
+    p = packet.export(descr=True)
+    assert isinstance(p, dict)
+    assert p['spice_kernel'] == Spice.instance.meta_kernel_path.name
+
+
+def test_export_all():
+    lb = Product(test_data.products.LB_21_6_30_fits)
+    l0 = LightCurve.from_levelb(lb, parent="raw.xml")
+
+    assert hasattr(l0, "packets")
+    assert len(l0.packets.packets) > 0
+    for packet in l0.packets.packets:
+        p = packet.export(descr=True)
+        assert isinstance(p, dict)
+        assert p['spice_kernel'] == Spice.instance.meta_kernel_path.name
+
+
+def test_print(packet):
+    ms = io.StringIO()
+    packet.print(descr=True, stream=ms)
+    ms.seek(0)
+    assert len(ms.read()) > 100
+
+
+def test_single_vs_batch(out_dir):
+    CONTINUE_ON_ERROR = CONFIG.getboolean('Logging', 'stop_on_error', fallback=False)
+    try:
+        CONFIG.set('Logging', 'stop_on_error', str(False))
+
+        tm_files = test_data.tmtc.XML_TM
+
+        tm_files = [SOCPacketFile(f) for f in tm_files]
+
+        # run all as batch
+        oud_batch = out_dir / "batch"
+        l0_proc_b = Level0(oud_batch, oud_batch)
+        l1_proc_b = Level1(oud_batch, oud_batch)
+        lb_files_b = process_tmtc_to_levelbinary(tm_files, archive_path=oud_batch)
+        l0_files_b = l0_proc_b.process_fits_files(files=lb_files_b)
+        l1_files_b = l1_proc_b.process_fits_files(files=l0_files_b)
+
+        files_b = list(lb_files_b)
+        files_b.extend(l0_files_b)
+        files_b.extend(l1_files_b)
+        files_b = sorted(list(set(files_b)), key=lambda f: f.name)
+
+        # run step by step
+        oud_single = out_dir / "single"
+        l0_proc_s = Level0(oud_single, oud_single)
+        l1_proc_s = Level1(oud_single, oud_single)
+
+        files_s = []
+
+        for tm_file in tm_files:
+            tmfile = [tm_file]
+            lb_files_s = process_tmtc_to_levelbinary(tmfile, archive_path=oud_single)
+            l0_files_s = l0_proc_s.process_fits_files(files=lb_files_s)
+            l1_files_s = l1_proc_s.process_fits_files(files=l0_files_s)
+            files_s.extend(lb_files_s)
+            files_s.extend(l0_files_s)
+            files_s.extend(l1_files_s)
+
+        files_s = sorted(list(set(files_s)), key=lambda f: f.name)
+
+        assert len(files_s) == len(files_b)
+
+        for i, f_b in enumerate(files_b):
+            f_s = files_s[i]
+            diff = FITSDiff(f_b, f_s, ignore_keywords=['CHECKSUM', 'DATASUM', 'DATE', 'VERS_SW'])
+            assert diff.identical
+    finally:
+        CONFIG.set('Logging', 'stop_on_error', str(CONTINUE_ON_ERROR))

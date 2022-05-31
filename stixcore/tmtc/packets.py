@@ -1,7 +1,10 @@
-from enum import Enum
+from enum import Enum, IntEnum
+from pprint import pprint
+from collections import defaultdict
 
 import numpy as np
 
+from stixcore.ephemeris.manager import Spice
 from stixcore.idb.idb import IDB
 from stixcore.idb.manager import IDBManager
 from stixcore.time import SCETime
@@ -9,7 +12,7 @@ from stixcore.tmtc.parameter import CompressedParameter, EngineeringParameter, P
 from stixcore.tmtc.parser import parse_binary, parse_bitstream, parse_variable
 
 __all__ = ['TMTC', 'SourcePacketHeader', 'TMDataHeader', 'TCDataHeader', 'GenericPacket',
-           'TMPacket', 'TCPacket', 'GenericTMPacket', 'PacketSequence']
+           'TMPacket', 'TCPacket', 'GenericTMPacket', 'PacketSequence', 'SequenceFlag']
 
 from stixcore.util.logging import get_logger
 
@@ -53,6 +56,22 @@ class TMTC(Enum):
     TC = 1
 
 
+class SequenceFlag(IntEnum):
+    """Enum class for the packet sequence flag."""
+
+    STANDALONE = 3
+    """A singelton standalone package. No sequence at all."""
+
+    FIRST = 1
+    """The First package in a sequence. More to come."""
+
+    MIDDLE = 0
+    """Continouse packages in a sequence. More to come."""
+
+    LAST = 2
+    """The Last packet in a sequence. No more to come."""
+
+
 class SourcePacketHeader:
     """
     Source packet header common to all packets.
@@ -92,6 +111,15 @@ class SourcePacketHeader:
         # if (self.data_length + 7) * 8 != self.bitstream.len:
         #     raise ValueError(f'Source packet header data length: {self.data_length} '
         #                      f'does not match data length {(self.bitstream.len/8)-7}.')
+
+    @property
+    def apid(self):
+        return (self.process_id << 4) | self.packet_category
+
+    @property
+    def packet_id(self):
+        return (self.version << 13) | (self.packet_type << 12) |\
+               (self.header_flag << 11) | self.apid
 
     def __repr__(self):
         param_names_values = [f'{k}={v}' for k, v in self.__dict__.items() if k != 'bitstream']
@@ -482,7 +510,9 @@ class GenericTMPacket:
                                             self.data_header.service_subtype,
                                             self.pi1_val)
 
-        self.data = parse_variable(self.source_packet_header.bitstream, tree)
+        data, structure = parse_variable(self.source_packet_header.bitstream, tree)
+        self.data = data
+        self.tree = structure
         # self.group_repeaters()
 
     def group_repeaters(self):
@@ -550,6 +580,77 @@ class GenericTMPacket:
                 return dict(self._SCHEMAS[self.pi1_val])  # return a copy no reference
         return None
 
+    def print(self, *, descr=False, stream=None):
+        """Print the packet in a verbose and formated way to the given stream or stdout.
+
+        Parameters
+        ----------
+        descr : bool, optional
+            should a description (from IDB) be added to the printout , by default False
+        stream : IO, optional
+            the stream to print in, by default None then stdout
+        """
+        pprint(self.export(descr=descr), stream=stream)
+
+    def export(self, descr=False):
+        """Export the packet in dict object that can be used for JSON export.
+
+        Parameters
+        ----------
+         descr : bool, optional
+            should a description (from IDB) be added to each NIX parameter, by default False
+
+        Returns
+        -------
+        dict
+            a dict object with all data
+        """
+        h = dict()
+        p = dict()
+        d = list()
+
+        fdate = self.data_header.datetime.to_datetime().isoformat(timespec='milliseconds')
+
+        h['SCET'] = self.data_header.datetime.as_float().value
+        h['SPID'] = self.spid
+        h['SSID'] = self.pi1_val
+        h['TMTC'] = 'TM' if isinstance(self, GenericTMPacket) else 'TC'
+        h['UTC'] = fdate
+        h['apid'] = self.source_packet_header.apid
+        h['category'] = self.source_packet_header.packet_category
+        h['coarse_time'] = int(self.data_header.datetime.coarse)
+        h['descr'] = self.get_idb().get_spid_info(self.spid)[0][0]
+        h['destination'] = self.data_header.destination_id
+        h['fine_time'] = int(self.data_header.datetime.fine)
+        h['header_flag'] = self.source_packet_header.header_flag
+        h['obt_utc'] = fdate
+        h['packet_id'] = self.source_packet_header.packet_id
+        h['packet_type'] = self.source_packet_header.packet_type
+        h['pid'] = self.source_packet_header.process_id
+        h['raw_length'] = self.source_packet_header.data_length + 7
+        h['seg_flag'] = self.source_packet_header.sequence_flag
+        h['segmentation'] = str(SequenceFlag(self.source_packet_header.sequence_flag))
+        h['seq_count'] = self.source_packet_header.sequence_count
+        h['service_subtype'] = self.data_header.service_subtype
+        h['service_type'] = self.data_header.service_type
+        h['unix_time'] = self.data_header.datetime.to_datetime().timestamp()
+        h['version'] = self.source_packet_header.version
+
+        exportstate = defaultdict(int)
+
+        for par in self.tree:
+            d.append(par.export(self.data, exportstate, descr=descr))
+
+        p['_id'] = None
+        p['hash'] = ''
+        p['header'] = h
+        p['parameters'] = d
+        p['idb_version'] = self.get_idb().version
+        p['spice_kernel'] = Spice.instance.meta_kernel_path.name
+        p['run_id'] = 0
+
+        return p
+
 
 class PacketSequence:
     """
@@ -562,6 +663,7 @@ class PacketSequence:
         self.data = []
         self.spid = []
         self.pi1_val = []
+        self.packets = packets
         for packet in packets:
             try:
                 has_data = getattr(packet.data.get('NIX00089'), 'value', 1) > 0

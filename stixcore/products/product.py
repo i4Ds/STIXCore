@@ -21,14 +21,65 @@ from stixcore.tmtc.packet_factory import Packet
 from stixcore.tmtc.packets import GenericPacket, PacketSequence
 
 __all__ = ['GenericProduct', 'ProductFactory', 'Product', 'ControlSci',
-           'Control', 'Data', 'L1Mixin', 'EnergyChannelsMixin']
+           'Control', 'Data', 'L1Mixin', 'EnergyChannelsMixin', 'read_qtable']
 
 from collections import defaultdict
 
-from stixcore.products.common import _get_energies_from_mask
+from stixcore.products.common import _get_energies_from_mask, get_min_uint
 from stixcore.util.logging import get_logger
 
 logger = get_logger(__name__)
+
+BITS_TO_UINT = {
+    8: np.ubyte,
+    16: np.uint16,
+    32: np.uint32,
+    64: np.uint64
+}
+
+
+def read_qtable(file, hdu, hdul=None):
+    """
+    Read a fits file into a QTable and maintain dtypes of columns with units
+
+    Hack to work around QTable not respecting the dtype in fits file see
+    https://github.com/astropy/astropy/issues/12494
+
+    Parameters
+    ----------
+    file : `str` or `pathlib.Path`
+        Fits file
+    hdu : `str`
+        The name of the extension
+    hdul : optional `astropy.io.fits.HDUList`
+        The HDU list for the fits file
+
+    Returns
+    -------
+    `astropy.table.QTable`
+        The corrected QTable with correct data types
+    """
+    qtable = QTable.read(file, hdu)
+    if hdul is None:
+        hdul = fits.open(file)
+
+    for col in hdul[hdu].data.columns:
+        if col.unit:
+            logger.debug(f'Unit present dtype correction needed for {col}')
+            dtype = col.dtype
+
+            if col.bzero:
+                logger.debug(f'Unit present dtype and bzero correction needed for {col}')
+                bits = np.log2(col.bzero)
+                if bits.is_integer():
+                    dtype = BITS_TO_UINT[int(bits+1)]
+
+            if hasattr(dtype, 'subdtype'):
+                dtype = dtype.base
+
+            qtable[col.name] = qtable[col.name].astype(dtype)
+
+    return qtable
 
 
 class AddParametersMixin:
@@ -78,31 +129,45 @@ class ProductFactory(BasicRegistrationFactory):
             if isinstance(args[0], (str, Path)):
                 file_path = Path(args[0])
                 header = fits.getheader(file_path)
-                service_type = int(header.get('stype'))
-                service_subtype = int(header.get('sstype'))
-                parent = header.get('parent').split(';')
-                raw = header.get('raw_file').split(';')
+
+                service_type = int(header.get('stype')) if 'stype' in header else 0
+                service_subtype = int(header.get('sstype')) if 'sstype' in header else 0
+                parent = header.get('parent').split(';') if 'parent' in header else ''
+                raw = header.get('raw_file').split(';') if 'raw_file' in header else ''
                 try:
                     ssid = int(header.get('ssid'))
-                except ValueError:
+                except (ValueError, TypeError):
                     ssid = None
                 level = header.get('Level')
                 header.get('TIMESYS')
-                control = QTable.read(file_path, hdu='CONTROL')
+
+                hdul = fits.open(file_path)
+                control = read_qtable(file_path, hdu='CONTROL', hdul=hdul)
+
                 # Weird issue where time_stamp wasn't a proper table column?
                 if 'time_stamp' in control.colnames:
                     ts = control['time_stamp'].value
                     control.remove_column('time_stamp')
                     control['time_stamp'] = ts * u.s
-                data = QTable.read(file_path, hdu='DATA')
 
-                if level != 'LB':
+                data = read_qtable(file_path, hdu='DATA', hdul=hdul)
 
+                if level == 'LL01':
+                    # TODO remova that hack in favor for a proper header information after
+                    # https://github.com/i4Ds/STIXCore/issues/224 is solved
+                    if "lightcurve" in args[0]:
+                        service_type = 21
+                        service_subtype = 6
+                        ssid = 30
+                    if "flareflag" in args[0]:
+                        service_type = 21
+                        service_subtype = 6
+                        ssid = 34
+
+                if level not in ['LB', 'LL01']:
                     data['timedel'] = SCETimeDelta(data['timedel'])
-                    try:
-                        offset = SCETime.from_string(header['OBT_BEG'], sep=':')
-                    except ValueError:
-                        offset = SCETime.from_string(header['OBT_BEG'], sep='f')
+                    offset = SCETime.from_float(header['OBT_BEG']*u.s)
+
                     try:
                         control['time_stamp'] = SCETime.from_float(control['time_stamp'])
                     except KeyError:
@@ -113,13 +178,13 @@ class ProductFactory(BasicRegistrationFactory):
                 energies = None
                 if level == 'L1':
                     try:
-                        energies = QTable.read(file_path, hdu='ENERGIES')
+                        energies = read_qtable(file_path, hdu='ENERGIES')
                     except KeyError:
-                        logger.warn(f"no ENERGIES data found in FITS: {file_path}")
+                        logger.info(f"no ENERGIES data found in FITS: {file_path}")
                 idb_versions = defaultdict(SCETimeRange)
                 if level in ('L0', 'L1'):
                     try:
-                        idbt = QTable.read(file_path, hdu='IDB_VERSIONS')
+                        idbt = read_qtable(file_path, hdu='IDB_VERSIONS')
                         for row in idbt.iterrows():
                             idb_versions[row[0]] = SCETimeRange(start=SCETime.from_float(row[1]),
                                                                 end=SCETime.from_float(row[2]))
@@ -233,7 +298,7 @@ class Control(QTable, AddParametersMixin):
             control['integration_time'] = np.zeros_like(control['scet_coarse'], np.float) * u.s
 
         # control = unique(control)
-        control['index'] = np.arange(len(control))
+        control['index'] = np.arange(len(control)).astype(get_min_uint(len(control)))
 
         return control
 
@@ -325,6 +390,7 @@ class GenericProduct(BaseProduct):
         self.data = data
         self.idb_versions = idb_versions
         self.level = kwargs.get('level')
+        self.__dict__.update(kwargs)
 
     @property
     def scet_timerange(self):
@@ -338,6 +404,55 @@ class GenericProduct(BaseProduct):
     @property
     def parent(self):
         return np.unique(self.control['parent']).tolist()
+
+    def find_parent_products(self, root):
+        """
+        Conveniant way to get access to the parent products.
+
+        Performs a (inefficient) file search in the given root dir for files with the parent name.
+        Not recursive the only the direct parent is returned.
+
+        Parameters
+        ----------
+        root : `Path`
+            The fits root dir in which to find the parent file
+
+        Returns
+        -------
+        `Product`
+            A list of parent Producs (normally just one).
+        """
+
+        return [Product(f) for f in self.find_parent_files(root)]
+
+    def find_parent_files(self, root):
+        """
+        Conveniant way to get access to the parent files.
+
+        Performs a (inefficient) file search in the given root dir for files with the parent name.
+        Not recursive the only the direct parent is returned.
+
+        Parameters
+        ----------
+        root : `Path`
+            The fits root dir in which to find the parent file
+
+        Returns
+        -------
+        `Path`
+            A list of parent files pathes (normally just one).
+        """
+        if self.level == 'LB':
+            return []
+        p_level = 'LB'
+        if self.level == 'L2':
+            p_level = 'L1'
+        elif self.level == 'L1':
+            p_level = 'L0'
+
+        level_dir = Path(root) / p_level
+
+        return [level_dir.rglob(pfile).__next__() for pfile in self.parent]
 
     def __add__(self, other):
         """
@@ -397,56 +512,29 @@ class GenericProduct(BaseProduct):
                f'{self.scet_timerange.start} to {self.scet_timerange.end}, ' \
                f'{len(self.control)}, {len(self.data)}'
 
-    def to_days(self):
-        if self.level == 'L0':
-            start_day = int((self.scet_timerange.start.as_float() / u.d).decompose().value)
-            end_day = int((self.scet_timerange.end.as_float() / u.d).decompose().value)
-            days = range(start_day, end_day+1)
-            # days = set([(t.year, t.month, t.day) for t in self.data['time'].to_datetime()])
-            # date_ranges = [(datetime(*day), datetime(*day) + timedelta(days=1)) for day in days]
-            for day in days:
-                ds = SCETime(((day * u.day).to_value('s')).astype(int), 0)
-                de = SCETime((((day + 1) * u.day).to_value('s')).astype(int), 0)
-                i = np.where((self.data['time'] >= ds) & (self.data['time'] < de))
+    def split_to_files(self):
+        utc_timerange = self.scet_timerange.to_timerange()
 
-                if i[0].size > 0:
-                    data = self.data[i]
+        for day in utc_timerange.get_dates():
+            ds = day
+            de = day + 1 * u.day
+            utc_times = self.data['time'].to_time()
+            i = np.where((utc_times >= ds) & (utc_times < de))
 
-                    control_indices = np.unique(data['control_index'])
-                    control = self.control[np.isin(self.control['index'], control_indices)]
-                    control_index_min = control_indices.min()
+            if len(i[0]) > 0:
+                data = self.data[i]
 
-                    data['control_index'] = data['control_index'] - control_index_min
-                    control['index'] = control['index'] - control_index_min
+                control_indices = np.unique(data['control_index'])
+                control = self.control[np.isin(self.control['index'], control_indices)]
+                control_index_min = control_indices.min()
 
-                    out = type(self)(service_type=self.service_type,
-                                     service_subtype=self.service_subtype,
-                                     ssid=self.ssid, control=control, data=data,
-                                     idb_versions=self.idb_versions, level=self.level)
-                    yield out
-        else:  # self.level == 'L1':
-            utc_timerange = self.scet_timerange.to_timerange()
-
-            for day in utc_timerange.get_dates():
-                ds = day
-                de = day + 1 * u.day
-                utc_times = self.data['time'].to_time()
-                i = np.where((utc_times >= ds) & (utc_times < de))
-
-                if len(i[0]) > 0:
-                    data = self.data[i]
-
-                    control_indices = np.unique(data['control_index'])
-                    control = self.control[np.isin(self.control['index'], control_indices)]
-                    control_index_min = control_indices.min()
-
-                    data['control_index'] = data['control_index'] - control_index_min
-                    control['index'] = control['index'] - control_index_min
-                    out = type(self)(service_type=self.service_type,
-                                     service_subtype=self.service_subtype, ssid=self.ssid,
-                                     control=control, data=data, idb_versions=self.idb_versions,
-                                     level=self.level)
-                    yield out
+                data['control_index'] = data['control_index'] - control_index_min
+                control['index'] = control['index'] - control_index_min
+                out = type(self)(service_type=self.service_type,
+                                 service_subtype=self.service_subtype, ssid=self.ssid,
+                                 control=control, data=data, idb_versions=self.idb_versions,
+                                 level=self.level)
+                yield out
 
     @classmethod
     def getLeveL0Packets(cls, levelb):
@@ -478,13 +566,13 @@ class EnergyChannelsMixin:
             Lower and high energy edges
         """
         if 'energy_bin_edge_mask' in self.control.colnames:
-            energies = _get_energies_from_mask(self.control['energy_bin_edge_mask'][0])
+            low, high = _get_energies_from_mask(self.control['energy_bin_edge_mask'][0])
         # elif 'energy_bin_mask' in self.control.colnames:
         #     energies = _get_energies_from_mask(self.control['energy_bin_mask'][0])
         else:
-            energies = _get_energies_from_mask()
+            low, high = _get_energies_from_mask()
 
-        return energies
+        return low * u.keV, high * u.keV, range(len(low))
 
 
 class L1Mixin:
@@ -522,7 +610,8 @@ class DefaultProduct(GenericProduct, L1Mixin):
         236: 'config',
         237: 'params',
         238: 'archive',
-        239: 'diagnostics'
+        239: 'diagnostics',
+        300: 'low-latency'
     }
 
     def __init__(self, *, service_type, service_subtype, ssid, control, data,
@@ -541,7 +630,7 @@ class DefaultProduct(GenericProduct, L1Mixin):
         control['scet_coarse'] = packets.get('scet_coarse')
         control['scet_fine'] = packets.get('scet_fine')
         control['integration_time'] = 0
-        control['index'] = range(len(control))
+        control['index'] = np.arange(len(control)).astype(get_min_uint(len(control)))
 
         control['raw_file'] = levelb.control['raw_file']
         control['packet'] = levelb.control['packet']
@@ -564,14 +653,15 @@ class DefaultProduct(GenericProduct, L1Mixin):
             name = param.idb_info.get_product_attribute_name()
             data.add_basic(name=name, nix=nix, attr='value', packets=packets, reshape=reshape)
 
-        data['control_index'] = range(len(control))
+        data['control_index'] = np.arange(len(control)).astype(get_min_uint(len(control)))
 
         return cls(service_type=packets.service_type,
                    service_subtype=packets.service_subtype,
                    ssid=packets.ssid,
                    control=control,
                    data=data,
-                   idb_versions=idb_versions)
+                   idb_versions=idb_versions,
+                   packets=packets)
 
 
 Product = ProductFactory(registry=BaseProduct._registry, default_widget_type=DefaultProduct)

@@ -429,7 +429,6 @@ class GenericProduct(BaseProduct):
         `Product`
             A list of parent Producs (normally just one).
         """
-
         return [Product(f) for f in self.find_parent_files(root)]
 
     def find_parent_files(self, root):

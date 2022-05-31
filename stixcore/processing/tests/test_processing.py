@@ -12,8 +12,7 @@ from astropy.io.fits.diff import FITSDiff
 
 from stixcore.config.config import CONFIG
 from stixcore.data.test import test_data
-from stixcore.ephemeris.manager import Spice
-from stixcore.ephemeris.manager import SpiceKernelManager
+from stixcore.ephemeris.manager import Spice, SpiceKernelManager
 from stixcore.idb.idb import IDBPolynomialCalibration
 from stixcore.idb.manager import IDBManager
 from stixcore.io.soc.manager import SOCManager, SOCPacketFile
@@ -23,8 +22,8 @@ from stixcore.processing.LBtoL0 import Level0
 from stixcore.processing.TMTCtoLB import process_tmtc_to_levelbinary
 from stixcore.products.level0.quicklookL0 import LightCurve
 from stixcore.products.product import Product
-from stixcore.tmtc.packets import TMTC, GenericTMPacket
 from stixcore.soop.manager import SOOPManager
+from stixcore.tmtc.packets import TMTC, GenericTMPacket
 from stixcore.util.logging import get_logger
 
 logger = get_logger(__name__)

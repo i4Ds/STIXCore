@@ -3,6 +3,8 @@ from pathlib import Path
 from binascii import unhexlify
 from xml.etree import ElementTree as Et
 
+import dateutil.parser
+
 from stixcore.tmtc.packets import TMTC
 from stixcore.util.logging import get_logger
 
@@ -61,16 +63,20 @@ class SOCPacketFile:
         """
         root = Et.parse(str(self.file)).getroot()
         if self.tmtc == TMTC.TC:
-            for i, node in enumerate(root.iter('PktTcReportListElement')):
-                # TODO add TC packer reading
-                pass
+            for node in root.iter('PktTcReportListElement'):
+                packet_id = int(node.find('SSC').text)
+                datetime = dateutil.parser.isoparse(node.find('ExecutionTime').text)
+                packet = node.find('RawBodyData')
+                packet_binary = unhexlify(packet.text)
+                # Not sure why guess and extra moc header
+                yield packet_id, packet_binary, TMTC.TC, datetime
         elif self.tmtc == TMTC.TM:
             for node in root.iter('PktRawResponseElement'):
                 packet_id = int(node.attrib['packetID'])
                 packet = list(node)[0]
                 packet_binary = unhexlify(packet.text)
                 # Not sure why guess and extra moc header
-                yield packet_id, packet_binary[76:]
+                yield packet_id, packet_binary[76:], TMTC.TM, None
 
     def __repr__(self):
         return f"{self.__class__.__name__}('{self.file}')"

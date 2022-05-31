@@ -7,13 +7,63 @@ from astropy.table.table import Table
 
 from stixcore.products.product import BaseProduct
 from stixcore.time import SCETime
-from stixcore.tmtc.packets import SequenceFlag, TMPacket
+from stixcore.tmtc.packets import TMTC, SequenceFlag, TCPacket, TMPacket
 from stixcore.util.logging import get_logger
 
 __all__ = ['LevelB']
 
 logger = get_logger(__name__)
 logger.setLevel('DEBUG')
+
+
+class LevelBTC(BaseProduct):
+    """Class representing level binary TC products."""
+
+    def __init__(self, *, service_type, service_subtype, control, data, **kwargs):
+        """Create a new LevelB object.
+
+        Parameters
+        ----------
+        control : ´Table´
+            the control table
+        data : ´Table´
+            the data table
+        prod_key : ´tuple´
+            (service, subservice [, ssid])
+        """
+        self.level = 'LB'
+        self.service_type = service_type
+        self.service_subtype = service_subtype
+        self.control = control
+        self.data = data
+        self.type = "TC"
+
+    @property
+    def parent(self):
+        """List of all parent data files this data product is compiled from.
+
+        For level binary this will be allways the parent raw TM file.
+
+        Returns
+        -------
+        `list(str)
+            the TM file that this data product contains.
+        """
+        return np.unique(self.control['raw_file']).tolist()
+
+    @property
+    def raw(self):
+        """List of all TM raw files this product is compiled from.
+
+        Returns
+        -------
+        `list(str)
+            the TM file that this data product contains.
+        """
+        return np.unique(self.control['raw_file']).tolist()
+
+    def __repr__(self):
+        return f"<LevelB {self.level}, {self.service_type}, {self.service_subtype}"
 
 
 class LevelB(BaseProduct):
@@ -239,9 +289,12 @@ class LevelB(BaseProduct):
         """
         packet_data = defaultdict(list)
 
-        for packet_no, binary in tmfile.get_packet_binaries():
+        for packet_no, binary, tmtc, dtime in tmfile.get_packet_binaries():
             try:
-                packet = TMPacket(binary)
+                if tmtc == TMTC.TM:
+                    packet = TMPacket(binary)
+                else:
+                    packet = TCPacket(binary, dtime)
             except Exception:
                 logger.error('Error parsing %s, %d', tmfile.name, packet_no, exc_info=True)
                 return
@@ -256,7 +309,8 @@ class LevelB(BaseProduct):
                 bs = sh.pop('bitstream')
                 hex_data.append(bs.hex)
                 dh = vars(packet.data_header)
-                dh.pop('datetime')
+                if 'datetime' in dh and tmtc == TMTC.TM:
+                    dh.pop('datetime')
                 headers.append({**sh, **dh, 'raw_file': packet.source[0],
                                 'packet': packet.source[1]})
             if len(headers) == 0 or len(hex_data) == 0:
@@ -269,7 +323,11 @@ class LevelB(BaseProduct):
             data['control_index'] = np.array(control['index'], dtype=np.int64)
             data['data'] = hex_data
 
-            control = unique(control, keys=['scet_coarse', 'scet_fine', 'sequence_count'])
+            # TM
+            if tmtc == TMTC.TM:
+                control = unique(control, keys=['scet_coarse', 'scet_fine', 'sequence_count'])
+            else:
+                control = unique(control, keys=['datetime', 'sequence_count'])
 
             # Only keep data that is in the control table via index
             data = data[np.nonzero(control['index'][:, None] == data['control_index'])[1]]
@@ -281,8 +339,13 @@ class LevelB(BaseProduct):
             service_type, service_subtype, ssid = prod_key
             if ssid is not None:
                 control['ssid'] = ssid
-            product = LevelB(service_type=service_type, service_subtype=service_subtype,
-                             ssid=ssid, control=control, data=data)
+
+            if tmtc == TMTC.TM:
+                product = LevelB(service_type=service_type, service_subtype=service_subtype,
+                                 ssid=ssid, control=control, data=data)
+            else:
+                product = LevelBTC(service_type=service_type, service_subtype=service_subtype,
+                                   control=control, data=data)
             yield product
 
     @classmethod

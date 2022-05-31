@@ -1,3 +1,4 @@
+from pprint import pprint
 from pathlib import Path
 from itertools import chain
 
@@ -83,8 +84,8 @@ def read_qtable(file, hdu, hdul=None):
 
 
 class AddParametersMixin:
-    def add_basic(self, *, name, nix, packets, attr=None, dtype=None, reshape=False):
-        value = packets.get_value(nix, attr=attr)
+    def add_basic(self, *, name, nix, packets, attr=None, dtype=None, reshape=False, unstack=False):
+        value = packets.get_value(nix, attr=attr, unstack=unstack)
         if reshape is True:
             value = value.reshape(1, -1)
         self[name] = value if dtype is None else value.astype(dtype)
@@ -100,7 +101,7 @@ class AddParametersMixin:
         idb_info = param[0].idb_info
         meta = {'NIXS': nix}
         if add_curtx:
-            meta['PCF_CURTX'] = idb_info.PCF_CURTX
+            meta['PCF_CURTX'] = idb_info.calib_ref
         self[name].meta = meta
 
 
@@ -454,6 +455,41 @@ class GenericProduct(BaseProduct):
 
         return [level_dir.rglob(pfile).__next__() for pfile in self.parent]
 
+    def print(self, *, descr=False, stream=None):
+        """Prints the original packets in a verbose and formated way to the given stream or stdout.
+        Only availabale after parsing the packets. This information is lost after
+        persitance into fits
+
+        Parameters
+        ----------
+        descr : bool, optional
+            should a description (from IDB) be added to the printout , by default False
+        stream : IO, optional
+            the stream to print in, by default None then stdout
+        """
+        if hasattr(self, "packets"):
+            for p in self.packets.packets:
+                pprint(p.export(descr=descr), stream=stream)
+
+    def export(self, descr=False):
+        """Export the packet in dict object that can be used for JSON export.
+        Only availabale after parsing the packets. This information is lost after
+        persitance into fits
+
+        Parameters
+        ----------
+         descr : bool, optional
+            should a description (from IDB) be added to each NIX parameter, by default False
+
+        Returns
+        -------
+        dict
+            a dict object with all data
+        """
+        if hasattr(self, "packets"):
+            return [p.export(descr=descr) for p in self.packets.packets]
+        return None
+
     def __add__(self, other):
         """
         Combine two products stacking data along columns and removing duplicated data using time as
@@ -661,6 +697,56 @@ class DefaultProduct(GenericProduct, L1Mixin):
                    control=control,
                    data=data,
                    idb_versions=idb_versions,
+                   packets=packets)
+
+
+class DefaultTC(GenericProduct):
+    """
+    Default TC
+    """
+
+    def __init__(self, *, service_type, service_subtype, control, data,
+                 idb_versions=defaultdict(SCETimeRange), **kwargs):
+        super().__init__(service_type=service_type, service_subtype=service_subtype,
+                         control=control, data=data, ssid=None, idb_versions=idb_versions, **kwargs)
+        self.name = f'{service_subtype}'
+        self.level = kwargs.get('level', 'L0')
+        self.type = 'TC'
+
+    @classmethod
+    def from_levelb(cls, levelb, parent):
+        packets = []
+        for row in levelb.data:
+            p = Packet(row['data'])
+            # keep track of the send time from XML
+            p.data_header.datetime = levelb.control['datetime'][
+                                        levelb.control['index'] == row['control_index']][0]
+            engineering.raw_to_engineering(p)
+            packets.append(p)
+
+        packets = PacketSequence(packets)
+
+        control = Control()
+        control['raw_file'] = levelb.control['raw_file']
+        control['packet'] = levelb.control['packet']
+        control['parent'] = parent
+        control['index'] = np.arange(len(control)).astype(get_min_uint(len(control)))
+
+        # Data
+        data = Data()
+
+        for nix, param in packets.data[0].__dict__.items():
+            name = param.idb_info.get_product_attribute_name()
+            reshapeunstack = nix in p.unstacknix
+            data.add_basic(name=name, nix=nix, attr='value', packets=packets,
+                           reshape=reshapeunstack, unstack=reshapeunstack)
+
+        data['control_index'] = np.arange(len(control)).astype(get_min_uint(len(control)))
+
+        return cls(service_type=packets.service_type,
+                   service_subtype=packets.service_subtype,
+                   control=control,
+                   data=data,
                    packets=packets)
 
 

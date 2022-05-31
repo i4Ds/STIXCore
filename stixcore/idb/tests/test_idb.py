@@ -9,7 +9,9 @@ from stixcore.idb.idb import (
     IDB,
     IDBCalibrationCurve,
     IDBCalibrationParameter,
+    IDBPacketTree,
     IDBPolynomialCalibration,
+    IDBTCInfo,
 )
 from stixcore.idb.manager import IDBManager
 
@@ -123,21 +125,26 @@ def test_get_s2k_parameter_types(idb):
 
 def test_get_telecommand_info(idb):
     info = idb.get_telecommand_info(6, 2)
-    assert len(info) == 4
 
-    info = idb.get_telecommand_info(6, 2, 1)
-    assert len(info) == 4
+    assert isinstance(info, IDBTCInfo)
 
     info = idb.get_telecommand_info(11, 11)
     assert info is None
 
 
 def test_get_telecommand_structure(idb):
-    info = idb.get_telecommand_structure("ZIX06009")
-    assert len(info) >= 1
+    info = idb.get_telecommand_info(6, 9)
 
-    info = idb.get_telecommand_structure("foobar")
-    assert len(info) == 0
+    assert info.is_variable() is False
+    assert info.CCF_CNAME == 'ZIX06009'
+
+    tree = idb.get_telecommand_structure(info.CCF_CNAME, isvar=info.is_variable())
+    assert isinstance(tree, IDBPacketTree)
+    assert len(tree._children) > 0
+
+    info = idb.get_telecommand_structure("foobar", isvar=False)
+    assert isinstance(tree, IDBPacketTree)
+    assert len(tree._children) > 0
 
 
 def test_is_variable_length_telecommand(idb):
@@ -152,11 +159,11 @@ def test_is_variable_length_telecommand(idb):
 
 
 def test_tcparam_interpret(idb):
-    info = idb.tcparam_interpret('CAAT0005TC', 0)
-    assert info != ''
+    info = idb.tc_interpret('CAAT0005TC', 0)
+    assert info == 'Disconnected'
 
-    info = idb.tcparam_interpret('foobar', 0)
-    assert info == ''
+    info = idb.tc_interpret('foobar', 0)
+    assert info == 0
 
 
 def test_get_calibration_curve(idb):

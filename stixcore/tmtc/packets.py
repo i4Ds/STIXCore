@@ -1,3 +1,4 @@
+import datetime
 from enum import Enum, IntEnum
 from pprint import pprint
 from collections import defaultdict
@@ -189,7 +190,7 @@ class TCDataHeader:
     source_id : `int`
         Source ID
     """
-    def __init__(self, bitstream):
+    def __init__(self, bitstream, datetime):
         """
         Create a TM Data Header.
 
@@ -200,6 +201,8 @@ class TCDataHeader:
         res = parse_bitstream(bitstream, TC_DATA_HEADER_STRUCTURE)
         [setattr(self, key, value)
             for key, value in res['fields'].items() if not key.startswith('spare')]
+
+        self.datetime = datetime
 
     def __repr__(self):
         param_names_values = [f'{k}={v}' for k, v in self.__dict__.items() if k != 'bitstream']
@@ -303,7 +306,7 @@ class TMPacket(GenericPacket):
 class TCPacket(GenericPacket):
     """A non-specific TC packet."""
 
-    def __init__(self, data):
+    def __init__(self, data, datetime=datetime.datetime.now(datetime.timezone.utc)):
         """Create a TCPacket.
 
         Parameters
@@ -312,7 +315,12 @@ class TCPacket(GenericPacket):
             Data to create TC packet from
         """
         super().__init__(data)
-        self.data_header = TCDataHeader(self.source_packet_header.bitstream)
+        self.data_header = TCDataHeader(self.source_packet_header.bitstream, datetime)
+
+    @property
+    def key(self):
+        key = (self.data_header.service_type, self.data_header.service_subtype, None)
+        return key
 
     @classmethod
     def is_datasource_for(cls, sph):
@@ -609,19 +617,27 @@ class GenericTMPacket:
         p = dict()
         d = list()
 
-        fdate = self.data_header.datetime.to_datetime().isoformat(timespec='milliseconds')
+        if isinstance(self, GenericTCPacket):
+            h['TMTC'] = 'TC'
+            fdate = self.data_header.datetime.isoformat(timespec='milliseconds')
+            h['unix_time'] = self.data_header.datetime.timestamp()
+        else:
+            h['TMTC'] = 'TM'
+            fdate = self.data_header.datetime.to_datetime().isoformat(timespec='milliseconds')
+            h['coarse_time'] = int(self.data_header.datetime.coarse)
+            h['fine_time'] = int(self.data_header.datetime.fine)
+            h['SCET'] = self.data_header.datetime.as_float().value
+            h['descr'] = self.get_idb().get_spid_info(self.spid)[0][0]
+            h['destination'] = self.data_header.destination_id
+            h['unix_time'] = self.data_header.datetime.to_datetime().timestamp()
 
-        h['SCET'] = self.data_header.datetime.as_float().value
         h['SPID'] = self.spid
         h['SSID'] = self.pi1_val
-        h['TMTC'] = 'TM' if isinstance(self, GenericTMPacket) else 'TC'
+
         h['UTC'] = fdate
         h['apid'] = self.source_packet_header.apid
         h['category'] = self.source_packet_header.packet_category
-        h['coarse_time'] = int(self.data_header.datetime.coarse)
-        h['descr'] = self.get_idb().get_spid_info(self.spid)[0][0]
-        h['destination'] = self.data_header.destination_id
-        h['fine_time'] = int(self.data_header.datetime.fine)
+
         h['header_flag'] = self.source_packet_header.header_flag
         h['obt_utc'] = fdate
         h['packet_id'] = self.source_packet_header.packet_id
@@ -633,7 +649,6 @@ class GenericTMPacket:
         h['seq_count'] = self.source_packet_header.sequence_count
         h['service_subtype'] = self.data_header.service_subtype
         h['service_type'] = self.data_header.service_type
-        h['unix_time'] = self.data_header.datetime.to_datetime().timestamp()
         h['version'] = self.source_packet_header.version
 
         exportstate = defaultdict(int)
@@ -691,7 +706,7 @@ class PacketSequence:
         except KeyError:
             logger.debug('Key %s not found', name)
 
-    def get_value(self, name, attr=None):
+    def get_value(self, name, attr=None,  unstack=False):
         if attr is None:
             if isinstance(self.data[0].__getattribute__(name), EngineeringParameter):
                 attr = 'engineering'
@@ -709,7 +724,7 @@ class PacketSequence:
                 res.extend(p)
             else:
                 res.append(p)
-        return np.hstack(res)
+        return np.array(res) if unstack else np.hstack(res)
 
     @property
     def service_type(self):
@@ -722,3 +737,51 @@ class PacketSequence:
     @property
     def ssid(self):
         return self.get('pi1_val')[0]
+
+
+class GenericTCPacket(GenericTMPacket):
+    def __init__(self, data, idb=None):
+        """Create a new TM packet parsing common source and data headers.
+
+        Parameters
+        ----------
+        data : binary or `TMPacket`
+        """
+        if not isinstance(data, TCPacket):
+            # TODO should just create TCPacket here
+            data = TCPacket(data, idb=idb)
+
+        self.source_packet_header = data.source_packet_header
+        self.data_header = data.data_header
+        self.idb = data.idb_manager if idb is None else idb
+        self.pi1_val = None
+        self.spid = None
+
+        if isinstance(self.idb, IDBManager):
+            idb = self.idb.get_idb(obt=self.data_header.datetime)
+            # idb = self.idb.get_idb('2.26.35')
+
+        tc_info = idb.get_telecommand_info(self.data_header.service_type,
+                                           self.data_header.service_subtype)
+
+        tree = idb.get_telecommand_structure(tc_info.CCF_CNAME, tc_info.is_variable())
+
+        data, structure = parse_variable(self.source_packet_header.bitstream, tree)
+        self.data = data
+        self.tree = structure
+        # self.group_repeaters()
+
+    @property
+    def ssid(self):
+        return None
+
+    @property
+    def unstacknix(self):
+        return None
+
+    def get_calibration_params(self):
+        idb = self.get_idb()
+        if idb is not None:
+            return idb, idb.get_tc_params_for_calibration(self.data_header.service_type,
+                                                          self.data_header.service_subtype)
+        return idb, []

@@ -27,13 +27,19 @@ testpackets = [(test_data.tmtc.TM_3_25_1, MiniReportL0, MiniReportL1, 'mini',
 
 
 @pytest.fixture
+def soop_manager():
+    SOOPManager.instance = SOOPManager(test_data.soop.DIR)
+    return SOOPManager.instance
+
+
+@pytest.fixture
 def idbm():
     return IDBManager(test_data.idb.DIR)
 
 
 @patch('stixcore.products.levelb.binary.LevelB')
 @pytest.mark.parametrize('packets', testpackets, ids=[f[0].stem for f in testpackets])
-def test_housekeeping(levelb, packets):
+def test_housekeeping(levelb, packets, soop_manager):
     hex_file, cl_l0, cl_l1, name, beg, end, size = packets
     with hex_file.open('r') as file:
         hex = file.readlines()
@@ -54,7 +60,7 @@ def test_housekeeping(levelb, packets):
 
 
 @patch('stixcore.products.levelb.binary.LevelB')
-def test_calibration_hk(levelb, idbm, tmp_path):
+def test_calibration_hk(levelb, idbm, tmp_path, soop_manager):
 
     with test_data.tmtc.TM_3_25_2.open('r') as file:
         hex = file.readlines()
@@ -73,7 +79,7 @@ def test_calibration_hk(levelb, idbm, tmp_path):
     assert True
 
 
-def test_calibration_hk_many(idbm, tmp_path):
+def test_calibration_hk_many(idbm, tmp_path, soop_manager):
 
     idbm.download_version("2.26.35", force=True)
 

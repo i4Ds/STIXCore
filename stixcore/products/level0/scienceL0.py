@@ -85,7 +85,6 @@ class ScienceProduct(GenericProduct, EnergyChannelsMixin):
         self.control = control
         self.data = data
         self.idb_versions = kwargs.get('idb_versions', None)
-
         self.type = 'sci'
         self.level = 'L0'
 
@@ -98,6 +97,8 @@ class ScienceProduct(GenericProduct, EnergyChannelsMixin):
         return np.unique(self.control['parent'])
 
     def __add__(self, other):
+        raise(ValueError(f"Tried to combine 2 BSD products: \n{self} and \n{other}"))
+
         # if (np.all(self.control == other.control) and self.scet_timerange == other.scet_timerange
         #         and len(self.data) == len(other.data)):
         #     return self
@@ -106,16 +107,14 @@ class ScienceProduct(GenericProduct, EnergyChannelsMixin):
         # cnames = control.colnames
         # cnames.remove('index')
         # control = unique(control, cnames)
-        #
+
         # combined_data_index = other.data['control_index'] + self.control['index'].max() + 1
         # data = vstack((self.data, other.data))
-        #
         # data_ind = np.isin(combined_data_index, combined_control_index)
         # data = data[data_ind]
-        #
+
         # return type(self)(service_type=self.service_type, service_subtype=self.service_subtype,
         #                   ssid=self.ssid, data=data, control=control)
-        raise(ValueError(f"Tried to combine 2 BSD products: {self} and {other}"))
 
     def split_to_files(self):
         """Splits the entire data into data products separated be the unique request ID.

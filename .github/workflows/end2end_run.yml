@@ -28,12 +28,6 @@ jobs:
       with:
         lfs: true
         submodules: recursive
-    - name: Checkout master on all submodules
-      run: |
-          git submodule foreach git checkout master
-          git submodule foreach git pull origin master
-    - name: Checkout LFS objects
-      run: git lfs checkout
     - name: Set up Python ${{ matrix.python-version }}
       uses: actions/setup-python@v2
       with:

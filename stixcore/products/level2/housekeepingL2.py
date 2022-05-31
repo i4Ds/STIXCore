@@ -221,11 +221,11 @@ class AspectIDLProcessing(SSWIDLTask):
 
     def postprocessing(self, result, fits_processor):
         files = []
-        print("returning from IDL")
+        logger.info("returning from IDL")
         if 'data' in result and 'processed_files' in result:
             for file_idx, resfile in enumerate(result.processed_files):
                 file_path = Path(resfile.decode())
-                print(f"IDL postprocessing HK file: {resfile}")
+                logger.info(f"IDL postprocessing HK file: {resfile}")
                 HK = Product(file_path)
 
                 control = HK.control

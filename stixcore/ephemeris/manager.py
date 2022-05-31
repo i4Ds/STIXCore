@@ -1,8 +1,10 @@
 import os
+import re
 import sys
 import logging
 from enum import Enum
 from pathlib import Path
+from textwrap import wrap
 
 import numpy as np
 import spiceypy
@@ -139,20 +141,46 @@ class SpiceKernelLoader:
         if not self.meta_kernel_path.exists():
             raise ValueError(f'Meta kernel not found: {self.meta_kernel_path}')
 
-        os.getcwd()
-        try:
-            print(f"LOAD NEW META KERNEL: {self.meta_kernel_path}")
-            # change to the 'kernels' dir
-            os.chdir(self.meta_kernel_path.parent)
-            # unload all old kernels
-            spiceypy.kclear()
-            # load the meta kernel
-            spiceypy.furnsh(str(self.meta_kernel_path))
-            # spiceypy.unload(str(self.mod_meta_kernel_path))
-        finally:
-            # change back to the old working directory
-            # os.chdir(curdir)
-            pass
+        abs_file = self.meta_kernel_path.parent / (self.meta_kernel_path.name + ".abs")
+
+        if not abs_file.exists():
+            with self.meta_kernel_path.open('r') as mk:
+                original_mk = mk.read()
+                kernel_dir = str(self.meta_kernel_path.parent.parent.resolve())
+                kernel_dir = kernel_dir.replace('\\', '\\\\')
+                # spice meta kernel seems to have a max variable length of 80 characters
+                # https://naif.jpl.nasa.gov/pub/naif/toolkit_docs/C/req/kernel.html#Additional%20Meta-kernel%20Specifications # noqa
+                wrapped = SpiceKernelLoader._wrap_value_field(kernel_dir)
+                path_value = f"PATH_VALUES       = ( {wrapped} )"
+                logger.debug(f'Kernel directory {kernel_dir}')
+                new_mk = re.sub(r"PATH_VALUES\s*= \( '.*' \)", path_value, original_mk)
+
+            with abs_file.open('w') as f:
+                f.write(new_mk)
+
+        logger.info(f"LOAD NEW META KERNEL: {self.meta_kernel_path}")
+        spiceypy.kclear()
+        # load the meta kernel
+        spiceypy.furnsh(str(abs_file))
+
+    @staticmethod
+    def _wrap_value_field(field):
+        r"""
+        Wrap a value field according to SPICE meta kernal spec
+        Parameters
+        ----------
+        field : `str`
+            The value to be wrapped
+        Returns
+        -------
+        The wrapped values
+        """
+        parts = wrap(field, width=78)
+        wrapped = "'"
+        for part in parts[:-1]:
+            wrapped = wrapped + part + "+'\n'"
+        wrapped = wrapped + f"{parts[-1]}'"
+        return wrapped
 
 
 class Spice(SpiceKernelLoader, metaclass=Singleton):

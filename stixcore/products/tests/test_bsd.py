@@ -8,6 +8,12 @@ from stixcore.data.test import test_data
 from stixcore.products.level0 import scienceL0 as sl0
 from stixcore.products.level1 import scienceL1 as sl1
 
+
+@pytest.fixture
+def out_dir(tmp_path):
+    return tmp_path
+
+
 testpackets = [(test_data.tmtc.TM_21_6_20_complete, sl0.RawPixelData, sl1.RawPixelData,
                 'xray-rpd', '0640971848f00000', '0640971950f00000', 6),
                (test_data.tmtc.TM_21_6_21, sl0.CompressedPixelData, sl1.CompressedPixelData,
@@ -24,7 +30,7 @@ testpackets = [(test_data.tmtc.TM_21_6_20_complete, sl0.RawPixelData, sl1.RawPix
 
 @patch('stixcore.products.levelb.binary.LevelB')
 @pytest.mark.parametrize('packets', testpackets, ids=[f[0].name.split('.')[0] for f in testpackets])
-def test_xray(levelb, packets):
+def test_xray(levelb, out_dir, packets):
     hex_file, cl_l0, cl_l1, name, beg, end, size = packets
     with hex_file.open('r') as file:
         hex = file.readlines()

@@ -1,4 +1,5 @@
 import os
+import sys
 from pathlib import Path
 from configparser import ConfigParser
 
@@ -22,9 +23,14 @@ def _get_config():
     The parsed configuration as nested dictionaries
     """
     module_dir = Path(stixcore.__file__).parent
-    default = module_dir / 'data' / 'stixcore.ini'
+    if 'pytest' in sys.modules:
+        default = module_dir / 'data' / 'test' / 'stixcore.ini'
+    else:
+        default = module_dir / 'data' / 'stixcore.ini'
+
     user_file = Path(os.path.expanduser('~')) / 'stixcore.ini'
     config_files = [default, user_file]
+
     config = ConfigParser()
     for file in config_files:
         try:
@@ -32,6 +38,12 @@ def _get_config():
                 config.read_file(buffer)
         except FileNotFoundError:
             logger.info('Config file %s not found', file)
+
+    # override the spice kernel dir in case of testing
+    if 'pytest' in sys.modules:
+        from stixcore.data.test import test_data
+        config.set('Paths', 'spice_kernels', str(test_data.ephemeris.KERNELS_DIR))
+
     return config
 
 

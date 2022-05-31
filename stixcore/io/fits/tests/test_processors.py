@@ -96,7 +96,7 @@ def test_level0_processor_generate_filename():
         product.name = 'a_name'
         product.scet_timerange = SCETimeRange(start=SCETime(12345, 6789), end=SCETime(98765, 4321))
         filename = processor.generate_filename(product, version=1)
-        assert filename == 'solo_L0_stix-sci-a-name_0000012345f06789-0000098765f04321_V01.fits'
+        assert filename == 'solo_L0_stix-sci-a-name_0000012345-0000098765_V01.fits'
 
         dummy_control_data = {'request_id': [123456], 'tc_packet_seq_control': [98765]}
 
@@ -104,12 +104,12 @@ def test_level0_processor_generate_filename():
         product.control.colnames = ['request_id']
         filename = processor.generate_filename(product, version=1)
         assert filename == 'solo_L0_stix-sci-a-name' \
-                           '-123456_0000012345f06789-0000098765f04321_V01.fits'
+                           '_0000012345-0000098765_V01_123456.fits'
 
         product.control.colnames = ['request_id', 'tc_packet_seq_control']
         filename = processor.generate_filename(product, version=1)
         assert filename == 'solo_L0_stix-sci-a-name' \
-                           '-123456_0000012345f06789-0000098765f04321_V01_98765.fits'
+                           '_0000012345-0000098765_V01_123456-98765.fits'
 
 
 @patch('stixcore.products.level0.quicklookL0.QLProduct')
@@ -131,8 +131,8 @@ def test_level0_processor_generate_primary_header(datetime, product):
     test_data = {
         'FILENAME': 'a_filename.fits',
         'DATE': '1234-05-07T01:02:03.346',
-        'OBT_BEG': '0000000000:00000',
-        'OBT_END': '0000000001:32768',
+        'OBT_BEG': 0.0,
+        'OBT_END': 1.5000076295109483,
         'DATE_OBS': '0000000000:00000',
         'DATE_BEG': '0000000000:00000',
         'DATE_AVG': '0000000000:49152',
@@ -185,7 +185,7 @@ def test_level1_processor_generate_filename(config, product):
     assert filename == 'solo_L1_stix-ql-a-name_20000101_V01.fits'
     product.type = 'sci'
     filename = processor.generate_filename(product, version=1)
-    assert filename == 'solo_L1_stix-sci-a-name_20000101T000000_20000101T000001_V01.fits'
+    assert filename == 'solo_L1_stix-sci-a-name_20000101T000000-20000101T000001_V01.fits'
 
 
 @patch('stixcore.products.level1.quicklookL1.QLProduct')
@@ -208,8 +208,8 @@ def test_level1_processor_generate_primary_header(config, product):
 
     test_data = {
         'FILENAME': 'a_filename.fits',
-        'OBT_BEG': beg.to_string(),
-        'OBT_END': end.to_string(),
+        'OBT_BEG': beg.as_float().value,
+        'OBT_END': end.as_float().value,
         'DATE_OBS': product.utc_timerange.start.fits,
         'DATE_BEG': product.utc_timerange.start.fits,
         'DATE_AVG': product.utc_timerange.center.fits,

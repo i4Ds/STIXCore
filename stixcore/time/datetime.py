@@ -12,10 +12,7 @@ from astropy.time.core import Time
 from astropy.utils import ShapedLikeNDArray
 from astropy.utils.data_info import MixinInfo
 
-from stixcore.data.test import test_data
-from stixcore.ephemeris.manager import Time as SpiceTime
-
-SPICE_TIME = SpiceTime(meta_kernel_path=test_data.ephemeris.META_KERNEL_TIME)
+from stixcore.ephemeris.manager import Spice
 
 __all__ = ['SCETBase', 'SCETime', 'SCETimeDelta', 'SCETimeRange']
 
@@ -389,8 +386,8 @@ class SCETime(SCETBase):
             The SCETime object
         """
         sub_seconds, seconds = np.modf(scet_float.to_value('s'))
-        coarse = seconds.astype(int)
-        fine = np.round(MAX_FINE * sub_seconds).astype(np.int)
+        coarse = seconds.astype(np.uint32)
+        fine = np.round(MAX_FINE * sub_seconds).astype(np.uint16)
         return SCETime(coarse, fine)
 
     @classmethod
@@ -421,13 +418,13 @@ class SCETime(SCETBase):
         `datetime.datetime`
             The corresponding UTC datetime object.
         """
-        with SPICE_TIME as time:
-            try:
-                utc = [time.scet_to_datetime(t.to_string()) for t in self]
-            except TypeError:
-                utc = time.scet_to_datetime(self.to_string())
 
-            return utc
+        try:
+            utc = [Spice.instance.scet_to_datetime(t.to_string()) for t in self]
+        except TypeError:
+            utc = Spice.instance.scet_to_datetime(self.to_string())
+
+        return utc
 
     def to_time(self):
         return Time(self.to_datetime())

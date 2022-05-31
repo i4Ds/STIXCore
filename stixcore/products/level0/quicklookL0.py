@@ -2,7 +2,7 @@
 High level STIX data products created from single stand alone packets or a sequence of packets.
 """
 import logging
-from itertools import chain
+from itertools import chain, repeat
 from collections import defaultdict
 
 import numpy as np
@@ -58,6 +58,7 @@ class QLProduct(GenericProduct, EnergyChannelsMixin):
         self.control = control
         self.data = data
         self.idb_versions = idb_versions
+        self.__dict__.update(kwargs)
 
     @classmethod
     def from_levelb(cls, levelb, *, parent='', NIX00405_offset=0):
@@ -83,7 +84,7 @@ class QLProduct(GenericProduct, EnergyChannelsMixin):
 
         control = Control.from_packets(packets, NIX00405_offset=NIX00405_offset)
 
-        # When the packets are parse empty packets are dropped but in LB we don't parse this
+        # When the packets are parsed empty packets are dropped but in LB we don't parse so this
         # is not known need to compare control and levelb.control and only use matching rows
         if len(levelb.control) > len(control):
             matching_index = np.argwhere(
@@ -164,7 +165,7 @@ class LightCurve(QLProduct):
         data['triggers_err'] = np.float32(np.sqrt(triggers_var))
         data['rcr'] = np.hstack(packets.get_value('NIX00276')).flatten().astype(np.ubyte)
         data.add_meta(name='rcr', nix='NIX00276', packets=packets)
-        data['counts'] = counts.T.astype(get_min_uint(counts))
+        data['counts'] = (counts.T*u.ct).astype(get_min_uint(counts))
         data.add_meta(name='counts', nix='NIX00272', packets=packets)
         data['counts_err'] = np.float32(np.sqrt(counts_var).T * u.ct)
 
@@ -173,7 +174,8 @@ class LightCurve(QLProduct):
                    ssid=packets.ssid,
                    control=control,
                    data=data,
-                   idb_versions=idb_versions)
+                   idb_versions=idb_versions,
+                   packets=packets)
 
     @classmethod
     def is_datasource_for(cls, *, service_type, service_subtype, ssid, **kwargs):
@@ -214,10 +216,24 @@ class Background(QLProduct):
         control.add_data('compression_scheme_counts_skm',
                          _get_compression_scheme(packets, 'NIX00278'))
 
-        counts = np.array(packets.get_value('NIX00278')).reshape(control['num_energies'][0],
-                                                                 control['num_samples'].sum())
-        counts_var = np.array(packets.get_value('NIX00278', attr="error")).\
-            reshape(control['num_energies'][0], control['num_samples'].sum())
+        # counts = np.array(packets.get_value('NIX00278')).reshape(control['num_energies'][0],
+        #                                                          control['num_samples'].sum())
+        # counts_var = np.array(packets.get_value('NIX00278', attr="error")).\
+        #     reshape(control['num_energies'][0], control['num_samples'].sum())
+
+        counts_flat = packets.get_value('NIX00278')
+        counts_var_flat = packets.get_value('NIX00278', attr='error')
+
+        flat_indices = np.hstack((0, np.cumsum([*control['num_samples']]) *
+                                  control['num_energies'])).astype(int)
+
+        counts = np.hstack([
+            counts_flat[flat_indices[i]:flat_indices[i + 1]].reshape(n_eng, n_sam)
+            for i, (n_sam, n_eng) in enumerate(control[['num_samples', 'num_energies']])])
+
+        counts_var = np.hstack([
+            counts_var_flat[flat_indices[i]:flat_indices[i + 1]].reshape(n_eng, n_sam)
+            for i, (n_sam, n_eng) in enumerate(control[['num_samples', 'num_energies']])])
 
         control.add_data('compression_scheme_triggers_skm',
                          _get_compression_scheme(packets, 'NIX00274'))
@@ -233,7 +249,7 @@ class Background(QLProduct):
         data['triggers'] = triggers.astype(get_min_uint(triggers))
         data.add_meta(name='triggers', nix='NIX00274', packets=packets)
         data['triggers_err'] = np.float32(np.sqrt(triggers_var))
-        data['counts'] = counts.T.astype(get_min_uint(counts))
+        data['counts'] = (counts.T*u.ct).astype(get_min_uint(counts))
         data.add_meta(name='counts', nix='NIX00278', packets=packets)
         data['counts_err'] = np.float32(np.sqrt(counts_var).T * u.ct)
 
@@ -242,7 +258,8 @@ class Background(QLProduct):
                    ssid=packets.ssid,
                    control=control,
                    data=data,
-                   idb_versions=idb_versions)
+                   idb_versions=idb_versions,
+                   packets=packets)
 
     @classmethod
     def is_datasource_for(cls, *, service_type, service_subtype, ssid, **kwargs):
@@ -347,7 +364,8 @@ class Spectra(QLProduct):
                    ssid=packets.ssid,
                    control=control,
                    data=data,
-                   idb_versions=idb_versions)
+                   idb_versions=idb_versions,
+                   packets=packets)
 
     @classmethod
     def _get_time(cls, control, num_energies, packets, pad_after):
@@ -440,7 +458,8 @@ class Variance(QLProduct):
                    ssid=packets.ssid,
                    control=control,
                    data=data,
-                   idb_versions=idb_versions)
+                   idb_versions=idb_versions,
+                   packets=packets)
 
     @classmethod
     def is_datasource_for(cls, *, service_type, service_subtype, ssid, **kwargs):
@@ -499,7 +518,8 @@ class FlareFlag(QLProduct):
                    ssid=packets.ssid,
                    control=control,
                    data=data,
-                   idb_versions=idb_versions)
+                   idb_versions=idb_versions,
+                   packets=packets)
 
     @classmethod
     def is_datasource_for(cls, *, service_type, service_subtype, ssid, **kwargs):
@@ -525,18 +545,15 @@ class EnergyCalibration(QLProduct):
     def from_levelb(cls, levelb, parent=''):
         packets, idb_versions, control = QLProduct.from_levelb(levelb, parent=parent)
 
-        control['integration_time'] = packets.get_value('NIX00122').astype(np.uint32)
-        control.add_meta(name='integration_time', nix='NIX00122', packets=packets)
-        # control['obs_beg'] = control['obs_utc']
-        # control['.obs_end'] = control['obs_beg'] + timedelta(seconds=control[
-        # 'duration'].astype('float'))
-        # control['.obs_avg'] = control['obs_beg'] + (control['obs_end'] - control['obs_beg']) / 2
-
         # Control
-        control.add_basic(name='quiet_time', nix='NIX00123', packets=packets, dtype=np.uint16)
-        control.add_basic(name='live_time', nix='NIX00124', packets=packets, dtype=np.uint32)
+        control.add_basic(name='integration_time', nix='NIX00122', packets=packets,
+                          dtype=np.uint32, attr='value')
+        control.add_basic(name='quiet_time', nix='NIX00123', packets=packets,
+                          dtype=np.uint16, attr='value')
+        control.add_basic(name='live_time', nix='NIX00124', packets=packets,
+                          dtype=np.uint32, attr='value')
         control.add_basic(name='average_temperature', nix='NIX00125', packets=packets,
-                          dtype=np.uint16)
+                          dtype=np.uint16, attr='value')
         control.add_data('detector_mask', _get_detector_mask(packets))
         control.add_data('pixel_mask', _get_pixel_mask(packets))
 
@@ -547,86 +564,96 @@ class EnergyCalibration(QLProduct):
         subspec_data = {}
         j = 129
         for subspec, i in enumerate(range(300, 308)):
-            subspec_data[subspec+1] = {'num_points': packets.get_value(f'NIXD0{j}')[0],
-                                       'num_summed_channel': packets.get_value(f'NIXD0{j + 1}')[0],
-                                       'lowest_channel': packets.get_value(f'NIXD0{j + 2}')[0]}
+            subspec_data[subspec+1] = {'num_points': packets.get_value(f'NIXD0{j}'),
+                                       'num_summed_channel': packets.get_value(f'NIXD0{j + 1}'),
+                                       'lowest_channel': packets.get_value(f'NIXD0{j + 2}')}
             j += 3
 
         control.add_basic(name='num_samples', nix='NIX00159', packets=packets, dtype=np.uint16)
-        # control.remove_column('index')
-        # control = unique(control)
-        # control['index'] = np.arange(len(control))
 
-        control['subspec_num_points'] = np.array(
-            [v['num_points'] for v in subspec_data.values()]).reshape(1, -1).astype(np.uint16)
-        control['subspec_num_summed_channel'] = np.array(
-            [v['num_summed_channel'] for v in subspec_data.values()]
-        ).reshape(1, -1).astype(np.uint16)
-        control['subspec_lowest_channel'] = np.array(
-            [v['lowest_channel'] for v in subspec_data.values()]).reshape(1, -1).astype(np.uint16)
+        control['subspec_num_points'] = (
+                np.vstack([v['num_points'] for v in subspec_data.values()]).T + 1).astype(np.uint16)
+        control['subspec_num_summed_channel'] = (np.vstack(
+            [v['num_summed_channel'] for v in subspec_data.values()]).T + 1).astype(np.uint16)
+        control['subspec_lowest_channel'] = (
+            np.vstack([v['lowest_channel'] for v in subspec_data.values()]).T).astype(np.uint16)
 
-        subspec_index = np.argwhere(control['subspectrum_mask'][0].flatten() == 1)
-        num_sub_spectra = control['subspectrum_mask'].sum(axis=1)
-        sub_channels = [np.arange(control['subspec_num_points'][0, index] + 1)
-                        * (control['subspec_num_summed_channel'][0, index] + 1)
-                        + control['subspec_lowest_channel'][0, index] for index in subspec_index]
-        channels = list(chain(*[ch.tolist() for ch in sub_channels]))
-        control['num_channels'] = len(channels)
+        channels = []
+        for i, subspectrum_mask in enumerate(control['subspectrum_mask']):
+            subspec_index = np.argwhere(subspectrum_mask == 1)
+            sub_channels = [np.arange(control['subspec_num_points'][i, index])
+                            * (control['subspec_num_summed_channel'][i, index])
+                            + control['subspec_lowest_channel'][i, index] for index in
+                            subspec_index]
+            channels.append(list(chain(*[ch.tolist() for ch in sub_channels])))
+        control['num_channels'] = [len(c) for c in channels]
 
-        time = SCETime(control['scet_coarse'], control['scet_fine']) \
-            + control['integration_time'] / 2
-        duration = SCETimeDelta(control['integration_time'])
+        duration = SCETimeDelta(packets.get_value('NIX00122').astype(np.uint32))
+        time = SCETime(control['scet_coarse'], control['scet_fine']) + duration / 2
 
-        # Data
-        data = Data()
-        data['timedel'] = duration[0:1]
-        data['control_index'] = [0]
-        data['time'] = time[0:1]
+        dids = packets.get_value('NIXD0155')
+        pids = packets.get_value('NIXD0156')
+        ssids = packets.get_value('NIXD0157')
+        num_spec_points = packets.get_value('NIX00146')
 
-        data.add_meta(name='timedel', nix='NIX00122', packets=packets)
-        # data['detector_id'] = np.array(packets.get('NIXD0155'), np.ubyte)
-        # data['pixel_id'] = np.array(packets.get('NIXD0156'), np.ubyte)
-        # data['subspec_id'] = np.array(packets.get('NIXD0157'), np.ubyte)
-        # np.array(packets.get('NIX00146'))
+        unique_times, unique_time_indices = np.unique(time.as_float(), return_index=True)
+        unique_times_lookup = {k: v for k, v in zip(unique_times, np.arange(unique_times.size))}
+
+        # should really do the other way make a smaller lookup rather than repeating many many times
+        tids = np.hstack([[unique_times_lookup[t.as_float()]] * n
+                          for t, n in zip(time, control['num_samples'])])
+        c_in = list(chain.from_iterable([repeat(c, n)
+                                         for c, n in zip(channels, control['num_samples'])]))
 
         counts = packets.get_value('NIX00158')
         counts_var = packets.get_value('NIX00158', attr='error')
 
-        counts_rebinned = np.apply_along_axis(rebin_proportional, 1,
-                                              counts.reshape(-1, len(channels)), channels,
-                                              np.arange(1025))
+        c_out = np.arange(1025)
+        start = 0
+        count_map = defaultdict(list)
+        counts_var_map = defaultdict(list)
+        for tid, did, pid, ssid, nps, cin in zip(tids, dids, pids, ssids, num_spec_points, c_in):
+            end = start + nps
 
-        counts_var_rebinned = np.apply_along_axis(rebin_proportional, 1,
-                                                  counts_var.reshape(-1, len(channels)), channels,
-                                                  np.arange(1025))
+            logger.debug('%d, %d, %d, %d, %d, %d', tid, did, pid, ssid, nps, end)
+            count_map[tid, did, pid].append(counts[start:end])
+            counts_var_map[tid, did, pid].append(counts_var[start:end])
+            start = end
 
-        dids = np.array(packets.get_value('NIXD0155'),
-                        np.ubyte).reshape(-1, num_sub_spectra[0])[:, 0]
-        pids = np.array(packets.get_value('NIXD0156'),
-                        np.ubyte).reshape(-1, num_sub_spectra[0])[:, 0]
+        full_counts = np.zeros((unique_times.size, 32, 12, 1024))
+        full_counts_var = np.zeros((unique_times.size, 32, 12, 1024))
 
-        full_counts = np.zeros((32, 12, 1024))
-        # TODO fix bug see https://github.com/i4Ds/STIXCore/issues/168 and remove try except
-        try:
-            full_counts[dids, pids] = counts_rebinned
-        except Exception:
-            logger.error('Could not reshape counts to expected size', exc_info=True)
-            return None
+        for tid, did, pid in count_map.keys():
+            cur_counts = count_map[tid, did, pid]
+            cur_counts_var = counts_var_map[tid, did, pid]
 
-        full_counts_var = np.zeros((32, 12, 1024))
-        full_counts_var[dids, pids] = counts_var_rebinned
-        data['counts'] = full_counts.reshape((1, *full_counts.shape)).astype(
-            get_min_uint(full_counts))
+            counts_rebinned = rebin_proportional(np.hstack(cur_counts), cin, c_out)
+            counts_var_rebinned = rebin_proportional(np.hstack(cur_counts_var), cin, c_out)
+
+            full_counts[tid, did, pid] = counts_rebinned
+            full_counts_var[tid, did, pid] = counts_var_rebinned
+
+        control = control[unique_time_indices]
+        control['index'] = np.arange(len(control))
+
+        # Data
+        data = Data()
+        data['time'] = time[unique_time_indices]
+        data['timedel'] = duration[unique_time_indices]
+        data.add_meta(name='timedel', nix='NIX00122', packets=packets)
+
+        data['counts'] = (full_counts*u.ct).astype(get_min_uint(full_counts))
         data.add_meta(name='counts', nix='NIX00158', packets=packets)
-        data['counts_err'] = np.float32(np.sqrt(full_counts_var).reshape(
-            (1, *full_counts_var.shape)))
+        data['counts_err'] = (np.sqrt(full_counts_var)*u.ct).astype(np.float32)
+        data['control_index'] = np.arange(len(control)).astype(np.uint16)
 
         return cls(service_type=packets.service_type,
                    service_subtype=packets.service_subtype,
                    ssid=packets.ssid,
                    control=control,
                    data=data,
-                   idb_versions=idb_versions)
+                   idb_versions=idb_versions,
+                   packets=packets)
 
     @classmethod
     def is_datasource_for(cls, *, service_type, service_subtype, ssid, **kwargs):
@@ -649,31 +676,80 @@ class TMStatusFlareList(QLProduct):
 
     @classmethod
     def from_levelb(cls, levelb, parent=''):
-        packets, idb_versions, control = QLProduct.from_levelb(levelb, parent=parent)
+        packets, idb_versions = GenericProduct.getLeveL0Packets(levelb)
 
-        control.add_basic(name='ubsd_counter', nix='NIX00285', packets=packets)
-        control.add_basic(name='pald_counter', nix='NIX00286', packets=packets)
-        control.add_basic(name='num_flares', nix='NIX00294', packets=packets)
+        control = Control()
+        control['scet_coarse'] = packets.get('scet_coarse')
+        control['scet_fine'] = packets.get('scet_fine')
+        control['index'] = np.arange(len(control)).astype(get_min_uint(len(control)))
 
-        data = Data()
-        if control['num_flares'].sum() > 0:
-            data.add_basic(name='start_scet_coarse', nix='NIX00287', packets=packets)
-            data.add_basic(name='end_scet_coarse', nix='NIX00288', packets=packets)
+        # When the packets are parsed empty packets are dropped but in LB we don't parse so this
+        # is not known need to compare control and levelb.control and only use matching rows
+        if len(levelb.control) > len(control):
+            matching_index = np.argwhere(
+                np.in1d(levelb.control['scet_coarse'], np.array(packets.get('scet_coarse'))))
+            control['raw_file'] = levelb.control['raw_file'][matching_index].reshape(-1)
+            control['packet'] = levelb.control['packet'][matching_index].reshape(-1)
+        else:
+            control['raw_file'] = levelb.control['raw_file'].reshape(-1)
+            control['packet'] = levelb.control['packet'].reshape(-1)
 
-            data['time'] = SCETime(packets.get_value('NIX00287'), 0)
+        control['parent'] = parent
 
-            data.add_basic(name='highest_flareflag', nix='NIX00289', packets=packets, dtype=np.byte)
-            data.add_basic(name='tm_byte_volume', nix='NIX00290', packets=packets, dtype=np.byte)
-            data.add_basic(name='average_z_loc', nix='NIX00291', packets=packets, dtype=np.byte)
-            data.add_basic(name='average_y_loc', nix='NIX00292', packets=packets, dtype=np.byte)
-            data.add_basic(name='processing_mask', nix='NIX00293', packets=packets, dtype=np.byte)
+        tmp = Data()
+        tmp.add_basic(name='ubsd_counter', nix='NIX00285', packets=packets, dtype=np.uint32)
+        tmp.add_basic(name='pald_counter', nix='NIX00286', packets=packets, dtype=np.uint32)
+        tmp.add_basic(name='num_flares', nix='NIX00294', packets=packets, dtype=np.uint16)
+
+        colnames = ['start_scet_coarse', 'end_scet_coarse', 'highest_flareflag', 'tm_byte_volume',
+                    'average_z_loc', 'average_y_loc', 'processing_mask']
+
+        flares = Data()
+        if tmp['num_flares'].sum() > 0:
+            flares.add_basic(name='start_scet_coarse', nix='NIX00287', packets=packets)
+            flares.add_basic(name='end_scet_coarse', nix='NIX00288', packets=packets)
+            flares.add_basic(name='highest_flareflag', nix='NIX00289', packets=packets,
+                             dtype=np.byte)
+            flares.add_basic(name='tm_byte_volume', nix='NIX00290', packets=packets, dtype=np.byte)
+            flares.add_basic(name='average_z_loc', nix='NIX00291', packets=packets, dtype=np.byte)
+            flares.add_basic(name='average_y_loc', nix='NIX00292', packets=packets, dtype=np.byte)
+            flares.add_basic(name='processing_mask', nix='NIX00293', packets=packets, dtype=np.byte)
+
+        tmp_data = defaultdict(list)
+        start = 0
+        for i, (ubsd, pald, n_flares) in enumerate(tmp):
+            end = start + n_flares
+            if n_flares == 0:
+                tmp_data['control_index'].append(i)
+                tmp_data['coarse'].append(control['scet_coarse'][i])
+                tmp_data['fine'].append(control['scet_fine'][i])
+                tmp_data['ubsd'].append(ubsd)
+                tmp_data['pald'].append(pald)
+                for name in colnames:
+                    tmp_data[name].append(0)
+            else:
+                tmp_data['control_index'].append([i] * n_flares)
+                tmp_data['coarse'].append([control['scet_coarse'][i]] * n_flares)
+                tmp_data['fine'].append([control['scet_fine'][i]] * n_flares)
+                ubsd['ubsd']([ubsd] * n_flares)
+                pald['pald'].append([pald] * n_flares)
+                for name in colnames:
+                    tmp_data[name].extend(flares[name][start:end])
+
+            start = end
+
+        data = Data(tmp_data)
+        data['time'] = SCETime(tmp_data['coarse'], tmp_data['fine'])
+        data['timedel'] = SCETimeDelta(np.full(len(data), 0), np.full(len(data), 0))
+        data.remove_columns(['coarse', 'fine'])
 
         return cls(service_type=packets.service_type,
                    service_subtype=packets.service_subtype,
                    ssid=packets.ssid,
                    control=control,
                    data=data,
-                   idb_versions=idb_versions)
+                   idb_versions=idb_versions,
+                   packets=packets)
 
     @classmethod
     def is_datasource_for(cls, *, service_type, service_subtype, ssid, **kwargs):

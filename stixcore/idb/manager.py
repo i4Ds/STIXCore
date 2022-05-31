@@ -203,7 +203,9 @@ class IDBManager:
                 zip_ref.extractall(vdir / "raw")
 
             IDBManager.convert_mib_2_sqlite(
-                in_folder=vdir / "raw" / ("STIX-IDB-" +
+                in_folder=vdir / "raw" / ("v" +
+                                          IDBManager.convert_version_label(version_label)) /
+                                         ("STIX-IDB-" +
                                           IDBManager.convert_version_label(version_label)) / "idb",
                 out_file=self._get_filename_for_version(version_label),
                 version_label=IDBManager.convert_version_label(version_label))

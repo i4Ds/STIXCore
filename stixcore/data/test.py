@@ -1,5 +1,4 @@
 """Wrap all test files into data object."""
-import os
 from pathlib import Path
 
 data_dir = Path(__file__).parent
@@ -39,10 +38,10 @@ class IDBTestProduct:
 class TMTCTestData:
     def __init__(self, data_dir):
         self.TM_DIR = data_dir / "tmtc" / "tm"
-        for path, subdirs, files in os.walk(self.TM_DIR):
-            for name in files:
-                p_name = f"TM_{name.replace('.hex','')}"
-                self.__dict__[p_name] = Path(os.path.join(path, name))
+        for f in self.TM_DIR.rglob("*.hex"):
+            p_name = f"TM_{f.name.replace('.hex','')}"
+            self.__dict__[p_name] = f
+        self.XML_TM = list(self.TM_DIR.rglob("*.xml"))
         self.__doc__ = "\n".join([f'{str(k)}: {repr(v)}\n\n' for k, v in self.__dict__.items()])
 
 

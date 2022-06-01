@@ -141,6 +141,9 @@ class SpiceKernelLoader:
         if not self.meta_kernel_path.exists():
             raise ValueError(f'Meta kernel not found: {self.meta_kernel_path}')
 
+        # look for a twin file *.abs where the path definition is absolute
+        # if not existing create it on the fly and store it in same location for later reuse
+
         abs_file = self.meta_kernel_path.parent / (self.meta_kernel_path.name + ".abs")
 
         if not abs_file.exists():

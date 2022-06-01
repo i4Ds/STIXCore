@@ -27,3 +27,7 @@ data products create from multiple packets with additional checks.
 .. automodapi:: stixcore.products.level0.scienceL0
 
 .. automodapi:: stixcore.products.level1.scienceL1
+
+.. automodapi:: stixcore.products.level2.housekeepingL2
+
+.. automodapi:: stixcore.products.level2.quicklookL2

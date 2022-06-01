@@ -30,6 +30,7 @@ def clear_dir(dir):
 
 
 class ProductLevel(Enum):
+    """Enum Type for Processing steps to make them sortable"""
     TM = -2
     LB = -1
     L0 = 0
@@ -121,10 +122,7 @@ if __name__ == '__main__':
                         help="filter expression applied to all input files example '*sci*.fits'",
                         default=None, type=str, dest='filter')
     parser.add_argument("-c", "--clean",
-                        help="clean all files from <--fits_dir> first",
-                        default=False, type=bool, const=True, nargs="?")
-    parser.add_argument("-C", "--CLEAN",
-                        help="clean all files from <--fits_dir> first without confirmation",
+                        help="clean all files from <fits_dir> first",
                         default=False, type=bool, const=True, nargs="?")
 
     args = parser.parse_args()
@@ -177,9 +175,6 @@ if __name__ == '__main__':
         confirm = input(f"clean {fitsdir} Y/N: ")
         if confirm.upper() == "Y":
             clear_dir(fitsdir)
-
-    if args.CLEAN and fitsdir.exists:
-        clear_dir(fitsdir)
 
     if ProductLevel.LB.value >= args.start_level.value:
         tmfiles = soc.get_files(tmtc=TMTC.All if FILTER is None else FILTER)

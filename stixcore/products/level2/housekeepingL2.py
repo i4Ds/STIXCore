@@ -18,7 +18,7 @@ from stixcore.products.product import GenericPacket, L2Mixin
 from stixcore.time import SCETime, SCETimeDelta, SCETimeRange
 from stixcore.util.logging import get_logger
 
-__all__ = ['MiniReport', 'MaxiReport', 'Auxiliary']
+__all__ = ['MiniReport', 'MaxiReport', 'Auxiliary', 'AspectIDLProcessing']
 
 logger = get_logger(__name__)
 
@@ -60,6 +60,8 @@ class MaxiReport(HKProduct, L2Mixin):
 
     @classmethod
     def from_level1(cls, l1product, idbm=GenericPacket.idb_manager, parent='', idlprocessor=None):
+
+        # create a l2 HK product
         l2 = cls(service_type=l1product.service_type,
                  service_subtype=l1product.service_subtype,
                  ssid=l1product.ssid,
@@ -70,6 +72,7 @@ class MaxiReport(HKProduct, L2Mixin):
         l2.control.replace_column('parent', [parent.name] * len(l2.control))
         l2.fits_header = l1product.fits_header
 
+        # use the HK data to generate aux data product in a seperate task
         if isinstance(idlprocessor, SSWIDLProcessor):
 
             data = QTable()
@@ -108,6 +111,8 @@ class MaxiReport(HKProduct, L2Mixin):
             idlprocessor[AspectIDLProcessing].params['hk_files'].append(f)
             idlprocessor.opentasks += 1
 
+            # currently the HK L2 product is the same as L1
+            # TODO add real calibration supress the writeout
         return [l2]
 
     @classmethod
@@ -117,6 +122,7 @@ class MaxiReport(HKProduct, L2Mixin):
 
 
 class AspectIDLProcessing(SSWIDLTask):
+    """A IDL Task that will calculate the aspect solution based on HK product data input."""
     def __init__(self):
         script = '''
             workdir = '{{ work_dir }}'
@@ -212,14 +218,38 @@ class AspectIDLProcessing(SSWIDLTask):
                          params={'hk_files': list()})
 
     def pack_params(self):
+        """Preprocessing step applying json formatting to the input data.
+
+        Returns
+        -------
+        dict
+            the pre processed data
+        """
         packed = self.params.copy()
-        print("calling IDL for hk files:")
+        logger.info("calling IDL for hk files:")
         for f in packed['hk_files']:
-            print(f"    {f['parentfits']}")
+            logger.info(f"    {f['parentfits']}")
         packed['hk_files'] = json.dumps(packed['hk_files'])
         return packed
 
     def postprocessing(self, result, fits_processor):
+        """Postprocessing step after the IDL tasks returned the aspect data.
+
+        The aspect data and additional auxiliary data will be compiled
+        into `Auxiliary` data product and written out to fits file.
+
+        Parameters
+        ----------
+        result : dict
+            the result of the IDL aspect solution
+        fits_processor : FitsProcessor
+            a fits processor to write out product as fits
+
+        Returns
+        -------
+        list
+            a list of all written fits files
+        """
         files = []
         logger.info("returning from IDL")
         if 'data' in result and 'processed_files' in result:

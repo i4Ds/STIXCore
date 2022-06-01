@@ -7,6 +7,7 @@ from astropy.table import Table
 from astropy.time import Time
 
 from stixcore.calibration.energy import get_elut
+from stixcore.calibration.grid import get_grid_transmission
 from stixcore.calibration.livetime import get_livetime_fraction
 from stixcore.config.reader import read_subc_params
 
@@ -100,8 +101,10 @@ def create_visibility(pixel_data, time_range, energy_range, phase_center):
     ct_sumed = ct.sum(axis=(0, 3)) / (er * lt.to('s').reshape(-1, 1))
     err_sumed = np.sqrt(ct.sum(axis=(0, 3))) / (er * lt.to('s').reshape(-1, 1))
 
-    ct_sumed = ct_sumed / 4  # transmission through grid ~ 1/2 * 1/2 = 1/4
-    err_sumed = err_sumed / 4
+    grid_transmission = get_grid_transmission(phase_center)
+
+    ct_sumed = ct_sumed / grid_transmission.reshape(-1, 1) / 4  # transmission grid ~ 0.5*0.5 = .25
+    err_sumed = err_sumed / grid_transmission.reshape(-1, 1) / 4
 
     abcd_rate = ct_sumed.reshape(-1, 3, 4)[:, [0, 1], :].sum(axis=1)
 

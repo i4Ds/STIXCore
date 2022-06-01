@@ -1,6 +1,5 @@
 """Module for the different processing levels."""
 import logging
-from pathlib import Path
 from datetime import datetime
 
 import numpy as np
@@ -11,14 +10,14 @@ from astropy.io.fits import table_to_hdu
 from astropy.table import QTable
 
 import stixcore
-from stixcore.config.config import CONFIG
 from stixcore.ephemeris.manager import Spice
 from stixcore.products.level0.scienceL0 import Aspect
 from stixcore.products.product import Product
 from stixcore.soop.manager import SOOPManager, SoopObservationType
 from stixcore.util.logging import get_logger
 
-__all__ = ['SEC_IN_DAY', 'FitsProcessor', 'FitsLBProcessor', 'FitsL0Processor', 'FitsL1Processor']
+__all__ = ['SEC_IN_DAY', 'FitsProcessor', 'FitsLBProcessor', 'FitsL0Processor',
+           'FitsL1Processor', 'FitsL2Processor']
 
 
 logger = get_logger(__name__, level=logging.WARNING)
@@ -651,10 +650,6 @@ class FitsL0Processor:
 class FitsL1Processor(FitsL0Processor):
     def __init__(self, archive_path):
         self.archive_path = archive_path
-        soop_path = CONFIG.get('Paths', 'soop_files')
-        if str(soop_path) == '':
-            soop_path = Path(__file__).parent.parent.parent / 'data' / 'test' / 'soop'
-        self.soop_manager = SOOPManager(soop_path)
 
     @classmethod
     def generate_filename(cls, product, *, version, status=''):
@@ -668,8 +663,8 @@ class FitsL1Processor(FitsL0Processor):
                                                status=status)
 
     def generate_primary_header(self, filename, product):
-        if product.level != 'L1':
-            raise ValueError(f"Try to crate FITS file L1 for {product.level} data product")
+        # if product.level != 'L1':
+        #    raise ValueError(f"Try to crate FITS file L1 for {product.level} data product")
 
         headers = FitsProcessor.generate_common_header(filename, product)
 
@@ -689,9 +684,9 @@ class FitsL1Processor(FitsL0Processor):
             ('XPOSURE', exposure, '[s] shortest exposure time')
         )
 
-        soop_keywords = self.soop_manager.get_keywords(start=product.utc_timerange.start,
-                                                       end=product.utc_timerange.end,
-                                                       otype=SoopObservationType.ALL)
+        soop_keywords = SOOPManager.instance.get_keywords(start=product.utc_timerange.start,
+                                                          end=product.utc_timerange.end,
+                                                          otype=SoopObservationType.ALL)
         soop_headers = tuple(kw.tuple for kw in soop_keywords)
         soop_defaults = (
             ('OBS_MODE', '', 'Observation mode'),
@@ -725,7 +720,7 @@ class FitsL1Processor(FitsL0Processor):
             Spice.instance.get_fits_headers(start_time=product.utc_timerange.start,
                                             average_time=product.utc_timerange.center)
 
-        return headers + data_headers + soop_headers + time_headers + ephemeris_headers
+        return headers + data_headers + soop_headers + time_headers, ephemeris_headers
 
     def write_fits(self, product):
         """
@@ -771,10 +766,12 @@ class FitsL1Processor(FitsL0Processor):
                                   for version, range in product.idb_versions.items()],
                                   names=["version", "obt_start", "obt_end"])
 
-            primary_header = self.generate_primary_header(filename, prod)
+            primary_header, header_override = self.generate_primary_header(filename, prod)
             primary_hdu = fits.PrimaryHDU()
             primary_hdu.header.update(primary_header)
-            primary_hdu.header.update({'HISTORY': 'Processed by STIX'})
+            primary_hdu.header.update(header_override)
+            primary_hdu.header.update(product.get_additional_header_keywords())
+            primary_hdu.header.update({'HISTORY': 'Processed by STIX L2'})
 
             # Convert time to be relative to start date
             # it is important that the change to the relative time is done after the header is
@@ -820,3 +817,28 @@ class FitsL1Processor(FitsL0Processor):
             hdul.writeto(filetowrite, overwrite=True, checksum=True)
             created_files.append(filetowrite)
         return created_files
+
+
+class FitsL2Processor(FitsL1Processor):
+    def __init__(self, archive_path):
+        super().__init__(archive_path)
+
+    def generate_primary_header(self, filename, product):
+        # if product.level != 'L2':
+        #    raise ValueError(f"Try to crate FITS file L2 for {product.level} data product")
+
+        if product.fits_header is None:
+            L1, o = super().generate_primary_header(filename, product)
+            L1headers = L1 + o
+        else:
+            L1headers = product.fits_header.items()
+
+        # new or override keywords
+        L2headers = (
+            # Name, Value, Comment
+            ('LEVEL', 'L2', 'Processing level of the data'),
+            ('VERS_SW', str(stixcore.__version__), 'Version of SW that provided FITS file'),
+            ('HISTORY', 'Processed by STIX'),
+        )
+
+        return L1headers, L2headers

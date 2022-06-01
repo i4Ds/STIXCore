@@ -105,9 +105,11 @@ class SOCManager:
         `SOCPacketFile`
             the next found SOC input file.
         """
+        filter = str(tmtc)
 
-        filter = "*.xml"
-        if tmtc == TMTC.TC:
+        if tmtc == TMTC.All:
+            filter = "*.xml"
+        elif tmtc == TMTC.TC:
             filter = "*PktTcReport*.xml"
         elif tmtc == TMTC.TM:
             filter = "*PktTmRaw*.xml"
@@ -115,8 +117,7 @@ class SOCManager:
         for filename in sorted(list(self.data_root.glob(filter))):
             try:
                 file = SOCPacketFile(filename)
-                if file.tmtc.value & tmtc.value:
-                    yield file
+                yield file
             except ValueError:
                 pass
 

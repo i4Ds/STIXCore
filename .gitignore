@@ -161,3 +161,4 @@ htmlcov/
 *.prof
 pdpp.html
 stixcore/util/scripts/ddpd.html
+stixcore/data/test/ephemeris/spice/kernels/mk/*.abs

@@ -1,3 +1,4 @@
+from pathlib import Path
 from datetime import datetime
 
 import numpy as np
@@ -5,12 +6,15 @@ import pytest
 
 import astropy.units as u
 
-from stixcore.ephemeris.manager import Spice
+from stixcore.config.config import CONFIG
+from stixcore.ephemeris.manager import Spice, SpiceKernelManager
 from stixcore.time.datetime import SCETime
 
 
 @pytest.fixture
 def spice():
+    _spm = SpiceKernelManager(Path(CONFIG.get("Paths", "spice_kernels")))
+    Spice.instance = Spice(_spm.get_latest_mk())
     return Spice.instance
 
 
@@ -19,14 +23,30 @@ def test_get_position(spice):
     # from idl sunspice
     # CSPICE_FURNSH, 'test_position_20201001_V01.mk'
     # GET_SUNSPICE_COORD( '2020-10-7T12:00:00', 'SOLO', system='HEEQ')
-    ref = [-89274134.692906067, 116495809.40033908, - 16959307.703630231] * u.km
+    ref = [-89274134.69290607, 116495809.40033908, -16959307.70363023] * u.km
     assert np.allclose(ref, res)
+
+
+def test_aux(spice):
+    d = spice.datetime_to_scet(datetime(2020, 10, 7, 12))
+    orient, dist, car, heeq = spice.get_auxiliary_positional_data(date=d)
+    orient_ref = [-1.10229843, 0.00039536, -0.00033562] * u.deg
+    assert np.allclose(orient, orient_ref)
+
+    dist_ref = [147745601.79847595] * u.km
+    assert np.allclose(dist, dist_ref)
+
+    car_ref = [127.46399814, -6.5913527] * u.deg
+    assert np.allclose(car, car_ref)
+
+    heeq_ref = [-89274134.6929042, 116495809.4003411, -16959307.70363055] * u.km
+    assert np.allclose(heeq, heeq_ref)
 
 
 def test_get_orientation(spice):
     # from idl sunspice
     # CSPICE_FURNSH, 'test_position_20201001_V01.mk'
-    # GET_SUNSPICE_ROLL( '2020-10-7T12:00:00', 'SOLO', system='HEEQ', yaw, pitch )
+    # GET_SUNSPICE_ROLL( '2020-10-7T12:00:00', 'SOLO', system='HEEQ', yaw, pitch ) SOLO_HEEQ
     res_roll, res_pitch, res_yaw = spice.get_orientation(date=datetime(2020, 10, 7, 12),
                                                          frame='SOLO_HEEQ')
     ref_roll, ref_pitch, ref_yaw = [1.1023372100542925, 6.5917480592073163,

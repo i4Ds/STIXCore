@@ -158,8 +158,8 @@ class SpiceKernelLoader:
                 logger.debug(f'Kernel directory {kernel_dir}')
                 new_mk = re.sub(r"PATH_VALUES\s*= \( '.*' \)", path_value, original_mk)
 
-            with abs_file.open('w') as f:
-                f.write(new_mk)
+                with abs_file.open('w') as f:
+                    f.write(new_mk)
 
         logger.info(f"LOAD NEW META KERNEL: {self.meta_kernel_path}")
         spiceypy.kclear()

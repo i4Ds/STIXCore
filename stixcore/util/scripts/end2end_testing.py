@@ -11,7 +11,6 @@ from stixcore.processing.L0toL1 import Level1
 from stixcore.processing.LBtoL0 import Level0
 from stixcore.processing.TMTCtoLB import process_tmtc_to_levelbinary
 from stixcore.products.product import Product
-from stixcore.soop.manager import SOOPManager
 from stixcore.tmtc.packets import TMTC
 
 import pytest  # noqa
@@ -26,11 +25,11 @@ END_TO_END_TEST_FILES = [
     # L1
     # science
     "L1/2021/06/28/SCI/solo_L1_stix-sci-xray-rpd_20210628T092301-20210628T092501_V01_2106280010-54759.fits", # noqa
-    "L1/2021/06/28/SCI/solo_L1_stix-sci-xray-cpd_20210628T091548-20210628T095718_V01_2106280032-54897.fits", # noqa
+    "L1/2021/06/22/SCI/solo_L1_stix-sci-xray-cpd_20210622T002254-20210622T003246_V01_2106220042-60422.fits", # noqa
     "L1/2021/06/28/SCI/solo_L1_stix-sci-xray-scpd_20210628T092301-20210628T092502_V01_2106280006-54720.fits", # noqa
     "L1/2021/06/28/SCI/solo_L1_stix-sci-xray-vis_20210628T092301-20210628T092502_V01_2106280004-54716.fits", # noqa
-    # "L1/2021/10/13/SCI/solo_L1_stix-sci-aspect-burst_20211013T035000-20211013T035121_V01_2110130054.fits", # noqa
-    "L1/2021/06/28/SCI/solo_L1_stix-sci-xray-spec_20210628T092301-20210628T092502_V01_2106280002-54712.fits", # noqa
+    "L1/2021/09/13/SCI/solo_L1_stix-sci-aspect-burst_20210913T055800-20210913T060010_V01_0.fits", # noqa
+    "L1/2021/06/22/SCI/solo_L1_stix-sci-xray-spec_20210622T175407-20210622T193838_V01_2106220005-54831.fits", # noqa
     # QL
     "L1/2020/06/16/QL/solo_L1_stix-ql-background_20200616_V01.fits",
     "L1/2020/06/16/QL/solo_L1_stix-ql-flareflag_20200616_V01.fits",
@@ -127,8 +126,6 @@ def end2end_pipeline(indir, fitsdir):
     _spm = SpiceKernelManager(test_data.ephemeris.KERNELS_DIR)
     Spice.instance = Spice(_spm.get_latest_mk())
     print(f"Spice kernel @: {Spice.instance.meta_kernel_path}")
-
-    SOOPManager.instance = SOOPManager(test_data.soop.DIR)
 
     soc = SOCManager(indir)
     lb_files = process_tmtc_to_levelbinary(soc.get_files(TMTC.TM), archive_path=fitsdir)

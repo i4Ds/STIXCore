@@ -56,7 +56,7 @@ class GFTSFileHandler(FileSystemEventHandler):
 
     def on_moved(self, event):
         if self.regex.match(event.dest_path):
-            self.func(Path(event), **self.args)
+            self.func(Path(event.dest_path), **self.args)
 
 
 def process_tm(path, **args):

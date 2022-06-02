@@ -13,6 +13,13 @@ from stixcore.config.reader import read_subc_params
 
 
 def get_subcollimator_info():
+    r"""
+    Return resolutions, orientations and labels for sub-collimators.
+
+    Returns
+    -------
+
+    """
     grids = {9: np.array([3, 20, 22]) - 1, 8: np.array([16, 14, 32]) - 1,
              7: np.array([21, 26, 4]) - 1, 6: np.array([24, 8, 28]) - 1,
              5: np.array([15, 27, 31]) - 1, 4: np.array([6, 30, 2]) - 1,
@@ -56,6 +63,25 @@ def get_subcollimator_info():
 
 
 def create_visibility(pixel_data, time_range, energy_range, phase_center):
+    r"""
+    Return visibility created from pixel data with in given time and energy range.
+
+
+    Parameters
+    ----------
+    pixel_data
+        Input pixel data
+    time_range :
+        Start and end times
+    energy_range
+        Start and end energies
+    phase_center
+        The coordinates of the phase center
+    Returns
+    -------
+    `dict`
+        Visibility data and sub-collimator information
+    """
     t_ind = (pixel_data.times >= Time(time_range[0])) & (pixel_data.times <= Time(time_range[1]))
     e_ind = ((pixel_data.energies['e_low'] >= energy_range[0] * u.keV)
              & (pixel_data.energies['e_high'] <= energy_range[1] * u.keV))
@@ -127,8 +153,7 @@ def create_visibility(pixel_data, time_range, energy_range, phase_center):
     real_err = np.sqrt(aaaa_err[:, 2] ** 2 + aaaa_err[:, 0] ** 2).value * real.unit
     imag_err = np.sqrt(aaaa_err[:, 3] ** 2 + aaaa_err[:, 1] ** 2).value * real.unit
 
-    subc = read_subc_params()
-    vis = get_visibility_info(subc)
+    vis = get_visibility_info()
     vis['real'] = real
     vis['imag'] = imag
     vis['real_err'] = real_err
@@ -137,8 +162,21 @@ def create_visibility(pixel_data, time_range, energy_range, phase_center):
     return vis
 
 
-def get_visibility_info(subc, grid_separation=550 * u.mm):
-    # imaging subcollimators
+def get_visibility_info(grid_separation=550 * u.mm):
+    r"""
+    Return the sub-collimator data and corresponding u, v points.
+
+    Parameters
+    ----------
+    grid_separation : `float`, optional
+        Front to read grid separation
+
+    Returns
+    -------
+
+    """
+    # imaging sub-collimators
+    subc = read_subc_params()
     imaging_ind = np.where((subc['Grid Label'] != 'cfl') & (subc['Grid Label'] != 'bkg'))
 
     # filter out background monitor and flare locator
@@ -188,15 +226,12 @@ def get_visibility_info(subc, grid_separation=550 * u.mm):
 
 def calibrate_visibility(vis, flare_location=(0, 0) * u.arcsec):
     """
-    Return a phase calibrated visibility.
-
-    Applies a number of correction and
+    Return phase and amplitude calibrated visibilities.
 
     Parameters
     ----------
-    components
-
-    components_error
+    vis :
+        Uncalibrated Visibilities
 
     Returns
     -------
@@ -258,6 +293,48 @@ def calibrate_visibility(vis, flare_location=(0, 0) * u.arcsec):
     return vis
 
 
-def sas_map_cenert():
+def correct_phase_projection(vis, flare_xy):
+    r"""
+    Correct visibilities for projection of the grids onto the detectors.
+
+    The rear grids are not in direct contact with the detectors so the phase of the visibilities
+    needs to be project onto the grid and this is dependant on the position of the xray emission
+
+    Parameters
+    ----------
+    vis
+        Input visibilities
+    flare_xy
+        Position of the flare
+
+    Returns
+    -------
+
+    """
+    # Phase projection correction
+    l1 = 550 * u.mm  # seperation of front rear grid
+    l2 = 47 * u.mm  # seperation of rear grid and detector
+    # TODO check how this works out to degress
+    vis.phase -= (flare_xy[1].to_value('arcsec') * 360. * np.pi
+                  / (180. * 3600. * 8.8 * u.mm) * (l2 + l1 / 2.0)) * u.deg
+
+    vis.u *= -vis.phase_sense
+    vis.v *= -vis.phase_sense
+
+    # Compute real and imaginary part of the visibility
+    vis.obsvis = vis.amplitude * (np.cos(vis.phase.to('rad')) + np.sin(vis.phase.to('rad')) * 1j)
+
+    # Add phase factor for shifting the flare_xy
+    map_center = flare_xy - [26.1, 58.2] * u.arcsec
+    # Subtract Frederic's mean shift values
+
+    # TODO check the u, v why is flare_xy[1] used with u (prob stix vs spacecraft orientation
+    phase_mapcenter = -2 * np.pi * (map_center[1] * vis.u - map_center[0] * vis.v) * u.rad
+    vis.obsvis *= (np.cos(phase_mapcenter) + np.sin(phase_mapcenter) * 1j)
+
+    return vis
+
+
+def sas_map_center():
     # receter map at 0,0 taking account of mean or actual sas sol
     pass

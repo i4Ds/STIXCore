@@ -3,7 +3,7 @@ import pytest
 
 import astropy.units as u
 
-from stixcore.calibration.grid import get_grid_transmission
+from stixcore.calibration.grid import get_grid_internal_shadowing
 
 
 # Output values taken from IDL routine
@@ -23,5 +23,5 @@ from stixcore.calibration.grid import get_grid_transmission
                     0.24107693, 0.24160822, 0.21244708, 0.24805430, 0.34061235, 0.23811999,
                     0.23491424, 0.25856388])])
 def test_grid_transmission(input, out):
-    grid_transmission = get_grid_transmission(input)
+    grid_transmission = get_grid_internal_shadowing(input)
     assert np.allclose(grid_transmission, np.array(out))

@@ -3,7 +3,7 @@ from pathlib import Path
 
 import numpy as np
 
-from astropy.table import Table
+from astropy.table import QTable
 
 from stixcore.config.data_types import EnergyChannel
 
@@ -103,4 +103,4 @@ def read_subc_params(path=None):
     """
     if path is None:
         path = Path(__file__).parent.joinpath('data', 'common', 'detector', 'stx_subc_params.csv')
-    return Table.read(path, format='ascii')
+    return QTable.read(path, format='ascii')

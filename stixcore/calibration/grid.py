@@ -9,9 +9,11 @@ import astropy.units as u
 from astropy.table import Table
 
 
-def get_grid_transmission(xy_flare):
+def get_grid_internal_shadowing(xy_flare):
     r"""
     Return the grid transmission for the 32 sub-collimators
+
+
 
     Read the grid tables and calculates grid transmission for 32 sub-collimators. For finest grids
     only transmission without correction for internal shadowing

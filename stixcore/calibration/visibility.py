@@ -7,7 +7,7 @@ from astropy.table import Table
 from astropy.time import Time
 
 from stixcore.calibration.energy import get_elut
-from stixcore.calibration.grid import get_grid_transmission
+from stixcore.calibration.grid import get_grid_internal_shadowing
 from stixcore.calibration.livetime import get_livetime_fraction
 from stixcore.config.reader import read_subc_params
 
@@ -62,7 +62,7 @@ def get_subcollimator_info():
     return res
 
 
-def create_visibility(pixel_data, time_range, energy_range, phase_center):
+def create_visibility(pixel_data, time_range, energy_range, phase_center, no_shadowing=False):
     r"""
     Return visibility created from pixel data with in given time and energy range.
 
@@ -97,6 +97,7 @@ def create_visibility(pixel_data, time_range, energy_range, phase_center):
     triggers = pixel_data.data['triggers'][:, trigger_to_detector].astype(float)[...]
 
     # Update the triggers for the CFL and BK groups as the exposed area are very different
+    # Sam / Ewan ??
     bkg_ratio = 1.1
     cfl_ratio = 1.33
     triggers[:, 8] = triggers[:, 8] / (1 + cfl_ratio) * cfl_ratio  # CFL
@@ -127,10 +128,11 @@ def create_visibility(pixel_data, time_range, energy_range, phase_center):
     ct_sumed = ct.sum(axis=(0, 3)) / (er * lt.to('s').reshape(-1, 1))
     err_sumed = np.sqrt(ct.sum(axis=(0, 3))) / (er * lt.to('s').reshape(-1, 1))
 
-    grid_transmission = get_grid_transmission(phase_center)
+    grid_shadowing = get_grid_internal_shadowing(phase_center)
 
-    ct_sumed = ct_sumed / grid_transmission.reshape(-1, 1) / 4  # transmission grid ~ 0.5*0.5 = .25
-    err_sumed = err_sumed / grid_transmission.reshape(-1, 1) / 4
+    if not no_shadowing:
+        ct_sumed = ct_sumed / grid_shadowing.reshape(-1, 1) / 4  # transmission grid ~ 0.5*0.5 = .25
+        err_sumed = err_sumed / grid_shadowing.reshape(-1, 1) / 4
 
     abcd_rate = ct_sumed.reshape(-1, 3, 4)[:, [0, 1], :].sum(axis=1)
 
@@ -158,6 +160,8 @@ def create_visibility(pixel_data, time_range, energy_range, phase_center):
     vis['imag'] = imag
     vis['real_err'] = real_err
     vis['imag_err'] = imag_err
+    vis['rate'] = aaaa
+    vis['reate_err'] = aaaa_err
 
     return vis
 
@@ -222,6 +226,53 @@ def get_visibility_info(grid_separation=550 * u.mm):
         'v': vv
     }
     return vis
+
+
+def get_visibility_info_giordano():
+    L1 = 550 * u.mm
+    L2 = 47 * u.mm
+
+    subc = read_subc_params()
+    imaging_ind = np.arange(32)
+    # np.where((subc['Grid Label'] != 'cfl') & (subc['Grid Label'] != 'bkg'))
+
+    # filter out background monitor and flare locator
+    subc_imaging = subc[imaging_ind]
+
+    # take average of front and rear grid pitches (mm)
+    # pitch = (subc_imaging['Front Pitch'] + subc_imaging['Rear Pitch']) / 2.0
+
+    # convert pitch from mm to arcsec
+    # TODO check diff not using small angle approx
+    # pitch = (pitch / L1).decompose() * u.rad
+
+    # take average of front and rear grid orientation
+    # (subc_imaging['Front Orient'] + subc_imaging['Rear Orient']) / 2.0
+
+    # calculate number of frequency components
+    # len(subc_imaging)
+
+    # assign detector numbers to visibility index of subcollimator (isc)
+    # isc = subc_imaging['Det #']
+
+    # assign the stix sc label for convenience
+    subc_imaging['Grid Label']
+
+    # save phase orientation of the grids to the visibility
+    phase_sense = subc_imaging['Phase Sense']
+
+    pitch_front = (1 / subc_imaging['Front Pitch'] * (L2 + L1)) * 1/u.rad
+    pitch_rear = (1/subc_imaging['Rear Pitch'] * L2) * 1/u.rad
+
+    uu = (np.cos(subc_imaging['Front Orient'].to('deg')) * pitch_front.to(1/u.arcsec)
+          - np.cos(subc_imaging['Rear Orient'].to('deg')) * pitch_rear.to(1/u.arcsec))
+    vv = (np.sin(subc_imaging['Front Orient'].to('deg')) * pitch_front.to(1/u.arcsec)
+          - np.sin(subc_imaging['Rear Orient'].to('deg')) * pitch_rear.to(1/u.arcsec))
+
+    uu = -uu * phase_sense
+    vv = -vv * phase_sense
+
+    return uu.to(1/u.arcsec), vv.to(1/u.arcsec)
 
 
 def calibrate_visibility(vis, flare_location=(0, 0) * u.arcsec):

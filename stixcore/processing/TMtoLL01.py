@@ -21,7 +21,7 @@ DIR_ENVNAMES = [('requests', 'instr_input_requests'), ('output', 'instr_output')
 REQUEST_GLOB = 'request_[0-9][0-9][0-9][0-9][0-9][0-9][0-9][0-9]_[0-9][0-9][0-9][0-9][0-9][0-9]*'
 LLDP_VERSION = "00.07.00"
 
-logger = get_logger(__name__, level=logging.DEBUG)
+logger = get_logger(__name__)
 
 
 def get_paths():

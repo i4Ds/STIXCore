@@ -1,4 +1,3 @@
-import logging
 import warnings
 from time import perf_counter
 from pathlib import Path
@@ -11,7 +10,7 @@ from stixcore.products.levelb.binary import LevelB
 from stixcore.tmtc.packets import TMTC
 from stixcore.util.logging import get_logger
 
-logger = get_logger(__name__, level=logging.DEBUG)
+logger = get_logger(__name__)
 
 
 def tmtc_to_l0(tmtc_path, archive_path):

@@ -141,10 +141,11 @@ if __name__ == '__main__':
     # logging
     CONFIG.set('Logging', 'stop_on_error', str(args.stop_on_error))
 
-    if args.log_file:
-        logging.basicConfig(filename=args.log_file, filemode="a")
+    logging.basicConfig(format='%(asctime)s %(message)s', force=True,
+                        filename=args.log_file, filemode="a+")
+
     if args.log_level:
-        logging.basicConfig(level=logging.getLevelName(args.log_level))
+        logging.getLogger().setLevel(logging.getLevelName(args.log_level))
 
     # processing
     args.start_level = ProductLevel.from_str(args.start_level)

@@ -87,7 +87,7 @@ class SpiceKernelManager():
     def _get_latest(self, kerneltype, *, setenvironment=False):
         subdir, filter = kerneltype.value
         path = self.path / str(subdir)
-        files = sorted(list(path.glob(filter)), key=os.path.basename)
+        files = sorted(list(path.glob(filter)), key=lambda x: x.name.lower())
 
         if len(files) == 0:
             raise ValueError(f'No current kernel found at: {path}')

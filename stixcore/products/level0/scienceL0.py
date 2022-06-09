@@ -58,6 +58,10 @@ def fix_detector_mask(control, detector_mask):
         return detector_mask
 
 
+class NotCombineException(Exception):
+    pass
+
+
 class ScienceProduct(GenericProduct, EnergyChannelsMixin):
     """Generic science data product class composed of control and data."""
     def __init__(self, *, service_type, service_subtype, ssid, control, data, **kwargs):
@@ -97,7 +101,7 @@ class ScienceProduct(GenericProduct, EnergyChannelsMixin):
         return np.unique(self.control['parent'])
 
     def __add__(self, other):
-        raise(ValueError(f"Tried to combine 2 BSD products: \n{self} and \n{other}"))
+        raise(NotCombineException(f"Tried to combine 2 BSD products: \n{self} and \n{other}"))
 
         # if (np.all(self.control == other.control) and self.scet_timerange == other.scet_timerange
         #         and len(self.data) == len(other.data)):

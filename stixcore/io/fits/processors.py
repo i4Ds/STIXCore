@@ -1,5 +1,4 @@
 """Module for the different processing levels."""
-import logging
 from datetime import datetime
 
 import numpy as np
@@ -20,7 +19,7 @@ __all__ = ['SEC_IN_DAY', 'FitsProcessor', 'FitsLBProcessor', 'FitsL0Processor',
            'FitsL1Processor', 'FitsL2Processor']
 
 
-logger = get_logger(__name__, level=logging.WARNING)
+logger = get_logger(__name__)
 
 SEC_IN_DAY = 24 * 60 * 60
 LLDP_VERSION = "00.07.00"

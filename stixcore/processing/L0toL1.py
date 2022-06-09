@@ -1,4 +1,3 @@
-import logging
 import warnings
 from time import perf_counter
 from pathlib import Path
@@ -11,10 +10,11 @@ from stixcore.config.config import CONFIG
 from stixcore.ephemeris.manager import Spice, SpiceKernelManager
 from stixcore.io.fits.processors import FitsL1Processor
 from stixcore.products import Product
+from stixcore.products.level0.scienceL0 import NotCombineException
 from stixcore.soop.manager import SOOPManager
 from stixcore.util.logging import get_logger
 
-logger = get_logger(__name__, level=logging.INFO)
+logger = get_logger(__name__)
 
 
 class Level1:
@@ -69,7 +69,9 @@ def process_type(files, *, processor, soopmanager, spice_kernel_path, config):
             files = processor.write_fits(l1)
             all_files.extend(files)
         except NoMatchError:
-            logger.debug('No match for product %s', l0)
+            logger.warning('No match for product %s', l0)
+        except NotCombineException as nc:
+            logger.info(nc)
         except Exception as e:
             logger.error('Error processing file %s', file, exc_info=True)
             logger.error('%s', e)

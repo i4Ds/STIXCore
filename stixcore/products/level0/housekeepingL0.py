@@ -1,14 +1,13 @@
 """
 House Keeping data products
 """
-import logging
 from collections import defaultdict
 
 from stixcore.products.product import Control, Data, GenericProduct
 from stixcore.time import SCETime, SCETimeDelta, SCETimeRange
 from stixcore.util.logging import get_logger
 
-logger = get_logger(__name__, level=logging.DEBUG)
+logger = get_logger(__name__)
 
 __all__ = ['MiniReport', 'MaxiReport']
 

@@ -19,6 +19,7 @@ from stixcore.io.soc.manager import SOCManager, SOCPacketFile
 from stixcore.processing.L0toL1 import Level1
 from stixcore.processing.L1toL2 import Level2
 from stixcore.processing.LBtoL0 import Level0
+from stixcore.processing.pipeline import process_tm
 from stixcore.processing.TMTCtoLB import process_tmtc_to_levelbinary
 from stixcore.products.level0.quicklookL0 import LightCurve
 from stixcore.products.product import Product
@@ -266,6 +267,37 @@ def test_single_vs_batch(out_dir):
             assert diff.identical
     finally:
         CONFIG.set('Logging', 'stop_on_error', str(CONTINUE_ON_ERROR))
+
+
+def test_pipeline_logging(spicekernelmanager, out_dir):
+
+    CONTINUE_ON_ERROR = CONFIG.getboolean('Logging', 'stop_on_error', fallback=False)
+    FITS_ARCHIVE = CONFIG.get('Paths', 'fits_archive')
+    LOG_LEVEL = CONFIG.get('Pipeline', 'log_level')
+    LOG_DIR = CONFIG.get('Pipeline', 'log_dir')
+    try:
+        CONFIG.set('Logging', 'stop_on_error', str(False))
+        CONFIG.set('Paths', 'fits_archive', str(out_dir / "fits"))
+        CONFIG.set('Pipeline', 'log_level', str('DEBUG'))
+        CONFIG.set('Pipeline', 'log_dir', str(out_dir / "logging"))
+
+        log_dir = Path(CONFIG.get('Pipeline', 'log_dir'))
+        log_dir.mkdir(parents=True, exist_ok=True)
+
+        for f in test_data.tmtc.XML_TM:
+            process_tm(f, spm=spicekernelmanager)
+
+        assert len(list(log_dir.rglob("*.log"))) == 3
+        assert len(list(log_dir.rglob("*.log.err"))) == 0
+        assert len(list(log_dir.rglob("*.out"))) == 3
+        # TODO increase if level2 for more products is available
+        assert len(list(Path(CONFIG.get('Paths', 'fits_archive')).rglob("*.fits"))) == 11
+
+    finally:
+        CONFIG.set('Logging', 'stop_on_error', str(CONTINUE_ON_ERROR))
+        CONFIG.set('Paths', 'fits_archive', str(FITS_ARCHIVE))
+        CONFIG.set('Pipeline', 'log_level', str(LOG_LEVEL))
+        CONFIG.set('Pipeline', 'log_dir', str(LOG_DIR))
 
 
 if __name__ == '__main__':

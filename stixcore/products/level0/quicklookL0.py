@@ -1,7 +1,6 @@
 """
 High level STIX data products created from single stand alone packets or a sequence of packets.
 """
-import logging
 from itertools import chain, repeat
 from collections import defaultdict
 
@@ -24,7 +23,7 @@ from stixcore.util.logging import get_logger
 
 __all__ = ['QLProduct', 'LightCurve', 'Background', 'Spectra']
 
-logger = get_logger(__name__, level=logging.WARNING)
+logger = get_logger(__name__)
 
 QLNIX00405_off = 0.1
 

@@ -186,8 +186,6 @@ def process_tm(path, **args):
         l1_files = l1_proc.process_fits_files(files=l0_files)
         logger.info(f"generated L1 files: \n{pformat(l1_files)}")
 
-        logger.error("force test")
-
         l2_proc = Level2(CONFIG.get('Paths', 'tm_archive'), CONFIG.get('Paths', 'fits_archive'))
         l2_files = l2_proc.process_fits_files(files=l1_files)
         logger.info(f"generated L2 files: \n{pformat(l2_files)}")

@@ -141,10 +141,11 @@ if __name__ == '__main__':
     # logging
     CONFIG.set('Logging', 'stop_on_error', str(args.stop_on_error))
 
-    if args.log_file:
-        logging.basicConfig(filename=args.log_file, filemode="a")
+    logging.basicConfig(format='%(asctime)s %(message)s', force=True,
+                        filename=args.log_file, filemode="a+")
+
     if args.log_level:
-        logging.basicConfig(level=logging.getLevelName(args.log_level))
+        logging.getLogger().setLevel(logging.getLevelName(args.log_level))
 
     # processing
     args.start_level = ProductLevel.from_str(args.start_level)
@@ -186,6 +187,7 @@ if __name__ == '__main__':
         if not FILTER:
             FILTER = "*.fits"
         processed_files[ProductLevel.LB].extend((fitsdir / "LB").rglob(FILTER))
+        processed_files[ProductLevel.LB] = processed_files[ProductLevel.LB][6:]
 
     if ((ProductLevel.L0.value >= args.start_level.value)
             and (args.end_level.value >= ProductLevel.L0.value)):

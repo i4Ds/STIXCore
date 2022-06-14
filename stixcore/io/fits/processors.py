@@ -14,6 +14,7 @@ from stixcore.ephemeris.manager import Spice
 from stixcore.products.level0.scienceL0 import Aspect
 from stixcore.products.product import Product
 from stixcore.soop.manager import SOOPManager, SoopObservationType
+from stixcore.time.datetime import SEC_IN_DAY
 from stixcore.util.logging import get_logger
 
 __all__ = ['SEC_IN_DAY', 'FitsProcessor', 'FitsLBProcessor', 'FitsL0Processor',
@@ -22,7 +23,6 @@ __all__ = ['SEC_IN_DAY', 'FitsProcessor', 'FitsLBProcessor', 'FitsL0Processor',
 
 logger = get_logger(__name__, level=logging.WARNING)
 
-SEC_IN_DAY = 24 * 60 * 60
 LLDP_VERSION = "00.07.00"
 Y_M_D_H_M = "%Y%m%d%H%M"
 
@@ -328,7 +328,7 @@ class FitsLBProcessor(FitsProcessor):
         `str`
             The filename
         """
-        scet_obs = int(product.obt_avg.as_float().value // SEC_IN_DAY) * SEC_IN_DAY
+        scet_obs = product.obt_avg.get_scedays(timestamp=True)
 
         parts = [str(x) for x in [product.service_type, product.service_subtype, product.ssid]]
         if product.ssid is None:

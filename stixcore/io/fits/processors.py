@@ -498,14 +498,19 @@ class FitsL0Processor:
             # generated as this will use the original SCET time data
 
             if isinstance(prod, Aspect):
-                data['time'] = np.float32((data['time']
-                                           - prod.scet_timerange.start).as_float())
+                _time = np.float32((data['time'] - prod.scet_timerange.start).as_float())
+                del data['time']
+                data['time'] = _time
+
                 data['timedel'] = np.float32(data['timedel'].as_float())
             else:
                 # In TM sent as uint in units of 0.1 so convert to cs as the time center
                 # can be on 0.5ds points
-                data['time'] = np.uint32(np.around(
-                    (data['time'] - prod.scet_timerange.start).as_float().to(u.cs)))
+                _time = np.around((data['time'] -
+                                   prod.scet_timerange.start).as_float().to(u.cs)).astype("uint32")
+                del data['time']
+                data['time'] = _time
+
                 data['timedel'] = np.uint32(np.around(data['timedel'].as_float().to(u.cs)))
 
             try:
@@ -778,8 +783,12 @@ class FitsL1Processor(FitsL0Processor):
 
             # In TM sent as uint in units of 0.1 so convert to cs as the time center
             # can be on 0.5ds points
-            data['time'] = np.uint32(np.around((data['time']
-                                                - prod.scet_timerange.start).as_float().to(u.cs)))
+            _time = np.around((data['time']
+                               - prod.scet_timerange.start).as_float().to(u.cs)).astype('uint32')
+            # fully replace the time column as otherwise the SCETime type will be preserved
+            del data['time']
+            data['time'] = _time
+
             data['timedel'] = np.uint32(np.around(data['timedel'].as_float().to(u.cs)))
 
             try:

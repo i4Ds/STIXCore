@@ -150,19 +150,18 @@ def test_pipeline(socpacketfile, out_dir):
     all = True
     report = dict()
 
-    # exclude = ['__doc__', 'TM_DIR', 'XML_TM',
-    #           # the following TMs have invalid times: year 2086
-    #           'TM_1_2_48000', 'TM_236_19', 'TM_237_12',
-    #           'TM_239_14', 'TM_5_4_54304', 'TM_6_6_53250']
-    # singletest = ['TM_21_6_42_complete']
-    singletest = ['TM_3_25_2']
+    exclude = ['__doc__', 'TM_DIR', 'XML_TM',
+               # the following TMs have invalid times: year 2086
+               'TM_1_2_48000', 'TM_236_19', 'TM_237_12',
+               'TM_239_14', 'TM_5_4_54304', 'TM_6_6_53250']
+    # singletest = ['TM_3_25_2']
 
-    # for pid, fkey in enumerate([k for k in test_data.tmtc.__dict__.keys()
-    #                            if ((k not in exclude)
-    #                                and not (k.startswith('TM_21_6_')
-    #                                         and not k.endswith('_complete')))]):
     for pid, fkey in enumerate([k for k in test_data.tmtc.__dict__.keys()
-                                if k in singletest]):
+                                if ((k not in exclude)
+                                    and not (k.startswith('TM_21_6_')
+                                             and not k.endswith('_complete')))]):
+        # for pid, fkey in enumerate([k for k in test_data.tmtc.__dict__.keys()
+        #                            if k in singletest]):
         hex_file = test_data.tmtc.__dict__[fkey]
 
         try:

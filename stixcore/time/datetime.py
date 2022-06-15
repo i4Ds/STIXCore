@@ -589,24 +589,18 @@ class SCETimeDelta(SCETBase):
 
     @classmethod
     def from_btime(cls, btime):
-        if hasattr(btime, "size") and btime.size > 1:
-            coarse = list()
-            fine = list()
-            for bt in btime:
-                td = SCETimeDelta.from_btime(bt)
-                coarse.append(td.coarse)
-                fine.append(td.fine)
-            return SCETimeDelta(coarse, fine)
+        btime = np.atleast_1d(btime)
 
-        if btime < 0:
-            btime = abs(btime)
-            coarse = btime >> np.int(16)
-            fine = btime - (coarse << np.int(16))
-            return -cls(coarse, fine)
-        else:
-            coarse = btime >> np.int(16)
-            fine = btime - (coarse << np.int(16))
-            return cls(coarse, fine)
+        neg_idx = np.where(btime < 0)
+        btime[neg_idx] = abs(btime[neg_idx])
+
+        coarse = btime >> np.int(16)
+        fine = btime - (coarse << np.int(16))
+        td = cls(coarse, fine)
+
+        td[neg_idx] = -td[neg_idx]
+
+        return td[0] if btime.size == 1 else td
 
     @classmethod
     def from_float(cls, scet_float):

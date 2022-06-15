@@ -187,7 +187,6 @@ if __name__ == '__main__':
         if not FILTER:
             FILTER = "*.fits"
         processed_files[ProductLevel.LB].extend((fitsdir / "LB").rglob(FILTER))
-        processed_files[ProductLevel.LB] = processed_files[ProductLevel.LB][6:]
 
     if ((ProductLevel.L0.value >= args.start_level.value)
             and (args.end_level.value >= ProductLevel.L0.value)):

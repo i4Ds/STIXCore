@@ -252,6 +252,27 @@ def test_timedelta_eq():
     assert dt1 == (123 + 456/MAX_FINE)*u.s
 
 
+def test_timedelta_mixed_neg():
+    t1 = SCETime([1, 2, 3, 4], 0)
+    td = t1 - SCETime(3, 0)
+    assert (td.coarse == [-2, -1, 0, 1]).all()
+    assert (td.fine == [0, 0, 0, 0]).all()
+
+
+def test_timedelta_mixed_neg_reverse():
+    t1 = SCETime(3, 0)
+    td = t1 - SCETime([1, 2, 3, 4], 0)
+    assert (td.coarse == [2, 1, 0, -1]).all()
+    assert (td.fine == [0, 0, 0, 0]).all()
+
+
+def test_timedelta_scalar_neg():
+    td = SCETimeDelta(3, 0)
+    td1 = td - 4 * u.s
+    assert td1.coarse == -1
+    assert td1.fine == 0
+
+
 def test_timerange():
     tr = SCETimeRange(start=SCETime(coarse=100, fine=0), end=SCETime(coarse=200, fine=0))
     tp_in = SCETime(coarse=150, fine=0)

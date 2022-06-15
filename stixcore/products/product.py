@@ -502,13 +502,6 @@ class GenericProduct(BaseProduct):
 
         data.remove_column('time_float')
 
-        # TODO remove test hack for .housekeepingL0.MaxiReport
-        if self.service_subtype == 25 and self.service_type == 3:
-            data['time_float'] = np.around(data['time'].as_float().value, 1)
-            data = unique(data, keys=['time_float'])
-            logger.debug('len unique %d', len(data))
-            data.remove_column('time_float')
-
         unique_control_inds = np.unique(data['control_index'])
         control = control[np.nonzero(control['index'][:, None] == unique_control_inds)[1]]
 

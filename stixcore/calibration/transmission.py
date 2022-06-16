@@ -16,11 +16,11 @@ MIL_SI = 0.0254 * u.mm
 
 # TODO move to configuration files
 COMPONENTS = OrderedDict([
-    ('front_window', [('solarblack', 0.005 * u.mm), ('be', 2*u.mm)]),
-    ('rear_window', [('be', 1*u.mm)]),
+    ('front_window', [('solarblack', 0.005 * u.mm), ('be_alloy', 2*u.mm)]),
+    ('rear_window', [('be_alloy', 1*u.mm)]),
     ('grid_covers', [('kapton', 4 * 2 * MIL_SI)]),
     ('dem', [('kapton', 2 * 3 * MIL_SI)]),
-    ('attenuator', [('al', 0.6 * u.mm)]),
+    ('attenuator', [('al_alloy', 0.6 * u.mm)]),
     ('mli', [('al', 1000 * u.angstrom), ('kapton', 3 * MIL_SI), ('al', 40 * 1000 * u.angstrom),
              ('mylar', 20 * 0.25 * MIL_SI), ('pet', 21 * 0.005 * u.mm), ('kapton', 3 * MIL_SI),
              ('al', 1000 * u.angstrom)]),
@@ -28,9 +28,15 @@ COMPONENTS = OrderedDict([
     ('dead_layer', [('te_o2', 392 * u.nm)]),
 ])
 
+# For attenuator see https://www.metallservice.ch/msm/msm-home/services/infoservice/
+# produktinfos-datenbl%C3%A4tter/aluminium-platten/en_aw-7075_1-3.pdf
+
 MATERIALS = OrderedDict([
     ('al', ({'Al': 1.0}, 2.7 * u.g/u.cm**3)),
-    ('be', ({'Be': 1.0}, 1.85 * u.g/u.cm**3)),
+    ('al_alloy', ({'Al': 0.89345, 'Si': 0.002, 'Fe': 0.0025, 'Cu': 0.016, 'Mn': 0.0015, 'Mg': 0.025,
+                   'Cr': 0.0023, 'Ni': 0.00025, 'Zn': 0.056, 'Ti': 0.001}, 2.8 * u.g/u.cm**3)),
+    ('be_alloy', ({'Al': 0.005, 'Be': 0.974, 'C': 0.0075, 'Fe': 0.0065, 'Mg': 0.004, 'Si': 0.003},
+                  1.84 * u.g/u.cm**3)),
     ('kapton', ({'H': 0.026362, 'C': 0.691133, 'N': 0.073270, 'O': 0.209235},
                 1.43 * u.g / u.cm ** 3)),
     ('mylar', ({'H': 0.041959, 'C': 0.625017, 'O': 0.333025}, 1.38 * u.g / u.cm ** 3)),
@@ -75,8 +81,6 @@ class Transmission:
                 if material == 'solarblack':
                     material = self.solarblack
                 mass_frac, den = MATERIALS[material]
-                if material == 'al':
-                    thickness = thickness * 0.8
                 parts.append(self.create_material(name=material, fractional_masses=mass_frac,
                                                   thickness=thickness, density=den))
             self.components[name] = Compound(parts)
@@ -126,6 +130,7 @@ class Transmission:
                 transmission[name] = fine_trans
             else:
                 transmission[name] = base_trans
+        transmission['attenuator'] = self.components['attenuator'].transmission(energies)
         return transmission
 
     def get_transmission_by_component(self):

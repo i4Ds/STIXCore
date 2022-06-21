@@ -91,6 +91,7 @@ class ScienceProduct(GenericProduct, EnergyChannelsMixin):
         self.idb_versions = kwargs.get('idb_versions', None)
         self.type = 'sci'
         self.level = 'L0'
+        self.__dict__.update(kwargs)
 
     @property
     def raw(self):

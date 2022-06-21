@@ -132,11 +132,12 @@ class PipelineErrorReport(logging.StreamHandler):
             shutil.copyfile(self.log_file, self.err_file)
             if CONFIG.getboolean('Pipeline', 'error_mail_send', fallback=False):
                 try:
-                    server = CONFIG.get('Pipeline', 'error_mail_smpt', fallback='localhost')
-                    smtpObj = smtplib.SMTP(server)
-                    message = f"""From: StixCore <stixcore@pub099.cs.technik.fhnw.ch>
-To: {CONFIG.get('Pipeline', 'error_mail_receivers')}
-Subject: StixCore TM Processing Error
+                    sender = CONFIG.get('Pipeline', 'error_mail_sender', fallback='localhost')
+                    receivers = CONFIG.get('Pipeline', 'error_mail_receivers').split(",")
+                    host = CONFIG.get('Pipeline', 'error_mail_smpt_host', fallback='localhost')
+                    port = CONFIG.getint('Pipeline', 'error_mail_smpt_port', fallback=25)
+                    smtpObj = smtplib.SMTP(host=host, port=port)
+                    message = f"""Subject: StixCore TMTC Processing Error
 
 Error while processing {self.tm_file}
 
@@ -144,13 +145,13 @@ login to pub099.cs.technik.fhnw.ch and check:
 
 {self.err_file}
 
-do not answer to this mail.
-
 StixCore
 
+==========================
+
+do not answer to this mail.
 """
-                    receivers = CONFIG.get('Pipeline', 'error_mail_receivers').split(",")
-                    smtpObj.sendmail("stixcore", receivers, message)
+                    smtpObj.sendmail(sender, receivers, message)
                 except Exception as e:
                     logger.error(f"Error: unable to send error email: {e}")
 

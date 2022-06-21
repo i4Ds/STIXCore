@@ -35,7 +35,7 @@ def test_transmission_get_transmission():
     assert len(res) == 31
     assert res['energies'][0] == 4.0
     assert res['energies'][-1] == 150.0
-    assert_allclose(res['det-0'][0], 6.010547392402627e-07)
-    assert_allclose(res['det-0'][-1], 0.9219590690622258)
-    assert_allclose(res['det-10'][0], 1.400497614591632e-07)
-    assert_allclose(res['det-10'][-1], 0.9182568021644466)
+    assert_allclose(res['det-0'][0], 1.2304064853433878e-05)
+    assert_allclose(res['det-0'][-1], 0.9223594048282234)
+    assert_allclose(res['det-10'][0], 2.866929141727759e-06)
+    assert_allclose(res['det-10'][-1], 0.9186555303212736)

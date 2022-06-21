@@ -1,6 +1,7 @@
 import io
 import re
 import glob
+import smtplib
 from pathlib import Path
 from binascii import unhexlify
 from unittest.mock import patch
@@ -300,11 +301,38 @@ def test_pipeline_logging(spicekernelmanager, out_dir):
         CONFIG.set('Pipeline', 'log_dir', str(LOG_DIR))
 
 
-if __name__ == '__main__':
-    '''TO BE REMOVED
+@pytest.mark.skipif(not CONFIG.getboolean('Pipeline', 'error_mail_send', fallback=False),
+                    reason="do not send mails from CI")
+def test_mail():
+    tm_file = "tm_file"
+    err_file = "err_file"
+    sender = CONFIG.get('Pipeline', 'error_mail_sender', fallback='localhost')
+    receivers = CONFIG.get('Pipeline', 'error_mail_receivers').split(",")
+    host = CONFIG.get('Pipeline', 'error_mail_smpt_host', fallback='localhost')
+    port = CONFIG.getint('Pipeline', 'error_mail_smpt_port', fallback=25)
+    smtpObj = smtplib.SMTP(host=host, port=port)
+    message = f"""Subject: StixCore TMTC Processing Error
 
-    currently used to start the AUX processing on an existing L1 fits dir
-    '''
+Error while processing {tm_file}
+
+login to pub099.cs.technik.fhnw.ch and check:
+
+{err_file}
+
+StixCore
+
+==========================
+
+do not answer to this mail.
+"""
+    try:
+        st = smtpObj.sendmail(sender, receivers, message)
+        assert len(st.keys()) == 0
+    except Exception as e:
+        print(e)
+
+
+if __name__ == '__main__':
     _spm = SpiceKernelManager(Path("/data/stix/spice/kernels/"))
     Spice.instance = Spice(_spm.get_latest_mk())
     print(Spice.instance.meta_kernel_path)

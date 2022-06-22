@@ -14,9 +14,10 @@ def test_get_elut():
     assert elut.file == 'elut_table_20200519.csv'
 
     elut = get_elut(datetime.now())
-    assert elut.file == 'elut_table_20210625.csv'
+    assert elut.file == 'elut_table_20211209.csv'
 
 
+@pytest.mark.skip(reason="Better test data")
 def test_correct_counts():
     uncorrected_prod = Product('/Users/shane/Downloads/solo_L1_stix-sci-xray-cpd-'
                                '2109270021_20210927T085625_20210927T092350_V01_63392.fits')

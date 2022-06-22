@@ -47,11 +47,11 @@ def get_grid_internal_shadowing(xy_flare):
     # Paolo Massa (September 2021): corrected the definition of 'o_flare'
 
     if (xy_flare_stix[0] >= 0) and (xy_flare_stix[1] >= 0):
-        o_flare=np.arccos(xy_flare_stix[1]/r_flare)
+        o_flare = np.arccos(xy_flare_stix[1]/r_flare)
     if (xy_flare_stix[0] >= 0) and (xy_flare_stix[1] <= 0):
-        o_flare=90*u.deg+np.arcsin(np.abs(xy_flare_stix[1])/r_flare)
+        o_flare = 90*u.deg+np.arcsin(np.abs(xy_flare_stix[1])/r_flare)
     if (xy_flare_stix[0] <= 0) and (xy_flare_stix[1] <= 0):
-        o_flare=np.arccos(np.abs(xy_flare_stix[1])/r_flare)
+        o_flare = np.arccos(np.abs(xy_flare_stix[1])/r_flare)
     if (xy_flare_stix[0] <= 0) and (xy_flare_stix[1] >= 0):
         o_flare = 90*u.deg + np.arcsin(xy_flare_stix[1]/r_flare)
 
@@ -63,7 +63,6 @@ def get_grid_internal_shadowing(xy_flare):
     #     o_flare = -np.pi*u.rad/2 + np.arcsin(xy_flare_stix[1] / r_flare)
     # if (xy_flare_stix[0] <= 0) and (xy_flare_stix[1] >= 0):
     #     o_flare = -np.arccos(xy_flare_stix[1] / r_flare)
-
 
     # Paolo Massa (September 2021): corrected the definition of 'rel_f' and 'rel_r'. Indeed, the
     # grids in this case are considered looking towards the Sun. A minus sign is added to
@@ -81,7 +80,7 @@ def get_grid_internal_shadowing(xy_flare):
     cor_r = np.sin(rel_r)
 
     # nominal thickness with glue
-    nom_h = 0.42 * u.mm
+    nom_h = 0.42  # * u.mm
     # maximal internal grid shadowing when see for grids with orientation of 90 degrees from
     # center to flare line
     max_c = np.tan(r_flare)*nom_h
@@ -92,11 +91,11 @@ def get_grid_internal_shadowing(xy_flare):
 
     # for bridges correction is largest for grids with orientation parallel to the center-flare
     # line
-    b_cor_f = np.cos(rel_f)
-    b_cor_f = np.cos(rel_r)
+    np.cos(rel_f)
+    np.cos(rel_r)
     # the shadow to be added to bridge width (see below)
-    b_shadow_r = cor_r * max_c
-    b_shadow_f = cor_f * max_c
+    cor_r * max_c
+    cor_f * max_c
 
     gtrans32f = np.zeros(32) - 2
     gtrans32r = np.zeros(32) - 2

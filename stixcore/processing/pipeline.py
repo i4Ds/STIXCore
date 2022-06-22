@@ -7,8 +7,10 @@ from watchdog.events import FileSystemEventHandler, LoggingEventHandler
 from watchdog.observers import Observer
 
 from stixcore.config.config import CONFIG
+from stixcore.ephemeris.manager import Spice, SpiceKernelManager
 from stixcore.io.soc.manager import SOCPacketFile
 from stixcore.processing.L0toL1 import Level1
+from stixcore.processing.L1toL2 import Level2
 from stixcore.processing.LBtoL0 import Level0
 from stixcore.processing.TMTCtoLB import process_tmtc_to_levelbinary
 from stixcore.soop.manager import SOOPManager
@@ -32,7 +34,7 @@ class GFTSFileHandler(FileSystemEventHandler):
     the file back to the original name `myfile.xml`. Can detect file move event that match the TM
     filename pattern.
     """
-    def __init__(self, func, regex):
+    def __init__(self, func, regex, **args):
         """
 
         Parameters
@@ -50,36 +52,53 @@ class GFTSFileHandler(FileSystemEventHandler):
         if not isinstance(regex, type(re.compile('.'))):
             raise TypeError('regex must be a regex Pattern')
         self.regex = regex
+        self.args = args
 
     def on_moved(self, event):
         if self.regex.match(event.dest_path):
-            self.func(Path(event.dest_path))
+            self.func(Path(event.dest_path), **self.args)
 
 
-def process_tm(path):
+def process_tm(path, **args):
+    # set the latest spice file for each run
+    if args['spm'].get_latest_mk() != Spice.instance.meta_kernel_path:
+        Spice.instance = Spice(args['spm'].get_latest_mk())
+        logger.info("new spice kernel detected and loaded")
+
     lb_files = process_tmtc_to_levelbinary([SOCPacketFile(path)])
+    logger.debug(lb_files)
+
     l0_proc = Level0(CONFIG.get('Paths', 'tm_archive'), CONFIG.get('Paths', 'fits_archive'))
     l0_files = l0_proc.process_fits_files(files=lb_files)
+    logger.debug(l0_files)
+
     l1_proc = Level1(CONFIG.get('Paths', 'tm_archive'), CONFIG.get('Paths', 'fits_archive'))
     l1_files = l1_proc.process_fits_files(files=l0_files)
     logger.debug(l1_files)
+
+    l2_proc = Level2(CONFIG.get('Paths', 'tm_archive'), CONFIG.get('Paths', 'fits_archive'))
+    l2_files = l2_proc.process_fits_files(files=l1_files)
+    logger.debug(l2_files)
 
 
 if __name__ == '__main__':
     tstart = time.perf_counter()
     observer = Observer()
-    path = Path('/home/shane/tm')
+    tmpath = Path(CONFIG.get('Paths', 'tm_archive'))
     soop_path = Path(CONFIG.get('Paths', 'soop_files'))
+    spm = SpiceKernelManager(Path(CONFIG.get("Paths", "spice_kernels")))
+    Spice.instance = Spice(spm.get_latest_mk())
+
     logging_handler = LoggingEventHandler(logger=logger)
-    tm_handler = GFTSFileHandler(process_tm, TM_REGEX)
+    tm_handler = GFTSFileHandler(process_tm, TM_REGEX, spm=spm)
 
     soop_manager = SOOPManager(soop_path)
     soop_handler = GFTSFileHandler(soop_manager.add_soop_file_to_index, SOOPManager.SOOP_FILE_REGEX)
     SOOPManager.instance = soop_manager
 
     observer.schedule(soop_handler, soop_manager.data_root,  recursive=False)
-    observer.schedule(logging_handler, path,  recursive=True)
-    observer.schedule(tm_handler, path, recursive=True)
+    observer.schedule(logging_handler, tmpath,  recursive=True)
+    observer.schedule(tm_handler, tmpath, recursive=True)
 
     observer.start()
     try:

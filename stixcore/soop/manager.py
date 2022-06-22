@@ -446,7 +446,7 @@ class SOOPManager(metaclass=Singleton):
 
         return kwset.to_list()
 
-    def add_soop_file_to_index(self, path):
+    def add_soop_file_to_index(self, path, **args):
         logger.info(f"Read SOOP file: {path}")
         with open(path) as f:
             ltp_data = json.load(f)

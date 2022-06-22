@@ -22,6 +22,7 @@ def idb():
     return IDBManager(test_data.idb.DIR).get_idb(VERSION)
 
 
+@pytest.mark.remote_data
 def test_idb_setup(idb):
     assert idb is not None
     assert idb.is_connected()
@@ -40,6 +41,7 @@ def test_idb_setup_fails():
     assert len(str(e.value)) > 0
 
 
+@pytest.mark.remote_data
 def test_get_spit(idb):
     spids = idb.get_all_spid()
     for spid, descr in spids:
@@ -52,6 +54,7 @@ def test_get_spit(idb):
         assert PID_DESCR == descr
 
 
+@pytest.mark.remote_data
 def test_get_scos_description(idb):
     info = idb.get_scos_description('NIX00354')
     assert info == "Quadrant identification (1..4)"
@@ -63,6 +66,7 @@ def test_get_scos_description(idb):
     assert info == ""
 
 
+@pytest.mark.remote_data
 def test_get_packet_pi1_val_position(idb):
     info = idb.get_packet_pi1_val_position(21, 6)
     assert info.PIC_PI1_OFF == 16
@@ -72,6 +76,7 @@ def test_get_packet_pi1_val_position(idb):
     assert info is None
 
 
+@pytest.mark.remote_data
 def test_pickle(idb):
     import pickle
     clone = pickle.loads(pickle.dumps(idb))
@@ -81,6 +86,7 @@ def test_pickle(idb):
     clone.close()
 
 
+@pytest.mark.remote_data
 def test_get_parameter_description(idb):
     # a PCF param
     info = idb.get_parameter_description('NIX00354')
@@ -97,6 +103,7 @@ def test_get_parameter_description(idb):
     assert info == ""
 
 
+@pytest.mark.remote_data
 def test_get_packet_type_info(idb):
     info = idb.get_packet_type_info(6, 10, None)
     assert info is not None
@@ -111,6 +118,7 @@ def test_get_packet_type_info(idb):
     assert info is None
 
 
+@pytest.mark.remote_data
 def test_get_s2k_parameter_types(idb):
     info = idb.get_s2k_parameter_types(10, 13)
     assert info is not None
@@ -122,6 +130,7 @@ def test_get_s2k_parameter_types(idb):
     assert info is None
 
 
+@pytest.mark.remote_data
 def test_get_telecommand_info(idb):
     info = idb.get_telecommand_info(6, 2)
     assert len(info) == 4
@@ -133,6 +142,7 @@ def test_get_telecommand_info(idb):
     assert info is None
 
 
+@pytest.mark.remote_data
 def test_get_telecommand_structure(idb):
     info = idb.get_telecommand_structure("ZIX06009")
     assert len(info) >= 1
@@ -141,6 +151,7 @@ def test_get_telecommand_structure(idb):
     assert len(info) == 0
 
 
+@pytest.mark.remote_data
 def test_is_variable_length_telecommand(idb):
     info = idb.is_variable_length_telecommand("ZIX06009")
     assert info is False
@@ -152,6 +163,7 @@ def test_is_variable_length_telecommand(idb):
     assert info is False
 
 
+@pytest.mark.remote_data
 def test_tcparam_interpret(idb):
     info = idb.tcparam_interpret('CAAT0005TC', 0)
     assert info != ''
@@ -160,6 +172,7 @@ def test_tcparam_interpret(idb):
     assert info == ''
 
 
+@pytest.mark.remote_data
 def test_get_calibration_curve(idb):
     dummy = {'PID_SPID': 'a', 'PID_DESCR': 'a', 'PID_TPSD': 'a', 'PCF_NAME': 'a', 'PCF_DESCR': 'a',
              'PCF_WIDTH': 'a', 'PCF_PFC': 'a', 'PCF_PTC': 'a', 'S2K_TYPE': 'a', 'PCF_CATEG': '',
@@ -184,6 +197,7 @@ def test_get_calibration_curve(idb):
     assert curve.valid is False
 
 
+@pytest.mark.remote_data
 def test_textual_interpret(idb):
     info = idb.textual_interpret('CAAT0005TM', 0)
     assert info == 'Disconnected'
@@ -196,6 +210,7 @@ def test_textual_interpret(idb):
     assert (info is None) or (info == 1)
 
 
+@pytest.mark.remote_data
 def test_get_calibration_polynomial(idb):
     poly = idb.get_calibration_polynomial('CIX00036TM')
     assert isinstance(poly, IDBPolynomialCalibration)

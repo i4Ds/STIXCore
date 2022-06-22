@@ -132,11 +132,11 @@ class PipelineErrorReport(logging.StreamHandler):
             shutil.copyfile(self.log_file, self.err_file)
             if CONFIG.getboolean('Pipeline', 'error_mail_send', fallback=False):
                 try:
-                    sender = CONFIG.get('Pipeline', 'error_mail_sender', fallback='localhost')
+                    sender = CONFIG.get('Pipeline', 'error_mail_sender', fallback='')
                     receivers = CONFIG.get('Pipeline', 'error_mail_receivers').split(",")
                     host = CONFIG.get('Pipeline', 'error_mail_smpt_host', fallback='localhost')
                     port = CONFIG.getint('Pipeline', 'error_mail_smpt_port', fallback=25)
-                    smtpObj = smtplib.SMTP(host=host, port=port)
+                    smtp_server = smtplib.SMTP(host=host, port=port)
                     message = f"""Subject: StixCore TMTC Processing Error
 
 Error while processing {self.tm_file}
@@ -151,7 +151,7 @@ StixCore
 
 do not answer to this mail.
 """
-                    smtpObj.sendmail(sender, receivers, message)
+                    smtp_server.sendmail(sender, receivers, message)
                 except Exception as e:
                     logger.error(f"Error: unable to send error email: {e}")
 

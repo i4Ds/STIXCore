@@ -17,6 +17,7 @@ VERSION = "2.26.34"
 
 
 @pytest.fixture
+@pytest.mark.remote_data
 def idb():
     return IDBManager(test_data.idb.DIR).get_idb(VERSION)
 

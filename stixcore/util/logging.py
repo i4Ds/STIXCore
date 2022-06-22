@@ -21,8 +21,11 @@ Examples
 """
 import logging
 
+STX_LOGGER_FORMAT = '%(asctime)s %(levelname)s %(name)s %(lineno)s: %(message)s'
+STX_LOGGER_DATE_FORMAT = '%Y-%m-%dT%H:%M:%SZ'
 
-def get_logger(name, level=logging.WARNING):
+
+def get_logger(name, level=logging.INFO):
     """
     Return a configured logger instance.
 
@@ -42,8 +45,7 @@ def get_logger(name, level=logging.WARNING):
     logger.setLevel(level)
     handler = logging.StreamHandler()
     handler.setLevel(level)
-    formatter = logging.Formatter('%(asctime)s %(levelname)s %(name)s %(lineno)s: %(message)s',
-                                  datefmt='%Y-%m-%dT%H:%M:%SZ')
+    formatter = logging.Formatter(STX_LOGGER_FORMAT, datefmt=STX_LOGGER_DATE_FORMAT)
     handler.setFormatter(formatter)
     logger.addHandler(handler)
     return logger

@@ -1,6 +1,7 @@
 import io
 import re
 import glob
+import smtplib
 from pathlib import Path
 from binascii import unhexlify
 from unittest.mock import patch
@@ -19,6 +20,7 @@ from stixcore.io.soc.manager import SOCManager, SOCPacketFile
 from stixcore.processing.L0toL1 import Level1
 from stixcore.processing.L1toL2 import Level2
 from stixcore.processing.LBtoL0 import Level0
+from stixcore.processing.pipeline import process_tm
 from stixcore.processing.TMTCtoLB import process_tmtc_to_levelbinary
 from stixcore.products.level0.quicklookL0 import LightCurve
 from stixcore.products.product import Product
@@ -268,11 +270,68 @@ def test_single_vs_batch(out_dir):
         CONFIG.set('Logging', 'stop_on_error', str(CONTINUE_ON_ERROR))
 
 
-if __name__ == '__main__':
-    '''TO BE REMOVED
+def test_pipeline_logging(spicekernelmanager, out_dir):
 
-    currently used to start the AUX processing on an existing L1 fits dir
-    '''
+    CONTINUE_ON_ERROR = CONFIG.getboolean('Logging', 'stop_on_error', fallback=False)
+    FITS_ARCHIVE = CONFIG.get('Paths', 'fits_archive')
+    LOG_LEVEL = CONFIG.get('Pipeline', 'log_level')
+    LOG_DIR = CONFIG.get('Pipeline', 'log_dir')
+    try:
+        CONFIG.set('Logging', 'stop_on_error', str(False))
+        CONFIG.set('Paths', 'fits_archive', str(out_dir / "fits"))
+        CONFIG.set('Pipeline', 'log_level', str('DEBUG'))
+        CONFIG.set('Pipeline', 'log_dir', str(out_dir / "logging"))
+
+        log_dir = Path(CONFIG.get('Pipeline', 'log_dir'))
+        log_dir.mkdir(parents=True, exist_ok=True)
+
+        for f in test_data.tmtc.XML_TM:
+            process_tm(f, spm=spicekernelmanager)
+
+        assert len(list(log_dir.rglob("*.log"))) == 3
+        assert len(list(log_dir.rglob("*.log.err"))) == 0
+        assert len(list(log_dir.rglob("*.out"))) == 3
+        # TODO increase if level2 for more products is available
+        assert len(list(Path(CONFIG.get('Paths', 'fits_archive')).rglob("*.fits"))) == 11
+
+    finally:
+        CONFIG.set('Logging', 'stop_on_error', str(CONTINUE_ON_ERROR))
+        CONFIG.set('Paths', 'fits_archive', str(FITS_ARCHIVE))
+        CONFIG.set('Pipeline', 'log_level', str(LOG_LEVEL))
+        CONFIG.set('Pipeline', 'log_dir', str(LOG_DIR))
+
+
+@patch("smtplib.SMTP")
+def test_mail(s):
+    tm_file = "tm_file"
+    err_file = "err_file"
+    sender = CONFIG.get('Pipeline', 'error_mail_sender')
+    receivers = CONFIG.get('Pipeline', 'error_mail_receivers').split(",")
+    host = CONFIG.get('Pipeline', 'error_mail_smpt_host', fallback='localhost')
+    port = CONFIG.getint('Pipeline', 'error_mail_smpt_port', fallback=25)
+    smtp_server = smtplib.SMTP(host=host, port=port)
+    message = f"""Subject: StixCore TMTC Processing Error
+
+Error while processing {tm_file}
+
+login to pub099.cs.technik.fhnw.ch and check:
+
+{err_file}
+
+StixCore
+
+==========================
+
+do not answer to this mail.
+"""
+    try:
+        st = smtp_server.sendmail(sender, receivers, message)
+        assert len(st.keys()) == 0
+    except Exception as e:
+        print(e)
+
+
+if __name__ == '__main__':
     _spm = SpiceKernelManager(Path("/data/stix/spice/kernels/"))
     Spice.instance = Spice(_spm.get_latest_mk())
     print(Spice.instance.meta_kernel_path)

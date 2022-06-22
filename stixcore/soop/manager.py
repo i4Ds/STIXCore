@@ -1,7 +1,7 @@
 import os
 import re
+import sys
 import json
-import logging
 import warnings
 from enum import Enum
 from pathlib import Path
@@ -10,13 +10,14 @@ from collections.abc import Iterable
 import dateutil.parser
 from intervaltree import IntervalTree
 
+from stixcore.data.test import test_data
 from stixcore.util.logging import get_logger
 
 __all__ = ['SOOPManager', 'SoopObservationType', 'KeywordSet',
            'HeaderKeyword', 'SoopObservation', 'SOOP']
 
 
-logger = get_logger(__name__, level=logging.WARNING)
+logger = get_logger(__name__)
 
 
 class HeaderKeyword:
@@ -458,3 +459,8 @@ class SOOPManager(metaclass=Singleton):
                 self.observations.addi(obs.startDate, obs.endDate, obs)
 
             self.filecounter += 1
+
+
+if 'pytest' in sys.modules:
+    # only set the global in test scenario
+    SOOPManager.instance = SOOPManager(test_data.soop.DIR)

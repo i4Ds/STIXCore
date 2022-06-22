@@ -301,16 +301,15 @@ def test_pipeline_logging(spicekernelmanager, out_dir):
         CONFIG.set('Pipeline', 'log_dir', str(LOG_DIR))
 
 
-@pytest.mark.skipif(not CONFIG.getboolean('Pipeline', 'error_mail_send', fallback=False),
-                    reason="do not send mails from CI")
-def test_mail():
+@patch("smtplib.SMTP")
+def test_mail(s):
     tm_file = "tm_file"
     err_file = "err_file"
-    sender = CONFIG.get('Pipeline', 'error_mail_sender', fallback='localhost')
+    sender = CONFIG.get('Pipeline', 'error_mail_sender')
     receivers = CONFIG.get('Pipeline', 'error_mail_receivers').split(",")
     host = CONFIG.get('Pipeline', 'error_mail_smpt_host', fallback='localhost')
     port = CONFIG.getint('Pipeline', 'error_mail_smpt_port', fallback=25)
-    smtpObj = smtplib.SMTP(host=host, port=port)
+    smtp_server = smtplib.SMTP(host=host, port=port)
     message = f"""Subject: StixCore TMTC Processing Error
 
 Error while processing {tm_file}
@@ -326,7 +325,7 @@ StixCore
 do not answer to this mail.
 """
     try:
-        st = smtpObj.sendmail(sender, receivers, message)
+        st = smtp_server.sendmail(sender, receivers, message)
         assert len(st.keys()) == 0
     except Exception as e:
         print(e)

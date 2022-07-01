@@ -43,33 +43,35 @@ def current_fits(orig_data, out_dir):
 
 @pytest.mark.end2end
 def test_complete(orig_fits, current_fits):
-    error = False
+    error_c = 0
     for ofits in orig_fits:
         try:
             next(cfits for cfits in current_fits if ofits.name == cfits.name)
         except StopIteration:
-            error = True
+            error_c += 1
             warnings.warn(f"no corresponding file found for {ofits} in the current fits files")
-    if error:
-        raise ValueError("one or many errors\nnumber of fits files differ")
+    if error_c > 0:
+        raise ValueError(f"{error_c} errors out of {len(orig_fits)}\nnumber of fits files differ")
 
 
 @pytest.mark.end2end
 def test_identical(orig_fits, current_fits):
-    error = False
+    error_c = 0
+
     for cfits in current_fits:
         # find corresponding original file
         try:
             ofits = next(ofits for ofits in orig_fits if ofits.name == cfits.name)
         except StopIteration:
-            error = True
+            error_c += 1
             warnings.warn(f"no corresponding file found for {cfits} in the original fits files")
             continue
         diff = FITSDiff(ofits, cfits,
                         ignore_keywords=['CHECKSUM', 'DATASUM', 'DATE', 'VERS_SW', 'HISTORY'])
         if not diff.identical:
-            error = True
+            error_c += 1
             warnings.warn(diff.report())
 
-    if error:
-        raise ValueError("one or many errors\nthere are differentses in FITS files")
+    if error_c > 0:
+        raise ValueError(f"{error_c} errors out of {len(current_fits)}\n"
+                         + "there are differences in FITS files")

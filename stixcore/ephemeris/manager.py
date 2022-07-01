@@ -1,4 +1,3 @@
-import os
 import re
 import sys
 import logging
@@ -64,8 +63,7 @@ class SpiceKernelManager():
     """A class to manage Spice kernels in the local file system."""
 
     def __init__(self, path):
-        """Creates a new SpiceKernelManager and also sets the system
-        environment variable 'STIX_PROCESSING_SPICE_DIR'
+        """Creates a new SpiceKernelManager
 
         Parameters
         ----------
@@ -82,53 +80,47 @@ class SpiceKernelManager():
             raise ValueError(f'path not found: {path}')
         self.path = path
 
-        os.environ["STIX_PROCESSING_SPICE_DIR"] = str(path)
-
-    def _get_latest(self, kerneltype, *, setenvironment=False):
+    def _get_latest(self, kerneltype, *, top_n=1):
         subdir, filter = kerneltype.value
         path = self.path / str(subdir)
-        files = sorted(list(path.glob(filter)), key=lambda x: x.name.lower())
+        files = sorted(list(path.glob(filter)), key=lambda x: x.name.lower(), reverse=True)
 
         if len(files) == 0:
             raise ValueError(f'No current kernel found at: {path}')
 
-        if setenvironment:
-            os.environ[f"STIX_PROCESSING_SPICE_{subdir.upper()}"] = str(files[-1])
+        top_n = min(len(files), top_n)
 
-        return files[-1]
+        return files[0:top_n] if top_n > 1 else files[0]
 
-    def get_latest_sclk(self, *, setenvironment=False):
-        return self._get_latest(SpiceKernelType.SCLK)
+    def get_latest_sclk(self, *, top_n=1):
+        return self._get_latest(SpiceKernelType.SCLK, top_n=top_n)
 
-    def get_latest_lsk(self, *, setenvironment=False):
-        return self._get_latest(SpiceKernelType.LSK)
+    def get_latest_lsk(self, *, top_n=1):
+        return self._get_latest(SpiceKernelType.LSK, top_n=top_n)
 
-    def get_latest_mk(self, *, setenvironment=False):
-        return self._get_latest(SpiceKernelType.MK)
+    def get_latest_mk(self, *, top_n=1):
+        return self._get_latest(SpiceKernelType.MK, top_n=top_n)
 
-    def get_latest(self, kerneltype=SpiceKernelType.MK, *, setenvironment=False):
+    def get_latest(self, kerneltype=SpiceKernelType.MK, *, top_n=1):
         """Finds the latest version of the spice kernel.
 
         Parameters
         ----------
         kerneltype : `SpiceKernelType`, optional
             the spice kernel type to looking for, by default SpiceKernelType.MK
-        setenvironment : bool, optional
-            also sets an environment variable to the latest found kernel file.
-            Name: 'STIX_PROCESSING_SPICE_[kernel type]', by default False
 
         Returns
         -------
         `Path`
             Path to the latest found spice kernel file of the given type.
         """
-        return self._get_latest(kerneltype, setenvironment=setenvironment)
+        return self._get_latest(kerneltype)
 
 
 class SpiceKernelLoader:
     """A context manager to ensure kernels are loaded and unloaded properly before and after use."""
 
-    def __init__(self, meta_kernel_path):
+    def __init__(self, meta_kernel_pathes):
         """Create an instance loading the spice kernel in the given meta kernel file.
 
         Parameters
@@ -137,34 +129,41 @@ class SpiceKernelLoader:
             Path to the meta kernel
 
         """
-        self.meta_kernel_path = Path(meta_kernel_path)
-        if not self.meta_kernel_path.exists():
-            raise ValueError(f'Meta kernel not found: {self.meta_kernel_path}')
 
-        # look for a twin file *.abs where the path definition is absolute
-        # if not existing create it on the fly and store it in same location for later reuse
+        for meta_kernel_path in np.atleast_1d(meta_kernel_pathes):
+            try:
+                self.meta_kernel_path = Path(meta_kernel_path)
+                if not self.meta_kernel_path.exists():
+                    raise ValueError(f'Meta kernel not found: {self.meta_kernel_path}')
 
-        abs_file = self.meta_kernel_path.parent / (self.meta_kernel_path.name + ".abs")
+                # look for a twin file *.abs where the path definition is absolute
+                # if not existing create it on the fly and store it in same location for later reuse
 
-        if not abs_file.exists():
-            with self.meta_kernel_path.open('r') as mk:
-                original_mk = mk.read()
-                kernel_dir = str(self.meta_kernel_path.parent.parent.resolve())
-                kernel_dir = kernel_dir.replace('\\', '\\\\')
-                # spice meta kernel seems to have a max variable length of 80 characters
-                # https://naif.jpl.nasa.gov/pub/naif/toolkit_docs/C/req/kernel.html#Additional%20Meta-kernel%20Specifications # noqa
-                wrapped = SpiceKernelLoader._wrap_value_field(kernel_dir)
-                path_value = f"PATH_VALUES       = ( {wrapped} )"
-                logger.debug(f'Kernel directory {kernel_dir}')
-                new_mk = re.sub(r"PATH_VALUES\s*= \( '.*' \)", path_value, original_mk)
+                abs_file = self.meta_kernel_path.parent / (self.meta_kernel_path.name + ".abs")
 
-                with abs_file.open('w') as f:
-                    f.write(new_mk)
+                if not abs_file.exists():
+                    with self.meta_kernel_path.open('r') as mk:
+                        original_mk = mk.read()
+                        kernel_dir = str(self.meta_kernel_path.parent.parent.resolve())
+                        kernel_dir = kernel_dir.replace('\\', '\\\\')
+                        # spice meta kernel seems to have a max variable length of 80 characters
+                        # https://naif.jpl.nasa.gov/pub/naif/toolkit_docs/C/req/kernel.html#Additional%20Meta-kernel%20Specifications # noqa
+                        wrapped = SpiceKernelLoader._wrap_value_field(kernel_dir)
+                        path_value = f"PATH_VALUES       = ( {wrapped} )"
+                        logger.debug(f'Kernel directory {kernel_dir}')
+                        new_mk = re.sub(r"PATH_VALUES\s*= \( '.*' \)", path_value, original_mk)
 
-        logger.info(f"LOAD NEW META KERNEL: {self.meta_kernel_path}")
-        spiceypy.kclear()
-        # load the meta kernel
-        spiceypy.furnsh(str(abs_file))
+                        with abs_file.open('w') as f:
+                            f.write(new_mk)
+
+                logger.info(f"LOADING NEW META KERNEL: {self.meta_kernel_path}")
+                spiceypy.kclear()
+                # load the meta kernel
+                spiceypy.furnsh(str(abs_file))
+                return
+            except Exception as e:
+                logger.warning(f"Failed LOADING NEW META KERNEL: {self.meta_kernel_path}\n{e}")
+        raise ValueError(f"Failed to load any NEW META KERNEL: {meta_kernel_pathes}")
 
     @staticmethod
     def _wrap_value_field(field):

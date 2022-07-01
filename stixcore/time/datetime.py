@@ -726,6 +726,9 @@ class SCETimeRange:
     def to_timerange(self):
         return TimeRange(self.start.to_time(), self.end.to_time())
 
+    def duration(self):
+        return (self.end-self.start).as_float()
+
     @property
     def avg(self):
         return self.start + (self.end-self.start)/2

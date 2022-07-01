@@ -1,5 +1,3 @@
-import os
-
 import pytest
 
 from stixcore.config.config import CONFIG
@@ -14,8 +12,8 @@ def spicekernelmanager():
 
 def test_loader_nokernel():
     with pytest.raises(ValueError) as e:
-        Spice(meta_kernel_path='notreal.mk')
-    assert str(e.value).startswith('Meta kernel not found')
+        Spice(meta_kernel_pathes='notreal.mk')
+    assert str(e.value).startswith("Failed to load any NEW META KERNEL")
 
 
 def test_manager_fail_create():
@@ -39,12 +37,3 @@ def test_manager_get_latest(spicekernelmanager):
     with pytest.raises(ValueError) as e:
         spicekernelmanager.get_latest(SpiceKernelType.FK)
     assert str(e.value).startswith('No current kernel found')
-
-
-def test_manager_environment(spicekernelmanager):
-    assert str(spicekernelmanager.path) == os.environ.get("STIX_PROCESSING_SPICE_DIR", "")
-    latest_mk = spicekernelmanager.get_latest(SpiceKernelType.MK)
-    assert os.environ.get("STIX_PROCESSING_SPICE_MK", "") == ""
-
-    latest_mk = spicekernelmanager.get_latest(SpiceKernelType.MK, setenvironment=True)
-    assert str(latest_mk) == os.environ.get("STIX_PROCESSING_SPICE_MK", "")

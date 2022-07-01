@@ -498,20 +498,17 @@ class FitsL0Processor:
             # generated as this will use the original SCET time data
 
             if isinstance(prod, Aspect):
-                _time = np.float32((data['time'] - prod.scet_timerange.start).as_float())
-                del data['time']
-                data['time'] = _time
+                data['time'] = np.atleast_1d(np.float32((data['time'] -
+                                             prod.scet_timerange.start).as_float()))
 
-                data['timedel'] = np.float32(data['timedel'].as_float())
+                data['timedel'] = np.atleast_1d(np.float32(data['timedel'].as_float()))
             else:
                 # In TM sent as uint in units of 0.1 so convert to cs as the time center
                 # can be on 0.5ds points
-                _time = np.around((data['time'] -
-                                   prod.scet_timerange.start).as_float().to(u.cs)).astype("uint32")
-                del data['time']
-                data['time'] = _time
-
-                data['timedel'] = np.uint32(np.around(data['timedel'].as_float().to(u.cs)))
+                data['time'] = np.atleast_1d(np.around((data['time'] - prod.scet_timerange.start)
+                                             .as_float().to(u.cs)).astype("uint32"))
+                data['timedel'] = np.atleast_1d(np.uint32(np.around(data['timedel'].as_float()
+                                                .to(u.cs))))
 
             try:
                 control['time_stamp'] = control['time_stamp'].as_float()
@@ -783,13 +780,10 @@ class FitsL1Processor(FitsL0Processor):
 
             # In TM sent as uint in units of 0.1 so convert to cs as the time center
             # can be on 0.5ds points
-            _time = np.around((data['time']
-                               - prod.scet_timerange.start).as_float().to(u.cs)).astype('uint32')
-            # fully replace the time column as otherwise the SCETime type will be preserved
-            del data['time']
-            data['time'] = _time
-
-            data['timedel'] = np.uint32(np.around(data['timedel'].as_float().to(u.cs)))
+            data['time'] = np.atleast_1d(np.around((data['time'] - prod.scet_timerange.start)
+                                         .as_float().to(u.cs)).astype('uint32'))
+            data['timedel'] = np.atleast_1d(np.uint32(np.around(data['timedel'].as_float()
+                                            .to(u.cs))))
 
             try:
                 control['time_stamp'] = control['time_stamp'].as_float()

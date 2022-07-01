@@ -458,7 +458,10 @@ class GenericProduct(BaseProduct):
 
         level_dir = Path(root) / p_level
 
-        return [level_dir.rglob(pfile).__next__() for pfile in self.parent]
+        files = []
+        for pfile in self.parent:
+            files.extend(list(level_dir.rglob(pfile)))
+        return files
 
     def __add__(self, other):
         """
@@ -519,33 +522,62 @@ class GenericProduct(BaseProduct):
                f'{len(self.control)}, {len(self.data)}'
 
     def split_to_files(self):
-        utc_timerange = self.scet_timerange.to_timerange()
+        if self.level == 'L0':
+            scedays = self.data["time"].get_scedays()
+            days = np.unique(scedays)
 
-        for day in utc_timerange.get_dates():
-            ds = day
-            de = day + 1 * u.day
-            utc_times = self.data['time'].to_time()
-            i = np.where((utc_times >= ds) & (utc_times < de))
+            for day in days:
+                ds = day
+                de = day + 1
+                i = np.where((scedays >= ds) & (scedays < de))
 
-            if len(i[0]) > 0:
-                data = self.data[i]
+                if len(i[0]) > 0:
+                    data = self.data[i]
 
-                control_indices = np.unique(data['control_index'])
-                control = self.control[np.isin(self.control['index'], control_indices)]
-                control_index_min = control_indices.min()
+                    control_indices = np.unique(data['control_index'])
+                    control = self.control[np.isin(self.control['index'], control_indices)]
+                    control_index_min = control_indices.min()
 
-                data['control_index'] = data['control_index'] - control_index_min
-                control['index'] = control['index'] - control_index_min
-                out = type(self)(service_type=self.service_type,
-                                 service_subtype=self.service_subtype, ssid=self.ssid,
-                                 control=control, data=data, idb_versions=self.idb_versions,
-                                 level=self.level)
+                    data['control_index'] = data['control_index'] - control_index_min
+                    control['index'] = control['index'] - control_index_min
+                    out = type(self)(service_type=self.service_type,
+                                     service_subtype=self.service_subtype, ssid=self.ssid,
+                                     control=control, data=data, idb_versions=self.idb_versions,
+                                     level=self.level)
 
-                # TODO N.H. check if allway right or better recreate
-                if hasattr(self, "fits_header") and self.fits_header is not None:
-                    out.fits_header = self.fits_header
+                    # TODO N.H. check if always right or better recreate
+                    if hasattr(self, "fits_header") and self.fits_header is not None:
+                        out.fits_header = self.fits_header
 
-                yield out
+                    yield out
+        else:  # L1+
+            utc_timerange = self.scet_timerange.to_timerange()
+
+            for day in utc_timerange.get_dates():
+                ds = day
+                de = day + 1 * u.day
+                utc_times = self.data['time'].to_time()
+                i = np.where((utc_times >= ds) & (utc_times < de))
+
+                if len(i[0]) > 0:
+                    data = self.data[i]
+
+                    control_indices = np.unique(data['control_index'])
+                    control = self.control[np.isin(self.control['index'], control_indices)]
+                    control_index_min = control_indices.min()
+
+                    data['control_index'] = data['control_index'] - control_index_min
+                    control['index'] = control['index'] - control_index_min
+                    out = type(self)(service_type=self.service_type,
+                                     service_subtype=self.service_subtype, ssid=self.ssid,
+                                     control=control, data=data, idb_versions=self.idb_versions,
+                                     level=self.level)
+
+                    # TODO N.H. check if always right or better recreate
+                    if hasattr(self, "fits_header") and self.fits_header is not None:
+                        out.fits_header = self.fits_header
+
+                    yield out
 
     @classmethod
     def getLeveL0Packets(cls, levelb):

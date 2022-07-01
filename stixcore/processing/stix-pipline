@@ -67,6 +67,10 @@ if __name__ == '__main__':
                         help="directory to the spice kernels files",
                         default=CONFIG.get('Paths', 'spice_kernels'), type=str)
 
+    parser.add_argument("-S", "--spice_file",
+                        help="path to the spice meta kernel",
+                        default=None, type=str)
+
     parser.add_argument("-p", "--soop_dir",
                         help="directory to the SOOP files",
                         default=CONFIG.get('Paths', 'soop_files'), type=str)
@@ -155,8 +159,13 @@ if __name__ == '__main__':
         raise ValueError(f"--start_level ({args.start_level}) should be lover then"
                          f"--end_level ({args.end_level})")
 
-    _spm = SpiceKernelManager(Path(CONFIG.get('Paths', 'spice_kernels')))
-    Spice.instance = Spice(_spm.get_latest_mk())
+    if args.spice_file:
+        spicemeta = Path(args.spice_file)
+    else:
+        _spm = SpiceKernelManager(Path(CONFIG.get('Paths', 'spice_kernels')))
+        spicemeta = _spm.get_latest_mk(top_n=30)
+
+    Spice.instance = Spice(spicemeta)
     print(f"Spice kernel @: {Spice.instance.meta_kernel_path}")
 
     soc = SOCManager(Path(CONFIG.get('Paths', 'tm_archive')))

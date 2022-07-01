@@ -227,7 +227,7 @@ def test_deltatime_sub():
     assert dt2_dt1.fine == 1
 
     # test sub times
-    with pytest.raises(TypeError, match=f'Unsupported operation for types.*'):
+    with pytest.raises(TypeError, match=r'Unsupported operation for types.*'):
         dt1 - t1
 
     t2 = t1 - dt1
@@ -235,6 +235,12 @@ def test_deltatime_sub():
     assert t2.fine == 1
     with pytest.raises(ValueError, match=r'Coarse time must be in range.*'):
         t1 - dt2
+
+    t1 = SCETime(100, 100)
+    t2 = SCETimeDelta(200, -100)
+    td = t1 + t2
+    assert td.coarse == 300
+    assert td.fine == 0
 
 
 def test_timedelta_eq():
@@ -244,6 +250,27 @@ def test_timedelta_eq():
     assert dt1 == dt2
     assert dt1 != dt3
     assert dt1 == (123 + 456/MAX_FINE)*u.s
+
+
+def test_timedelta_mixed_neg():
+    t1 = SCETime([1, 2, 3, 4], 0)
+    td = t1 - SCETime(3, 0)
+    assert (td.coarse == [-2, -1, 0, 1]).all()
+    assert (td.fine == [0, 0, 0, 0]).all()
+
+
+def test_timedelta_mixed_neg_reverse():
+    t1 = SCETime(3, 0)
+    td = t1 - SCETime([1, 2, 3, 4], 0)
+    assert (td.coarse == [2, 1, 0, -1]).all()
+    assert (td.fine == [0, 0, 0, 0]).all()
+
+
+def test_timedelta_scalar_neg():
+    td = SCETimeDelta(3, 0)
+    td1 = td - 4 * u.s
+    assert td1.coarse == -1
+    assert td1.fine == 0
 
 
 def test_timerange():

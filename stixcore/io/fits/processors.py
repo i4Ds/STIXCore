@@ -13,6 +13,7 @@ from stixcore.ephemeris.manager import Spice
 from stixcore.products.level0.scienceL0 import Aspect
 from stixcore.products.product import Product
 from stixcore.soop.manager import SOOPManager, SoopObservationType
+from stixcore.time.datetime import SEC_IN_DAY
 from stixcore.util.logging import get_logger
 
 __all__ = ['SEC_IN_DAY', 'FitsProcessor', 'FitsLBProcessor', 'FitsL0Processor',
@@ -21,7 +22,6 @@ __all__ = ['SEC_IN_DAY', 'FitsProcessor', 'FitsLBProcessor', 'FitsL0Processor',
 
 logger = get_logger(__name__)
 
-SEC_IN_DAY = 24 * 60 * 60
 LLDP_VERSION = "00.07.00"
 Y_M_D_H_M = "%Y%m%d%H%M"
 
@@ -327,7 +327,7 @@ class FitsLBProcessor(FitsProcessor):
         `str`
             The filename
         """
-        scet_obs = int(product.obt_avg.as_float().value // SEC_IN_DAY) * SEC_IN_DAY
+        scet_obs = product.obt_avg.get_scedays(timestamp=True)
 
         parts = [str(x) for x in [product.service_type, product.service_subtype, product.ssid]]
         if product.ssid is None:
@@ -498,15 +498,17 @@ class FitsL0Processor:
             # generated as this will use the original SCET time data
 
             if isinstance(prod, Aspect):
-                data['time'] = np.float32((data['time']
-                                           - prod.scet_timerange.start).as_float())
-                data['timedel'] = np.float32(data['timedel'].as_float())
+                data['time'] = np.atleast_1d(np.float32((data['time'] -
+                                             prod.scet_timerange.start).as_float()))
+
+                data['timedel'] = np.atleast_1d(np.float32(data['timedel'].as_float()))
             else:
                 # In TM sent as uint in units of 0.1 so convert to cs as the time center
                 # can be on 0.5ds points
-                data['time'] = np.uint32(np.around(
-                    (data['time'] - prod.scet_timerange.start).as_float().to(u.cs)))
-                data['timedel'] = np.uint32(np.around(data['timedel'].as_float().to(u.cs)))
+                data['time'] = np.atleast_1d(np.around((data['time'] - prod.scet_timerange.start)
+                                             .as_float().to(u.cs)).astype("uint32"))
+                data['timedel'] = np.atleast_1d(np.uint32(np.around(data['timedel'].as_float()
+                                                .to(u.cs))))
 
             try:
                 control['time_stamp'] = control['time_stamp'].as_float()
@@ -778,9 +780,10 @@ class FitsL1Processor(FitsL0Processor):
 
             # In TM sent as uint in units of 0.1 so convert to cs as the time center
             # can be on 0.5ds points
-            data['time'] = np.uint32(np.around((data['time']
-                                                - prod.scet_timerange.start).as_float().to(u.cs)))
-            data['timedel'] = np.uint32(np.around(data['timedel'].as_float().to(u.cs)))
+            data['time'] = np.atleast_1d(np.around((data['time'] - prod.scet_timerange.start)
+                                         .as_float().to(u.cs)).astype('uint32'))
+            data['timedel'] = np.atleast_1d(np.uint32(np.around(data['timedel'].as_float()
+                                            .to(u.cs))))
 
             try:
                 control['time_stamp'] = control['time_stamp'].as_float()

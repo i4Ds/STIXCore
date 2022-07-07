@@ -9,7 +9,7 @@ from astropy.table.table import Table
 from stixcore.products.product import BaseProduct
 from stixcore.time import SCETime
 from stixcore.time.datetime import SEC_IN_DAY
-from stixcore.tmtc.packets import SequenceFlag, TMPacket
+from stixcore.tmtc.packets import TMPacket
 from stixcore.util.logging import get_logger
 
 __all__ = ['LevelB']
@@ -125,32 +125,56 @@ class LevelB(BaseProduct):
         return type(self)(service_type=self.service_type, service_subtype=self.service_subtype,
                           ssid=self.ssid, control=control, data=data)
 
-    def to_days(self):
+    def to_files(self):
         """Split the data into a sequence of LevelB objects each containing 1 daysworth\
-        of observations.
+        of observations for contiiouse data or by request id in case of BSD.
 
         Yields
         ------
         `LevelB`
-            the next `LevelB` objects for another day.
+            the next `LevelB` objects for another day/request.
 
         """
-        scet = SCETime(coarse=self.control['scet_coarse'], fine=self.control['scet_fine'])
-        days = np.unique(scet.get_scedays(timestamp=True))
-        for day in days:
-            day_start = SCETime(coarse=day, fine=0)
-            day_end = day_start + SEC_IN_DAY * u.s
-            inds = np.argwhere((scet >= day_start) & (scet < day_end))
-            i = np.arange(inds.min(), inds.max()+1)
-            control = self.control[i]
-            control_indices = control['index']
-            min_index = control_indices.min()
-            control['index'] = control['index'] - min_index
-            data = self.data[i]
-            data['control_index'] = data['control_index'] - min_index
+        if isinstance(self.control['request_id'][0], np.bool_):
+            scet = SCETime(coarse=self.control['scet_coarse'], fine=self.control['scet_fine'])
+            days = np.unique(scet.get_scedays(timestamp=True))
+            for day in days:
+                day_start = SCETime(coarse=day, fine=0)
+                day_end = day_start + SEC_IN_DAY * u.s
+                inds = np.argwhere((scet >= day_start) & (scet < day_end))
+                i = np.arange(inds.min(), inds.max()+1)
+                control = self.control[i]
+                control_indices = control['index']
+                min_index = control_indices.min()
+                control['index'] = control['index'] - min_index
+                data = self.data[i]
+                data['control_index'] = data['control_index'] - min_index
 
-            yield type(self)(service_type=self.service_type, service_subtype=self.service_subtype,
-                             ssid=self.ssid, control=control, data=data)
+                yield type(self)(service_type=self.service_type,
+                                 service_subtype=self.service_subtype,
+                                 ssid=self.ssid, control=control, data=data)
+        else:
+            rid = []
+            psc = []
+            ids = set()
+            for row in self.control['request_id']:
+                rid.append(row[1])
+                psc.append(row[0])
+                ids.add((row[0], row[1]))
+
+            for id in ids:
+                inds = np.argwhere((rid == id[1]) & (psc == id[0]))
+                i = np.arange(inds.min(), inds.max()+1)
+                control = self.control[i]
+                control_indices = control['index']
+                min_index = control_indices.min()
+                control['index'] = control['index'] - min_index
+                data = self.data[i]
+                data['control_index'] = data['control_index'] - min_index
+
+                yield type(self)(service_type=self.service_type,
+                                 service_subtype=self.service_subtype,
+                                 ssid=self.ssid, control=control, data=data)
 
     def __getitem__(self, key):
         if isinstance(key, slice):
@@ -166,65 +190,6 @@ class LevelB(BaseProduct):
 
         return type(self)(service_type=self.service_type, service_subtype=self.service_subtype,
                           ssid=self.ssid, control=control, data=data)
-
-    def extract_sequences(self):
-        """
-        Extract complete and incomplete packet sequences.
-
-        Returns
-        -------
-        tuple
-            LevelB products for the complete and incomplete sequences
-        """
-        if self.service_type == 3 and self.service_subtype == 25 and self.ssid in {1, 2}:
-            return [self], []
-        elif self.service_type == 21 and self.service_subtype == 6 and self.ssid in {30, 31, 32,
-                                                                                     33, 34, 43}:
-            return [self], []
-
-        sequences = []
-        flags = self.control['sequence_flag']
-        cur_seq = None
-        for i, f in enumerate(flags):
-            if f == SequenceFlag.STANDALONE:
-                sequences.append([i])
-            elif f == SequenceFlag.FIRST:
-                cur_seq = [i]
-
-            if f == SequenceFlag.MIDDLE:
-                if cur_seq:
-                    cur_seq.append(i)
-                else:
-                    cur_seq = [i]
-
-            if f == SequenceFlag.LAST:
-                if cur_seq:
-                    cur_seq.append(i)
-                    sequences.append(cur_seq)
-                else:
-                    sequences.append([i])
-
-                cur_seq = None
-
-        if cur_seq:
-            sequences.append(cur_seq)
-
-        complete = []
-        incomplete = []
-
-        for seq in sequences:
-            if len(seq) == 1 and flags[seq[0]] == SequenceFlag.STANDALONE:
-                complete.append(self[seq])
-            elif (flags[seq[0]] == SequenceFlag.FIRST
-                  and flags[seq[-1]] == SequenceFlag.LAST
-                  and ((self.control['sequence_count'][seq[-1]] -
-                        self.control['sequence_count'][seq[0]] + 1) == len(seq))):
-                complete.append(self[seq])
-            else:
-                incomplete.append(self[seq])
-                logger.warning('Incomplete sequence %s, %s', self, seq)
-
-        return complete, incomplete
 
     @classmethod
     def from_tm(cls, tmfile):
@@ -243,6 +208,7 @@ class LevelB(BaseProduct):
             except Exception:
                 logger.error('Error parsing %s, %d', tmfile.name, packet_no, exc_info=True)
                 return
+
             packet.source = (tmfile.file.name, packet_no)
             packet_data[packet.key].append(packet)
 
@@ -251,12 +217,15 @@ class LevelB(BaseProduct):
             hex_data = []
             for packet in packets:
                 sh = vars(packet.source_packet_header)
+                rid = packet.bsd_requestid
                 bs = sh.pop('bitstream')
                 hex_data.append(bs.hex)
                 dh = vars(packet.data_header)
                 dh.pop('datetime')
-                headers.append({**sh, **dh, 'raw_file': packet.source[0],
-                                'packet': packet.source[1]})
+                headers.append({**sh, **dh,
+                                'raw_file': packet.source[0],
+                                'packet': packet.source[1],
+                                'request_id': rid})
             if len(headers) == 0 or len(hex_data) == 0:
                 return None
 

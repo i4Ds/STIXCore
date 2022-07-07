@@ -1155,3 +1155,62 @@ class IDB:
 
         self.parameter_structures[(service_type, service_subtype, sp1_val)] = repeater[0]['node']
         return repeater[0]['node']
+
+    def get_requestid_structure(self, service_type, service_subtype, sp1_val):
+        """Create a dynamic parse tree for the specified TM packet.
+
+        Parameters
+        ----------
+        service_type : `int`
+            The TM packet service type.
+        service_subtype : `int`
+            The TM packet service subtype.
+        PI1_VAL : `int` optional
+            The TM packet optional PI1_VAL default `None`
+
+        Returns
+        -------
+        `~stixcore/idb/idb/IDBPacketTree`
+            The IDBPacketTree implements nested repeaters.
+        """
+
+        sql = (f'''SELECT
+                    PID_SPID, PID_DESCR, PID_TPSD,
+                    PCF.PCF_NAME, VPD.VPD_POS,PCF.PCF_WIDTH,PCF.PCF_PFC, PCF.PCF_PTC,VPD.VPD_OFFSET,
+                    VPD.VPD_GRPSIZE,PCF.PCF_DESCR ,PCF.PCF_CURTX,
+                    S2K_TYPE
+                FROM PID , VPD, PCF, tblConfigS2KParameterTypes as PTYPE
+                WHERE
+                    PID_TYPE = ?
+                    AND PID_STYPE = ?
+                    AND PID_PI1_VAL = ?
+                    AND VPD.VPD_NAME = PCF.PCF_NAME
+                    AND VPD.VPD_TPSD = PID.PID_SPID
+                    AND PTYPE.PTC = PCF.PCF_PTC
+                    AND PCF.PCF_PFC >= PTYPE.PFC_LB
+                    AND PTYPE.PFC_UB >= PCF.PCF_PFC
+                    AND PCF.PCF_NAME in ('NIX00120', 'NIX00001', 'NIX00002', 'NIX00037')
+                ORDER BY
+                    VPD.VPD_POS asc ''')
+        args = (service_type, service_subtype, sp1_val)
+        param_pcf_structures = self._execute(sql, args, 'dict')
+
+        repeater = [{'node': IDBPacketTree(), 'counter': 1024}]
+
+        for par in param_pcf_structures:
+            parObj = IDBVariableParameter(**par)
+            if repeater:
+                for e in reversed(repeater):
+                    e['counter'] -= 1
+                    if e['counter'] < 0:
+                        repeater.pop()
+                        # root will be never popped
+            parent = repeater[-1]['node']
+
+            node = self._create_parse_node(parObj.PCF_NAME, parObj, 0, [])
+            parent.children.append(node)
+
+            if parObj.VPD_GRPSIZE > 0:
+                repeater.append({'node': node, 'counter': parObj.VPD_GRPSIZE})
+
+        return repeater[0]['node']

@@ -8,6 +8,7 @@ from stixcore.config.config import CONFIG
 from stixcore.ephemeris.manager import Spice, SpiceKernelManager
 from stixcore.idb.manager import IDBManager
 from stixcore.io.fits.processors import FitsL0Processor
+from stixcore.products.level0.scienceL0 import NotCombineException
 from stixcore.products.product import Product
 from stixcore.util.logging import get_logger
 
@@ -62,23 +63,54 @@ def process_tm_type(files, tm_type, processor, spice_kernel_path, config, idbm):
     IDBManager.instance = idbm
     CONFIG = config
 
-    for file in files:
-        levelb = Product(file)
-        tmp = Product._check_registered_widget(
-            level='L0', service_type=levelb.service_type,
-            service_subtype=levelb.service_subtype, ssid=levelb.ssid,
-            data=None, control=None)
-        try:
-            level0 = tmp.from_levelb(levelb, parent=file.name)
-            if level0:
-                fits_files = processor.write_fits(level0)
-                all_files.extend(fits_files)
-        except Exception as e:
-            logger.error('Error processing file %s for %s, %s, %s', file,
-                         levelb.service_type, levelb.service_subtype, levelb.ssid)
-            logger.error('%s', e)
-            if CONFIG.getboolean('Logging', 'stop_on_error', fallback=False):
-                raise e
+    # Stand alone packet data
+    if (tm_type[0] == 21 and tm_type[-1] not in {20, 21, 22, 23, 24}) or tm_type[0] != 21:
+        for file in files:
+            levelb = Product(file)
+            tmp = Product._check_registered_widget(
+                level='L0', service_type=levelb.service_type,
+                service_subtype=levelb.service_subtype, ssid=levelb.ssid,
+                data=None, control=None)
+            try:
+                level0 = tmp.from_levelb(levelb, parent=file.name)
+                if level0:
+                    fits_files = processor.write_fits(level0)
+                    all_files.extend(fits_files)
+            except Exception as e:
+                logger.error('Error processing file %s for %s, %s, %s', file,
+                             levelb.service_type, levelb.service_subtype, levelb.ssid)
+                logger.error('%s', e)
+                if CONFIG.getboolean('Logging', 'stop_on_error', fallback=False):
+                    raise e
+
+    else:
+        # for each file
+        for file in files:
+            levelb = Product(file)
+            complete, _ = levelb.extract_sequences()
+
+            if complete:
+                for comp in complete:
+
+                    # TODO need to carry better information for logging like index from
+                    #  original files and file names
+                    try:
+                        tmp = Product._check_registered_widget(
+                            level='L0', service_type=comp.service_type,
+                            service_subtype=comp.service_subtype, ssid=comp.ssid, data=None,
+                            control=None)
+                        level0 = tmp.from_levelb(comp, parent=file.name)
+                        fits_files = processor.write_fits(level0)
+                        all_files.extend(fits_files)
+                    except NotCombineException as nc:
+                        logger.info(nc)
+                    except Exception as e:
+                        logger.error('Error processing file %s for %s, %s, %s', file,
+                                     comp.service_type, comp.service_subtype, comp.ssid,
+                                     exc_info=True)
+                        logger.error('%s', e)
+                        if CONFIG.getboolean('Logging', 'stop_on_error', fallback=False):
+                            raise e
     return all_files
 
 

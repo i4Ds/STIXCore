@@ -9,7 +9,7 @@ from astropy.table.table import Table
 from stixcore.products.product import BaseProduct
 from stixcore.time import SCETime
 from stixcore.time.datetime import SEC_IN_DAY
-from stixcore.tmtc.packets import TMPacket
+from stixcore.tmtc.packets import SequenceFlag, TMPacket
 from stixcore.util.logging import get_logger
 
 __all__ = ['LevelB']
@@ -251,6 +251,64 @@ class LevelB(BaseProduct):
             product = LevelB(service_type=service_type, service_subtype=service_subtype,
                              ssid=ssid, control=control, data=data)
             yield product
+
+    def extract_sequences(self):
+        """
+        Extract complete and incomplete packet sequences.
+        Returns
+        -------
+        tuple
+            LevelB products for the complete and incomplete sequences
+        """
+        if self.service_type == 3 and self.service_subtype == 25 and self.ssid in {1, 2}:
+            return [self], []
+        elif self.service_type == 21 and self.service_subtype == 6 and self.ssid in {30, 31, 32,
+                                                                                     33, 34, 43}:
+            return [self], []
+
+        sequences = []
+        flags = self.control['sequence_flag']
+        cur_seq = None
+        for i, f in enumerate(flags):
+            if f == SequenceFlag.STANDALONE:
+                sequences.append([i])
+            elif f == SequenceFlag.FIRST:
+                cur_seq = [i]
+
+            if f == SequenceFlag.MIDDLE:
+                if cur_seq:
+                    cur_seq.append(i)
+                else:
+                    cur_seq = [i]
+
+            if f == SequenceFlag.LAST:
+                if cur_seq:
+                    cur_seq.append(i)
+                    sequences.append(cur_seq)
+                else:
+                    sequences.append([i])
+
+                cur_seq = None
+
+        if cur_seq:
+            sequences.append(cur_seq)
+
+        complete = []
+        incomplete = []
+
+        for seq in sequences:
+            if len(seq) == 1 and flags[seq[0]] == SequenceFlag.STANDALONE:
+                complete.append(self[seq])
+            elif (flags[seq[0]] == SequenceFlag.FIRST
+                  and flags[seq[-1]] == SequenceFlag.LAST
+                  and ((self.control['sequence_count'][seq[-1]] -
+                        self.control['sequence_count'][seq[0]] + 1) == len(seq))):
+                complete.append(self[seq])
+            else:
+                incomplete.append(self[seq])
+                logger.warning('Incomplete sequence %s, %s', self, seq)
+
+        return complete, incomplete
 
     @classmethod
     def is_datasource_for(cls, **kwargs):

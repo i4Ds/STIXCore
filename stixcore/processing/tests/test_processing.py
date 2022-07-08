@@ -161,8 +161,8 @@ def test_pipeline(socpacketfile, out_dir):
 
     for pid, fkey in enumerate([k for k in test_data.tmtc.__dict__.keys()
                                 if ((k not in exclude)
-                                    # and not (k.startswith('TM_21_6_')
-                                    #         and not k.endswith('_complete'))
+                                    and not (k.startswith('TM_21_6_')
+                                    and not k.endswith('_complete'))
                                     )]):
         # for pid, fkey in enumerate([k for k in test_data.tmtc.__dict__.keys()
         #                            if k in singletest]):
@@ -294,7 +294,7 @@ def test_pipeline_logging(spicekernelmanager, out_dir):
         assert len(list(log_dir.rglob("*.log.err"))) == 0
         assert len(list(log_dir.rglob("*.out"))) == 3
         # TODO increase if level2 for more products is available
-        assert len(list(Path(CONFIG.get('Paths', 'fits_archive')).rglob("*.fits"))) == 23
+        assert len(list(Path(CONFIG.get('Paths', 'fits_archive')).rglob("*.fits"))) == 15
 
     finally:
         CONFIG.set('Logging', 'stop_on_error', str(CONTINUE_ON_ERROR))

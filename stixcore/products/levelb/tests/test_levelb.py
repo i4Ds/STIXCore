@@ -4,6 +4,7 @@ import numpy as np
 from stixcore.data.test import test_data
 from stixcore.products import Product
 from stixcore.products.levelb.binary import LevelB
+from stixcore.tmtc.packets import TMPacket
 
 
 def test_slice():
@@ -20,6 +21,26 @@ def test_slice():
     slice = lb_prod[[1, 2, 3]]
     assert np.all(slice.data == lb_prod.data[[1, 2, 3]]) \
         and np.all(slice.data == lb_prod.data[[1, 2, 3]])
+
+
+def test_bsd_requestid():
+    with test_data.tmtc.TM_21_6_24.open('r') as file:
+        hex = '0x' + file.readlines()[0]
+
+    p = TMPacket(hex)
+    assert p.bsd_requestid == (51667, 1266516544)
+
+    with test_data.tmtc.TM_21_6_30.open('r') as file:
+        hex = '0x' + file.readlines()[0]
+
+    p = TMPacket(hex)
+    assert p.bsd_requestid is False
+
+    with test_data.tmtc.TM_3_25_1.open('r') as file:
+        hex = '0x' + file.readlines()[0]
+
+    p = TMPacket(hex)
+    assert p.bsd_requestid is False
 
 
 def test_add():

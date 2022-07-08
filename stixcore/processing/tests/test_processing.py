@@ -294,7 +294,7 @@ def test_pipeline_logging(spicekernelmanager, out_dir):
         assert len(list(log_dir.rglob("*.log.err"))) == 0
         assert len(list(log_dir.rglob("*.out"))) == 3
         # TODO increase if level2 for more products is available
-        assert len(list(Path(CONFIG.get('Paths', 'fits_archive')).rglob("*.fits"))) == 11
+        assert len(list(Path(CONFIG.get('Paths', 'fits_archive')).rglob("*.fits"))) == 23
 
     finally:
         CONFIG.set('Logging', 'stop_on_error', str(CONTINUE_ON_ERROR))

@@ -3,6 +3,8 @@ from unittest.mock import patch
 import numpy as np
 import pytest
 
+from astropy.table import QTable
+
 from stixcore.data.test import test_data
 from stixcore.io.fits.processors import FitsL0Processor, FitsL1Processor, FitsLBProcessor
 from stixcore.soop.manager import SOOPManager
@@ -19,10 +21,24 @@ def test_levelb_processor_init():
     assert pro.archive_path == 'some/path'
 
 
-def test_levelb_processor_generate_filename():
+def test_levelb_processor_generate_filename_with_rid():
     with patch('stixcore.products.level0.quicklookL0.QLProduct') as product:
         processor = FitsLBProcessor('some/path')
-        product.control.colnames = []
+        product.control = QTable([[(123, 45678)]], names=['request_id'])
+        product.service_type = 21
+        product.service_subtype = 6
+        product.ssid = 20
+        product.obt_avg = SCETime(43200, 0)
+        product.level = 'LB'
+        product.name = 'a_name'
+        filename = processor.generate_filename(product, version=1)
+        assert filename == 'solo_LB_stix-21-6-20_0000000000-9999999999_V01_0000045678-00123.fits'
+
+
+def test_levelb_processor_generate_filename_without_rid():
+    with patch('stixcore.products.level0.quicklookL0.QLProduct') as product:
+        processor = FitsLBProcessor('some/path')
+        product.control = QTable([[False]], names=['request_id'])
         product.service_type = 21
         product.service_subtype = 6
         product.ssid = 20

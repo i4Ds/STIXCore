@@ -510,7 +510,7 @@ class FlareFlag(QLProduct):
             data['flare_progress'] = packets.get_value('NIXD0449', attr='value').astype(np.int16).T
             data.add_basic(name='flare_progress', nix='NIXD0449', packets=packets)
         except AttributeError:
-            logger.warn('Missing NIXD0449')
+            logger.debug(f'Missing NIXD0449 in FlareFlag from {parent}')
 
         return cls(service_type=packets.service_type,
                    service_subtype=packets.service_subtype,

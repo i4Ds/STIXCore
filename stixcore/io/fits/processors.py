@@ -84,11 +84,11 @@ class FitsProcessor:
 
         user_req = ''
         if 'request_id' in product.control.colnames:
-            user_req = f"_{product.control['request_id'][0]}"
+            user_req = f"_{product.control['request_id'][0]:010d}"
 
         tc_control = ''
         if 'tc_packet_seq_control' in product.control.colnames and user_req != '':
-            tc_control = f'-{product.control["tc_packet_seq_control"][0]}'
+            tc_control = f'-{product.control["tc_packet_seq_control"][0]:05d}'
 
         return f'solo_{product.level}_stix-{product.type}-{product.name.replace("_", "-")}' \
                f'_{date_range}_V{version:02d}{status}{user_req}{tc_control}.fits'

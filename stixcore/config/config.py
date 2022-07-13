@@ -25,11 +25,12 @@ def _get_config():
     module_dir = Path(stixcore.__file__).parent
     if 'pytest' in sys.modules:
         default = module_dir / 'data' / 'test' / 'stixcore.ini'
+        config_files = [default]
     else:
         default = module_dir / 'data' / 'stixcore.ini'
-
-    user_file = Path(os.path.expanduser('~')) / 'stixcore.ini'
-    config_files = [default, user_file]
+        # merge with local user ini
+        user_file = Path(os.path.expanduser('~')) / 'stixcore.ini'
+        config_files = [default, user_file]
 
     config = ConfigParser()
     for file in config_files:

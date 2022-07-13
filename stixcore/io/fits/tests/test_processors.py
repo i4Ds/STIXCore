@@ -125,12 +125,12 @@ def test_level0_processor_generate_filename():
         product.control.colnames = ['request_id']
         filename = processor.generate_filename(product, version=1)
         assert filename == 'solo_L0_stix-sci-a-name' \
-                           '_0000012345-0000098765_V01_123456.fits'
+                           '_0000012345-0000098765_V01_0000123456.fits'
 
         product.control.colnames = ['request_id', 'tc_packet_seq_control']
         filename = processor.generate_filename(product, version=1)
         assert filename == 'solo_L0_stix-sci-a-name' \
-                           '_0000012345-0000098765_V01_123456-98765.fits'
+                           '_0000012345-0000098765_V01_0000123456-98765.fits'
 
 
 @patch('stixcore.products.level0.quicklookL0.QLProduct')

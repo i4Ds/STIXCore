@@ -1189,7 +1189,8 @@ class IDB:
                     AND PTYPE.PTC = PCF.PCF_PTC
                     AND PCF.PCF_PFC >= PTYPE.PFC_LB
                     AND PTYPE.PFC_UB >= PCF.PCF_PFC
-                    AND PCF.PCF_NAME in ('NIX00120', 'NIX00001', 'NIX00002', 'NIX00037')
+                    AND PCF.PCF_NAME in ('NIX00120', 'NIX00001', 'NIX00002',
+                                         'NIX00037', 'NIX00445', 'NIX00446')
                 ORDER BY
                     VPD.VPD_POS asc ''')
         args = (service_type, service_subtype, sp1_val)

@@ -12,6 +12,31 @@ from stixcore.products.product import Product
 from stixcore.time.datetime import SCETime
 
 if __name__ == '__main__':
+    pathL0 = Path('/data/stix/out/test/bsdfull/L0')
+    pathLB = Path('/data/stix/out/test/bsdfull/LB')
+
+    for f in pathL0.rglob("solo*.*"):
+        name = f.name
+        name = name.replace('solo_L0_', 'solo_LB_')
+        parts = name.split("_")
+        parts[2] = "*"
+        if "-" in parts[3]:
+            parts[3] = "*"
+        name = "_".join(parts)
+
+        target = pathLB
+        parent = f.parent
+        subd = []
+        while parent != pathL0:
+            subd.insert(0, parent.name)
+            parent = parent.parent
+        for s in subd:
+            target = target / s
+        found = len(list(target.rglob(name)))
+        if found == 0:
+            print(f"{f} >> {target} .. {name}")
+
+if __name__ == '__main__2':
 
     _spm = SpiceKernelManager(Path("/data/stix/spice/git/solar-orbiter/kernels"))
     spicemeta = _spm.get_latest_mk(top_n=30)

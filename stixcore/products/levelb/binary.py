@@ -301,12 +301,21 @@ class LevelB(BaseProduct):
                 complete.append(self[seq])
             elif (flags[seq[0]] == SequenceFlag.FIRST
                   and flags[seq[-1]] == SequenceFlag.LAST
-                  and ((self.control['sequence_count'][seq[-1]] -
-                        self.control['sequence_count'][seq[0]] + 1) == len(seq))):
+                  and (((self.control['sequence_count'][seq[-1]]
+                         + (  # possible role over off 14bit psc value
+                            0 if self.control['sequence_count'][seq[-1]] >
+                            self.control['sequence_count'][seq[0]] else
+                            max(self.control['sequence_count'][seq]))) -
+                        self.control['sequence_count'][seq[0]] + 1) >= len(seq) - 1)
+                    # -1 allow one gap in the sequence
+                    # (QL packet send out during BSD processing)
+                  ):
                 complete.append(self[seq])
             else:
                 incomplete.append(self[seq])
-                logger.warning('Incomplete sequence %s, %s', self, seq)
+                s_rep = '\n'.join(self[seq].control['sequence_count',
+                                                    'sequence_flag', 'scet_coarse'].pformat_all())
+                logger.warning('Incomplete sequence %s\n %s', self, s_rep)
 
         return complete, incomplete
 

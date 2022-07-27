@@ -292,7 +292,8 @@ class TMPacket(GenericPacket):
             tree = self.idb.get_requestid_structure(self.data_header.service_type,
                                                     self.data_header.service_subtype,
                                                     self.pi1_val)
-            # not just SSID old aspect packets without unique request ID fill fall back to daily
+            # not just SSID old aspect packets without unique request ID fill fall back to
+            # a default file rid=0, psc=0
             if'NIX00037' in [c.name for c in tree.children]:
                 # just peek the data so set teh position pointer back later
                 current_pos = self.source_packet_header.bitstream.pos
@@ -301,7 +302,7 @@ class TMPacket(GenericPacket):
                 self._requestid = (data.NIX00002.value if hasattr(data, 'NIX00002') else 0,
                                    data.NIX00037.value if hasattr(data, 'NIX00037') else 0)
             else:
-                self._requestid = False
+                self._requestid = (0, 0)
 
         else:
             self._requestid = False

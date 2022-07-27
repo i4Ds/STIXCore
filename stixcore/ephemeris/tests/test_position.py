@@ -80,3 +80,13 @@ def test_get_fits_headers(spice):
 
     arr = np.array([(r1[i][1], r2[i][1]) for i in range(1, len(r1) - 2)])
     assert np.allclose(arr[1:, 0], arr[1:, 1])
+
+
+def test_get_fits_headers_in_off_times(spice):
+    start_scet = SCETime(983769519, 58289)
+    avg_scet = start_scet + 12*u.h
+
+    h = spice.get_fits_headers(start_time=start_scet, average_time=avg_scet)
+
+    assert h[1][0] == 'SPICE_ERROR'
+    assert h[2][1] == ''

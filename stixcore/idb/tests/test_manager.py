@@ -90,7 +90,7 @@ def test_find_version(idb_manager):
 def test_get_versions(idb_manager):
     versions = idb_manager.get_versions()
     assert isinstance(versions, list)
-    # zjust 5 not 6 as 2.26.2 contains no file
+    # just 5 not 6 as 2.26.2 contains no file
     assert len(versions) == 7
 
 

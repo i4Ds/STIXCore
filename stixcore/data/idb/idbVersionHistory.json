@@ -1,45 +1,142 @@
 [
         {
-                "version":"2.26.31",
-                "aswVersion":167,
-                "comment": "return alway this for the past",
-                "validityPeriodUTC":["2000-01-01T00:00:00", "2020-04-14T16:07:41.186"],
-                "validityPeriodOBT":[{"coarse":0, "fine":0}, {"coarse":640195652, "fine":0}]
-
+            "version": "2.26.32",
+            "aswVersion": 174,
+            "validityPeriodUTC": [
+                [
+                    "2000-01-01T00:00:00.000+00:00",
+                    "2020-04-14T16:47:28.190+00:00"
+                ]
+            ],
+            "validityPeriodOBT": [
+                {
+                    "coarse": 0,
+                    "fine": 0
+                },
+                {
+                    "coarse": 640198039,
+                    "fine": 0
+                }
+            ]
         },
         {
-                "version":"2.26.32",
-                "aswVersion":174,
-                "validityPeriodUTC":["2020-04-14T16:07:41.186", "2020-05-07T09:46:46.538"],
-                "validityPeriodOBT":[{"coarse":640195652, "fine":0}, {"coarse":642159994, "fine":0}]
-
+            "version": "2.26.31",
+            "aswVersion": 167,
+            "validityPeriodUTC": [
+                [
+                    "2020-04-14T16:47:28.190+00:00",
+                    "2020-04-15T11:30:05.303+00:00"
+                ]
+            ],
+            "validityPeriodOBT": [
+                {
+                    "coarse": 640198039,
+                    "fine": 0
+                },
+                {
+                    "coarse": 640265396,
+                    "fine": 0
+                }
+            ]
         },
         {
-                "version":"2.26.33",
-                "aswVersion":178,
-                "validityPeriodUTC":["2020-05-07T09:46:46.538", "2020-05-18T09:12:54.151"],
-                "validityPeriodOBT":[{"coarse":642159994, "fine":0}, {"coarse":643108360, "fine":0}]
-
+            "version": "2.26.32",
+            "aswVersion": 174,
+            "validityPeriodUTC": [
+                [
+                    "2020-04-15T11:30:05.303+00:00",
+                    "2020-05-07T09:46:45.537+00:00"
+                ]
+            ],
+            "validityPeriodOBT": [
+                {
+                    "coarse": 640265396,
+                    "fine": 0
+                },
+                {
+                    "coarse": 642159993,
+                    "fine": 0
+                }
+            ]
         },
         {
-                "version":"2.26.34",
-                "aswVersion":179,
-                "validityPeriodUTC":["2020-05-18T09:12:54.151", "2021-06-23T14:38:41.609"],
-                "validityPeriodOBT":[{"coarse":643108360, "fine":0}, {"coarse":677774250, "fine":0}]
+            "version": "2.26.33",
+            "aswVersion": 178,
+            "validityPeriodUTC": [
+                [
+                    "2020-05-07T09:46:45.537+00:00",
+                    "2020-05-18T13:28:59.176+00:00"
+                ]
+            ],
+            "validityPeriodOBT": [
+                {
+                    "coarse": 642159993,
+                    "fine": 0
+                },
+                {
+                    "coarse": 643123725,
+                    "fine": 0
+                }
+            ]
         },
         {
-                "version":"2.26.35",
-                "aswVersion":181,
-                "validityPeriodUTC":["2021-06-23T14:38:41.609", "2021-12-09T20:08:27.000"],
-                "validityPeriodOBT":[{"coarse":677774250, "fine":0}, {"coarse":692395613, "fine":0}]
-
+            "version": "2.26.34",
+            "aswVersion": 179,
+            "validityPeriodUTC": [
+                [
+                    "2020-05-18T13:28:59.176+00:00",
+                    "2021-06-23T14:38:40.609+00:00"
+                ]
+            ],
+            "validityPeriodOBT": [
+                {
+                    "coarse": 643123725,
+                    "fine": 0
+                },
+                {
+                    "coarse": 677774249,
+                    "fine": 0
+                }
+            ]
         },
         {
-                "version":"2.26.36",
-                "aswVersion":183,
-                "comment": "return this for the next future",
-                "validityPeriodUTC":["2021-12-09T20:08:27.000", "2136-02-07T08:11:44.778"],
-                "validityPeriodOBT":[{"coarse":692395613, "fine":0}, {"coarse":4294967295, "fine":0}]
-
+            "version": "2.26.35",
+            "aswVersion": 181,
+            "validityPeriodUTC": [
+                [
+                    "2021-06-23T14:38:40.609+00:00",
+                    "2021-12-09T16:01:12.414+00:00"
+                ]
+            ],
+            "validityPeriodOBT": [
+                {
+                    "coarse": 677774249,
+                    "fine": 0
+                },
+                {
+                    "coarse": 692380776,
+                    "fine": 0
+                }
+            ]
+        },
+        {
+            "version": "2.26.36",
+            "aswVersion": 183,
+            "validityPeriodUTC": [
+                [
+                    "2021-12-09T16:01:12.414+00:00",
+                    "2136-02-07T08:11:44.778+00:00"
+                ]
+            ],
+            "validityPeriodOBT": [
+                {
+                    "coarse": 692380776,
+                    "fine": 0
+                },
+                {
+                    "coarse": 4294967295,
+                    "fine": 0
+                }
+            ]
         }
-]
+    ]

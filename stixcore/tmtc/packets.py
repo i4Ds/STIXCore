@@ -538,7 +538,12 @@ class GenericTMPacket:
                                             self.data_header.service_subtype,
                                             self.pi1_val)
 
-        data, structure = parse_variable(self.source_packet_header.bitstream, tree)
+        try:
+            data, structure = parse_variable(self.source_packet_header.bitstream, tree)
+        except Exception as e:
+            logger.error(f"Packet parsing error: {self}\nidb version:{idb}\npacket data:"
+                         f"{str(self.source_packet_header.bitstream)}")
+            raise e
         self.data = data
         self.tree = structure
         # self.group_repeaters()

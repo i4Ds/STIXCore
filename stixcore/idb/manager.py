@@ -9,6 +9,8 @@ import urllib.request
 from pathlib import Path
 
 from stixcore.data.test import test_data
+from intervaltree import IntervalTree
+
 from stixcore.idb.idb import IDB
 from stixcore.time import SCETime
 from stixcore.util.logging import get_logger
@@ -111,14 +113,18 @@ class IDBManager(metaclass=Singleton):
         self._data_root = path
         try:
             with open(IDB_VERSION_HISTORY_FILE) as f:
-                self.history = json.load(f)
-                for item in self.history:
+                self.history = IntervalTree()
+
+                for item in json.load(f):
                     item['validityPeriodOBT'][0] = SCETime(
                                                     coarse=item['validityPeriodOBT'][0]['coarse'],
                                                     fine=item['validityPeriodOBT'][0]['fine'])
                     item['validityPeriodOBT'][1] = SCETime(
                                                     coarse=item['validityPeriodOBT'][1]['coarse'],
                                                     fine=item['validityPeriodOBT'][1]['fine'])
+                    self.history.addi(item['validityPeriodOBT'][0].as_float().value,
+                                      item['validityPeriodOBT'][1].as_float().value,
+                                      item['version'])
                     try:
                         if not self.has_version(item['version']):
                             available = self.download_version(item['version'], force=False)
@@ -146,17 +152,12 @@ class IDBManager(metaclass=Singleton):
         `str`
             a version label
         """
-        if not obt:
-            try:
-                return self.history[0]['version']
-            except IndexError as e:
-                logger.error(str(e))
-            return ''
-        for item in self.history:
-            if item['validityPeriodOBT'][0] < obt <= item['validityPeriodOBT'][1]:
-                return item['version']
-
-        logger.error(f"No IDB version found for Time: {obt}")
+        try:
+            if not obt:
+                return next(iter(self.history.at(self.history.begin()))).data
+            return next(iter(self.history.at(obt.as_float().value))).data
+        except IndexError as e:
+            logger.error(f"No IDB version found for Time: {obt}\n{e}")
         return ''
 
     def compile_version(self, version_label, force=False,

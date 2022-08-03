@@ -158,26 +158,33 @@ def raw_to_engineering_product(product, idbm):
                                         product.service_subtype,
                                         (product.ssid if hasattr(product, "ssid") else None),
                                         table[col].meta["NIXS"],
-                                        table[col].meta["PCF_CURTX"])[0]
+                                        table[col].meta["PCF_CURTX"])
+                if len(calib_param) == 0:
+                    # for this idb period no or another conversion is defined so skip it
+                    raise ValueError("Raw to engineering error: multiple IDB version for the same"
+                                     "data product with different calibration definitions. "
+                                     "So the column can not be handled uniform.")
+                else:
+                    calib_param = calib_param[0]
 
-                raw = Parameter(table[col].meta["NIXS"],
-                                table[idb_time_period][col], None)
+                    raw = Parameter(table[col].meta["NIXS"],
+                                    table[idb_time_period][col], None)
 
-                eng = apply_raw_to_engineering(raw, (calib_param, idb))
+                    eng = apply_raw_to_engineering(raw, (calib_param, idb))
 
-                # cast the type of the column if needed
-                if table[CCN].dtype != eng.engineering.dtype:
-                    table[CCN] = table[CCN].astype(eng.engineering.dtype)
+                    # cast the type of the column if needed
+                    if table[CCN].dtype != eng.engineering.dtype:
+                        table[CCN] = table[CCN].astype(eng.engineering.dtype)
 
-                # set the unit if needed
-                if hasattr(eng.engineering, "unit") and table[CCN].unit != eng.engineering.unit:
-                    meta = table[col].meta
-                    table[CCN].unit = eng.engineering.unit
-                    # restore the meta info
-                    setattr(table[CCN], "meta", meta)
+                    # set the unit if needed
+                    if hasattr(eng.engineering, "unit") and table[CCN].unit != eng.engineering.unit:
+                        meta = table[col].meta
+                        table[CCN].unit = eng.engineering.unit
+                        # restore the meta info
+                        setattr(table[CCN], "meta", meta)
 
-                # override the data into the new column
-                table[CCN][idb_time_period] = eng.engineering
+                    # override the data into the new column
+                    table[CCN][idb_time_period] = eng.engineering
 
             # replace the old column with the converted
             table[col] = table[CCN]

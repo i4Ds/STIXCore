@@ -91,8 +91,7 @@ def test_get_versions(idb_manager):
     versions = idb_manager.get_versions()
     assert isinstance(versions, list)
     # just 5 not 6 as 2.26.2 contains no file
-    assert len(versions) == 8
-
+    assert len(versions) > 4
 
 @pytest.mark.remote_data
 def test_get_idb_not_found_error(idb_manager):

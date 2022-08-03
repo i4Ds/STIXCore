@@ -127,7 +127,7 @@ class LevelB(BaseProduct):
 
     def to_files(self):
         """Split the data into a sequence of LevelB objects each containing 1 daysworth\
-        of observations for contiiouse data or by request id in case of BSD.
+        of observations for continuous data or by request id in case of BSD.
 
         Yields
         ------

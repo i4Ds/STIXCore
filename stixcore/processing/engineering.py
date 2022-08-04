@@ -160,31 +160,43 @@ def raw_to_engineering_product(product, idbm):
                                         table[col].meta["NIXS"],
                                         table[col].meta["PCF_CURTX"])
                 if len(calib_param) == 0:
-                    # for this idb period no or another conversion is defined so skip it
-                    raise ValueError("Raw to engineering error: multiple IDB version for the same"
-                                     "data product with different calibration definitions. "
-                                     "So the column can not be handled uniform.")
-                else:
-                    calib_param = calib_param[0]
+                    # for this idb period no conversion with the same ID (PCF_CURTX) is defined
+                    # so look it up again
+                    calib_param = idb.get_params_for_calibration(
+                                        product.service_type,
+                                        product.service_subtype,
+                                        (product.ssid if hasattr(product, "ssid") else None),
+                                        table[col].meta["NIXS"])
 
-                    raw = Parameter(table[col].meta["NIXS"],
-                                    table[idb_time_period][col], None)
+                calib_param = calib_param[0]
 
-                    eng = apply_raw_to_engineering(raw, (calib_param, idb))
+                raw = Parameter(table[col].meta["NIXS"],
+                                table[idb_time_period][col], None)
 
-                    # cast the type of the column if needed
-                    if table[CCN].dtype != eng.engineering.dtype:
-                        table[CCN] = table[CCN].astype(eng.engineering.dtype)
+                eng = apply_raw_to_engineering(raw, (calib_param, idb))
 
-                    # set the unit if needed
-                    if hasattr(eng.engineering, "unit") and table[CCN].unit != eng.engineering.unit:
+                # cast the type of the column if needed
+                if table[CCN].dtype != eng.engineering.dtype:
+                    table[CCN] = table[CCN].astype(eng.engineering.dtype)
+
+                # set the unit if needed
+                if hasattr(eng.engineering, "unit") and table[CCN].unit != eng.engineering.unit:
+                    if table[CCN].unit is None:
                         meta = table[col].meta
                         table[CCN].unit = eng.engineering.unit
                         # restore the meta info
                         setattr(table[CCN], "meta", meta)
+                    else:
+                        # convert the values to the already existing unit in the column
+                        # (e.g. ms to s) if this fails (e.g. s to K) something is very
+                        # off and should raise an error anyway
+                        eng.engineering = eng.engineering.to(table[CCN].unit)
+                        logger.warning(f"Automated unit conversion triggered: "
+                                       f"{ eng.engineering.unit} to {table[CCN].unit}"
+                                       f" for {col} / {table[col].meta['NIXS']}")
 
-                    # override the data into the new column
-                    table[CCN][idb_time_period] = eng.engineering
+                # override the data into the new column
+                table[CCN][idb_time_period] = eng.engineering
 
             # replace the old column with the converted
             table[col] = table[CCN]

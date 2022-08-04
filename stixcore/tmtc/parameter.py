@@ -235,6 +235,10 @@ class EngineeringParameter(Parameter):
         self.unit = unit
         convert = False
 
+        # IDB 2.26.36 defines some times as "S" (Siemens) not as "s" (seconds) override that
+        if unit == 'S':
+            unit = 's'
+
         if unit == 'degC':
             unit = 'deg_C'
             convert = 'K'

@@ -42,7 +42,9 @@ class TMTCTestData:
         for f in self.TM_DIR.rglob("*.hex"):
             p_name = f"TM_{f.name.replace('.hex','')}"
             self.__dict__[p_name] = f
-        self.XML_TM = list(self.TM_DIR.rglob("*.xml"))
+        self.XML_TM = [self.TM_DIR / "Test2.PktTmRaw.xml",
+                       self.TM_DIR / "Test0.PktTmRaw.xml",
+                       self.TM_DIR / "Test1.PktTmRaw.xml"]
         self.__doc__ = "\n".join([f'{str(k)}: {repr(v)}\n\n' for k, v in self.__dict__.items()])
 
 

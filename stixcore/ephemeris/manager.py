@@ -1,8 +1,9 @@
-import os
+import re
 import sys
 import logging
 from enum import Enum
 from pathlib import Path
+from textwrap import wrap
 
 import numpy as np
 import spiceypy
@@ -62,8 +63,7 @@ class SpiceKernelManager():
     """A class to manage Spice kernels in the local file system."""
 
     def __init__(self, path):
-        """Creates a new SpiceKernelManager and also sets the system
-        environment variable 'STIX_PROCESSING_SPICE_DIR'
+        """Creates a new SpiceKernelManager
 
         Parameters
         ----------
@@ -80,53 +80,47 @@ class SpiceKernelManager():
             raise ValueError(f'path not found: {path}')
         self.path = path
 
-        os.environ["STIX_PROCESSING_SPICE_DIR"] = str(path)
-
-    def _get_latest(self, kerneltype, *, setenvironment=False):
+    def _get_latest(self, kerneltype, *, top_n=1):
         subdir, filter = kerneltype.value
         path = self.path / str(subdir)
-        files = sorted(list(path.glob(filter)), key=os.path.basename)
+        files = sorted(list(path.glob(filter)), key=lambda x: x.name.lower(), reverse=True)
 
         if len(files) == 0:
             raise ValueError(f'No current kernel found at: {path}')
 
-        if setenvironment:
-            os.environ[f"STIX_PROCESSING_SPICE_{subdir.upper()}"] = str(files[-1])
+        top_n = min(len(files), top_n)
 
-        return files[-1]
+        return files[0:top_n] if top_n > 1 else files[0]
 
-    def get_latest_sclk(self, *, setenvironment=False):
-        return self._get_latest(SpiceKernelType.SCLK)
+    def get_latest_sclk(self, *, top_n=1):
+        return self._get_latest(SpiceKernelType.SCLK, top_n=top_n)
 
-    def get_latest_lsk(self, *, setenvironment=False):
-        return self._get_latest(SpiceKernelType.LSK)
+    def get_latest_lsk(self, *, top_n=1):
+        return self._get_latest(SpiceKernelType.LSK, top_n=top_n)
 
-    def get_latest_mk(self, *, setenvironment=False):
-        return self._get_latest(SpiceKernelType.MK)
+    def get_latest_mk(self, *, top_n=1):
+        return self._get_latest(SpiceKernelType.MK, top_n=top_n)
 
-    def get_latest(self, kerneltype=SpiceKernelType.MK, *, setenvironment=False):
+    def get_latest(self, kerneltype=SpiceKernelType.MK, *, top_n=1):
         """Finds the latest version of the spice kernel.
 
         Parameters
         ----------
         kerneltype : `SpiceKernelType`, optional
             the spice kernel type to looking for, by default SpiceKernelType.MK
-        setenvironment : bool, optional
-            also sets an environment variable to the latest found kernel file.
-            Name: 'STIX_PROCESSING_SPICE_[kernel type]', by default False
 
         Returns
         -------
         `Path`
             Path to the latest found spice kernel file of the given type.
         """
-        return self._get_latest(kerneltype, setenvironment=setenvironment)
+        return self._get_latest(kerneltype)
 
 
 class SpiceKernelLoader:
     """A context manager to ensure kernels are loaded and unloaded properly before and after use."""
 
-    def __init__(self, meta_kernel_path):
+    def __init__(self, meta_kernel_pathes):
         """Create an instance loading the spice kernel in the given meta kernel file.
 
         Parameters
@@ -135,22 +129,60 @@ class SpiceKernelLoader:
             Path to the meta kernel
 
         """
-        self.meta_kernel_path = Path(meta_kernel_path)
-        if not self.meta_kernel_path.exists():
-            raise ValueError(f'Meta kernel not found: {self.meta_kernel_path}')
 
-        curdir = os.getcwd()
-        try:
-            # change to the 'kernels' dir
-            os.chdir(self.meta_kernel_path.parent)
-            # unload all old kernels
-            spiceypy.kclear()
-            # load the meta kernel
-            spiceypy.furnsh(str(self.meta_kernel_path))
-            # spiceypy.unload(str(self.mod_meta_kernel_path))
-        finally:
-            # change back to the old working directory
-            os.chdir(curdir)
+        for meta_kernel_path in np.atleast_1d(meta_kernel_pathes):
+            try:
+                self.meta_kernel_path = Path(meta_kernel_path)
+                if not self.meta_kernel_path.exists():
+                    raise ValueError(f'Meta kernel not found: {self.meta_kernel_path}')
+
+                # look for a twin file *.abs where the path definition is absolute
+                # if not existing create it on the fly and store it in same location for later reuse
+
+                abs_file = self.meta_kernel_path.parent / (self.meta_kernel_path.name + ".abs")
+
+                if not abs_file.exists():
+                    with self.meta_kernel_path.open('r') as mk:
+                        original_mk = mk.read()
+                        kernel_dir = str(self.meta_kernel_path.parent.parent.resolve())
+                        kernel_dir = kernel_dir.replace('\\', '\\\\')
+                        # spice meta kernel seems to have a max variable length of 80 characters
+                        # https://naif.jpl.nasa.gov/pub/naif/toolkit_docs/C/req/kernel.html#Additional%20Meta-kernel%20Specifications # noqa
+                        wrapped = SpiceKernelLoader._wrap_value_field(kernel_dir)
+                        path_value = f"PATH_VALUES       = ( {wrapped} )"
+                        logger.debug(f'Kernel directory {kernel_dir}')
+                        new_mk = re.sub(r"PATH_VALUES\s*= \( '.*' \)", path_value, original_mk)
+
+                        with abs_file.open('w') as f:
+                            f.write(new_mk)
+
+                logger.info(f"LOADING NEW META KERNEL: {self.meta_kernel_path}")
+                spiceypy.kclear()
+                # load the meta kernel
+                spiceypy.furnsh(str(abs_file))
+                return
+            except Exception as e:
+                logger.warning(f"Failed LOADING NEW META KERNEL: {self.meta_kernel_path}\n{e}")
+        raise ValueError(f"Failed to load any NEW META KERNEL: {meta_kernel_pathes}")
+
+    @staticmethod
+    def _wrap_value_field(field):
+        r"""
+        Wrap a value field according to SPICE meta kernal spec
+        Parameters
+        ----------
+        field : `str`
+            The value to be wrapped
+        Returns
+        -------
+        The wrapped values
+        """
+        parts = wrap(field, width=78)
+        wrapped = "'"
+        for part in parts[:-1]:
+            wrapped = wrapped + part + "+'\n'"
+        wrapped = wrapped + f"{parts[-1]}'"
+        return wrapped
 
 
 class Spice(SpiceKernelLoader, metaclass=Singleton):
@@ -263,6 +295,48 @@ class Spice(SpiceKernelLoader, metaclass=Singleton):
         scet = spiceypy.sce2s(SOLAR_ORBITER_ID, et)
         return scet
 
+    def get_auxiliary_positional_data(self, *, date):
+        et = spiceypy.scs2e(SOLAR_ORBITER_ID, str(date))
+        sc = spiceypy.sce2c(SOLAR_ORBITER_ID, et)
+
+        cmat, _ = spiceypy.ckgp(SOLAR_ORBITER_STIX_ILS_FRAME_ID, sc, 1.0, 'SOLO_SUN_RTN')
+        vec = cmat @ np.eye(3)
+        roll, pitch, yaw = spiceypy.m2eul(vec, 1, 2, 3)
+
+        # HeliographicStonyhurst
+        solo_sun_hg, _ = spiceypy.spkezr('SOLO', et, 'SUN_EARTH_CEQU', 'None', 'Sun')
+
+        # Convert to spherical and add units
+        hg_rad, hg_lon, hg_lat = spiceypy.reclat(solo_sun_hg[:3])
+        hg_rad = hg_rad * u.km
+        hg_lat, hg_lon = (hg_lat * u.rad).to('deg'), (hg_lon * u.rad).to('deg')
+        # Calculate radial velocity add units
+        rad_vel, *_ = spiceypy.reclat(solo_sun_hg[3:])
+        rad_vel = rad_vel * (u.km / u.s)
+
+        solo_sun_heeq, _ = spiceypy.spkezr('SOLO', et, 'SOLO_HEEQ', 'None', 'Sun')
+        return (np.rad2deg([roll, pitch, yaw])*u.deg, hg_rad,
+                [hg_lon.to_value("deg"), hg_lat.to_value("deg")] * u.deg,
+                solo_sun_heeq[0:3] * u.km)
+
+    def get_sun_disc_size(self, *, date):
+
+        # if hasattr(date, "size") and date.size > 0:
+        #    et = [spiceypy.scs2e(SOLAR_ORBITER_ID, str(d)) for d in date]
+        # else:
+        et = spiceypy.scs2e(SOLAR_ORBITER_ID, str(date))
+
+        # HeliographicStonyhurst
+        solo_sun_hg, sun_solo_lt = spiceypy.spkezr('SOLO', et, 'SUN_EARTH_CEQU', 'None', 'Sun')
+
+        # Convert to spherical and add units
+        hg_rad, hg_lon, hg_lat = spiceypy.reclat(solo_sun_hg[:3])
+        hg_rad = hg_rad * u.km
+
+        rsun_arc = np.arcsin((1 * u.R_sun) / hg_rad).decompose().to('arcsec')
+
+        return rsun_arc
+
     def get_position(self, *, date, frame):
         """
         Get the position of SolarOrbiter at the given date in the given coordinate frame.
@@ -300,7 +374,7 @@ class Spice(SpiceKernelLoader, metaclass=Singleton):
         """
         et = spiceypy.datetime2et(date)
         sc = spiceypy.sce2c(SOLAR_ORBITER_ID, et)
-        cmat, sc = spiceypy.ckgp(SOLAR_ORBITER_SRF_FRAME_ID, sc, 0, frame)
+        cmat, sc = spiceypy.ckgp(SOLAR_ORBITER_SRF_FRAME_ID, sc, 1.0, frame)
         vec = cmat @ np.eye(3)
         roll, pitch, yaw = spiceypy.m2eul(vec, 1, 2, 3)
         roll, pitch, yaw = np.rad2deg([roll, pitch, yaw])*u.deg
@@ -341,7 +415,7 @@ class Spice(SpiceKernelLoader, metaclass=Singleton):
     def get_fits_headers(self, *, start_time, average_time):
 
         try:
-            et = spiceypy.scs2e(-144, str(average_time))
+            et = spiceypy.scs2e(SOLAR_ORBITER_ID, str(average_time))
         except (SpiceBADPARTNUMBER, SpiceINVALIDSCLKSTRING):
             et = spiceypy.utc2et(average_time.isot)
 
@@ -427,7 +501,7 @@ class Spice(SpiceKernelLoader, metaclass=Singleton):
             ('DATE_EAR', (start_time + np.around((sun_earth_lt - sun_solo_lt), precision)*u.s).fits,
              'Start time of observation, corrected to Earth'),
             ('DATE_SUN', (start_time - np.around(sun_solo_lt, precision)*u.s).fits,
-             'Start time of observation, corrected to Su'),
+             'Start time of observation, corrected to Sun'),
         )
 
         return headers

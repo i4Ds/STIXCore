@@ -1,6 +1,4 @@
 """Module for the different processing levels."""
-import logging
-from pathlib import Path
 from datetime import datetime
 
 import numpy as np
@@ -11,19 +9,21 @@ from astropy.io.fits import table_to_hdu
 from astropy.table import QTable
 
 import stixcore
-from stixcore.config.config import CONFIG
 from stixcore.ephemeris.manager import Spice
 from stixcore.products.level0.scienceL0 import Aspect
 from stixcore.products.product import Product
 from stixcore.soop.manager import SOOPManager, SoopObservationType
+from stixcore.time.datetime import SEC_IN_DAY
 from stixcore.util.logging import get_logger
 
-__all__ = ['SEC_IN_DAY', 'FitsProcessor', 'FitsLBProcessor', 'FitsL0Processor', 'FitsL1Processor']
+__all__ = ['SEC_IN_DAY', 'FitsProcessor', 'FitsLBProcessor', 'FitsL0Processor',
+           'FitsL1Processor', 'FitsL2Processor']
 
 
-logger = get_logger(__name__, level=logging.WARNING)
+logger = get_logger(__name__)
 
-SEC_IN_DAY = 24 * 60 * 60
+LLDP_VERSION = "00.07.00"
+Y_M_D_H_M = "%Y%m%d%H%M"
 
 
 def set_bscale_unsigned(table_hdu):
@@ -122,6 +122,182 @@ class FitsProcessor:
         return headers
 
 
+class FitsLL01Processor(FitsProcessor):
+    def generate_filename(cls, product, *, curtime, status=''):
+        """
+        Generate LL01 filename
+
+        Parameters
+        ----------
+        product : `sticore.product.Product`
+
+        version : `int`
+
+        date_range
+        status
+
+        Returns
+        -------
+        `str`
+            The filename
+        """
+        obt_start = product.scet_timerange.start.coarse
+        obt_end = product.scet_timerange.end.coarse
+        timestamp = curtime.strftime(Y_M_D_H_M)
+        return f'solo_LL01_stix-ql-{product.name}_{obt_start:010d}-{obt_end:010d}' \
+               f'_V{timestamp}{status}.fits'
+
+    def generate_primary_header(cls, filename, product, curtime, status=''):
+        """
+        Generate LLDP fits file primary header.
+
+        Parameters
+        ----------
+        filename : `str`
+            Filename
+        product : `stixcore.product.Product`
+            Product
+        curtime : `datetime.datetime`
+            File creation time
+        status
+            Status
+
+        Returns
+        -------
+        `tuple`
+        """
+
+        headers = (
+            # Name, Value, Comment
+            ('TELESCOP', 'SOLO/STIX', 'Telescope/Sensor name'),
+            ('INSTRUME', 'STIX', 'Instrument name'),
+            ('OBSRVTRY', 'Solar Orbiter', 'Satellite name'),
+            ('FILENAME', filename, 'FITS filename'),
+            ('DATE', curtime.now().isoformat(timespec='milliseconds'),
+             'FITS file creation date in UTC'),
+            ('OBT_BEG', product.scet_timerange.start.to_string()),
+            ('OBT_END', product.scet_timerange.end.to_string()),
+            ('TIMESYS', 'OBT', 'System used for time keywords'),
+            ('LEVEL', 'LL01', 'Processing level of the data'),
+            ('ORIGIN', 'Solar Orbiter SOC, ESAC', 'Location where file has been generated'),
+            ('CREATOR', 'STIX-LLDP', 'FITS creation software'),
+            ('VERSION', curtime.strftime(Y_M_D_H_M), 'Version of data product'),
+            ('OBS_MODE', 'Nominal'),
+            ('VERS_SW', LLDP_VERSION, 'Software version'),
+            ('COMPLETE', status)
+        )
+        return headers
+
+    def write_fits(self, product, path, curtime):
+        """
+        Write or merge the product data into a FITS file.
+
+        Parameters
+        ----------
+        product : `LevelB`
+            The data product to write.
+        path : `pathlib.Path`
+            Directory to write the fits files
+
+        Raises
+        ------
+        ValueError
+            If the data length in the header and actual data length differ
+        """
+        created_files = []
+        for prod in product.split_to_files():
+            filename = self.generate_filename(product=prod, curtime=curtime)
+            path.mkdir(parents=True, exist_ok=True)
+            fitspath = path / filename
+            if fitspath.exists():
+                logger.info('Fits file %s exists appending data', fitspath.name)
+                existing = Product(fitspath)
+                logger.debug('Existing %s, Current %s', existing, prod)
+                prod = prod + existing
+                logger.debug('Combined %s', prod)
+
+            control = prod.control
+            data = prod.data
+
+            # add comment in the FITS for all error values
+            for col in data.columns:
+                if col.endswith('_err'):
+                    data[col].description = "Error due only to integer compression"
+
+            idb_versions = QTable(rows=[(version, range.start.as_float(), range.end.as_float())
+                                        for version, range in product.idb_versions.items()],
+                                  names=["version", "obt_start", "obt_end"])
+
+            primary_header = self.generate_primary_header(filename, prod, curtime, )
+            primary_hdu = fits.PrimaryHDU()
+            primary_hdu.header.update(primary_header)
+
+            wcs = [('CRPIX1', 0.0, 'Pixel coordinate of reference point'),
+                   ('CRPIX2', 0.0, 'Pixel coordinate of reference point'),
+                   ('CDELT1', 2 / 3.0, '[deg] Coordinate increment at reference point'),
+                   ('CDELT2', 2 / 3.0, '[deg] Coordinate increment a reference point'),
+                   ('CTYPE1', 'YLIF-TAN', 'Coordinate type code'),
+                   ('CTYPE2', 'ZLIF-TAN', 'Coordinate type code'),
+                   ('CRVAL1', 0.0, '[deg] Coordinate value at reference point'),
+                   ('CRVAL2', 0.0, '[deg] Coordinate value at reference point'),
+                   ('CUNIT1', 'deg', 'Units of coordinate increment and value'),
+                   ('CUNIT2', 'deg', 'Units of coordinate increment and value')]
+
+            primary_hdu.data = np.zeros((3, 3), dtype=np.uint8)
+            primary_hdu.header.update(wcs)
+            primary_hdu.header.update({'HISTORY': 'Processed by STIX LLDP VM'})
+
+            # Convert time to be relative to start date
+            # it is important that the change to the relative time is done after the header is
+            # generated as this will use the original SCET time data
+
+            if isinstance(prod, Aspect):
+                data['time'] = np.float32((data['time']
+                                           - prod.scet_timerange.start).as_float())
+                data['timedel'] = np.float32(data['timedel'].as_float())
+            else:
+                # In TM sent as uint in units of 0.1 so convert to cs as the time center
+                # can be on 0.5ds points
+                data['time'] = np.uint32(np.around(
+                    (data['time'] - prod.scet_timerange.start).as_float().to(u.cs)))
+                data['timedel'] = np.uint32(np.around(data['timedel'].as_float().to(u.cs)))
+
+            try:
+                control['time_stamp'] = control['time_stamp'].as_float()
+            except KeyError as e:
+                if 'time_stamp' not in repr(e):
+                    raise e
+
+            control_enc = fits.connect._encode_mixins(control)
+            control_hdu = table_to_hdu(control_enc)
+            control_hdu = set_bscale_unsigned(control_hdu)
+            control_hdu = add_default_tuint(control_hdu)
+            control_hdu.name = 'CONTROL'
+
+            data_enc = fits.connect._encode_mixins(data)
+            data_hdu = table_to_hdu(data_enc)
+            data_hdu = set_bscale_unsigned(data_hdu)
+            data_hdu = add_default_tuint(data_hdu)
+            data_hdu.name = 'DATA'
+
+            idb_enc = fits.connect._encode_mixins(idb_versions)
+            idb_hdu = table_to_hdu(idb_enc)
+            idb_hdu = set_bscale_unsigned(idb_hdu)
+            idb_hdu = add_default_tuint(idb_hdu)
+            idb_hdu.name = 'IDB_VERSIONS'
+
+            hdul = [primary_hdu, control_hdu, data_hdu, idb_hdu]
+
+            FitsL0Processor.add_optional_energy_table(prod, hdul)
+
+            hdul = fits.HDUList(hdul)
+
+            logger.debug(f'Writing fits file to {fitspath}')
+            hdul.writeto(fitspath, overwrite=True, checksum=True)
+            created_files.append(fitspath)
+        return created_files
+
+
 class FitsLBProcessor(FitsProcessor):
     """Class representing a FITS processor for LevelB products."""
 
@@ -151,7 +327,7 @@ class FitsLBProcessor(FitsProcessor):
         `str`
             The filename
         """
-        scet_obs = int(product.obt_avg.as_float().value // SEC_IN_DAY) * SEC_IN_DAY
+        scet_obs = product.obt_avg.get_scedays(timestamp=True)
 
         parts = [str(x) for x in [product.service_type, product.service_subtype, product.ssid]]
         if product.ssid is None:
@@ -267,7 +443,7 @@ class FitsL0Processor:
         """
         self.archive_path = archive_path
 
-    def write_fits(self, product):
+    def write_fits(self, product, path=None):
         """
         Write level 0 products into fits files.
 
@@ -322,15 +498,17 @@ class FitsL0Processor:
             # generated as this will use the original SCET time data
 
             if isinstance(prod, Aspect):
-                data['time'] = np.float32((data['time']
-                                           - prod.scet_timerange.start).as_float())
-                data['timedel'] = np.float32(data['timedel'].as_float())
+                data['time'] = np.atleast_1d(np.float32((data['time'] -
+                                             prod.scet_timerange.start).as_float()))
+
+                data['timedel'] = np.atleast_1d(np.float32(data['timedel'].as_float()))
             else:
                 # In TM sent as uint in units of 0.1 so convert to cs as the time center
                 # can be on 0.5ds points
-                data['time'] = np.uint32(np.around(
-                    (data['time'] - prod.scet_timerange.start).as_float().to(u.cs)))
-                data['timedel'] = np.uint32(np.around(data['timedel'].as_float().to(u.cs)))
+                data['time'] = np.atleast_1d(np.around((data['time'] - prod.scet_timerange.start)
+                                             .as_float().to(u.cs)).astype("uint32"))
+                data['timedel'] = np.atleast_1d(np.uint32(np.around(data['timedel'].as_float()
+                                                .to(u.cs))))
 
             try:
                 control['time_stamp'] = control['time_stamp'].as_float()
@@ -473,10 +651,6 @@ class FitsL0Processor:
 class FitsL1Processor(FitsL0Processor):
     def __init__(self, archive_path):
         self.archive_path = archive_path
-        soop_path = CONFIG.get('Paths', 'soop_files')
-        if str(soop_path) == '':
-            soop_path = Path(__file__).parent.parent.parent / 'data' / 'test' / 'soop'
-        self.soop_manager = SOOPManager(soop_path)
 
     @classmethod
     def generate_filename(cls, product, *, version, status=''):
@@ -490,8 +664,8 @@ class FitsL1Processor(FitsL0Processor):
                                                status=status)
 
     def generate_primary_header(self, filename, product):
-        if product.level != 'L1':
-            raise ValueError(f"Try to crate FITS file L1 for {product.level} data product")
+        # if product.level != 'L1':
+        #    raise ValueError(f"Try to crate FITS file L1 for {product.level} data product")
 
         headers = FitsProcessor.generate_common_header(filename, product)
 
@@ -508,12 +682,12 @@ class FitsL1Processor(FitsL0Processor):
             ('DATAMIN', dmin, 'Minimum valid physical value'),
             ('DATAMAX', dmax, 'Maximum valid physical value'),
             ('BUNIT', bunit, 'Units of physical value, after application of BSCALE, BZERO'),
-            ('XPOSURE', exposure, '[s] Total effective exposure time')
+            ('XPOSURE', exposure, '[s] shortest exposure time')
         )
 
-        soop_keywords = self.soop_manager.get_keywords(start=product.utc_timerange.start,
-                                                       end=product.utc_timerange.end,
-                                                       otype=SoopObservationType.ALL)
+        soop_keywords = SOOPManager.instance.get_keywords(start=product.utc_timerange.start,
+                                                          end=product.utc_timerange.end,
+                                                          otype=SoopObservationType.ALL)
         soop_headers = tuple(kw.tuple for kw in soop_keywords)
         soop_defaults = (
             ('OBS_MODE', '', 'Observation mode'),
@@ -547,7 +721,7 @@ class FitsL1Processor(FitsL0Processor):
             Spice.instance.get_fits_headers(start_time=product.utc_timerange.start,
                                             average_time=product.utc_timerange.center)
 
-        return headers + data_headers + soop_headers + time_headers + ephemeris_headers
+        return headers + data_headers + soop_headers + time_headers, ephemeris_headers
 
     def write_fits(self, product):
         """
@@ -593,10 +767,12 @@ class FitsL1Processor(FitsL0Processor):
                                   for version, range in product.idb_versions.items()],
                                   names=["version", "obt_start", "obt_end"])
 
-            primary_header = self.generate_primary_header(filename, prod)
+            primary_header, header_override = self.generate_primary_header(filename, prod)
             primary_hdu = fits.PrimaryHDU()
             primary_hdu.header.update(primary_header)
-            primary_hdu.header.update({'HISTORY': 'Processed by STIX'})
+            primary_hdu.header.update(header_override)
+            primary_hdu.header.update(product.get_additional_header_keywords())
+            primary_hdu.header.update({'HISTORY': 'Processed by STIX L2'})
 
             # Convert time to be relative to start date
             # it is important that the change to the relative time is done after the header is
@@ -604,9 +780,10 @@ class FitsL1Processor(FitsL0Processor):
 
             # In TM sent as uint in units of 0.1 so convert to cs as the time center
             # can be on 0.5ds points
-            data['time'] = np.uint32(np.around((data['time']
-                                                - prod.scet_timerange.start).as_float().to(u.cs)))
-            data['timedel'] = np.uint32(np.around(data['timedel'].as_float().to(u.cs)))
+            data['time'] = np.atleast_1d(np.around((data['time'] - prod.scet_timerange.start)
+                                         .as_float().to(u.cs)).astype('uint32'))
+            data['timedel'] = np.atleast_1d(np.uint32(np.around(data['timedel'].as_float()
+                                            .to(u.cs))))
 
             try:
                 control['time_stamp'] = control['time_stamp'].as_float()
@@ -642,3 +819,28 @@ class FitsL1Processor(FitsL0Processor):
             hdul.writeto(filetowrite, overwrite=True, checksum=True)
             created_files.append(filetowrite)
         return created_files
+
+
+class FitsL2Processor(FitsL1Processor):
+    def __init__(self, archive_path):
+        super().__init__(archive_path)
+
+    def generate_primary_header(self, filename, product):
+        # if product.level != 'L2':
+        #    raise ValueError(f"Try to crate FITS file L2 for {product.level} data product")
+
+        if product.fits_header is None:
+            L1, o = super().generate_primary_header(filename, product)
+            L1headers = L1 + o
+        else:
+            L1headers = product.fits_header.items()
+
+        # new or override keywords
+        L2headers = (
+            # Name, Value, Comment
+            ('LEVEL', 'L2', 'Processing level of the data'),
+            ('VERS_SW', str(stixcore.__version__), 'Version of SW that provided FITS file'),
+            ('HISTORY', 'Processed by STIX'),
+        )
+
+        return L1headers, L2headers

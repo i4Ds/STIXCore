@@ -2,11 +2,13 @@ from collections import defaultdict
 
 import numpy as np
 
+import astropy.units as u
 from astropy.table.operations import unique, vstack
 from astropy.table.table import Table
 
 from stixcore.products.product import BaseProduct
 from stixcore.time import SCETime
+from stixcore.time.datetime import SEC_IN_DAY
 from stixcore.tmtc.packets import SequenceFlag, TMPacket
 from stixcore.util.logging import get_logger
 
@@ -133,15 +135,11 @@ class LevelB(BaseProduct):
             the next `LevelB` objects for another day.
 
         """
-        # TODO reploace with SCETime
-        scet = self.control['scet_coarse'] + (self.control['scet_coarse'] / (2**16-1))
-        # scet = scet[(self.control['scet_coarse'] >> 31) != 1]
-        from stixcore.io.fits.processors import SEC_IN_DAY
-        days, frac = np.divmod(scet, SEC_IN_DAY)
-        days = np.unique(days) * SEC_IN_DAY
-        for day_start in days:
-            day_end = day_start + SEC_IN_DAY
-
+        scet = SCETime(coarse=self.control['scet_coarse'], fine=self.control['scet_fine'])
+        days = np.unique(scet.get_scedays(timestamp=True))
+        for day in days:
+            day_start = SCETime(coarse=day, fine=0)
+            day_end = day_start + SEC_IN_DAY * u.s
             inds = np.argwhere((scet >= day_start) & (scet < day_end))
             i = np.arange(inds.min(), inds.max()+1)
             control = self.control[i]
@@ -217,7 +215,10 @@ class LevelB(BaseProduct):
         for seq in sequences:
             if len(seq) == 1 and flags[seq[0]] == SequenceFlag.STANDALONE:
                 complete.append(self[seq])
-            elif flags[seq[0]] == SequenceFlag.FIRST and flags[seq[-1]] == SequenceFlag.LAST:
+            elif (flags[seq[0]] == SequenceFlag.FIRST
+                  and flags[seq[-1]] == SequenceFlag.LAST
+                  and ((self.control['sequence_count'][seq[-1]] -
+                        self.control['sequence_count'][seq[0]] + 1) == len(seq))):
                 complete.append(self[seq])
             else:
                 incomplete.append(self[seq])
@@ -227,7 +228,7 @@ class LevelB(BaseProduct):
 
     @classmethod
     def from_tm(cls, tmfile):
-        """Process the given SOCFile and creates LevelB FITS files.
+        """Process the given SOC file and creates LevelB FITS files.
 
         Parameters
         ----------

@@ -1,4 +1,3 @@
-import logging
 import warnings
 from time import perf_counter
 from pathlib import Path
@@ -8,10 +7,11 @@ from concurrent.futures import ProcessPoolExecutor
 from stixcore.config.config import CONFIG
 from stixcore.ephemeris.manager import Spice, SpiceKernelManager
 from stixcore.io.fits.processors import FitsL0Processor
+from stixcore.products.level0.scienceL0 import NotCombineException
 from stixcore.products.product import Product
 from stixcore.util.logging import get_logger
 
-logger = get_logger(__name__, level=logging.DEBUG)
+logger = get_logger(__name__)
 
 
 class Level0:
@@ -107,6 +107,8 @@ def process_tm_type(files, tm_type, processor, spice_kernel_path, config):
                         level0 = tmp.from_levelb(comp, parent=file.name)
                         fits_files = processor.write_fits(level0)
                         all_files.extend(fits_files)
+                    except NotCombineException as nc:
+                        logger.info(nc)
                     except Exception as e:
                         logger.error('Error processing file %s for %s, %s, %s', file,
                                      comp.service_type, comp.service_subtype, comp.ssid,

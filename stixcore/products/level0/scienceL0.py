@@ -4,7 +4,6 @@ from collections import defaultdict
 import numpy as np
 
 import astropy.units as u
-from astropy.table.operations import unique
 
 from stixcore.config.reader import read_energy_channels
 from stixcore.products.common import (
@@ -59,6 +58,10 @@ def fix_detector_mask(control, detector_mask):
         return detector_mask
 
 
+class NotCombineException(Exception):
+    pass
+
+
 class ScienceProduct(GenericProduct, EnergyChannelsMixin):
     """Generic science data product class composed of control and data."""
     def __init__(self, *, service_type, service_subtype, ssid, control, data, **kwargs):
@@ -86,9 +89,9 @@ class ScienceProduct(GenericProduct, EnergyChannelsMixin):
         self.control = control
         self.data = data
         self.idb_versions = kwargs.get('idb_versions', None)
-
         self.type = 'sci'
         self.level = 'L0'
+        self.__dict__.update(kwargs)
 
     @property
     def raw(self):
@@ -99,6 +102,8 @@ class ScienceProduct(GenericProduct, EnergyChannelsMixin):
         return np.unique(self.control['parent'])
 
     def __add__(self, other):
+        raise(NotCombineException(f"Tried to combine 2 BSD products: \n{self} and \n{other}"))
+
         # if (np.all(self.control == other.control) and self.scet_timerange == other.scet_timerange
         #         and len(self.data) == len(other.data)):
         #     return self
@@ -107,16 +112,14 @@ class ScienceProduct(GenericProduct, EnergyChannelsMixin):
         # cnames = control.colnames
         # cnames.remove('index')
         # control = unique(control, cnames)
-        #
+
         # combined_data_index = other.data['control_index'] + self.control['index'].max() + 1
         # data = vstack((self.data, other.data))
-        #
         # data_ind = np.isin(combined_data_index, combined_control_index)
         # data = data[data_ind]
-        #
+
         # return type(self)(service_type=self.service_type, service_subtype=self.service_subtype,
         #                   ssid=self.ssid, data=data, control=control)
-        raise(ValueError(f"Tried to combine 2 BSD products: {self} and {other}"))
 
     def split_to_files(self):
         """Splits the entire data into data products separated be the unique request ID.
@@ -131,15 +134,8 @@ class ScienceProduct(GenericProduct, EnergyChannelsMixin):
         if 'tc_packet_seq_control' in self.control.colnames:
             key_cols.insert(0, 'tc_packet_seq_control')
 
-        for ci in unique(self.control, keys=key_cols)['index']:
-            control = self.control[self.control['index'] == ci]
-            data = self.data[self.data['control_index'] == ci]
-            # for req_id in self.control['request_id']:
-            #     ctrl_inds = np.where(self.control['request_id'] == req_id)
-            #     control = self.control[ctrl_inds]
-            #     data_index = control['index'][0]
-            #     data_inds = np.where(self.data['control_index'] == data_index)
-            #     data = self.data[data_inds]
+        for control in self.control.group_by(key_cols).groups:
+            data = self.data[np.in1d(self.data['control_index'], control['index'])]
 
             yield type(self)(service_type=self.service_type, service_subtype=self.service_subtype,
                              ssid=self.ssid, control=control, data=data)
@@ -462,7 +458,7 @@ class SummedPixelData(CompressedPixelData):
 
 class Visibility(ScienceProduct):
     """
-    X-ray Visibilities or compression Level 3 data
+    X-ray Visibilities or compression Level 3 data.
 
     In level 0 format.
     """

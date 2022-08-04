@@ -1,7 +1,7 @@
 import os
 import re
+import sys
 import json
-import logging
 import warnings
 from enum import Enum
 from pathlib import Path
@@ -10,13 +10,14 @@ from collections.abc import Iterable
 import dateutil.parser
 from intervaltree import IntervalTree
 
+from stixcore.data.test import test_data
 from stixcore.util.logging import get_logger
 
 __all__ = ['SOOPManager', 'SoopObservationType', 'KeywordSet',
            'HeaderKeyword', 'SoopObservation', 'SOOP']
 
 
-logger = get_logger(__name__, level=logging.WARNING)
+logger = get_logger(__name__)
 
 
 class HeaderKeyword:
@@ -279,7 +280,24 @@ class SoopObservation:
                f'{self.socIds}, {self.compositeId}, {self.startDate}, {self.endDate}>'
 
 
-class SOOPManager():
+class Singleton(type):
+    def __init__(cls, *args, **kwargs):
+        cls._instance = None
+
+    @property
+    def instance(cls):
+        if cls._instance is None:
+            raise ValueError('Singleton not initalized')
+        return cls._instance
+
+    @instance.setter
+    def instance(cls, value):
+        if not isinstance(value, cls):
+            raise ValueError(f'Singleton must be of type: {cls}')
+        cls._instance = value
+
+
+class SOOPManager(metaclass=Singleton):
     """Manages LTP files provided by GFTS"""
 
     SOOP_FILE_FILTER = "SSTX_observation_timeline_export_*.json"
@@ -429,7 +447,7 @@ class SOOPManager():
 
         return kwset.to_list()
 
-    def add_soop_file_to_index(self, path):
+    def add_soop_file_to_index(self, path, **args):
         logger.info(f"Read SOOP file: {path}")
         with open(path) as f:
             ltp_data = json.load(f)
@@ -441,3 +459,8 @@ class SOOPManager():
                 self.observations.addi(obs.startDate, obs.endDate, obs)
 
             self.filecounter += 1
+
+
+if 'pytest' in sys.modules:
+    # only set the global in test scenario
+    SOOPManager.instance = SOOPManager(test_data.soop.DIR)

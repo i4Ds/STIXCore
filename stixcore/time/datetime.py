@@ -14,11 +14,12 @@ from astropy.utils.data_info import MixinInfo
 
 from stixcore.ephemeris.manager import Spice
 
-__all__ = ['SCETBase', 'SCETime', 'SCETimeDelta', 'SCETimeRange']
+__all__ = ['SCETBase', 'SCETime', 'SCETimeDelta', 'SCETimeRange', 'SEC_IN_DAY']
 
 # SOLO convention top bit is for time sync
 MAX_COARSE = 2**32 - 1
 MAX_FINE = 2**16 - 1
+SEC_IN_DAY = 24 * 60 * 60
 
 
 class TimeInfo(MixinInfo):
@@ -127,6 +128,7 @@ class SCETBase(ShapedLikeNDArray):
     def __init__(self, coarse, fine):
         self.coarse = coarse
         self.fine = fine
+        self.btime = (coarse.astype("int64") << 16) + fine
 
     @property
     def shape(self):
@@ -154,7 +156,19 @@ class SCETBase(ShapedLikeNDArray):
 
         return out
 
-    # TODO check v spice
+    def get_scedays(self, *, timestamp=False):
+        days, frac = np.divmod(self.coarse, SEC_IN_DAY)
+        return days * SEC_IN_DAY if timestamp else days
+
+    def as_bintime(self):
+        """
+        Return a uint64 representation of the SCET and time e.g. coarse << 16 + fine
+
+        Returns
+        -------
+        """
+        return self.btime
+
     def as_float(self):
         """
         Return a float representation of the SCET and time e.g. coarse+fine*(1/MAX_FINE)
@@ -215,8 +229,7 @@ class SCETBase(ShapedLikeNDArray):
         -------
 
         """
-        float_rep = self.as_float()
-        return float_rep.argmin(axis, out)
+        return self.btime.argmin(axis, out)
 
     def argmax(self, axis=None, out=None):
         """
@@ -231,8 +244,7 @@ class SCETBase(ShapedLikeNDArray):
         -------
 
         """
-        float_rep = self.as_float()
-        return float_rep.argmax(axis, out)
+        return self.btime.argmax(axis, out)
 
     def _advanced_index(self, indices, axis=None, keepdims=False):
         """Turn argmin, argmax output into an advanced index.
@@ -287,9 +299,13 @@ class SCETBase(ShapedLikeNDArray):
     def __setitem__(self, item, value):
         self.coarse[item] = value.coarse
         self.fine[item] = value.fine
+        self.btime[item] = (value.coarse.astype("uint64") << 16) + value.fine
 
     def __repr__(self):
         return f'{self.__class__.__name__}(coarse={self.coarse}, fine={self.fine})'
+
+    def __str__(self):
+        return f'{self.__class__.__name__}(coarse={self.coarse}, fine={self.fine}, {self.btime})'
 
 
 class SCETime(SCETBase):
@@ -348,7 +364,7 @@ class SCETime(SCETBase):
                     or not np.issubdtype(fine.dtype, np.integer):
                 raise ValueError('Coarse and fine times must be integers')
             # Convention if top bit is set means times are not synchronised
-            time_sync = (coarse >> 31) != 1
+            time_sync = (coarse >> np.uint16(31)) != 1
             # coarse = np.where(time_sync, coarse, coarse ^ 2 ** 31)
 
             # Check limits
@@ -389,6 +405,12 @@ class SCETime(SCETBase):
         coarse = seconds.astype(np.uint32)
         fine = np.round(MAX_FINE * sub_seconds).astype(np.uint16)
         return SCETime(coarse, fine)
+
+    @classmethod
+    def from_btime(cls, btime):
+        coarse = btime >> np.int(16)
+        fine = btime - (coarse << np.int(16))
+        return SCETime(coarse=coarse, fine=fine)
 
     @classmethod
     def from_string(cls, scet_str, sep=':'):
@@ -463,10 +485,7 @@ class SCETime(SCETBase):
         if isinstance(other, u.Quantity):
             other = SCETimeDelta.from_float(other.to(u.s))
 
-        delta_coarse, new_fine = divmod(self.fine + other.fine, MAX_FINE + 1)
-        new_coarse = (self.coarse.astype(np.int64) + other.coarse.astype(np.int64)
-                      + delta_coarse.astype(np.int64))
-        return SCETime(coarse=new_coarse, fine=new_fine)
+        return SCETime.from_btime(self.btime + other.btime)
 
     def __radd__(self, other):
         return self.__add__(other)
@@ -480,16 +499,13 @@ class SCETime(SCETBase):
                             'objects can be subtracted from SCETimes')
 
         if isinstance(other, SCETime):
-            coarse = self.coarse.astype(np.int32) - other.coarse.astype(np.int32)
-            fine = self.fine.astype(np.int32) - other.fine.astype(np.int32)
-            return SCETimeDelta(coarse, fine)
+            return SCETimeDelta.from_btime(self.btime - other.btime)
 
         if isinstance(other, u.Quantity):
             other = SCETimeDelta.from_float(other)
 
-        delta_coarse, new_fine = np.divmod(self.fine - other.fine, MAX_FINE+1)
-        new_coarse = self.coarse - other.coarse + delta_coarse
-        return SCETime(coarse=new_coarse, fine=new_fine)
+        # case SCETimeDelta
+        return SCETime.from_btime(self.btime - other.btime)
 
     def __str__(self):
         return f'{self.coarse}:{self.fine}'
@@ -498,7 +514,7 @@ class SCETime(SCETBase):
         if other.__class__ is not self.__class__:
             return NotImplemented
 
-        return op(self.as_float().value - other.as_float().value, 0)
+        return op(self.btime - other.btime, 0)
 
     def __gt__(self, other):
         return self._comparison_operator(other, operator.gt)
@@ -571,9 +587,20 @@ class SCETimeDelta(SCETBase):
             # for a signed 32 bit in but but fine uses all 16bit as a uint as has to be 32 as a int
             super().__init__(coarse.astype(np.int32), fine.astype(np.int32))
 
-    # @property
-    # def seconds(self):
-    #     return self.as_float()
+    @classmethod
+    def from_btime(cls, btime):
+        btime = np.atleast_1d(btime)
+
+        neg_idx = np.where(btime < 0)
+        btime[neg_idx] = abs(btime[neg_idx])
+
+        coarse = btime >> np.int(16)
+        fine = btime - (coarse << np.int(16))
+        td = cls(coarse, fine)
+
+        td[neg_idx] = -td[neg_idx]
+
+        return td[0] if btime.size == 1 else td
 
     @classmethod
     def from_float(cls, scet_float):
@@ -605,11 +632,7 @@ class SCETimeDelta(SCETBase):
 
         if not isinstance(other, SCETimeDelta):
             other = SCETimeDelta(other)
-
-        delta_coarse, new_fine = divmod(self.fine + other.fine, MAX_FINE)
-        new_coarse = self.coarse + other.coarse + delta_coarse
-        new_fine = self.fine + other.fine
-        return SCETimeDelta(new_coarse, new_fine)
+        return SCETimeDelta.from_btime(self.btime + other.btime)
 
     def __radd__(self, other):
         return self.__add__(other)
@@ -622,13 +645,7 @@ class SCETimeDelta(SCETBase):
                 raise TypeError(f'{other.__class__.__name__} could not '
                                 f'be converted to {self.__class__.__name__}')
 
-            sign = 1
-            if self.fine < other.fine:
-                sign = -1
-            delta_coarse, new_fine = divmod(self.fine - other.fine, sign*MAX_FINE)
-            new_coarse = self.coarse - other.coarse + delta_coarse
-            new_fine = self.fine - other.fine
-            return SCETimeDelta(new_coarse, new_fine)
+            return SCETimeDelta.from_btime(self.btime - other.btime)
         else:
             raise TypeError(f'Unsupported operation for types {self.__class__.__name__} '
                             f'and {other.__class__.__name__}')
@@ -641,18 +658,19 @@ class SCETimeDelta(SCETBase):
         new = self.copy()
         new.coarse = -new.coarse
         new.fine = -new.fine
+        new.btime = -new.btime
         return new
 
     def __truediv__(self, other):
-        res = self.as_float()/other
-        return SCETimeDelta.from_float(res)
+        res = np.floor_divide(self.btime, other)
+        return SCETimeDelta.from_btime(res)
 
     def __mul__(self, other):
-        res = self.as_float() * other
-        return SCETimeDelta.from_float(res)
+        res = (self.btime * other).astype("int64")
+        return SCETimeDelta.from_btime(res)
 
     def __str__(self):
-        return f'{self.coarse}, {self.fine}'
+        return f'{self.coarse}, {self.fine}, {self.btime}'
 
     def __eq__(self, other):
         if not isinstance(other, (SCETimeDelta, u.Quantity)):
@@ -661,7 +679,7 @@ class SCETimeDelta(SCETBase):
         if isinstance(other, u.Quantity):
             other = SCETimeDelta(other)
 
-        return self.coarse == other.coarse and self.fine == other.fine
+        return self.btime == other.btime
 
 
 class SCETimeRange:
@@ -707,6 +725,9 @@ class SCETimeRange:
 
     def to_timerange(self):
         return TimeRange(self.start.to_time(), self.end.to_time())
+
+    def duration(self):
+        return (self.end-self.start).as_float()
 
     @property
     def avg(self):

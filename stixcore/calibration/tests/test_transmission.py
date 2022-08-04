@@ -1,5 +1,6 @@
 
 import numpy as np
+from numpy.testing import assert_allclose
 
 import astropy.units as u
 
@@ -30,11 +31,11 @@ def test_transmission_get_transmission():
 
     trans = Transmission()
     res = trans.get_transmission()
-    assert len(res.columns) == 33
+    assert len(res.columns) == 34
     assert len(res) == 31
     assert res['energies'][0] == 4.0
     assert res['energies'][-1] == 150.0
-    assert np.allclose(res['det-0'][0], 1.8336015973227205e-05)
-    assert np.allclose(res['det-0'][-1], 0.9221062206036968)
-    assert np.allclose(res['det-10'][0], 4.272413967499508e-06)
-    assert np.allclose(res['det-10'][-1], 0.918403362796517)
+    assert_allclose(res['det-0'][0], 1.2304064853433878e-05)
+    assert_allclose(res['det-0'][-1], 0.9223594048282234)
+    assert_allclose(res['det-10'][0], 2.866929141727759e-06)
+    assert_allclose(res['det-10'][-1], 0.9186555303212736)

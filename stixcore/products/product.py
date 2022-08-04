@@ -21,7 +21,8 @@ from stixcore.tmtc.packet_factory import Packet
 from stixcore.tmtc.packets import GenericPacket, PacketSequence
 
 __all__ = ['GenericProduct', 'ProductFactory', 'Product', 'ControlSci',
-           'Control', 'Data', 'L1Mixin', 'EnergyChannelsMixin']
+           'EnergyChannelsMixin', 'read_qtable',
+           'Control', 'Data', 'L1Mixin', 'L2Mixin']
 
 from collections import defaultdict
 
@@ -129,13 +130,14 @@ class ProductFactory(BasicRegistrationFactory):
             if isinstance(args[0], (str, Path)):
                 file_path = Path(args[0])
                 header = fits.getheader(file_path)
-                service_type = int(header.get('stype'))
-                service_subtype = int(header.get('sstype'))
-                parent = header.get('parent').split(';')
-                raw = header.get('raw_file').split(';')
+
+                service_type = int(header.get('stype')) if 'stype' in header else 0
+                service_subtype = int(header.get('sstype')) if 'sstype' in header else 0
+                parent = header.get('parent').split(';') if 'parent' in header else ''
+                raw = header.get('raw_file').split(';') if 'raw_file' in header else ''
                 try:
                     ssid = int(header.get('ssid'))
-                except ValueError:
+                except (ValueError, TypeError):
                     ssid = None
                 level = header.get('Level')
                 header.get('TIMESYS')
@@ -151,7 +153,19 @@ class ProductFactory(BasicRegistrationFactory):
 
                 data = read_qtable(file_path, hdu='DATA', hdul=hdul)
 
-                if level != 'LB':
+                if level == 'LL01':
+                    # TODO remova that hack in favor for a proper header information after
+                    # https://github.com/i4Ds/STIXCore/issues/224 is solved
+                    if "lightcurve" in args[0]:
+                        service_type = 21
+                        service_subtype = 6
+                        ssid = 30
+                    if "flareflag" in args[0]:
+                        service_type = 21
+                        service_subtype = 6
+                        ssid = 34
+
+                if level not in ['LB', 'LL01']:
                     data['timedel'] = SCETimeDelta(data['timedel'])
                     offset = SCETime.from_float(header['OBT_BEG']*u.s)
 
@@ -183,11 +197,17 @@ class ProductFactory(BasicRegistrationFactory):
                                                         ssid=ssid, control=control,
                                                         data=data, energies=energies)
 
-                return Product(level=level, service_type=service_type,
-                               service_subtype=service_subtype,
-                               ssid=ssid, control=control,
-                               data=data, energies=energies, idb_versions=idb_versions,
-                               raw=raw, parent=parent)
+                p = Product(level=level, service_type=service_type,
+                            service_subtype=service_subtype,
+                            ssid=ssid, control=control,
+                            data=data, energies=energies, idb_versions=idb_versions,
+                            raw=raw, parent=parent)
+
+                # store the old fits header for later reuse
+                if isinstance(p, (L1Mixin, L2Mixin)):
+                    p.fits_header = header
+
+                return p
 
     def _check_registered_widget(self, *args, **kwargs):
         """
@@ -392,6 +412,57 @@ class GenericProduct(BaseProduct):
     def parent(self):
         return np.unique(self.control['parent']).tolist()
 
+    def find_parent_products(self, root):
+        """
+        Conveniant way to get access to the parent products.
+
+        Performs a (inefficient) file search in the given root dir for files with the parent name.
+        Not recursive the only the direct parent is returned.
+
+        Parameters
+        ----------
+        root : `Path`
+            The fits root dir in which to find the parent file
+
+        Returns
+        -------
+        `Product`
+            A list of parent Producs (normally just one).
+        """
+        return [Product(f) for f in self.find_parent_files(root)]
+
+    def find_parent_files(self, root):
+        """
+        Conveniant way to get access to the parent files.
+
+        Performs a (inefficient) file search in the given root dir for files with the parent name.
+        Not recursive the only the direct parent is returned.
+
+        Parameters
+        ----------
+        root : `Path`
+            The fits root dir in which to find the parent file
+
+        Returns
+        -------
+        `Path`
+            A list of parent files pathes (normally just one).
+        """
+        if self.level == 'LB':
+            return []
+        p_level = 'LB'
+        if self.level == 'L2':
+            p_level = 'L1'
+        elif self.level == 'L1':
+            p_level = 'L0'
+
+        level_dir = Path(root) / p_level
+
+        files = []
+        for pfile in self.parent:
+            files.extend(list(level_dir.rglob(pfile)))
+        return files
+
     def __add__(self, other):
         """
         Combine two products stacking data along columns and removing duplicated data using time as
@@ -426,7 +497,7 @@ class GenericProduct(BaseProduct):
         logger.debug('len stacked %d', len(data))
 
         # Not sure where the rounding issue is arising need to investigate
-        data['time_float'] = np.around(data['time'].as_float(), 2)
+        data['time_float'] = np.around(data['time'].as_float().value, 2)
 
         data = unique(data, keys=['time_float'])
 
@@ -451,28 +522,62 @@ class GenericProduct(BaseProduct):
                f'{len(self.control)}, {len(self.data)}'
 
     def split_to_files(self):
-        utc_timerange = self.scet_timerange.to_timerange()
+        if self.level == 'L0':
+            scedays = self.data["time"].get_scedays()
+            days = np.unique(scedays)
 
-        for day in utc_timerange.get_dates():
-            ds = day
-            de = day + 1 * u.day
-            utc_times = self.data['time'].to_time()
-            i = np.where((utc_times >= ds) & (utc_times < de))
+            for day in days:
+                ds = day
+                de = day + 1
+                i = np.where((scedays >= ds) & (scedays < de))
 
-            if len(i[0]) > 0:
-                data = self.data[i]
+                if len(i[0]) > 0:
+                    data = self.data[i]
 
-                control_indices = np.unique(data['control_index'])
-                control = self.control[np.isin(self.control['index'], control_indices)]
-                control_index_min = control_indices.min()
+                    control_indices = np.unique(data['control_index'])
+                    control = self.control[np.isin(self.control['index'], control_indices)]
+                    control_index_min = control_indices.min()
 
-                data['control_index'] = data['control_index'] - control_index_min
-                control['index'] = control['index'] - control_index_min
-                out = type(self)(service_type=self.service_type,
-                                 service_subtype=self.service_subtype, ssid=self.ssid,
-                                 control=control, data=data, idb_versions=self.idb_versions,
-                                 level=self.level)
-                yield out
+                    data['control_index'] = data['control_index'] - control_index_min
+                    control['index'] = control['index'] - control_index_min
+                    out = type(self)(service_type=self.service_type,
+                                     service_subtype=self.service_subtype, ssid=self.ssid,
+                                     control=control, data=data, idb_versions=self.idb_versions,
+                                     level=self.level)
+
+                    # TODO N.H. check if always right or better recreate
+                    if hasattr(self, "fits_header") and self.fits_header is not None:
+                        out.fits_header = self.fits_header
+
+                    yield out
+        else:  # L1+
+            utc_timerange = self.scet_timerange.to_timerange()
+
+            for day in utc_timerange.get_dates():
+                ds = day
+                de = day + 1 * u.day
+                utc_times = self.data['time'].to_time()
+                i = np.where((utc_times >= ds) & (utc_times < de))
+
+                if len(i[0]) > 0:
+                    data = self.data[i]
+
+                    control_indices = np.unique(data['control_index'])
+                    control = self.control[np.isin(self.control['index'], control_indices)]
+                    control_index_min = control_indices.min()
+
+                    data['control_index'] = data['control_index'] - control_index_min
+                    control['index'] = control['index'] - control_index_min
+                    out = type(self)(service_type=self.service_type,
+                                     service_subtype=self.service_subtype, ssid=self.ssid,
+                                     control=control, data=data, idb_versions=self.idb_versions,
+                                     level=self.level)
+
+                    # TODO N.H. check if always right or better recreate
+                    if hasattr(self, "fits_header") and self.fits_header is not None:
+                        out.fits_header = self.fits_header
+
+                    yield out
 
     @classmethod
     def getLeveL0Packets(cls, levelb):
@@ -513,7 +618,28 @@ class EnergyChannelsMixin:
         return low * u.keV, high * u.keV, range(len(low))
 
 
-class L1Mixin:
+class FitsHeaderMixin:
+    @property
+    def fits_header(self):
+        return self._fits_header if hasattr(self, '_fits_header') else None
+
+    @fits_header.setter
+    def fits_header(self, val):
+        if not isinstance(val, fits.Header):
+            raise ValueError("fits_header should be of type fits.Header")
+        self._fits_header = val.copy(strip=True)
+
+    def get_additional_header_keywords(self):
+        return self._additional_header_keywords if hasattr(self, '_additional_header_keywords')\
+            else None
+
+    def add_additional_header_keywords(self, keyword):
+        if not hasattr(self, '_additional_header_keywords'):
+            setattr(self, '_additional_header_keywords', list())
+        self._additional_header_keywords.append(keyword)
+
+
+class L1Mixin(FitsHeaderMixin):
     @property
     def utc_timerange(self):
         return self.scet_timerange.to_timerange()
@@ -533,7 +659,29 @@ class L1Mixin:
         return l1
 
 
-class DefaultProduct(GenericProduct, L1Mixin):
+class L2Mixin(FitsHeaderMixin):
+    @property
+    def utc_timerange(self):
+        return self.scet_timerange.to_timerange()
+
+    @classmethod
+    def from_level1(cls, l1product, idbm=GenericPacket.idb_manager, parent='', idlprocessor=None):
+        l2 = cls(service_type=l1product.service_type,
+                 service_subtype=l1product.service_subtype,
+                 ssid=l1product.ssid,
+                 control=l1product.control,
+                 data=l1product.data,
+                 idb_versions=l1product.idb_versions)
+
+        l2.control.replace_column('parent', [parent.name if isinstance(parent, Path) else parent]
+                                  * len(l2.control))
+        l2.level = 'L2'
+        l2.fits_header = l1product.fits_header
+
+        return [l2]
+
+
+class DefaultProduct(GenericProduct, L1Mixin, L2Mixin):
     """
     Default product use when not QL or BSD.
     """
@@ -548,7 +696,8 @@ class DefaultProduct(GenericProduct, L1Mixin):
         236: 'config',
         237: 'params',
         238: 'archive',
-        239: 'diagnostics'
+        239: 'diagnostics',
+        300: 'low-latency'
     }
 
     def __init__(self, *, service_type, service_subtype, ssid, control, data,

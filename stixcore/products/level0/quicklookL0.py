@@ -613,18 +613,18 @@ class EnergyCalibration(QLProduct):
         counts_var_map = defaultdict(list)
         for tid, did, pid, ssid, nps, cin in zip(tids, dids, pids, ssids, num_spec_points, c_in):
             end = start + nps
-
+            cin = tuple(cin)
             logger.debug('%d, %d, %d, %d, %d, %d', tid, did, pid, ssid, nps, end)
-            count_map[tid, did, pid].append(counts[start:end])
-            counts_var_map[tid, did, pid].append(counts_var[start:end])
+            count_map[tid, did, pid, cin].append(counts[start:end])
+            counts_var_map[tid, did, pid, cin].append(counts_var[start:end])
             start = end
 
         full_counts = np.zeros((unique_times.size, 32, 12, 1024))
         full_counts_var = np.zeros((unique_times.size, 32, 12, 1024))
 
-        for tid, did, pid in count_map.keys():
-            cur_counts = count_map[tid, did, pid]
-            cur_counts_var = counts_var_map[tid, did, pid]
+        for tid, did, pid, cin, in count_map.keys():
+            cur_counts = count_map[tid, did, pid, cin]
+            cur_counts_var = counts_var_map[tid, did, pid, cin]
 
             counts_rebinned = rebin_proportional(np.hstack(cur_counts), cin, c_out)
             counts_var_rebinned = rebin_proportional(np.hstack(cur_counts_var), cin, c_out)

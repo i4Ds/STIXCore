@@ -350,6 +350,7 @@ class IDBManager:
                 duration_p1 = ("duration + 0.1", 0.1, 0.1, 0, 0, 0)
                 duration_ms = ("duration in ms", 0, 1, 0, 0, 0)
                 binary_seconds = ("binary seconds", 0, 1.0 / 65535, 0, 0, 0)
+                cpu_load = ("cpu load", 0, 4, 0, 0, 0)
 
                 # TODO take IDB version into account
                 for nix, config, unit in [('NIX00269', duration, "s"),
@@ -358,7 +359,9 @@ class IDBManager:
                                           ('NIX00405', duration, "s"),
                                           ('NIX00124', duration_ms, "ms"),
                                           ('NIX00404', duration_p1, "s"),
-                                          ('NIX00123', binary_seconds, "s")]:
+                                          ('NIX00123', binary_seconds, "s"),
+                                          ('NIXD0002', cpu_load, "%")]:
+
                     count,  = cur.execute("select count(*) from PCF where PCF_NAME = ? " +
                                           "AND PCF_CURTX not NULL", (nix,)).fetchone()
                     if count == 0:

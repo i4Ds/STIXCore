@@ -1174,7 +1174,7 @@ class IDB:
             The IDBPacketTree implements nested repeaters.
         """
 
-        sql = (f'''SELECT
+        sql = ('''SELECT
                     PID_SPID, PID_DESCR, PID_TPSD,
                     PCF.PCF_NAME, VPD.VPD_POS,PCF.PCF_WIDTH,PCF.PCF_PFC, PCF.PCF_PTC,VPD.VPD_OFFSET,
                     VPD.VPD_GRPSIZE,PCF.PCF_DESCR ,PCF.PCF_CURTX,

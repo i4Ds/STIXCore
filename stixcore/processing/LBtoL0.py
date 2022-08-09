@@ -75,8 +75,8 @@ def process_tm_type(files, tm_type, processor, spice_kernel_path, config):
                     fits_files = processor.write_fits(level0)
                     all_files.extend(fits_files)
             except Exception as e:
-                logger.error('Error processing file %s for %s, %s, %s', file,
-                             levelb.service_type, levelb.service_subtype, levelb.ssid)
+                logger.error(f'Error processing file {file} for {levelb.service_type}, '
+                             f'{levelb.service_subtype}, {levelb.ssid}', exc_info=True)
                 logger.error('%s', e)
                 if CONFIG.getboolean('Logging', 'stop_on_error', fallback=False):
                     raise e

@@ -638,8 +638,6 @@ class Spectrogram(ScienceProduct):
         control.add_data('compression_scheme_triggers_skm',
                          _get_compression_scheme(packets, 'NIX00267'))
 
-        control['pixel_masks'] = np.unique(_get_pixel_mask(packets)[0], axis=0)
-        control.add_meta(name='pixel_masks', nix='NIXD0407', packets=packets)
         control['detector_masks'] = np.unique(_get_detector_mask(packets)[0], axis=0)
         control['detector_masks'] = fix_detector_mask(control, control['detector_masks'])
         control.add_meta(name='detector_masks', nix='NIX00407', packets=packets)
@@ -724,6 +722,11 @@ class Spectrogram(ScienceProduct):
         deltas = np.hstack(deltas)
         deltas = SCETimeDelta(deltas)
 
+        pixel_masks_orig = _get_pixel_mask(packets)
+        pixel_masks_expaded = [np.repeat(pm.reshape(-1, 1), n, 1) for pm, n in
+                               zip(pixel_masks_orig[0], num_times)]
+        pixel_masks = np.hstack(pixel_masks_expaded).T
+
         # Data
         data = Data()
         data['time'] = control['time_stamp'][0] + centers
@@ -733,6 +736,8 @@ class Spectrogram(ScienceProduct):
         data['triggers'] = data['triggers'].astype(get_min_uint(data['triggers']))
         data['rcr'] = rcr
         data.add_meta(name='rcr', nix='NIX00401', packets=packets)
+        data['pixel_masks'] = pixel_masks
+        data.add_meta(name='pixel_masks', nix='NIXD0407', packets=packets)
         data.add_basic(name='triggers_err', nix='NIX00267', attr='error', packets=packets)
         data['triggers_err'] = np.float32(data['triggers_err'])
         data['counts'] = (full_counts * u.ct).astype(

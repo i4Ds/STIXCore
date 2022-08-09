@@ -222,7 +222,7 @@ def product(file_in):
         h5("PRIMARY Header")
         hdul = fits.open(file)
         header2table(hdul["PRIMARY"].header)
-        for extname in ["DATA", "CONTROL", "ENERGIES", "IDB_VERSIONS"]:
+        for extname in ["DATA", "CONTROL", "IDB_VERSIONS", "ENERGIES"]:
             try:
                 data = read_qtable(file, hdu=extname, hdul=hdul)
                 h5(f"Extension: '{extname}'")

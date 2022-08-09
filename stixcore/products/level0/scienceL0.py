@@ -10,7 +10,6 @@ from stixcore.products.common import (
     _get_compression_scheme,
     _get_detector_mask,
     _get_pixel_mask,
-    _get_unique,
     get_min_uint,
     rebin_proportional,
 )
@@ -29,6 +28,8 @@ __all__ = ['ScienceProduct', 'RawPixelData', 'CompressedPixelData', 'SummedPixel
            'Visibility', 'Spectrogram', 'Aspect']
 
 SUM_DMASK_SCET_COARSE_RANGE = range(659318490, 668863556)
+PIXEL_MASK_LOOKUP = np.zeros(2049)
+PIXEL_MASK_LOOKUP[[int(2**i) for i in range(12)]] = np.arange(0, 12, dtype=int)
 
 
 def fix_detector_mask(control, detector_mask):
@@ -102,7 +103,7 @@ class ScienceProduct(GenericProduct, EnergyChannelsMixin):
         return np.unique(self.control['parent'])
 
     def __add__(self, other):
-        raise(NotCombineException(f"Tried to combine 2 BSD products: \n{self} and \n{other}"))
+        raise NotCombineException(f"Tried to combine 2 BSD products: \n{self} and \n{other}")
 
         # if (np.all(self.control == other.control) and self.scet_timerange == other.scet_timerange
         #         and len(self.data) == len(other.data)):
@@ -295,12 +296,26 @@ class CompressedPixelData(ScienceProduct):
         unique_times = np.unique(data['delta_time'])
 
         data.add_basic(name='rcr', nix='NIX00401', attr='value', packets=packets, dtype=np.ubyte)
-        data['num_pixel_sets'] = np.atleast_1d(_get_unique(packets, 'NIX00442', np.ubyte))
-        data.add_meta(name='num_pixel_sets', nix='NIX00442', packets=packets)
-        pixel_masks, pm_meta = _get_pixel_mask(packets, 'NIXD0407')
-        pixel_masks = pixel_masks.reshape(-1, data['num_pixel_sets'][0], 12)
-        if packets.ssid == 21 and data['num_pixel_sets'][0] != 12:
-            pixel_masks = np.pad(pixel_masks, ((0, 0), (0, 12 - data['num_pixel_sets'][0]), (0, 0)))
+        data.add_basic(name='num_pixel_sets', nix='NIX00442', attr='value', packets=packets,
+                       dtype=np.ubyte)
+        pixel_mask_ints = packets.get_value('NIXD0407')
+        pixel_indices = PIXEL_MASK_LOOKUP[pixel_mask_ints]
+        start = 0
+        end = 0
+        res = []
+        for npx in data['num_pixel_sets']:
+            end += npx
+            cur_pm = pixel_indices[start:end].astype(int).tolist()
+            full_pm = np.full((12), 0, dtype=np.ubyte)
+            full_pm[cur_pm] = 1
+            res.append(full_pm)
+            start = end
+        pixel_masks = np.array(res, dtype=np.uint8)
+        _, pm_meta = _get_pixel_mask(packets, 'NIXD0407')
+        # pixel_masks = pixel_masks.reshape(-1, data['num_pixel_sets'][0], 12)
+        # if packets.ssid == 21 and data['num_pixel_sets'][0] != 12:
+        #    pixel_masks = np.pad(pixel_masks, ((0, 0), (0, 12 - data['num_pixel_sets'][0]),
+        # (0, 0)))
         data.add_data('pixel_masks', (pixel_masks, pm_meta))
         data.add_data('detector_masks', _get_detector_mask(packets))
         # NIX00405 in BSD is 1 indexed
@@ -323,16 +338,42 @@ class CompressedPixelData(ScienceProduct):
         unique_energies_low = np.unique(tmp['e_low'])
         unique_energies_high = np.unique(tmp['e_high'])
 
-        counts = np.array(packets.get_value('NIX00260'))
-        counts_var = np.array(packets.get_value('NIX00260', attr='error'))
+        counts_flat = np.array(packets.get_value('NIX00260'))
+        counts_var_flat = np.array(packets.get_value('NIX00260', attr='error'))
 
-        counts = counts.reshape(unique_times.size, unique_energies_low.size,
-                                data['detector_masks'][0].sum(), data['num_pixel_sets'][0].sum())
+        n_detectors = data['detector_masks'][0].sum()
+        start = 0
+        end = 0
+        counts = []
+        counts_var = []
+        for nc in tmp['num_data_elements']:
+            end += nc
+            cur_counts = counts_flat[start:end].reshape(n_detectors, -1)
+            cur_counts_var = counts_var_flat[start:end].reshape(n_detectors, -1)
+            if cur_counts.shape[1] != 12:
+                pad = 12 - cur_counts.shape[1]
+                cur_counts = np.pad(cur_counts, ((0, 0), (0, pad)), 'constant', constant_values=(0))
+                cur_counts_var = np.pad(cur_counts_var, ((0, 0), (0, pad)), 'constant',
+                                        constant_values=(0))
+            counts.append(cur_counts)
+            counts_var.append(cur_counts_var)
+            start = end
 
-        counts_var = counts_var.reshape(unique_times.size, unique_energies_low.size,
-                                        data['detector_masks'][0].sum(),
-                                        data['num_pixel_sets'][0].sum())
-        # t x e x d x p -> t x d x p x e
+        counts = np.array(counts).reshape(unique_times.size, unique_energies_low.size,
+                                          data['detector_masks'].sum(axis=1).max(),
+                                          data['num_pixel_sets'].max())
+        counts_var = np.array(counts_var).reshape(unique_times.size, unique_energies_low.size,
+                                                  data['detector_masks'].sum(axis=1).max(),
+                                                  data['num_pixel_sets'].max())
+
+        # counts = counts.zeros(unique_times.size, unique_energies_low.size,
+        #                         data['detector_masks'].sum(axis=1).max(),
+        # data['num_pixel_sets'].max())
+
+        # counts_var = counts_var.reshape(unique_times.size, unique_energies_low.size,
+        #                                 data['detector_masks'][0].sum(),
+        #                                 data['num_pixel_sets'][0].sum())
+        # # t x e x d x p -> t x d x p x e
         counts = counts.transpose((0, 2, 3, 1))
 
         out_counts = None
@@ -383,7 +424,7 @@ class CompressedPixelData(ScienceProduct):
             energy_indices[[0, -1]] = False
 
             ix = np.ix_(np.full(unique_times.size, True), data['detector_masks'][0].astype(bool),
-                        np.ones(data['num_pixel_sets'][0], dtype=bool), np.full(32, True))
+                        np.ones(12, dtype=bool), np.full(32, True))
 
             out_counts[ix] = rebinned_counts
             out_var[ix] = rebinned_counts_var
@@ -393,8 +434,7 @@ class CompressedPixelData(ScienceProduct):
 
             ix = np.ix_(np.full(unique_times.size, True),
                         data['detector_masks'][0].astype(bool),
-                        np.ones(data['num_pixel_sets'][0], dtype=bool),
-                        energy_indices)
+                        np.ones(12, dtype=bool), energy_indices)
 
             out_counts[ix] = counts
             out_var[ix] = counts_var

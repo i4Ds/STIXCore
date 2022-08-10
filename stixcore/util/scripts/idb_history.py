@@ -12,7 +12,6 @@ from pathlib import Path
 from concurrent.futures import ProcessPoolExecutor
 
 import numpy as np
-from matplotlib import pyplot as plt
 
 import astropy.units as u
 from astropy.io import fits
@@ -68,9 +67,9 @@ if __name__ == '__main__':
 
     change_indices = np.argwhere(table['version'][1:] != table['version'][:-1])
 
-    plt.clf()
-    plt.plot(table['coarse'], table['version'],  label='SW Versions')
-    plt.savefig("idb_asw.out.png")
+    # plt.clf()
+    # plt.plot(table['coarse'], table['version'],  label='SW Versions')
+    # plt.savefig("idb_asw.out.png")
     table = table[change_indices+1]
 
     periods = []

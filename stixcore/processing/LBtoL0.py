@@ -74,7 +74,7 @@ def process_tm_type(files, tm_type, processor, spice_kernel_path, config, idbm):
     CONFIG = config
 
     # Stand alone packet data
-    if (tm_type[0] == 21 and tm_type[-1] not in {20, 21, 22, 23, 24, 42}) or tm_type[0] != 21:
+    if (tm_type[0] == 21 and tm_type[-2] not in {20, 21, 22, 23, 24, 42}) or tm_type[0] != 21:
         for file in files:
             levelb = Product(file)
             logger.info(f"processing file: {file}")

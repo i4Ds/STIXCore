@@ -16,8 +16,13 @@ logger = get_logger(__name__)
 
 
 class Level0:
-    """
+    """Processing step from LB to L0.
 
+    Input are LB Fits files and the result is written to FITS as well. Daily products will be added
+    to existing FITS files if already present.
+
+    Groups all filles into parallel processes by product type if daily products. For by request
+    products it is also grouped by type but additional into batches of a given size.
     """
     def __init__(self, source_dir, output_dir):
         self.source_dir = Path(source_dir)
@@ -28,13 +33,18 @@ class Level0:
     def process_fits_files(self, files=None):
         all_files = list()
         tm = defaultdict(list)
+        tm_batch = defaultdict(int)
+        batch_size = CONFIG.getint('Pipeline', 'parallel_batchsize_L0', fallback=300)
         if files is None:
             files = self.levelb_files
         # Create list of file by type
         for file in files:
             mission, level, identifier, *_ = file.name.split('_')
             tm_type = tuple(map(int, identifier.split('-')[1:]))
-            tm[tm_type].append(file)
+            if (tm_type[0] == 21 and tm_type[-1] in {20, 21, 22, 23, 24, 42}):
+                tm_batch[tm_type] += 1
+            batch = tm_batch[tm_type] // batch_size
+            tm[tm_type + (batch, )].append(file)
 
         # For each type
         with ProcessPoolExecutor() as executor:
@@ -67,6 +77,7 @@ def process_tm_type(files, tm_type, processor, spice_kernel_path, config, idbm):
     if (tm_type[0] == 21 and tm_type[-1] not in {20, 21, 22, 23, 24, 42}) or tm_type[0] != 21:
         for file in files:
             levelb = Product(file)
+            logger.info(f"processing file: {file}")
             tmp = Product._check_registered_widget(
                 level='L0', service_type=levelb.service_type,
                 service_subtype=levelb.service_subtype, ssid=levelb.ssid,

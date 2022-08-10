@@ -22,13 +22,13 @@ from stixcore.ephemeris.manager import Spice, SpiceKernelManager
 from stixcore.time import SCETime
 
 if __name__ == '__main__':
-    idbs = {}
-    idbs[167] = "2.26.31"
-    idbs[174] = "2.26.32"
-    idbs[178] = "2.26.33"
-    idbs[179] = "2.26.34"
-    idbs[181] = "2.26.35"
-    idbs[183] = "2.26.36"
+    idbs = {
+        167:  "2.26.31",
+        174: "2.26.32",
+        178: "2.26.33",
+        179: "2.26.34",
+        181: "2.26.35",
+        183: "2.26.36",
 
     _spm = SpiceKernelManager(Path(CONFIG.get("Paths", "spice_kernels")))
     Spice.instance = Spice(_spm.get_latest_mk())

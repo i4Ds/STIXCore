@@ -19,6 +19,14 @@ logger = get_logger(__name__)
 
 
 class Level2:
+    """Processing step from L1 to L2.
+
+    Input are L1 Fits files and the result is written to FITS as well. Daily products will be added
+    to existing FITS files if already present.
+
+    Groups all filles into parallel processes by product type if daily products. For by request
+    products it is also grouped by type but additional into batches of a given size.
+    """
     def __init__(self, source_dir, output_dir):
         self.source_dir = Path(source_dir)
         self.output_dir = Path(output_dir)
@@ -31,11 +39,17 @@ class Level2:
             files = self.level1_files
 
         product_types = defaultdict(list)
+        product_types_batch = defaultdict(int)
+        batch_size = CONFIG.getint('Pipeline', 'parallel_batchsize_L2', fallback=100)
+
         for file in files:
             # group by product: '(HK,maxi)'
             mission, level, identifier, *_ = file.name.split('_')
             tm_type = tuple(identifier.split('-')[1:])
-            product_types[tm_type].append(file)
+            if tm_type[0] == 'sci':
+                product_types_batch[tm_type] += 1
+            batch = product_types_batch[tm_type] // batch_size
+            product_types[tm_type + (batch, )].append(file)
 
         jobs = []
         with ProcessPoolExecutor() as executor:

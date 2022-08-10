@@ -21,7 +21,7 @@ class Level0:
     Input are LB Fits files and the result is written to FITS as well. Daily products will be added
     to existing FITS files if already present.
 
-    Groups all filles into parallel processes by product type if daily products. For by request
+    Groups all files into parallel processes by product type if daily products. For by request
     products it is also grouped by type but additional into batches of a given size.
     """
     def __init__(self, source_dir, output_dir):

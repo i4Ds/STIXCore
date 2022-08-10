@@ -28,7 +28,8 @@ if __name__ == '__main__':
         178: "2.26.33",
         179: "2.26.34",
         181: "2.26.35",
-        183: "2.26.36",
+        183: "2.26.36"
+    }
 
     _spm = SpiceKernelManager(Path(CONFIG.get("Paths", "spice_kernels")))
     Spice.instance = Spice(_spm.get_latest_mk())

@@ -311,12 +311,9 @@ class CompressedPixelData(ScienceProduct):
             res.append(full_pm)
             start = end
         pixel_masks = np.array(res, dtype=np.uint8)
-        _, pm_meta = _get_pixel_mask(packets, 'NIXD0407')
-        # pixel_masks = pixel_masks.reshape(-1, data['num_pixel_sets'][0], 12)
-        # if packets.ssid == 21 and data['num_pixel_sets'][0] != 12:
-        #    pixel_masks = np.pad(pixel_masks, ((0, 0), (0, 12 - data['num_pixel_sets'][0]),
-        # (0, 0)))
-        data.add_data('pixel_masks', (pixel_masks, pm_meta))
+        param = packets.get('NIXD0407')[0]
+        pixel_meta = {'NIXS': 'NIXD0407', 'PCF_CURTX': param.idb_info.PCF_CURTX}
+        data.add_data('pixel_masks', (pixel_masks, pixel_meta))
         data.add_data('detector_masks', _get_detector_mask(packets))
         # NIX00405 in BSD is 1 indexed
         data['integration_time'] = SCETimeDelta(packets.get_value('NIX00405'))
@@ -366,14 +363,7 @@ class CompressedPixelData(ScienceProduct):
                                                   data['detector_masks'].sum(axis=1).max(),
                                                   data['num_pixel_sets'].max())
 
-        # counts = counts.zeros(unique_times.size, unique_energies_low.size,
-        #                         data['detector_masks'].sum(axis=1).max(),
-        # data['num_pixel_sets'].max())
-
-        # counts_var = counts_var.reshape(unique_times.size, unique_energies_low.size,
-        #                                 data['detector_masks'][0].sum(),
-        #                                 data['num_pixel_sets'][0].sum())
-        # # t x e x d x p -> t x d x p x e
+        # t x e x d x p -> t x d x p x e
         counts = counts.transpose((0, 2, 3, 1))
 
         out_counts = None

@@ -154,16 +154,16 @@ class LevelB(BaseProduct):
                                  service_subtype=self.service_subtype,
                                  ssid=self.ssid, control=control, data=data)
         else:
-            rid = []
-            psc = []
+            request_id = []
+            packet_sequence_control = []
             ids = set()
             for row in self.control['request_id']:
-                rid.append(row[1])
-                psc.append(row[0])
+                request_id.append(row[1])
+                packet_sequence_control.append(row[0])
                 ids.add((row[0], row[1]))
 
             for id in ids:
-                inds = np.argwhere((rid == id[1]) & (psc == id[0]))
+                inds = np.argwhere((request_id == id[1]) & (packet_sequence_control == id[0]))
                 i = np.arange(inds.min(), inds.max()+1)
                 control = self.control[i]
                 control_indices = control['index']

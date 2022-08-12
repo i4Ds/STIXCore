@@ -201,8 +201,8 @@ class RawPixelData(ScienceProduct):
         data.add_meta(name='integration_time', nix='NIX00405', packets=packets)
         data.add_data('pixel_masks', _get_pixel_mask(packets, 'NIXD0407'))
         data.add_data('detector_masks', _get_detector_mask(packets))
-        data['triggers'] = np.array([packets.get_value(f'NIX00{i}') for i in range(408, 424)]).T
-        data['triggers'].dtype = get_min_uint(data['triggers'])
+        triggers = np.array([packets.get_value(f'NIX00{i}') for i in range(408, 424)]).T
+        data['triggers'] = triggers.astype(get_min_uint(triggers))
         data['triggers'].meta = {'NIXS': [f'NIX00{i}' for i in range(408, 424)]}
         data.add_basic(name='num_samples', nix='NIX00406', packets=packets, dtype=np.uint16)
 

@@ -166,8 +166,8 @@ class ScienceProduct(GenericProduct, EnergyChannelsMixin):
         # control.remove_column('num_structures')
 
         control['index'] = np.ubyte(0)
-        control['packet'] = levelb.control['packet'].reshape(1, -1)
-        control['packet'].dtype = get_min_uint(control['packet'])
+        packet_ids = levelb.control['packet'].reshape(1, -1)
+        control['packet'] = packet_ids.astype(get_min_uint(packet_ids))
         control['raw_file'] = np.unique(levelb.control['raw_file']).reshape(1, -1)
         control['parent'] = parent
 

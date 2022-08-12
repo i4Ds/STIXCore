@@ -166,8 +166,8 @@ class ScienceProduct(GenericProduct, EnergyChannelsMixin):
         # control.remove_column('num_structures')
 
         control['index'] = np.ubyte(0)
-        control['packet'] = levelb.control['packet'].reshape(1, -1)
-        control['packet'].dtype = get_min_uint(control['packet'])
+        packet_ids = levelb.control['packet'].reshape(1, -1)
+        control['packet'] = packet_ids.astype(get_min_uint(packet_ids))
         control['raw_file'] = np.unique(levelb.control['raw_file']).reshape(1, -1)
         control['parent'] = parent
 
@@ -201,8 +201,8 @@ class RawPixelData(ScienceProduct):
         data.add_meta(name='integration_time', nix='NIX00405', packets=packets)
         data.add_data('pixel_masks', _get_pixel_mask(packets, 'NIXD0407'))
         data.add_data('detector_masks', _get_detector_mask(packets))
-        data['triggers'] = np.array([packets.get_value(f'NIX00{i}') for i in range(408, 424)]).T
-        data['triggers'].dtype = get_min_uint(data['triggers'])
+        triggers = np.array([packets.get_value(f'NIX00{i}') for i in range(408, 424)]).T
+        data['triggers'] = triggers.astype(get_min_uint(triggers))
         data['triggers'].meta = {'NIXS': [f'NIX00{i}' for i in range(408, 424)]}
         data.add_basic(name='num_samples', nix='NIX00406', packets=packets, dtype=np.uint16)
 

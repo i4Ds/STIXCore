@@ -1,6 +1,7 @@
 import os
 import sys
 import shutil
+import logging
 from pathlib import Path
 from xml.etree import ElementTree as Et
 from collections import defaultdict
@@ -154,6 +155,9 @@ if __name__ == '__main__':
     if len(sys.argv) > 2:
         zippath = Path(sys.argv[1])
         datapath = Path(sys.argv[2])
+
+        logging.basicConfig(format='%(asctime)s %(message)s', force=True,
+                            filename=str(datapath / "processing.log"), filemode="a+")
 
         rebuild_end2end(files, splits=1, outdir=datapath,
                         socdir=Path("/data/stix/SOLSOC/from_edds/tm/"))

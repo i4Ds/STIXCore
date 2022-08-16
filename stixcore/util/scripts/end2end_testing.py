@@ -156,6 +156,8 @@ if __name__ == '__main__':
         zippath = Path(sys.argv[1])
         datapath = Path(sys.argv[2])
 
+        datapath.mkdir(parents=True, exist_ok=True)
+
         logging.basicConfig(format='%(asctime)s %(message)s', force=True,
                             filename=str(datapath / "processing.log"), filemode="a+")
 

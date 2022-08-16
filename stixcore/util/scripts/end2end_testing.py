@@ -150,7 +150,7 @@ def end2end_pipeline(indir, fitsdir):
     return allfiles
 
 
-if __name__ == '__main__2':
+if __name__ == '__main__':
     if len(sys.argv) > 2:
         zippath = Path(sys.argv[1])
         datapath = Path(sys.argv[2])

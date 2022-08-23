@@ -12,6 +12,7 @@ from stixcore.ephemeris.manager import Spice, SpiceKernelManager
 from stixcore.io.soc.manager import SOCManager
 from stixcore.processing.L0toL1 import Level1
 from stixcore.processing.LBtoL0 import Level0
+from stixcore.processing.pipeline import log_setup
 from stixcore.processing.TMTCtoLB import process_tmtc_to_levelbinary
 from stixcore.products.level0.scienceL0 import ScienceProduct
 from stixcore.products.product import Product
@@ -134,9 +135,10 @@ def rebuild_end2end(files, *, splits=3,
 def end2end_pipeline(indir, fitsdir):
     _spm = SpiceKernelManager(test_data.ephemeris.KERNELS_DIR)
     Spice.instance = Spice(_spm.get_latest_mk())
-    print(f"Spice kernel @: {Spice.instance.meta_kernel_path}")
 
     SOOPManager.instance = SOOPManager(test_data.soop.DIR)
+
+    log_setup()
 
     soc = SOCManager(indir)
     lb_files = process_tmtc_to_levelbinary(soc.get_files(TMTC.TM), archive_path=fitsdir)
@@ -159,7 +161,8 @@ if __name__ == '__main__':
         datapath.mkdir(parents=True, exist_ok=True)
 
         logging.basicConfig(format='%(asctime)s %(message)s', force=True,
-                            filename=str(datapath / "processing.log"), filemode="a+")
+                            filename=str(datapath / "processing.log"), filemode="a+",
+                            level=logging.INFO)
 
         rebuild_end2end(files, splits=1, outdir=datapath,
                         socdir=Path("/data/stix/SOLSOC/from_edds/tm/"))

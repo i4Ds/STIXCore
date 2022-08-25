@@ -1,9 +1,5 @@
-import sys
-from pathlib import Path
 from binascii import unhexlify
 
-from stixcore.data.test import test_data
-from stixcore.idb.manager import IDBManager
 from stixcore.tmtc.packets import GenericPacket, GenericTMPacket, SourcePacketHeader
 
 __all__ = ['Packet', 'BaseFactory', 'TMTCPacketFactory', 'TMPacketFactory',
@@ -119,10 +115,5 @@ class ValidationFunctionError(AttributeError):
     Exception for when no candidate class is found.
     """
 
-
-if 'pytest' in sys.modules:
-    GenericPacket.idb_manager = IDBManager(test_data.idb.DIR)
-else:
-    GenericPacket.idb_manager = IDBManager(Path(__file__).parent.parent / "data" / "idb")
 
 Packet = TMTCPacketFactory(registry=GenericPacket._registry)

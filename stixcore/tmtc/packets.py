@@ -220,7 +220,6 @@ class GenericPacket:
 
     """
     _registry = dict()
-    idb_manager = None
 
     def __init_subclass__(cls, **kwargs):
         """
@@ -272,8 +271,8 @@ class TMPacket(GenericPacket):
 
         self.idb = idb
         if not idb:
-            self.idb = self.idb_manager.get_idb(obt=self.data_header.datetime)
-            # self.idb = self.idb_manager.get_idb('2.26.35')
+            self.idb = IDBManager.instance.get_idb(obt=self.data_header.datetime)
+            # self.idb = IDBManager.instance.get_idb('2.26.35')
 
     @property
     def key(self):
@@ -488,7 +487,7 @@ class GenericTMPacket:
 
         self.source_packet_header = data.source_packet_header
         self.data_header = data.data_header
-        self.idb = data.idb_manager if idb is None else idb
+        self.idb = IDBManager.instance if idb is None else idb
         self.pi1_val = getattr(data, 'pi1_val', None)
 
         if isinstance(self.idb, IDBManager):

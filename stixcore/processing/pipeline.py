@@ -15,13 +15,13 @@ from watchdog.observers import Observer
 
 from stixcore.config.config import CONFIG
 from stixcore.ephemeris.manager import Spice, SpiceKernelManager
+from stixcore.idb.manager import IDBManager
 from stixcore.io.soc.manager import SOCPacketFile
 from stixcore.processing.L0toL1 import Level1
 from stixcore.processing.L1toL2 import Level2
 from stixcore.processing.LBtoL0 import Level0
 from stixcore.processing.TMTCtoLB import process_tmtc_to_levelbinary
 from stixcore.soop.manager import SOOPManager
-from stixcore.tmtc.packets import GenericPacket
 from stixcore.util.logging import STX_LOGGER_DATE_FORMAT, STX_LOGGER_FORMAT, get_logger
 
 __all__ = ['GFTSFileHandler', 'process_tm', 'PipelineErrorReport', 'log_config', 'log_setup',
@@ -211,9 +211,10 @@ def log_singletons(level=logging.INFO):
     s.write("\nSINGLETONS\n\n")
     s.write(f"SOOPManager: {SOOPManager.instance.data_root}\n")
     s.write(f"SPICE: {Spice.instance.meta_kernel_path}\n")
-    s.write(f"IDBManager: {GenericPacket.idb_manager.data_root}\n"
-            f"{GenericPacket.idb_manager.get_versions()}\n"
-            f"{GenericPacket.idb_manager.history}\n")
+    s.write(f"IDBManager: {IDBManager.instance.data_root}\n"
+            f"Versions:\n{IDBManager.instance.get_versions()}\n"
+            f"Force version: {IDBManager.instance.force_version}\n"
+            f"History:\n{IDBManager.instance.history}\n")
     s.seek(0)
     logger.log(level, s.read())
 

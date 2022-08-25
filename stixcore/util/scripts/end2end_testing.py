@@ -9,6 +9,7 @@ from collections import defaultdict
 from stixcore.config.config import CONFIG
 from stixcore.data.test import test_data
 from stixcore.ephemeris.manager import Spice, SpiceKernelManager
+from stixcore.idb.manager import IDBManager
 from stixcore.io.soc.manager import SOCManager
 from stixcore.processing.L0toL1 import Level1
 from stixcore.processing.LBtoL0 import Level0
@@ -138,6 +139,9 @@ def end2end_pipeline(indir, fitsdir):
 
     SOOPManager.instance = SOOPManager(test_data.soop.DIR)
 
+    idbpath = Path(__file__).parent.parent.parent / "data" / "idb"
+    IDBManager.instance = IDBManager(idbpath, force_version="2.26.35")
+
     log_setup()
 
     soc = SOCManager(indir)
@@ -168,7 +172,7 @@ if __name__ == '__main__':
                         socdir=Path("/data/stix/SOLSOC/from_edds/tm/"))
 
         if zippath.parent.exists() and datapath.exists():
-            zipcmd = f"zip -FSrj {str(zippath)} {str(datapath)}"
+            zipcmd = f"zip -r -j - {str(datapath)} > {str(zippath)}"
             print(zipcmd)
             copyout = os.popen(zipcmd).read()
             print(copyout)

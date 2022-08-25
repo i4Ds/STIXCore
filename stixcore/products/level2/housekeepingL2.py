@@ -14,7 +14,7 @@ from stixcore.ephemeris.manager import Spice
 from stixcore.processing.sswidl import SSWIDLProcessor, SSWIDLTask
 from stixcore.products import Product
 from stixcore.products.level0.housekeepingL0 import HKProduct
-from stixcore.products.product import GenericPacket, L2Mixin
+from stixcore.products.product import L2Mixin
 from stixcore.time import SCETime, SCETimeDelta, SCETimeRange
 from stixcore.util.logging import get_logger
 
@@ -59,7 +59,7 @@ class MaxiReport(HKProduct, L2Mixin):
         self.type = 'hk'
 
     @classmethod
-    def from_level1(cls, l1product, idbm=GenericPacket.idb_manager, parent='', idlprocessor=None):
+    def from_level1(cls, l1product, parent='', idlprocessor=None):
 
         # create a l2 HK product
         l2 = cls(service_type=l1product.service_type,

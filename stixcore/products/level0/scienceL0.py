@@ -138,7 +138,8 @@ class ScienceProduct(GenericProduct, EnergyChannelsMixin):
             data = self.data[np.in1d(self.data['control_index'], control['index'])]
 
             yield type(self)(service_type=self.service_type, service_subtype=self.service_subtype,
-                             ssid=self.ssid, control=control, data=data)
+                             ssid=self.ssid, control=control, data=data,
+                             idb_versions=self.idb_versions)
 
     @classmethod
     def from_levelb(cls, levelb, *, parent=''):

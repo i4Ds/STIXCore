@@ -127,7 +127,7 @@ def test_tm_1_1(data_dir, idbm):
 
 def test_tm_21_6_30(data_dir, idbm):
     hex = _get_bin_from_file(data_dir, '21_6_30.hex')
-    GenericPacket.idb_manager = idbm
+    IDBManager.instance = idbm
     Packet = TMTCPacketFactory(registry=GenericPacket._registry)
     packet = Packet(hex)
     assert isinstance(packet, tm_21.TM_21_6_30)
@@ -262,7 +262,7 @@ def test_all_tm(data_dir, idbm, packets):
     filename = f"{t}_{st}{n_str}.hex" if pi1 is None else f"{t}_{st}_{pi1}{n_str}.hex"
 
     hex = _get_bin_from_file(data_dir, filename)
-    GenericPacket.idb_manager = idbm
+    IDBManager.instance = idbm
     Packet = TMTCPacketFactory(registry=GenericPacket._registry)
     packet = Packet(hex)
     assert isinstance(packet, cl)
@@ -286,7 +286,7 @@ def test_decompress(data_dir, idbm, packets):
     n_str = '' if nstr <= 1 else f'_nstr_{nstr}'
     filename = f"{t}_{st}{n_str}.hex" if pi1 is None else f"{t}_{st}_{pi1}{n_str}.hex"
     hex = _get_bin_from_file(data_dir, filename)
-    GenericPacket.idb_manager = idbm
+    IDBManager.instance = idbm
     Packet = TMTCPacketFactory(registry=GenericPacket._registry)
     packet = Packet(hex)
     assert isinstance(packet, cl)
@@ -307,7 +307,7 @@ def test_decompress(data_dir, idbm, packets):
 
 def test_decompress_l1_triggers(data_dir, idbm):
     hex = _get_bin_from_file(data_dir, '21_6_21_nstr_2.hex')
-    GenericPacket.idb_manager = idbm
+    IDBManager.instance = idbm
     Packet = TMTCPacketFactory(registry=GenericPacket._registry)
     packet = Packet(hex)
 
@@ -330,7 +330,7 @@ def test_engineering(data_dir, idbm, packets):
     filename = f"{t}_{st}{n_str}.hex" if pi1 is None else f"{t}_{st}_{pi1}{n_str}.hex"
 
     hex = _get_bin_from_file(data_dir, filename)
-    GenericPacket.idb_manager = idbm
+    IDBManager.instance = idbm
     Packet = TMTCPacketFactory(registry=GenericPacket._registry)
     packet = Packet(hex)
     assert isinstance(packet, cl)

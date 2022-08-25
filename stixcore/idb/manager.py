@@ -1,5 +1,6 @@
 import os
 import re
+import sys
 import json
 import shutil
 import sqlite3
@@ -7,25 +8,25 @@ import zipfile
 import urllib.request
 from pathlib import Path
 
+from stixcore.data.test import test_data
 from stixcore.idb.idb import IDB
 from stixcore.time import SCETime
 from stixcore.util.logging import get_logger
-
-# thread_lock = threading.Lock()
+from stixcore.util.singleton import Singleton
 
 __all__ = ['IDBManager']
 
 IDB_FILENAME = "idb.sqlite"
 IDB_VERSION_PREFIX = "v"
 IDB_VERSION_DELIM = "."
-IDB_VERSION_HISTORY_FILE = "idbVersionHistory.json"
+IDB_VERSION_HISTORY_FILE = Path(__file__).parent.parent / "data" / "idb" / "idbVersionHistory.json"
 
 IDB_FORCE_VERSION_KEY = '__FORCE_VERSION__'
 
 logger = get_logger(__name__)
 
 
-class IDBManager:
+class IDBManager(metaclass=Singleton):
     """Manages IDB (definition of TM/TC packet structures) Versions and provides a IDB reader."""
 
     def __init__(self, data_root, force_version=None):
@@ -104,11 +105,12 @@ class IDBManager:
         """
         path = Path(value)
         if not path.exists():
-            raise ValueError(f'path not found: {value}')
+            logger.info(f'path not found: {value} creating dir')
+            path.mkdir(parents=True, exist_ok=True)
 
         self._data_root = path
         try:
-            with open(self._data_root / IDB_VERSION_HISTORY_FILE) as f:
+            with open(IDB_VERSION_HISTORY_FILE) as f:
                 self.history = json.load(f)
                 for item in self.history:
                     item['validityPeriodOBT'][0] = SCETime(
@@ -129,7 +131,7 @@ class IDBManager:
 
         except EnvironmentError:
             raise ValueError(f'No IDB version history found at: '
-                             f'{self._data_root / IDB_VERSION_HISTORY_FILE}')
+                             f'{IDB_VERSION_HISTORY_FILE}')
 
     def find_version(self, obt=None):
         """Find IDB version operational at a given time.
@@ -265,6 +267,7 @@ class IDBManager:
 
             (vdir / "idb.zip").unlink()
             shutil.rmtree(str(vdir / vlabel))
+            logger.info(f"Downloaded IDB version: {vlabel} from {url}")
 
         except Exception as e:
             logger.error(e)
@@ -484,7 +487,7 @@ class IDBManager:
         """
 
         if self._force_version:
-            logger.warning(f"Use Forced IDB version: {self._force_version}")
+            logger.debug(f"Use Forced IDB version: {self._force_version}")
             return self.idb_cache[IDB_FORCE_VERSION_KEY]
 
         if isinstance(obt, SCETime):
@@ -506,3 +509,9 @@ class IDBManager:
             return idb
         raise ValueError(f'Version "{version_label}" not found in: '
                          f'"{self._get_filename_for_version(version_label)}"')
+
+
+if 'pytest' in sys.modules:
+    IDBManager.instance = IDBManager(test_data.idb.DIR)
+else:
+    IDBManager.instance = IDBManager(Path(__file__).parent.parent / "data" / "idb")

@@ -27,12 +27,6 @@ def test_idb_manager(idb_manager):
            str(Path(__file__).parent.parent.parent / "data" / "test" / "idb")
 
 
-def test_root_not_found_error():
-    with pytest.raises(ValueError) as e:
-        _ = IDBManager(".foo/")
-    assert str(e.value).startswith('path not found')
-
-
 @pytest.mark.parametrize('versions', [("2.26.1", False), ("2.26.2", False), ((2, 26, 3), False),
                                       ("2.26.34", True), ("1.2.3", False)])
 def test_has_version(versions, idb_manager):
@@ -90,8 +84,7 @@ def test_find_version(idb_manager):
 def test_get_versions(idb_manager):
     versions = idb_manager.get_versions()
     assert isinstance(versions, list)
-    # just 5 not 6 as 2.26.2 contains no file
-    assert len(versions) == 8
+    assert len(versions) > 4
 
 
 @pytest.mark.remote_data

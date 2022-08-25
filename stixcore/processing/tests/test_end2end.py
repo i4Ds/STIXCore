@@ -1,6 +1,7 @@
 import zipfile
 import warnings
 import urllib.request
+from pprint import pformat
 from pathlib import Path
 
 import pytest
@@ -57,6 +58,7 @@ def test_complete(orig_fits, current_fits):
 @pytest.mark.end2end
 def test_identical(orig_fits, current_fits):
     error_c = 0
+    error_files = list()
 
     for cfits in current_fits:
         # find corresponding original file
@@ -71,7 +73,8 @@ def test_identical(orig_fits, current_fits):
         if not diff.identical:
             error_c += 1
             warnings.warn(diff.report())
+            error_files.append((cfits, ofits))
 
     if error_c > 0:
         raise ValueError(f"{error_c} errors out of {len(current_fits)}\n"
-                         + "there are differences in FITS files")
+                         f"there are differences in FITS files\n {pformat(error_files)}")

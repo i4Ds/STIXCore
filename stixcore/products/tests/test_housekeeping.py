@@ -82,6 +82,7 @@ def test_calibration_hk(levelb, idbm, tmp_path, soop_manager):
 def test_calibration_hk_many(idbm, tmp_path, soop_manager):
 
     idbm.download_version("2.26.35", force=True)
+    IDBManager.instance = idbm
 
     tstart = perf_counter()
 
@@ -107,7 +108,7 @@ def test_calibration_hk_many(idbm, tmp_path, soop_manager):
     hkl0.control['raw_file'] = ['raw.xml']
     hkl0.control['parent'] = ['parent.fits']
 
-    hkl1 = MaxiReportL1.from_level0(hkl0, idbm=idbm)
+    hkl1 = MaxiReportL1.from_level0(hkl0)
     hkl1.control['raw_file'] = ['raw.xml']
     hkl1.control['parent'] = ['parent.fits']
 

@@ -485,7 +485,7 @@ class FitsL0Processor:
                     data[col].description = "Error due only to integer compression"
 
             idb_versions = QTable(rows=[(version, range.start.as_float(), range.end.as_float())
-                                  for version, range in product.idb_versions.items()],
+                                  for version, range in prod.idb_versions.items()],
                                   names=["version", "obt_start", "obt_end"])
 
             primary_header = self.generate_primary_header(filename, prod)
@@ -764,7 +764,7 @@ class FitsL1Processor(FitsL0Processor):
                     data[col].description = "Error due only to integer compression"
 
             idb_versions = QTable(rows=[(version, range.start.as_float(), range.end.as_float())
-                                  for version, range in product.idb_versions.items()],
+                                  for version, range in prod.idb_versions.items()],
                                   names=["version", "obt_start", "obt_end"])
 
             primary_header, header_override = self.generate_primary_header(filename, prod)

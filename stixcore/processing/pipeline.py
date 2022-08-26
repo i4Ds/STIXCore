@@ -1,3 +1,4 @@
+import io
 import re
 import time
 import shutil
@@ -14,6 +15,7 @@ from watchdog.observers import Observer
 
 from stixcore.config.config import CONFIG
 from stixcore.ephemeris.manager import Spice, SpiceKernelManager
+from stixcore.idb.manager import IDBManager
 from stixcore.io.soc.manager import SOCPacketFile
 from stixcore.processing.L0toL1 import Level1
 from stixcore.processing.L1toL2 import Level2
@@ -22,7 +24,8 @@ from stixcore.processing.TMTCtoLB import process_tmtc_to_levelbinary
 from stixcore.soop.manager import SOOPManager
 from stixcore.util.logging import STX_LOGGER_DATE_FORMAT, STX_LOGGER_FORMAT, get_logger
 
-__all__ = ['GFTSFileHandler', 'process_tm', 'PipelineErrorReport']
+__all__ = ['GFTSFileHandler', 'process_tm', 'PipelineErrorReport', 'log_config', 'log_setup',
+           'log_singletons']
 
 logger = get_logger(__name__)
 
@@ -192,6 +195,33 @@ def process_tm(path, **args):
         logger.info(f"generated L2 files: \n{pformat(l2_files)}")
 
         error_report.log_result([list(lb_files), l0_files, l1_files, l2_files])
+
+
+def log_config(level=logging.INFO):
+    s = io.StringIO()
+    s.write("\nCONFIG\n\n")
+    CONFIG.write(s)
+
+    s.seek(0)
+    logger.log(level, s.read())
+
+
+def log_singletons(level=logging.INFO):
+    s = io.StringIO()
+    s.write("\nSINGLETONS\n\n")
+    s.write(f"SOOPManager: {SOOPManager.instance.data_root}\n")
+    s.write(f"SPICE: {Spice.instance.meta_kernel_path}\n")
+    s.write(f"IDBManager: {IDBManager.instance.data_root}\n"
+            f"Versions:\n{IDBManager.instance.get_versions()}\n"
+            f"Force version: {IDBManager.instance.force_version}\n"
+            f"History:\n{IDBManager.instance.history}\n")
+    s.seek(0)
+    logger.log(level, s.read())
+
+
+def log_setup(level=logging.INFO):
+    log_config(level=level)
+    log_singletons(level=level)
 
 
 if __name__ == '__main__':

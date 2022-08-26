@@ -6,6 +6,7 @@ from concurrent.futures import ProcessPoolExecutor
 
 from stixcore.config.config import CONFIG
 from stixcore.ephemeris.manager import Spice, SpiceKernelManager
+from stixcore.idb.manager import IDBManager
 from stixcore.io.fits.processors import FitsL0Processor
 from stixcore.products.level0.scienceL0 import NotCombineException
 from stixcore.products.product import Product
@@ -41,7 +42,7 @@ class Level0:
                 executor.submit(process_tm_type, files, tm_type, self.processor,
                                 # keep track of the used Spice kernel
                                 spice_kernel_path=Spice.instance.meta_kernel_path,
-                                config=CONFIG)
+                                config=CONFIG, idbm=IDBManager.instance)
                 for tm_type, files in tm.items()
             ]
 
@@ -56,9 +57,10 @@ class Level0:
         return list(set(all_files))
 
 
-def process_tm_type(files, tm_type, processor, spice_kernel_path, config):
+def process_tm_type(files, tm_type, processor, spice_kernel_path, config, idbm):
     all_files = []
     Spice.instance = Spice(spice_kernel_path)
+    IDBManager.instance = idbm
     CONFIG = config
 
     # Stand alone packet data

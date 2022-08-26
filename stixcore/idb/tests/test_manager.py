@@ -93,6 +93,7 @@ def test_get_versions(idb_manager):
     # just 5 not 6 as 2.26.2 contains no file
     assert len(versions) > 4
 
+
 @pytest.mark.remote_data
 def test_get_idb_not_found_error(idb_manager):
     with pytest.raises(ValueError) as e:

@@ -140,7 +140,7 @@ def end2end_pipeline(indir, fitsdir):
     SOOPManager.instance = SOOPManager(test_data.soop.DIR)
 
     idbpath = Path(__file__).parent.parent.parent / "data" / "idb"
-    IDBManager.instance = IDBManager(idbpath, force_version="2.26.35")
+    IDBManager.instance = IDBManager(idbpath)  # force_version="2.26.35")
 
     log_setup()
 

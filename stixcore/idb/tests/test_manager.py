@@ -70,14 +70,14 @@ def test_download_version(idb_manager):
 @pytest.mark.remote_data
 def test_find_version(idb_manager):
     idb = idb_manager.get_idb(obt=SCETime(coarse=631155005, fine=0))
-    assert idb.get_idb_version() == "2.26.31"
+    assert idb.get_idb_version() == "2.26.32"
     idb.close()
 
     # fall back to the default
     idb = idb_manager.get_idb(obt=SCETime(coarse=2 ** 31 - 1, fine=0))
     assert idb.get_idb_version() == "2.26.36"
 
-    assert idb_manager.find_version(obt=None) == "2.26.31"
+    assert idb_manager.find_version(obt=None) == "2.26.32"
 
 
 @pytest.mark.remote_data

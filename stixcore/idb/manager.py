@@ -8,9 +8,9 @@ import zipfile
 import urllib.request
 from pathlib import Path
 
-from stixcore.data.test import test_data
 from intervaltree import IntervalTree
 
+from stixcore.data.test import test_data
 from stixcore.idb.idb import IDB
 from stixcore.time import SCETime
 from stixcore.util.logging import get_logger

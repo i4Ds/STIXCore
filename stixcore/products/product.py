@@ -182,7 +182,7 @@ class ProductFactory(BasicRegistrationFactory):
                     try:
                         energies = read_qtable(file_path, hdu='ENERGIES')
                     except KeyError:
-                        logger.info(f"no ENERGIES data found in FITS: {file_path}")
+                        logger.debug(f"no ENERGIES data found in FITS: {file_path}")
                 idb_versions = defaultdict(SCETimeRange)
                 if level in ('L0', 'L1'):
                     try:
@@ -628,6 +628,13 @@ class GenericProduct(BaseProduct):
     @classmethod
     def getLeveL0Packets(cls, levelb):
         packets = [Packet(d) for d in levelb.data['data']]
+        # packets = []
+        # for i, d in enumerate(levelb.data['data']):
+        #    try:
+        #        packets.append(Packet(d))
+        #    except Exception:
+        #        logger.warning(f"corrupt package {i}")
+        #        pass
 
         idb_versions = defaultdict(SCETimeRange)
 

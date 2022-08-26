@@ -64,7 +64,7 @@ def process_tm_type(files, tm_type, processor, spice_kernel_path, config, idbm):
     CONFIG = config
 
     # Stand alone packet data
-    if (tm_type[0] == 21 and tm_type[-1] not in {20, 21, 22, 23, 24}) or tm_type[0] != 21:
+    if (tm_type[0] == 21 and tm_type[-1] not in {20, 21, 22, 23, 24, 42}) or tm_type[0] != 21:
         for file in files:
             levelb = Product(file)
             tmp = Product._check_registered_widget(
@@ -77,24 +77,17 @@ def process_tm_type(files, tm_type, processor, spice_kernel_path, config, idbm):
                     fits_files = processor.write_fits(level0)
                     all_files.extend(fits_files)
             except Exception as e:
-                logger.error('Error processing file %s for %s, %s, %s', file,
-                             levelb.service_type, levelb.service_subtype, levelb.ssid)
+                logger.error(f'Error processing file {file} for {levelb.service_type}, '
+                             f'{levelb.service_subtype}, {levelb.ssid}', exc_info=True)
                 logger.error('%s', e)
                 if CONFIG.getboolean('Logging', 'stop_on_error', fallback=False):
                     raise e
 
     else:
-        last_incomplete = []
         # for each file
         for file in files:
             levelb = Product(file)
-            complete, incomplete = levelb.extract_sequences()
-
-            if incomplete and last_incomplete:
-                combined_complete, combined_incomplete \
-                    = (incomplete[0] + last_incomplete[0]).extract_sequences()
-                complete.extend(combined_complete)
-                last_incomplete = combined_incomplete
+            complete, _ = levelb.extract_sequences()
 
             if complete:
                 for comp in complete:
@@ -118,22 +111,6 @@ def process_tm_type(files, tm_type, processor, spice_kernel_path, config, idbm):
                         logger.error('%s', e)
                         if CONFIG.getboolean('Logging', 'stop_on_error', fallback=False):
                             raise e
-            try:
-                last_incomplete = last_incomplete[0] + incomplete[0]
-            except IndexError:
-                last_incomplete = []
-
-        if last_incomplete:
-            for inc in last_incomplete:
-                tmp = Product._check_registered_widget(level='L0',
-                                                       service_type=inc.service_type,
-                                                       service_subtype=inc.service_subtype,
-                                                       ssid=inc.ssid, data=None,
-                                                       control=None)
-                level0 = tmp.from_levelb(inc, parent=file.name)
-                fits_files = processor.write_fits(level0)
-                all_files.extend(fits_files)
-
     return all_files
 
 

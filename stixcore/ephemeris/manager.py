@@ -4,6 +4,7 @@ import logging
 from enum import Enum
 from pathlib import Path
 from textwrap import wrap
+from collections import defaultdict
 
 import numpy as np
 import spiceypy
@@ -419,90 +420,131 @@ class Spice(SpiceKernelLoader, metaclass=Singleton):
         except (SpiceBADPARTNUMBER, SpiceINVALIDSCLKSTRING):
             et = spiceypy.utc2et(average_time.isot)
 
+        headers = (('SPICE_MK', self.meta_kernel_path.name, 'SPICE meta kernel file'),)
+
+        header_results = defaultdict(lambda: '')
         # HeliographicStonyhurst
-        solo_sun_hg, sun_solo_lt = spiceypy.spkezr('SOLO', et, 'SUN_EARTH_CEQU', 'None', 'Sun')
+        try:
+            solo_sun_hg, sun_solo_lt = spiceypy.spkezr('SOLO', et, 'SUN_EARTH_CEQU', 'None', 'Sun')
+            # Convert to spherical and add units
+            hg_rad, hg_lon, hg_lat = spiceypy.reclat(solo_sun_hg[:3])
+            hg_rad = hg_rad * u.km
+            hg_lat, hg_lon = (hg_lat * u.rad).to('deg'), (hg_lon * u.rad).to('deg')
+            # Calculate radial velocity add units
+            rad_vel, *_ = spiceypy.reclat(solo_sun_hg[3:])
+            rad_vel = rad_vel * (u.km / u.s)
 
-        # Convert to spherical and add units
-        hg_rad, hg_lon, hg_lat = spiceypy.reclat(solo_sun_hg[:3])
-        hg_rad = hg_rad * u.km
-        hg_lat, hg_lon = (hg_lat * u.rad).to('deg'), (hg_lon * u.rad).to('deg')
-        # Calculate radial velocity add units
-        rad_vel, *_ = spiceypy.reclat(solo_sun_hg[3:])
-        rad_vel = rad_vel * (u.km / u.s)
+            rsun_arc = np.arcsin((1 * u.R_sun) / hg_rad).decompose().to('arcsec')
 
-        rsun_arc = np.arcsin((1 * u.R_sun) / hg_rad).decompose().to('arcsec')
+            solo_sun_hee, _ = spiceypy.spkezr('SOLO', et, 'SOLO_HEE', 'None', 'Sun')
+            solo_sun_hci, _ = spiceypy.spkezr('SOLO', et, 'SOLO_HCI', 'None', 'Sun')
+            solo_sun_hae, _ = spiceypy.spkezr('SOLO', et, 'SUN_ARIES_ECL', 'None', 'Sun')
+            solo_sun_heeq, _ = spiceypy.spkezr('SOLO', et, 'SOLO_HEEQ', 'None', 'Sun')
+            solo_sun_gse, earth_solo_lt = spiceypy.spkezr('SOLO', et, 'EARTH_SUN_ECL',
+                                                          'None', 'Earth')
+            sun_earth_hee, sun_earth_lt = spiceypy.spkezr('Earth', et, 'SOLO_HEE', 'None', 'Sun')
 
-        solo_sun_hee, _ = spiceypy.spkezr('SOLO', et, 'SOLO_HEE', 'None', 'Sun')
-        solo_sun_hci, _ = spiceypy.spkezr('SOLO', et, 'SOLO_HCI', 'None', 'Sun')
-        solo_sun_hae, _ = spiceypy.spkezr('SOLO', et, 'SUN_ARIES_ECL', 'None', 'Sun')
-        solo_sun_heeq, _ = spiceypy.spkezr('SOLO', et, 'SOLO_HEEQ', 'None', 'Sun')
-        solo_sun_gse, earth_solo_lt = spiceypy.spkezr('SOLO', et, 'EARTH_SUN_ECL', 'None', 'Earth')
-        sun_earth_hee, sun_earth_lt = spiceypy.spkezr('Earth', et, 'SOLO_HEE', 'None', 'Sun')
+            precision = 2
 
-        precision = 2
-        headers = (
-            ('SPICE_MK', self.meta_kernel_path.name, 'SPICE meta kernel file'),
-            ('RSUN_ARC', rsun_arc.to_value('arcsec'),
-             '[arcsec] Apparent photospheric solar radius'),
-            # ('CAR_ROT', ,), Doesn't make sense as we don't have a crpix
-            ('HGLT_OBS', np.around(hg_lat.to_value('deg'), precision),
-             '[deg] s/c heliographic latitude (B0 angle)'),
-            ('HGLN_OBS', np.around(hg_lon.to_value('deg'), precision),
-             '[deg] s/c heliographic longitude'),
-            # Not mistake same values know by different terms
-            ('CRLT_OBS', np.around(hg_lat.to_value('deg'), precision),
-             '[deg] s/c Carrington latitude (B0 angle)'),
-            ('CRLN_OBS', np.around(hg_lon.to_value('deg'), precision),
-             '[deg] s/c Carrington longitude (L0 angle)'),
-            ('DSUN_OBS', np.around(hg_rad.to_value('m'), precision),
-             '[m] s/c distance from Sun'),
-            ('HEEX_OBS', np.around((solo_sun_hee[0]*u.km).to_value('m'), precision),
-             '[m] s/c Heliocentric Earth Ecliptic X'),
-            ('HEEY_OBS', np.around((solo_sun_hee[1]*u.km).to_value('m'), precision),
-             '[m] s/c Heliocentric Earth Ecliptic Y'),
-            ('HEEZ_OBS', np.around((solo_sun_hee[2]*u.km).to_value('m'), precision),
-             '[m] s/c Heliocentric Earth Ecliptic Z'),
-            ('HCIX_OBS', np.around((solo_sun_hci[0]*u.km).to_value('m'), precision),
-             '[m] s/c Heliocentric Inertial X'),
-            ('HCIY_OBS', np.around((solo_sun_hci[1]*u.km).to_value('m'), precision),
-             '[m] s/c Heliocentric Inertial Y'),
-            ('HCIZ_OBS', np.around((solo_sun_hci[2]*u.km).to_value('m'), precision),
-             '[m] s/c Heliocentric Inertial Z'),
-            ('HCIX_VOB', np.around((solo_sun_hci[3]*(u.km/u.s)).to_value('m/s'), precision),
-             '[m/s] s/c Heliocentric Inertial X Velocity'),
-            ('HCIY_VOB', np.around((solo_sun_hci[4]*(u.km/u.s)).to_value('m/s'), precision),
-             '[m/s] s/c Heliocentric Inertial Y Velocity'),
-            ('HCIZ_VOB', np.around((solo_sun_hci[5]*(u.km/u.s)).to_value('m/s'), precision),
-             '[m/s] s/c Heliocentric Inertial Z Velocity'),
-            ('HAEX_OBS', np.around((solo_sun_hae[0]*u.km).to_value('m'), precision),
-             '[m] s/c Heliocentric Aries Ecliptic X'),
-            ('HAEY_OBS', np.around((solo_sun_hae[1]*u.km).to_value('m'), precision),
-             '[m] s/c Heliocentric Aries Ecliptic Y'),
-            ('HAEZ_OBS', np.around((solo_sun_hae[0]*u.km).to_value('m'), precision),
-             '[m] s/c Heliocentric Aries Ecliptic Z'),
-            ('HEQX_OBS', np.around((solo_sun_heeq[0]*u.km).to_value('m'), precision),
-             '[m] s/c Heliocentric Earth Equatorial X'),
-            ('HEQY_OBS', np.around((solo_sun_heeq[1]*u.km).to_value('m'), precision),
-             '[m] s/c Heliocentric Earth Equatorial Y'),
-            ('HEQZ_OBS', np.around((solo_sun_heeq[2]*u.km).to_value('m'), precision),
-             '[m] s/c Heliocentric Earth Equatorial Z'),
-            ('GSEX_OBS', np.around((solo_sun_gse[0]*u.km).to_value('m'), precision),
-             '[m] s/c Geocentric Solar Ecliptic X'),
-            ('GSEY_OBS', np.around((solo_sun_gse[1]*u.km).to_value('m'), precision),
-             '[m] s/c Geocentric Solar Ecliptic Y'),
-            ('GSEZ_OBS', np.around((solo_sun_gse[2]*u.km).to_value('m'), precision),
-             '[m] s/c Geocentric Solar Ecliptic Y'),
-            ('OBS_VR', np.around(rad_vel.to_value('m/s'), precision),
-             '[m/s] Radial velocity of spacecraft relative to Sun'),
-            ('EAR_TDEL', np.around(sun_earth_lt - sun_solo_lt, precision),
-             '[s] Time(Sun to Earth) - Time(Sun to S/C)'),
-            ('SUN_TIME', np.around(sun_solo_lt, precision),
-             '[s] Time(Sun to s/c)'),
-            ('DATE_EAR', (start_time + np.around((sun_earth_lt - sun_solo_lt), precision)*u.s).fits,
-             'Start time of observation, corrected to Earth'),
-            ('DATE_SUN', (start_time - np.around(sun_solo_lt, precision)*u.s).fits,
-             'Start time of observation, corrected to Sun'),
-        )
+            header_results['RSUN_ARC'] = rsun_arc.to_value('arcsec')
+            header_results['HGLT_OBS'] = np.around(hg_lat.to_value('deg'), precision)
+            header_results['HGLN_OBS'] = np.around(hg_lon.to_value('deg'), precision)
+            header_results['CRLT_OBS'] = np.around(hg_lat.to_value('deg'), precision)
+            header_results['CRLN_OBS'] = np.around(hg_lon.to_value('deg'), precision)
+            header_results['DSUN_OBS'] = np.around(hg_rad.to_value('m'), precision)
+            header_results['HEEX_OBS'] = np.around((solo_sun_hee[0]*u.km).to_value('m'), precision)
+            header_results['HEEY_OBS'] = np.around((solo_sun_hee[1]*u.km).to_value('m'), precision)
+            header_results['HEEZ_OBS'] = np.around((solo_sun_hee[2]*u.km).to_value('m'), precision)
+            header_results['HCIX_OBS'] = np.around((solo_sun_hci[0]*u.km).to_value('m'), precision)
+            header_results['HCIY_OBS'] = np.around((solo_sun_hci[1]*u.km).to_value('m'), precision)
+            header_results['HCIZ_OBS'] = np.around((solo_sun_hci[2]*u.km).to_value('m'), precision)
+            header_results['HCIX_VOB'] = np.around((solo_sun_hci[3]*(u.km/u.s)).to_value('m/s'),
+                                                   precision)
+            header_results['HCIY_VOB'] = np.around((solo_sun_hci[4]*(u.km/u.s)).to_value('m/s'),
+                                                   precision)
+            header_results['HCIZ_VOB'] = np.around((solo_sun_hci[5]*(u.km/u.s)).to_value('m/s'),
+                                                   precision)
+            header_results['HAEX_OBS'] = np.around((solo_sun_hae[0]*u.km).to_value('m'), precision)
+            header_results['HAEY_OBS'] = np.around((solo_sun_hae[1]*u.km).to_value('m'), precision)
+            header_results['HAEZ_OBS'] = np.around((solo_sun_hae[0]*u.km).to_value('m'), precision)
+            header_results['HEQX_OBS'] = np.around((solo_sun_heeq[0]*u.km).to_value('m'), precision)
+            header_results['HEQY_OBS'] = np.around((solo_sun_heeq[1]*u.km).to_value('m'), precision)
+            header_results['HEQZ_OBS'] = np.around((solo_sun_heeq[2]*u.km).to_value('m'), precision)
+            header_results['GSEX_OBS'] = np.around((solo_sun_gse[0]*u.km).to_value('m'), precision)
+            header_results['GSEY_OBS'] = np.around((solo_sun_gse[1]*u.km).to_value('m'), precision)
+            header_results['GSEZ_OBS'] = np.around((solo_sun_gse[2]*u.km).to_value('m'), precision)
+            header_results['OBS_VR'] = np.around(rad_vel.to_value('m/s'), precision)
+            header_results['EAR_TDEL'] = np.around(sun_earth_lt - sun_solo_lt, precision)
+            header_results['SUN_TIME'] = np.around(sun_solo_lt, precision)
+            header_results['DATE_EAR'] = (start_time + np.around((sun_earth_lt - sun_solo_lt),
+                                                                 precision) * u.s).fits
+            header_results['DATE_SUN'] = (start_time - np.around(sun_solo_lt, precision)*u.s).fits
+
+        except Exception:
+            headers = headers + (('SPICE_ERROR', '1',
+                                  'Pointing Data might be corrupt due to SPICE / time issues'),)
+
+        headers = headers + (
+                ('RSUN_ARC', header_results['RSUN_ARC'],
+                 '[arcsec] Apparent photospheric solar radius'),
+                # ('CAR_ROT', ,), Doesn't make sense as we don't have a crpix
+                ('HGLT_OBS', header_results['HGLT_OBS'],
+                 '[deg] s/c heliographic latitude (B0 angle)'),
+                ('HGLN_OBS', header_results['HGLN_OBS'],
+                 '[deg] s/c heliographic longitude'),
+                # Not mistake same values know by different terms
+                ('CRLT_OBS', header_results['CRLT_OBS'],
+                 '[deg] s/c Carrington latitude (B0 angle)'),
+                ('CRLN_OBS', header_results['CRLN_OBS'],
+                 '[deg] s/c Carrington longitude (L0 angle)'),
+                ('DSUN_OBS', header_results['DSUN_OBS'],
+                 '[m] s/c distance from Sun'),
+                ('HEEX_OBS', header_results['HEEX_OBS'],
+                 '[m] s/c Heliocentric Earth Ecliptic X'),
+                ('HEEY_OBS', header_results['HEEY_OBS'],
+                 '[m] s/c Heliocentric Earth Ecliptic Y'),
+                ('HEEZ_OBS', header_results['HEEZ_OBS'],
+                 '[m] s/c Heliocentric Earth Ecliptic Z'),
+                ('HCIX_OBS', header_results['HCIX_OBS'],
+                 '[m] s/c Heliocentric Inertial X'),
+                ('HCIY_OBS', header_results['HCIY_OBS'],
+                 '[m] s/c Heliocentric Inertial Y'),
+                ('HCIZ_OBS', header_results['HCIZ_OBS'],
+                 '[m] s/c Heliocentric Inertial Z'),
+                ('HCIX_VOB', header_results['HCIX_VOB'],
+                 '[m/s] s/c Heliocentric Inertial X Velocity'),
+                ('HCIY_VOB', header_results['HCIY_VOB'],
+                 '[m/s] s/c Heliocentric Inertial Y Velocity'),
+                ('HCIZ_VOB', header_results['HCIZ_VOB'],
+                 '[m/s] s/c Heliocentric Inertial Z Velocity'),
+                ('HAEX_OBS', header_results['HAEX_OBS'],
+                 '[m] s/c Heliocentric Aries Ecliptic X'),
+                ('HAEY_OBS', header_results['HAEY_OBS'],
+                 '[m] s/c Heliocentric Aries Ecliptic Y'),
+                ('HAEZ_OBS', header_results['HAEZ_OBS'],
+                 '[m] s/c Heliocentric Aries Ecliptic Z'),
+                ('HEQX_OBS', header_results['HEQX_OBS'],
+                 '[m] s/c Heliocentric Earth Equatorial X'),
+                ('HEQY_OBS', header_results['HEQY_OBS'],
+                 '[m] s/c Heliocentric Earth Equatorial Y'),
+                ('HEQZ_OBS', header_results['HEQZ_OBS'],
+                 '[m] s/c Heliocentric Earth Equatorial Z'),
+                ('GSEX_OBS', header_results['GSEX_OBS'],
+                 '[m] s/c Geocentric Solar Ecliptic X'),
+                ('GSEY_OBS', header_results['GSEY_OBS'],
+                 '[m] s/c Geocentric Solar Ecliptic Y'),
+                ('GSEZ_OBS', header_results['GSEZ_OBS'],
+                 '[m] s/c Geocentric Solar Ecliptic Y'),
+                ('OBS_VR', header_results['OBS_VR'],
+                 '[m/s] Radial velocity of spacecraft relative to Sun'),
+                ('EAR_TDEL', header_results['EAR_TDEL'],
+                 '[s] Time(Sun to Earth) - Time(Sun to S/C)'),
+                ('SUN_TIME', header_results['SUN_TIME'],
+                 '[s] Time(Sun to s/c)'),
+                ('DATE_EAR', header_results['DATE_EAR'],
+                 'Start time of observation, corrected to Earth'),
+                ('DATE_SUN', header_results['DATE_SUN'],
+                 'Start time of observation, corrected to Sun'),)
 
         return headers
 

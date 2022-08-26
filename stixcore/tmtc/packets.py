@@ -264,10 +264,12 @@ class TMPacket(GenericPacket):
             self.source_packet_header = data.source.source_packet_header
             self.data_header = data.data_header
             self._pi1_val = data.pi1_val
+            self._requestid = data.bsd_requestid
         else:
             super().__init__(data)
             self.data_header = TMDataHeader(self.source_packet_header.bitstream)
             self._pi1_val = False
+            self._requestid = None
 
         self.idb = idb
         if not idb:
@@ -278,6 +280,33 @@ class TMPacket(GenericPacket):
     def key(self):
         key = (self.data_header.service_type, self.data_header.service_subtype, self.pi1_val)
         return key
+
+    @property
+    def bsd_requestid(self):
+        # get cached id
+        if self._requestid is not None:
+            return self._requestid
+
+        if self.data_header.service_type == 21 and self.data_header.service_subtype == 6\
+           and self.pi1_val in [20, 21, 22, 23, 24, 42]:
+            tree = self.idb.get_requestid_structure(self.data_header.service_type,
+                                                    self.data_header.service_subtype,
+                                                    self.pi1_val)
+            # not just SSID old aspect packets without unique request ID fill fall back to
+            # a default file rid=0, psc=0
+            if'NIX00037' in [c.name for c in tree.children]:
+                # just peek the data so set teh position pointer back later
+                current_pos = self.source_packet_header.bitstream.pos
+                data, _ = parse_variable(self.source_packet_header.bitstream, tree)
+                self.source_packet_header.bitstream.pos = current_pos
+                self._requestid = (data.NIX00002.value if hasattr(data, 'NIX00002') else 0,
+                                   data.NIX00037.value if hasattr(data, 'NIX00037') else 0)
+            else:
+                self._requestid = (0, 0)
+
+        else:
+            self._requestid = False
+        return self._requestid
 
     @property
     def pi1_val(self):
@@ -509,7 +538,12 @@ class GenericTMPacket:
                                             self.data_header.service_subtype,
                                             self.pi1_val)
 
-        data, structure = parse_variable(self.source_packet_header.bitstream, tree)
+        try:
+            data, structure = parse_variable(self.source_packet_header.bitstream, tree)
+        except Exception as e:
+            logger.error(f"Packet parsing error: {self}\nidb version:{idb}\npacket data:"
+                         f"{str(self.source_packet_header.bitstream)}")
+            raise e
         self.data = data
         self.tree = structure
         # self.group_repeaters()

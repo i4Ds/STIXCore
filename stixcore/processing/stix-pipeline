@@ -5,6 +5,7 @@ import sys
 import shutil
 import logging
 import argparse
+import warnings
 from enum import Enum
 from pathlib import Path
 from collections import defaultdict
@@ -18,6 +19,9 @@ from stixcore.processing.LBtoL0 import Level0
 from stixcore.processing.TMTCtoLB import process_tmtc_to_levelbinary
 from stixcore.soop.manager import SOOPManager
 from stixcore.tmtc.packets import TMTC
+
+warnings.filterwarnings('ignore', module='astropy.io.fits.card')
+warnings.filterwarnings('ignore', module='astropy.utils.metadata')
 
 
 def clear_dir(dir):

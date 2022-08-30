@@ -15,7 +15,7 @@ def read_elut_index(elut_index):
     elut_it = IntervalTree()
     for i, start, end, file in elut.iterrows():
         date_start = parse(start)
-        date_end = parse(end) if end != 'none' else datetime.now()
+        date_end = parse(end) if end != 'none' else datetime(2100, 1, 1)
         elut_it.addi(date_start, date_end, elut_index.parent / file)
     return elut_it
 

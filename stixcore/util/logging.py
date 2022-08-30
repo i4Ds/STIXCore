@@ -20,13 +20,9 @@ Examples
 
 """
 import logging
-import warnings
 
 STX_LOGGER_FORMAT = '%(asctime)s %(levelname)s %(name)s %(lineno)s: %(message)s'
 STX_LOGGER_DATE_FORMAT = '%Y-%m-%dT%H:%M:%SZ'
-
-warnings.filterwarnings('ignore', module='astropy.io.fits.card')
-warnings.filterwarnings('ignore', module='astropy.utils.metadata')
 
 
 def get_logger(name, level=logging.INFO):

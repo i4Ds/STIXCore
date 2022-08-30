@@ -4,6 +4,7 @@ import time
 import shutil
 import logging
 import smtplib
+import warnings
 import threading
 from queue import Queue
 from pprint import pformat
@@ -28,6 +29,8 @@ __all__ = ['GFTSFileHandler', 'process_tm', 'PipelineErrorReport', 'log_config',
            'log_singletons']
 
 logger = get_logger(__name__)
+warnings.filterwarnings('ignore', module='astropy.io.fits.card')
+warnings.filterwarnings('ignore', module='astropy.utils.metadata')
 
 TM_REGEX = re.compile(r'.*PktTmRaw.*.xml$')
 

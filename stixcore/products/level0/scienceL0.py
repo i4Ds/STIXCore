@@ -343,25 +343,32 @@ class CompressedPixelData(ScienceProduct):
         end = 0
         counts = []
         counts_var = []
-        for nc in tmp['num_data_elements']:
+        pixel_mask_index = -1
+        for i, nc in enumerate(tmp['num_data_elements']):
+            if i % unique_energies_low.size == 0:
+                pixel_mask_index += 1
             end += nc
             cur_counts = counts_flat[start:end].reshape(n_detectors, -1)
             cur_counts_var = counts_var_flat[start:end].reshape(n_detectors, -1)
             if cur_counts.shape[1] != 12:
-                pad = 12 - cur_counts.shape[1]
-                cur_counts = np.pad(cur_counts, ((0, 0), (0, pad)), 'constant', constant_values=(0))
-                cur_counts_var = np.pad(cur_counts_var, ((0, 0), (0, pad)), 'constant',
-                                        constant_values=(0))
-            counts.append(cur_counts)
-            counts_var.append(cur_counts_var)
+                full_counts = np.zeros((n_detectors, 12))
+                full_counts_var = np.zeros((n_detectors, 12))
+                pix_m = data['pixel_masks'][pixel_mask_index].astype(bool)
+                full_counts[:, pix_m] = cur_counts
+                full_counts_var[:, pix_m] = cur_counts_var
+                counts.append(full_counts)
+                counts_var.append(full_counts_var)
+            else:
+                counts.append(cur_counts)
+                counts_var.append(cur_counts_var)
             start = end
 
         counts = np.array(counts).reshape(unique_times.size, unique_energies_low.size,
                                           data['detector_masks'].sum(axis=1).max(),
-                                          data['num_pixel_sets'].max())
+                                          12)
         counts_var = np.array(counts_var).reshape(unique_times.size, unique_energies_low.size,
                                                   data['detector_masks'].sum(axis=1).max(),
-                                                  data['num_pixel_sets'].max())
+                                                  12)
 
         # t x e x d x p -> t x d x p x e
         counts = counts.transpose((0, 2, 3, 1))

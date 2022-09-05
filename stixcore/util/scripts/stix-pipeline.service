@@ -1,0 +1,13 @@
+[Unit]
+Description=Runs the STIX processing pipeline: observing a TM folder for incoming files and processes them automatically.
+
+[Service]
+User=stixcore
+WorkingDirectory=/home/stixcore/STIXCore/
+ExecStart=/home/stixcore/STIXCore/venv/bin/python stixcore/processing/pipeline.py
+Restart=always
+StandardOutput=append:/var/log/stixcore/out.log
+StandardError=append:/var/log/stixcore/error.log
+
+[Install]
+WantedBy=multi-user.target

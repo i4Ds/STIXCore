@@ -832,6 +832,14 @@ class FitsL2Processor(FitsL1Processor):
     def __init__(self, archive_path):
         super().__init__(archive_path)
 
+    def write_fits(self, product):
+        # TODO remove writeout supression of all products but aux files
+        if product.type == 'aux':
+            return super().write_fits(product)
+        else:
+            logger.info(f"no writeout of L2 {product.type}-{product.name} FITS files.")
+            return []
+
     def generate_primary_header(self, filename, product):
         # if product.level != 'L2':
         #    raise ValueError(f"Try to crate FITS file L2 for {product.level} data product")

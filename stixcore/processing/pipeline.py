@@ -122,6 +122,7 @@ class PipelineErrorReport(logging.StreamHandler):
         self.allright = True
         logging.getLogger().addHandler(self)
         logging.getLogger().addHandler(self.fh)
+        log_setup()
 
     def emit(self, record):
         """Called in case of a logging event."""

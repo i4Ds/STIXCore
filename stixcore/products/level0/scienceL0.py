@@ -354,8 +354,19 @@ class CompressedPixelData(ScienceProduct):
                 full_counts = np.zeros((n_detectors, 12))
                 full_counts_var = np.zeros((n_detectors, 12))
                 pix_m = data['pixel_masks'][pixel_mask_index].astype(bool)
-                full_counts[:, pix_m] = cur_counts
-                full_counts_var[:, pix_m] = cur_counts_var
+                # Sometimes the chanage in pixel mask is reflected in the mask before the actual
+                # count data so try the correct pixel mask but if this fails user most recent
+                # matching value
+                try:
+                    full_counts[:, pix_m] = cur_counts
+                    full_counts_var[:, pix_m] = cur_counts_var
+                except ValueError:
+                    last_match_index = np.where(data['pixel_masks'].sum(axis=1)
+                                                == cur_counts.shape[1])
+                    pix_m = data['pixel_masks'][last_match_index[0][-1]].astype(bool)
+                    full_counts[:, pix_m] = cur_counts
+                    full_counts_var[:, pix_m] = cur_counts_var
+
                 counts.append(full_counts)
                 counts_var.append(full_counts_var)
             else:

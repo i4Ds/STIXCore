@@ -1,5 +1,6 @@
 import io
 import re
+import sys
 import time
 import shutil
 import socket
@@ -154,7 +155,8 @@ class PipelineErrorReport(logging.StreamHandler):
         PipelineErrorReport.CURRENT_TM = (None,  datetime.now())
         if not self.allright:
             shutil.copyfile(self.log_file, self.err_file)
-            PipelineErrorReport.LAST_ERROR = (self.tm_file,  datetime.now(), self.error)
+            PipelineErrorReport.LAST_ERROR = (self.tm_file,  datetime.now(),
+                                              self.error, self.err_file)
             if CONFIG.getboolean('Pipeline', 'error_mail_send', fallback=False):
                 try:
                     sender = CONFIG.get('Pipeline', 'error_mail_sender', fallback='')
@@ -301,11 +303,16 @@ class StatusCMD(Enum):
 
 
 def status_server():
-    sock = socket.socket()
-    server_address = ("localhost", CONFIG.getint('Pipeline', 'status_server_port', fallback=12345))
-    sock.bind(server_address)
-    sock.listen(1)
-    logger.info(f"Pipeline Status Server started at {server_address[0]}:{server_address[1]}")
+    try:
+        sock = socket.socket()
+        server_address = ("localhost", CONFIG.getint('Pipeline', 'status_server_port',
+                          fallback=12345))
+        sock.bind(server_address)
+        sock.listen(1)
+        logger.info(f"Pipeline Status Server started at {server_address[0]}:{server_address[1]}")
+    except OSError as e:
+        logger.error(e, stack_info=True)
+        sys.exit()
 
     while True:
         # Wait for a connection

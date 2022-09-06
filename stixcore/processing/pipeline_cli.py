@@ -1,5 +1,3 @@
-#!/usr/bin/env python
-
 import os
 import re
 import sys
@@ -56,7 +54,7 @@ class ProductLevel(Enum):
         return ProductLevel.TM
 
 
-if __name__ == '__main__':
+def main():
 
     parser = argparse.ArgumentParser(description='stix pipeline processing')
 
@@ -274,3 +272,7 @@ if __name__ == '__main__':
         for f in processed_files[le]:
             print(str(f), file=outstream)
     outstream.close()
+
+
+if __name__ == '__main__':
+    main()

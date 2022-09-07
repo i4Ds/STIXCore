@@ -750,7 +750,7 @@ class FitsL1Processor(FitsL0Processor):
             # start_day = np.floor((prod.obs_beg.as_float()
             #                       // (1 * u.day).to('s')).value * SEC_IN_DAY).astype(int)
 
-            parts = [prod.level, prod.utc_timerange.center.strftime('%Y/%m/%d'), prod.type.upper()]
+            parts = [prod.level, prod.utc_timerange.start.strftime('%Y/%m/%d'), prod.type.upper()]
             path = self.archive_path.joinpath(*[str(x) for x in parts])
             path.mkdir(parents=True, exist_ok=True)
 

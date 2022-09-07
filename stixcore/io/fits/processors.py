@@ -750,7 +750,12 @@ class FitsL1Processor(FitsL0Processor):
             # start_day = np.floor((prod.obs_beg.as_float()
             #                       // (1 * u.day).to('s')).value * SEC_IN_DAY).astype(int)
 
-            parts = [prod.level, prod.utc_timerange.start.strftime('%Y/%m/%d'), prod.type.upper()]
+            # user center point for "daily" products avoids issue with file that end/start just over
+            # day boundary
+            parts = [prod.level, prod.utc_timerange.center.strftime('%Y/%m/%d'), prod.type.upper()]
+            # for science data use start date
+            if prod.type == 'sci':
+                parts[1] = prod.utc_timerange.start.strftime('%Y/%m/%d')
             path = self.archive_path.joinpath(*[str(x) for x in parts])
             path.mkdir(parents=True, exist_ok=True)
 

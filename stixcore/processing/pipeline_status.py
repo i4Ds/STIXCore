@@ -50,8 +50,12 @@ def main():
                         help="get the current TM file",
                         const='current', type=str, dest='cmd', nargs="?")
 
-    parser.add_argument("-n", "--next",
+    parser.add_argument("-o", "--open",
                         help="get the number of open TM files",
+                        const="open", type=str, dest='cmd', nargs="?")
+
+    parser.add_argument("-n", "--next",
+                        help="get a list of open TM files",
                         const="next", type=str, dest='cmd', nargs="?")
 
     parser.add_argument("-C", "--config",

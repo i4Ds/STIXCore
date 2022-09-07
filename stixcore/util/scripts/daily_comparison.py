@@ -11,7 +11,7 @@ from stixcore.ephemeris.manager import Spice, SpiceKernelManager
 from stixcore.products.product import Product
 from stixcore.time.datetime import SCETime
 
-if __name__ == '__main__':
+if __name__ == '__main__2':
     pathL0 = Path('/data/stix/out/test/bsdfull/L0')
     pathLB = Path('/data/stix/out/test/bsdfull/LB')
 

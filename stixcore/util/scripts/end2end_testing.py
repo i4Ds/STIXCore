@@ -13,7 +13,7 @@ from stixcore.idb.manager import IDBManager
 from stixcore.io.soc.manager import SOCManager
 from stixcore.processing.L0toL1 import Level1
 from stixcore.processing.LBtoL0 import Level0
-from stixcore.processing.pipeline import log_setup
+from stixcore.processing.pipeline import PipelineStatus
 from stixcore.processing.TMTCtoLB import process_tmtc_to_levelbinary
 from stixcore.products.level0.scienceL0 import ScienceProduct
 from stixcore.products.product import Product
@@ -142,7 +142,7 @@ def end2end_pipeline(indir, fitsdir):
     idbpath = Path(__file__).parent.parent.parent / "data" / "idb"
     IDBManager.instance = IDBManager(idbpath)  # force_version="2.26.35")
 
-    log_setup()
+    PipelineStatus.log_setup()
 
     soc = SOCManager(indir)
     lb_files = process_tmtc_to_levelbinary(soc.get_files(TMTC.TM), archive_path=fitsdir)

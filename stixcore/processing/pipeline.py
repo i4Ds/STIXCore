@@ -1,7 +1,9 @@
 import io
 import re
+import sys
 import time
 import shutil
+import socket
 import logging
 import smtplib
 import warnings
@@ -9,6 +11,7 @@ import threading
 from queue import Queue
 from pprint import pformat
 from pathlib import Path
+from datetime import datetime
 
 from polling2 import poll_decorator
 from watchdog.events import FileSystemEventHandler, LoggingEventHandler
@@ -24,9 +27,9 @@ from stixcore.processing.LBtoL0 import Level0
 from stixcore.processing.TMTCtoLB import process_tmtc_to_levelbinary
 from stixcore.soop.manager import SOOPManager
 from stixcore.util.logging import STX_LOGGER_DATE_FORMAT, STX_LOGGER_FORMAT, get_logger
+from stixcore.util.singleton import Singleton
 
-__all__ = ['GFTSFileHandler', 'process_tm', 'PipelineErrorReport', 'log_config', 'log_setup',
-           'log_singletons']
+__all__ = ['GFTSFileHandler', 'process_tm', 'PipelineErrorReport', 'PipelineStatus']
 
 logger = get_logger(__name__)
 warnings.filterwarnings('ignore', module='astropy.io.fits.card')
@@ -109,6 +112,9 @@ class PipelineErrorReport(logging.StreamHandler):
         logging.StreamHandler.__init__(self)
 
         self.tm_file = tm_file
+
+        PipelineStatus.instance.current_tm = (tm_file, datetime.now())
+
         self.log_dir = Path(CONFIG.get('Pipeline', 'log_dir'))
         self.log_file = self.log_dir / (tm_file.name + ".log")
         self.err_file = self.log_dir / (tm_file.name + ".log.err")
@@ -120,12 +126,15 @@ class PipelineErrorReport(logging.StreamHandler):
 
         self.setLevel(logging.ERROR)
         self.allright = True
+        self.error = None
         logging.getLogger().addHandler(self)
         logging.getLogger().addHandler(self.fh)
+        PipelineStatus.log_setup()
 
     def emit(self, record):
         """Called in case of a logging event."""
         self.allright = False
+        self.error = record
 
     def __enter__(self):
         return self
@@ -134,8 +143,12 @@ class PipelineErrorReport(logging.StreamHandler):
         logging.getLogger().removeHandler(self)
         self.fh.flush()
         logging.getLogger().removeHandler(self.fh)
+        PipelineStatus.instance.last_tm = (self.tm_file,  datetime.now())
+        PipelineStatus.instance.current_tm = (None,  datetime.now())
         if not self.allright:
             shutil.copyfile(self.log_file, self.err_file)
+            PipelineStatus.instance.last_error = (self.tm_file,  datetime.now(),
+                                                  self.error, self.err_file)
             if CONFIG.getboolean('Pipeline', 'error_mail_send', fallback=False):
                 try:
                     sender = CONFIG.get('Pipeline', 'error_mail_sender', fallback='')
@@ -200,38 +213,121 @@ def process_tm(path, **args):
         error_report.log_result([list(lb_files), l0_files, l1_files, l2_files])
 
 
-def log_config(level=logging.INFO):
-    s = io.StringIO()
-    s.write("\nCONFIG\n\n")
-    CONFIG.write(s)
+class PipelineStatus(metaclass=Singleton):
 
-    s.seek(0)
-    logger.log(level, s.read())
+    def __init__(self, tm_handler):
+        self.last_error = (None,  datetime.now())
+        self.last_tm = (None,  datetime.now())
+        self.current_tm = (None,  datetime.now())
+        self.tm_handler = tm_handler
+
+        self.status_server_thread = threading.Thread(target=self.status_server)
+        self.status_server_thread.daemon = True
+        self.status_server_thread.start()
+
+    @staticmethod
+    def get_config():
+        s = io.StringIO()
+        s.write("\nCONFIG\n\n")
+        CONFIG.write(s)
+
+        s.seek(0)
+        return s.read()
+
+    @staticmethod
+    def log_config(level=logging.INFO):
+        logger.log(level, PipelineStatus.get_config())
+
+    @staticmethod
+    def get_singletons():
+        s = io.StringIO()
+        s.write("\nSINGLETONS\n\n")
+        s.write(f"SOOPManager: {SOOPManager.instance.data_root}\n")
+        s.write(f"SPICE: {Spice.instance.meta_kernel_path}\n")
+        s.write(f"IDBManager: {IDBManager.instance.data_root}\n"
+                f"Versions:\n{IDBManager.instance.get_versions()}\n"
+                f"Force version: {IDBManager.instance.force_version}\n"
+                f"History:\n{IDBManager.instance.history}\n")
+        s.seek(0)
+        return s.read()
+
+    @staticmethod
+    def log_singletons(level=logging.INFO):
+        logger.log(level, PipelineStatus.get_singletons())
+
+    @staticmethod
+    def log_setup(level=logging.INFO):
+        PipelineStatus.log_config(level=level)
+        PipelineStatus.log_singletons(level=level)
+
+    @staticmethod
+    def get_setup():
+        return PipelineStatus.get_config() + PipelineStatus.get_singletons()
+
+    def status_next(self):
+        if not self.tm_handler:
+            return "File observer not initialized"
+        return f"open files: {self.tm_handler.queue.qsize()}"
+
+    def status_last(self):
+        return "\n".join([str(p) for p in self.last_tm])
+
+    def status_current(self):
+        return "\n".join([str(p) for p in self.current_tm])
+
+    def status_error(self):
+        return "\n".join([str(p) for p in self.last_error])
+
+    def status_config(self):
+        return PipelineStatus.get_setup()
+
+    def get_status(self, cmd):
+        function = [getattr(self, func) for func in dir(self)
+                    if callable(getattr(self, func)) and func == f"status_{cmd}"]
+
+        if len(function) == 1:
+            return function[0]()
+        else:
+            return f"call cmd {cmd} not found"
+
+    def status_server(self):
+        try:
+            sock = socket.socket()
+            server_address = ("localhost", CONFIG.getint('Pipeline', 'status_server_port',
+                              fallback=12345))
+            sock.bind(server_address)
+            sock.listen(1)
+            logger.info(f"Pipeline Server started at {server_address[0]}:{server_address[1]}")
+        except OSError as e:
+            logger.error(e, stack_info=True)
+            sys.exit()
+
+        while True:
+            # Wait for a connection
+            logger.debug('waiting for a connection')
+            connection, client_address = sock.accept()
+
+            try:
+                logger.debug(f'connection from {client_address}')
+
+                client = connection.makefile("rb")
+                cmd = self.get_status(client.readline().decode().rstrip())
+                client.close()
+                connection.sendall(cmd.encode())
+                connection.sendall(b"\n")
+                connection.sendall(b"")
+
+            finally:
+                # Clean up the connection
+                logger.debug('closing connection')
+                connection.close()
 
 
-def log_singletons(level=logging.INFO):
-    s = io.StringIO()
-    s.write("\nSINGLETONS\n\n")
-    s.write(f"SOOPManager: {SOOPManager.instance.data_root}\n")
-    s.write(f"SPICE: {Spice.instance.meta_kernel_path}\n")
-    s.write(f"IDBManager: {IDBManager.instance.data_root}\n"
-            f"Versions:\n{IDBManager.instance.get_versions()}\n"
-            f"Force version: {IDBManager.instance.force_version}\n"
-            f"History:\n{IDBManager.instance.history}\n")
-    s.seek(0)
-    logger.log(level, s.read())
-
-
-def log_setup(level=logging.INFO):
-    log_config(level=level)
-    log_singletons(level=level)
-
-
-if __name__ == '__main__':
+def main():
     log_dir = Path(CONFIG.get('Pipeline', 'log_dir'))
     log_dir.mkdir(parents=True, exist_ok=True)
 
-    tstart = time.perf_counter()
+    time.perf_counter()
     observer = Observer()
     tmpath = Path(CONFIG.get('Paths', 'tm_archive'))
     soop_path = Path(CONFIG.get('Paths', 'soop_files'))
@@ -250,6 +346,8 @@ if __name__ == '__main__':
     observer.schedule(logging_handler, tmpath,  recursive=True)
     observer.schedule(tm_handler, tmpath, recursive=True)
 
+    PipelineStatus.instance = PipelineStatus(tm_handler)
+
     observer.start()
     try:
         while True:
@@ -257,3 +355,7 @@ if __name__ == '__main__':
     except KeyboardInterrupt:
         observer.stop()
     observer.join()
+
+
+if __name__ == '__main__':
+    main()

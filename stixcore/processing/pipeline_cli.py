@@ -15,7 +15,7 @@ from stixcore.io.soc.manager import SOCManager, SOCPacketFile
 from stixcore.processing.L0toL1 import Level1
 from stixcore.processing.L1toL2 import Level2
 from stixcore.processing.LBtoL0 import Level0
-from stixcore.processing.pipeline import log_setup
+from stixcore.processing.pipeline import PipelineStatus
 from stixcore.processing.TMTCtoLB import process_tmtc_to_levelbinary
 from stixcore.soop.manager import SOOPManager
 from stixcore.tmtc.packets import TMTC
@@ -186,7 +186,7 @@ def main():
     l1_proc = Level1(fitsdir, fitsdir)
     l2_proc = Level2(fitsdir, fitsdir)
 
-    log_setup()
+    PipelineStatus.log_setup()
 
     input_files = list()
 

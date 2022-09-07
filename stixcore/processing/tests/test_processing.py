@@ -20,7 +20,7 @@ from stixcore.io.soc.manager import SOCManager, SOCPacketFile
 from stixcore.processing.L0toL1 import Level1
 from stixcore.processing.L1toL2 import Level2
 from stixcore.processing.LBtoL0 import Level0
-from stixcore.processing.pipeline import process_tm
+from stixcore.processing.pipeline import PipelineStatus, process_tm
 from stixcore.processing.TMTCtoLB import process_tmtc_to_levelbinary
 from stixcore.products.level0.quicklookL0 import LightCurve
 from stixcore.products.product import Product
@@ -286,6 +286,8 @@ def test_pipeline_logging(spicekernelmanager, out_dir):
 
         log_dir = Path(CONFIG.get('Pipeline', 'log_dir'))
         log_dir.mkdir(parents=True, exist_ok=True)
+
+        PipelineStatus.instance = PipelineStatus(None)
 
         for f in test_data.tmtc.XML_TM:
             process_tm(f, spm=spicekernelmanager)

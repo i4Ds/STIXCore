@@ -298,19 +298,25 @@ class CompressedPixelData(ScienceProduct):
         data.add_basic(name='rcr', nix='NIX00401', attr='value', packets=packets, dtype=np.ubyte)
         data.add_basic(name='num_pixel_sets', nix='NIX00442', attr='value', packets=packets,
                        dtype=np.ubyte)
+
         pixel_mask_ints = packets.get_value('NIXD0407')
-        pixel_indices = PIXEL_MASK_LOOKUP[pixel_mask_ints]
-        start = 0
-        end = 0
-        res = []
-        for npx in data['num_pixel_sets']:
-            end += npx
-            cur_pm = pixel_indices[start:end].astype(int).tolist()
-            full_pm = np.full((12), 0, dtype=np.ubyte)
-            full_pm[cur_pm] = 1
-            res.append(full_pm)
-            start = end
-        pixel_masks = np.array(res, dtype=np.uint8)
+        if cls is CompressedPixelData:
+            pixel_indices = PIXEL_MASK_LOOKUP[pixel_mask_ints]
+            start = 0
+            end = 0
+            res = []
+            for npx in data['num_pixel_sets']:
+                end += npx
+                cur_pm = pixel_indices[start:end].astype(int).tolist()
+                full_pm = np.full((12), 0, dtype=np.ubyte)
+                full_pm[cur_pm] = 1
+                res.append(full_pm)
+                start = end
+                pixel_masks = np.array(res, dtype=np.uint8)
+        elif cls is SummedPixelData:
+            pixel_masks = np.array([list(map(int, format(pm, '012b')))[::-1]
+                                    for pm in pixel_mask_ints])
+            pixel_masks = pixel_masks.astype(np.uint8).reshape(-1, data['num_pixel_sets'][0], 12)
         param = packets.get('NIXD0407')[0]
         pixel_meta = {'NIXS': 'NIXD0407', 'PCF_CURTX': param.idb_info.PCF_CURTX}
         data.add_data('pixel_masks', (pixel_masks, pixel_meta))
@@ -338,49 +344,57 @@ class CompressedPixelData(ScienceProduct):
         counts_flat = np.array(packets.get_value('NIX00260'))
         counts_var_flat = np.array(packets.get_value('NIX00260', attr='error'))
 
-        n_detectors = data['detector_masks'][0].sum()
-        start = 0
-        end = 0
-        counts = []
-        counts_var = []
-        pixel_mask_index = -1
-        for i, nc in enumerate(tmp['num_data_elements']):
-            if i % unique_energies_low.size == 0:
-                pixel_mask_index += 1
-            end += nc
-            cur_counts = counts_flat[start:end].reshape(n_detectors, -1)
-            cur_counts_var = counts_var_flat[start:end].reshape(n_detectors, -1)
-            if cur_counts.shape[1] != 12:
-                full_counts = np.zeros((n_detectors, 12))
-                full_counts_var = np.zeros((n_detectors, 12))
-                pix_m = data['pixel_masks'][pixel_mask_index].astype(bool)
-                # Sometimes the chanage in pixel mask is reflected in the mask before the actual
-                # count data so try the correct pixel mask but if this fails user most recent
-                # matching value
-                try:
-                    full_counts[:, pix_m] = cur_counts
-                    full_counts_var[:, pix_m] = cur_counts_var
-                except ValueError:
-                    last_match_index = np.where(data['pixel_masks'].sum(axis=1)
-                                                == cur_counts.shape[1])
-                    pix_m = data['pixel_masks'][last_match_index[0][-1]].astype(bool)
-                    full_counts[:, pix_m] = cur_counts
-                    full_counts_var[:, pix_m] = cur_counts_var
+        if cls is CompressedPixelData:
+            n_detectors = data['detector_masks'][0].sum()
+            start = 0
+            end = 0
+            counts = []
+            counts_var = []
+            pixel_mask_index = -1
+            for i, nc in enumerate(tmp['num_data_elements']):
+                if i % unique_energies_low.size == 0:
+                    pixel_mask_index += 1
+                end += nc
+                cur_counts = counts_flat[start:end].reshape(n_detectors, -1)
+                cur_counts_var = counts_var_flat[start:end].reshape(n_detectors, -1)
+                if cur_counts.shape[1] != 12:
+                    full_counts = np.zeros((n_detectors, 12))
+                    full_counts_var = np.zeros((n_detectors, 12))
+                    pix_m = data['pixel_masks'][pixel_mask_index].astype(bool)
+                    # Sometimes the chanage in pixel mask is reflected in the mask before the actual
+                    # count data so try the correct pixel mask but if this fails user most recent
+                    # matching value
+                    try:
+                        full_counts[:, pix_m] = cur_counts
+                        full_counts_var[:, pix_m] = cur_counts_var
+                    except ValueError:
+                        last_match_index = np.where(data['pixel_masks'].sum(axis=1)
+                                                    == cur_counts.shape[1])
+                        pix_m = data['pixel_masks'][last_match_index[0][-1]].astype(bool)
+                        full_counts[:, pix_m] = cur_counts
+                        full_counts_var[:, pix_m] = cur_counts_var
 
-                counts.append(full_counts)
-                counts_var.append(full_counts_var)
-            else:
-                counts.append(cur_counts)
-                counts_var.append(cur_counts_var)
-            start = end
+                    counts.append(full_counts)
+                    counts_var.append(full_counts_var)
+                else:
+                    counts.append(cur_counts)
+                    counts_var.append(cur_counts_var)
+                start = end
 
-        counts = np.array(counts).reshape(unique_times.size, unique_energies_low.size,
-                                          data['detector_masks'].sum(axis=1).max(),
-                                          12)
-        counts_var = np.array(counts_var).reshape(unique_times.size, unique_energies_low.size,
-                                                  data['detector_masks'].sum(axis=1).max(),
-                                                  12)
+            counts = np.array(counts).reshape(unique_times.size, unique_energies_low.size,
+                                              data['detector_masks'].sum(axis=1).max(),
+                                              12)
+            counts_var = np.array(counts_var).reshape(unique_times.size, unique_energies_low.size,
+                                                      data['detector_masks'].sum(axis=1).max(),
+                                                      12)
+        elif cls is SummedPixelData:
+            counts = counts_flat.reshape(unique_times.size, unique_energies_low.size,
+                                         data['detector_masks'].sum(axis=1).max(),
+                                         data['num_pixel_sets'][0].sum())
 
+            counts_var = counts_var_flat.reshape(unique_times.size, unique_energies_low.size,
+                                                 data['detector_masks'].sum(axis=1).max(),
+                                                 data['num_pixel_sets'][0].sum())
         # t x e x d x p -> t x d x p x e
         counts = counts.transpose((0, 2, 3, 1))
 
@@ -431,8 +445,14 @@ class CompressedPixelData(ScienceProduct):
             energy_indices = np.full(32, True)
             energy_indices[[0, -1]] = False
 
-            ix = np.ix_(np.full(unique_times.size, True), data['detector_masks'][0].astype(bool),
-                        np.ones(12, dtype=bool), np.full(32, True))
+            if cls is CompressedPixelData:
+                ix = np.ix_(np.full(unique_times.size, True),
+                            data['detector_masks'][0].astype(bool),
+                            np.ones(12, dtype=bool), np.full(32, True))
+            elif cls is SummedPixelData:
+                ix = np.ix_(np.full(unique_times.size, True),
+                            data['detector_masks'][0].astype(bool),
+                            np.ones(4, dtype=bool), np.full(32, True))
 
             out_counts[ix] = rebinned_counts
             out_var[ix] = rebinned_counts_var
@@ -440,9 +460,14 @@ class CompressedPixelData(ScienceProduct):
             energy_indices = np.full(32, False)
             energy_indices[unique_energies_low.min():unique_energies_high.max() + 1] = True
 
-            ix = np.ix_(np.full(unique_times.size, True),
-                        data['detector_masks'][0].astype(bool),
-                        np.ones(12, dtype=bool), energy_indices)
+            if cls is CompressedPixelData:
+                ix = np.ix_(np.full(unique_times.size, True),
+                            data['detector_masks'][0].astype(bool),
+                            np.ones(12, dtype=bool), energy_indices)
+            elif cls is SummedPixelData:
+                ix = np.ix_(np.full(unique_times.size, True),
+                            data['detector_masks'][0].astype(bool),
+                            np.ones(4, dtype=bool), energy_indices)
 
             out_counts[ix] = counts
             out_var[ix] = counts_var

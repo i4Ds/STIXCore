@@ -74,7 +74,7 @@ IDL - Interactive Data Language
 
 needs to be installed and licensed avaialable for all users.
 
-In case of probles like: 'CLLFloatingLicenseInitialize failed to start the license thread' see here: https://www.l3harrisgeospatial.com/Support/Self-Help-Tools/Help-Articles/Help-Articles-Detail/ArtMID/10220/ArticleID/24045/How-to-resolve-error-%E2%80%9CCLLFloatingLicenseInitialize-failed-to-start-the-license-thread%E2%80%9D (the latest option is doing the trick)
+In case of probles like: 'CLLFloatingLicenseInitialize failed to start the license thread' see here: https://www.l3harrisgeospatial.com/Support/Self-Help-Tools/Help-Articles/Help-Articles-Detail/ArtMID/10220/ArticleID/24045/How-to-resolve-error-%E2%80%9CCLLFloatingLicenseInitialize-failed-to-start-the-license-thread%E2%80%9D (the last option is doing the trick)
 
 https://github.com/i4Ds/STIX-GSW should be local avaialable (gsw_path) and always use 'master'
 

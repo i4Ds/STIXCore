@@ -28,24 +28,28 @@ Locations
     `/opt/stixcore` :
     `/opt/STIX-GSW` : stix idl processing library: https://github.com/i4Ds/STIX-GSW
     `/usr/local/ssw` : IDL SolarSoft: https://www.lmsal.com/solarsoft/ssw_setup.html
-    `/home/stixcore/astrolib` : GDL astrolib
-    `/home/stixcore/.gdl/gdl-startup.pro`: GDL startup script with path to SSW, STIX-GSW, astrolib and homedir `/home/stixcore/`
 
-Sync with SOC
+
+Sync TM files
 -------------
 
-SOC TM data is synced from pub026 via rsync by cron every 10min.
+SOLMOC TM data is synced from pub026 via rsync by cron every 15min.
 
 `crontab -e`
 
-`*/10 * * * * rsync -av stixcore@147.86.8.26:/home/solmoc/from_moc/*  /data/stix/SOC/incoming/ --exclude-from="/data/stix/SOC/processed_files.txt"`
+`*/15 * * * * rsync -av stixcore@147.86.8.26:'/home/solmoc/from_edds/tm/*PktTmRaw*.xml' /data/stix/SOLSOC/from_edds/tm/incomming > /dev/null`
 
-allready procced files should by appended to `/data/stix/SOC/processed_files.txt` and can then be removed from the `/incoming` folder.
+The very latest SPICE kernels are required for accurate pointing information of the statelite.
+We may receive TM files via GFTS that contain data for times that are not available in the latest SPICE kernels, as the latest SPICE kernels have not yet been updated and delivered.
+Therefore, a stage and delay step is added via cron (every 30 min) that only publishes files older than 2 days (TBC) for processing by the automated pipeline.
 
-Sync SPICE kernels
-------------------
+`*/30 * * * * find /data/stix/SOLSOC/from_edds/tm/incomming/ -type f -mtime +2 -exec rsync -a {} /data/stix/SOLSOC/from_edds/tm/processing/ \;`
 
-Spice kernels are syned from GFTS / pub026 via rsync by cron every 15min.
+
+Sync SPICE kernels and SOOP data
+--------------------------------
+
+Spice kernels and SOOP data are syned from GFTS / pub026 via rsync by cron every 15min.
 
 `rsync -av stixcore@147.86.8.26:/home/solsoc/from_soc /data/stix/SOLSOC/`
 
@@ -111,3 +115,7 @@ SETUP - Pipeline as systemd service
 7: To disable the service on every reboot
 
 `sudo systemctl disable stix-pipeline.service`
+
+8: to get/request detailed processing data of the running service you can use a local endpoint
+
+`(venv) stixcore@pub099:~/STIXCore$ stix-pipeline-status -h`

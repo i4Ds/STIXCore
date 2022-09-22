@@ -1,4 +1,5 @@
 import io
+import os
 import re
 import sys
 import time
@@ -49,7 +50,7 @@ class GFTSFileHandler(FileSystemEventHandler):
     the file back to the original name `myfile.xml`. Can detect file move event that match the TM
     filename pattern.
     """
-    def __init__(self, func, regex, name="name", **args):
+    def __init__(self, func, regex, *, name="name", **args):
         """
 
         Parameters
@@ -72,6 +73,11 @@ class GFTSFileHandler(FileSystemEventHandler):
         self.name = name
         self.lp = threading.Thread(target=self.process)
         self.lp.start()
+
+    def add_to_queue(self, initlist):
+        if initlist:
+            for p in initlist:
+                self.queue.put(p)
 
     @poll_decorator(step=1, poll_forever=True)
     def process(self):
@@ -323,11 +329,25 @@ class PipelineStatus(metaclass=Singleton):
                 connection.close()
 
 
+def search_unprocessed_tm_files(logging_dir, tm_dir):
+
+    unprocessed_tm_files = list()
+    list_of_log_files = logging_dir.glob('*.out')
+    latest_log_file = max(list_of_log_files, key=os.path.getmtime)
+    print(f"{latest_log_file}: {latest_log_file.stat().st_mtime}")
+    tm_file = Path(tm_dir / str(latest_log_file.name)[0:-4])
+    if tm_file.exists():
+        ftime = tm_file.stat().st_mtime
+        for tmf in tm_dir.glob("*.xml"):
+            if TM_REGEX.match(tmf.name) and tmf.stat().st_mtime > ftime:
+                unprocessed_tm_files.append(tmf)
+    return unprocessed_tm_files
+
+
 def main():
     log_dir = Path(CONFIG.get('Pipeline', 'log_dir'))
     log_dir.mkdir(parents=True, exist_ok=True)
 
-    time.perf_counter()
     observer = Observer()
     tmpath = Path(CONFIG.get('Paths', 'tm_archive'))
     soop_path = Path(CONFIG.get('Paths', 'soop_files'))
@@ -335,18 +355,27 @@ def main():
     Spice.instance = Spice(spm.get_latest_mk())
 
     logging_handler = LoggingEventHandler(logger=logger)
-    tm_handler = GFTSFileHandler(process_tm, TM_REGEX, name="tm_xml", spm=spm)
 
     soop_manager = SOOPManager(soop_path)
     soop_handler = GFTSFileHandler(soop_manager.add_soop_file_to_index,
                                    SOOPManager.SOOP_FILE_REGEX, name="soop")
     SOOPManager.instance = soop_manager
 
+    tm_handler = GFTSFileHandler(process_tm, TM_REGEX, name="tm_xml", spm=spm)
+    PipelineStatus.instance = PipelineStatus(tm_handler)
+    if CONFIG.getboolean('Pipeline', 'start_with_unprocessed', fallback=True):
+        logger.info("Searching for unprocessed tm files")
+        unprocessed_tm_files = search_unprocessed_tm_files(log_dir, tmpath)
+        if unprocessed_tm_files:
+            fl = '\n    '.join([f.name for f in unprocessed_tm_files])
+            logger.info(f"Found unprocessed tm files: \n    {fl}\nadding to queue.")
+            tm_handler.add_to_queue(unprocessed_tm_files)
+    else:
+        logger.info("Skipping search for unprocessed tm files")
+
     observer.schedule(soop_handler, soop_manager.data_root,  recursive=False)
     observer.schedule(logging_handler, tmpath,  recursive=True)
     observer.schedule(tm_handler, tmpath, recursive=True)
-
-    PipelineStatus.instance = PipelineStatus(tm_handler)
 
     observer.start()
     try:

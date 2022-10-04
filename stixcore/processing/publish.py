@@ -192,9 +192,17 @@ def publish_fits_to_esa(args):
                         help="how long to wait after last file modification before publishing",
                         default=CONFIG.get('Publish', 'waiting_period', fallback="14d"), type=str)
 
-    parser.add_argument("-i", "--include_levels",
+    parser.add_argument("-v", "--include_versions",
+                        help="what versions should be published",
+                        default=CONFIG.get('Publish', 'include_versions', fallback="*"), type=str)
+
+    parser.add_argument("-l", "--include_levels",
                         help="what levels should be published", type=str,
                         default=CONFIG.get('Publish', 'include_levels', fallback="L0, L1, L2"))
+
+    parser.add_argument("-p", "--include_products",
+                        help="what products should be published", fallback="ql, hk, sci, aux",
+                        default=CONFIG.get('Publish', 'include_products', type=str))
 
     parser.add_argument("-f", "--fits_dir",
                         help="input FITS directory for files to publish ",
@@ -219,6 +227,21 @@ def publish_fits_to_esa(args):
     include_levels = dict([(level, 1) for level in
                            args.include_levels.lower().replace(" ", "").split(",")])
 
+    if args.include_versions == "*":
+        include_all_versions = True
+    else:
+        include_all_versions = False
+        include_versions = dict([(int(version), 1) for version in
+                                 args.include_versions.lower().replace(" ", "")
+                                 .replace("v", "").split(",")])
+
+    if args.include_products == "*":
+        include_all_products = True
+    else:
+        include_all_products = False
+        include_products = dict([(prod, 1) for prod in
+                                 args.include_products.lower().replace(" ", "").split(",")])
+
     candidateds = fits_dir.rglob("solo_*.fits")
     to_publish = list()
     now = datetime.now().timestamp()
@@ -227,10 +250,12 @@ def publish_fits_to_esa(args):
     for c in candidateds:
         parts = c.name[:-5].split('_')
         level = parts[1].lower()
-        # TODO filter for certain products similar like level
-        # product = str(parts[2].lower().replace("stix-", ""))
-        # TODO filter for certain versions similar like level
-        # version = int(parts[4].lower().replace("v", ""))
+
+        if not include_all_versions:
+            version = int(parts[4].lower().replace("v", ""))
+            if version not in include_versions:
+                continue
+
         last_mod = c.stat().st_mtime
 
         # should the level by published
@@ -240,6 +265,11 @@ def publish_fits_to_esa(args):
         # is the waiting time after last modification done
         if (now - last_mod) < wait_period_s:
             continue
+
+        if not include_all_products:
+            product = str(parts[2].lower().split("-")[1])
+            if product not in include_products:
+                continue
 
         old = hist.find_by_name(c.name)
 

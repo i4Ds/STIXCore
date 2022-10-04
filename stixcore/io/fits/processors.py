@@ -94,7 +94,7 @@ class FitsProcessor:
                f'_{date_range}_V{version:02d}{status}{user_req}{tc_control}.fits'
 
     @classmethod
-    def generate_common_header(cls, filename, product):
+    def generate_common_header(cls, filename, product, *, version=1):
         headers = (
             # Name, Value, Comment
             ('FILENAME', filename, 'FITS filename'),
@@ -109,7 +109,7 @@ class FitsProcessor:
             ('CREATOR', 'stixcore', 'FITS creation software'),
             ('VERS_SW', str(stixcore.__version__), 'Version of SW that provided FITS file'),
             # ('VERS_CAL', '', 'Version of the calibration pack'),
-            ('VERSION', '01', 'Version of data product'),
+            ('VERSION', f'{version:02d}', 'Version of data product'),
             ('OBSRVTRY', 'Solar Orbiter', 'Satellite name'),
             ('TELESCOP', 'SOLO/STIX', 'Telescope/Sensor name'),
             ('INSTRUME', 'STIX', 'Instrument name'),
@@ -344,7 +344,7 @@ class FitsLBProcessor(FitsProcessor):
                f'_{scet_obs}_V{version:02d}{status}{addon}.fits'
 
     @classmethod
-    def generate_primary_header(cls, filename, product):
+    def generate_primary_header(cls, filename, product, *, version=1):
         """
         Generate primary header cards.
         Parameters
@@ -363,7 +363,7 @@ class FitsLBProcessor(FitsProcessor):
         # if 'scet_coarse' not in product.control:
         #     raise ValueError("Expected scet_coarse in the control structure")
 
-        headers = FitsProcessor.generate_common_header(filename, product) + (
+        headers = FitsProcessor.generate_common_header(filename, product, version=version) + (
             # Name, Value, Comment
             ('OBT_BEG', product.obt_beg.to_string(), 'Start of acquisition time in OBT'),
             ('OBT_END', product.obt_end.to_string(), 'End of acquisition time in OBT'),
@@ -375,7 +375,7 @@ class FitsLBProcessor(FitsProcessor):
         )
         return headers
 
-    def write_fits(self, product):
+    def write_fits(self, product, *, version=1):
         """Write or merge the product data into a FITS file.
         Parameters
         ----------
@@ -388,7 +388,7 @@ class FitsLBProcessor(FitsProcessor):
         """
         files = []
         for prod in product.to_files():
-            filename = self.generate_filename(prod, version=1)
+            filename = self.generate_filename(prod, version=version)
             parts = [prod.level, prod.service_type, prod.service_subtype, prod.ssid]
             if prod.ssid is None:
                 parts = parts[:-1]
@@ -450,7 +450,7 @@ class FitsL0Processor:
         """
         self.archive_path = archive_path
 
-    def write_fits(self, product, path=None):
+    def write_fits(self, product, path=None, *, version=1):
         """
         Write level 0 products into fits files.
 
@@ -466,7 +466,7 @@ class FitsL0Processor:
         """
         created_files = []
         for prod in product.split_to_files():
-            filename = self.generate_filename(product=prod, version=1)
+            filename = self.generate_filename(product=prod, version=version)
             # start_day = np.floor((prod.obs_beg.as_float()
             #                       // (1 * u.day).to('s')).value * SEC_IN_DAY).astype(int)
             parts = [prod.level, prod.service_type, prod.service_subtype]
@@ -495,7 +495,7 @@ class FitsL0Processor:
                                   for version, range in prod.idb_versions.items()],
                                   names=["version", "obt_start", "obt_end"])
 
-            primary_header = self.generate_primary_header(filename, prod)
+            primary_header = self.generate_primary_header(filename, prod, version=version)
             primary_hdu = fits.PrimaryHDU()
             primary_hdu.header.update(primary_header)
             primary_hdu.header.update({'HISTORY': 'Processed by STIX'})
@@ -608,7 +608,7 @@ class FitsL0Processor:
                                                date_range=date_range, status=status)
 
     @classmethod
-    def generate_primary_header(cls, filename, product):
+    def generate_primary_header(cls, filename, product, *, version=1):
         """
         Generate primary header cards.
 
@@ -634,7 +634,7 @@ class FitsL0Processor:
             dmin = product.data['counts'].min().value
             bunit = 'counts'
 
-        headers = FitsProcessor.generate_common_header(filename, product) + (
+        headers = FitsProcessor.generate_common_header(filename, product, version=version) + (
             # Name, Value, Comment
             # ('MJDREF', product.obs_beg.mjd),
             # ('DATEREF', product.obs_beg.fits),
@@ -660,7 +660,7 @@ class FitsL1Processor(FitsL0Processor):
         self.archive_path = archive_path
 
     @classmethod
-    def generate_filename(cls, product, *, version, status=''):
+    def generate_filename(cls, product, *, version=1, status=''):
 
         date_range = f'{product.utc_timerange.start.strftime("%Y%m%dT%H%M%S")}-' +\
                      f'{product.utc_timerange.end.strftime("%Y%m%dT%H%M%S")}'
@@ -670,11 +670,11 @@ class FitsL1Processor(FitsL0Processor):
         return FitsProcessor.generate_filename(product, version=version, date_range=date_range,
                                                status=status)
 
-    def generate_primary_header(self, filename, product):
+    def generate_primary_header(self, filename, product, *, version=1):
         # if product.level != 'L1':
         #    raise ValueError(f"Try to crate FITS file L1 for {product.level} data product")
 
-        headers = FitsProcessor.generate_common_header(filename, product)
+        headers = FitsProcessor.generate_common_header(filename, product, version=version)
 
         dmin = 0.0
         dmax = 0.0
@@ -730,7 +730,7 @@ class FitsL1Processor(FitsL0Processor):
 
         return headers + data_headers + soop_headers + time_headers, ephemeris_headers
 
-    def write_fits(self, product):
+    def write_fits(self, product, *, version=1):
         """
         Write level 0 products into fits files.
 
@@ -746,7 +746,7 @@ class FitsL1Processor(FitsL0Processor):
         """
         created_files = []
         for prod in product.split_to_files():
-            filename = self.generate_filename(product=prod, version=1)
+            filename = self.generate_filename(product=prod, version=version)
             # start_day = np.floor((prod.obs_beg.as_float()
             #                       // (1 * u.day).to('s')).value * SEC_IN_DAY).astype(int)
 
@@ -779,7 +779,8 @@ class FitsL1Processor(FitsL0Processor):
                                   for version, range in prod.idb_versions.items()],
                                   names=["version", "obt_start", "obt_end"])
 
-            primary_header, header_override = self.generate_primary_header(filename, prod)
+            primary_header, header_override = self.generate_primary_header(filename, prod,
+                                                                           version=version)
             primary_hdu = fits.PrimaryHDU()
             primary_hdu.header.update(primary_header)
             primary_hdu.header.update(header_override)
@@ -837,20 +838,20 @@ class FitsL2Processor(FitsL1Processor):
     def __init__(self, archive_path):
         super().__init__(archive_path)
 
-    def write_fits(self, product):
+    def write_fits(self, product, *, version=1):
         # TODO remove writeout supression of all products but aux files
         if product.type == 'aux':
-            return super().write_fits(product)
+            return super().write_fits(product, version=version)
         else:
             logger.info(f"no writeout of L2 {product.type}-{product.name} FITS files.")
             return []
 
-    def generate_primary_header(self, filename, product):
+    def generate_primary_header(self, filename, product, *, version=1):
         # if product.level != 'L2':
         #    raise ValueError(f"Try to crate FITS file L2 for {product.level} data product")
 
         if product.fits_header is None:
-            L1, o = super().generate_primary_header(filename, product)
+            L1, o = super().generate_primary_header(filename, product, version=version)
             L1headers = L1 + o
         else:
             L1headers = product.fits_header.items()

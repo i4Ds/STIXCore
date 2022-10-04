@@ -7,9 +7,35 @@ import numpy as np
 from astropy.io import ascii
 from astropy.table import QTable
 
+from stixcore.config.config import CONFIG
 from stixcore.ephemeris.manager import Spice, SpiceKernelManager
 from stixcore.products.product import Product
 from stixcore.time.datetime import SCETime
+
+if __name__ == '__main__':
+
+    spm = SpiceKernelManager(Path(CONFIG.get("Paths", "spice_kernels")))
+    Spice.instance = Spice(spm.get_latest_mk())
+
+    r1 = Path('/data/stix/out/fits/L1/2022/01/24/SCI/solo_L1_stix-sci-xray-spec_20220124T120004-20220124T180507_V01_2201240033-59166.fits')  # noqa
+    r2 = Path('/data/stix/out/fits/L1/2022/01/24/SCI/solo_L1_stix-sci-xray-spec_20220124T120004-20220124T180507_V01_2201249786-60605.fits')  # noqa
+
+    p1_l1 = Product(r1)
+    p2_l1 = Product(r2)
+
+    p1_l0 = p1_l1.find_parent_products('/data/stix/out/fits')[0]
+    p2_l0 = p2_l1.find_parent_products('/data/stix/out/fits')[0]
+
+    p1_lb = p1_l0.find_parent_products('/data/stix/out/fits')[0]
+    p2_lb = p2_l0.find_parent_products('/data/stix/out/fits')[0]
+
+    p1_lb_f = p1_l0.find_parent_files('/data/stix/out/fits')[0]
+    p2_lb_f = p2_l0.find_parent_files('/data/stix/out/fits')[0]
+
+    p1_tm_files = p1_lb.raw
+    p2_tm_files = p2_lb.raw
+
+    print("done")
 
 if __name__ == '__main__2':
     pathL0 = Path('/data/stix/out/test/bsdfull/L0')

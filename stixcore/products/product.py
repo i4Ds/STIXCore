@@ -1,4 +1,5 @@
 from pathlib import Path
+from datetime import datetime, timezone
 from itertools import chain
 
 import numpy as np
@@ -38,6 +39,7 @@ BITS_TO_UINT = {
     32: np.uint32,
     64: np.uint64
 }
+DURATION_FIX_DATE = datetime(2021, 12, 9, 13, 0, tzinfo=timezone.utc)
 
 
 def read_qtable(file, hdu, hdul=None):
@@ -705,6 +707,38 @@ class L1Mixin(FitsHeaderMixin):
                  control=l0product.control,
                  data=l0product.data,
                  idb_versions=l0product.idb_versions)
+
+        # Time and count arrays were off by one so need to shift before FSW version
+        # https://github.com/i4Ds/STIXCore/issues/286
+        idbs = sorted([tuple(map(int, k.split('.'))) for k in l0product.idb_versions.keys()])
+        if len(idbs) > 1:
+            raise ValueError('More than one IDB found in BSD product')
+
+        # Check if min time
+        if idbs[0] < (2, 26, 36):
+            if (l1.utc_timerange.start.datetime < datetime(2021, 9, 6, 13)
+                and l1.data['timedel'].as_float().min() == 1*u.s) or \
+                    (l1.utc_timerange.start.datetime >= datetime(2021, 9, 6, 13)
+                     and l1.data['timedel'].as_float().min() == 0.5*u.s):
+                # 2.26.36 version of FSW problem was fixed in
+                correct_counts = l1.data['counts'][1:, :]
+                correct_count_errs = l1.data['counts_err'][1:, :]
+                correct_triggers = l1.data['triggers'][1:, :]
+                correct_trigger_errs = l1.data['triggers_err'][1:, :]
+                correct_times = l1.data['timedel'][1:]
+                correct_durations = l1.data['timedel'][1:]
+                correct_rcr = l1.data['rcr'][1:]
+                l1.data = l1.data[0:-1]
+                l1.data['counts'] = correct_counts
+                l1.data['counts_err'] = correct_count_errs
+                l1.data['triggers'] = correct_triggers
+                l1.data['triggers_err'] = correct_trigger_errs
+                l1.data['time'] = correct_times
+                l1.data['timedel'] = correct_durations
+                l1.data['rcr'] = correct_rcr
+            else:
+                # do some thing
+                pass
 
         l1.control.replace_column('parent', [parent] * len(l1.control))
         l1.level = 'L1'

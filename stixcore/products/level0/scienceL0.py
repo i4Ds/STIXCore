@@ -27,7 +27,7 @@ ENERGY_CHANNELS = read_energy_channels(Path(__file__).parent.parent.parent / "co
 __all__ = ['ScienceProduct', 'RawPixelData', 'CompressedPixelData', 'SummedPixelData',
            'Visibility', 'Spectrogram', 'Aspect']
 
-SUM_DMASK_SCET_COARSE_RANGE = range(659318490, 668863556)
+SUM_DMASK_SCET_COARSE_RANGE = (659318490, 668863556)
 PIXEL_MASK_LOOKUP = np.zeros(2049)
 PIXEL_MASK_LOOKUP[[int(2**i) for i in range(12)]] = np.arange(0, 12, dtype=int)
 
@@ -51,7 +51,8 @@ def fix_detector_mask(control, detector_mask):
     -------
     Update detector mask
     """
-    if control['time_stamp'].coarse not in SUM_DMASK_SCET_COARSE_RANGE:
+    if not np.any((control['time_stamp'].coarse >= SUM_DMASK_SCET_COARSE_RANGE[0])
+                  & (control['time_stamp'].coarse <= SUM_DMASK_SCET_COARSE_RANGE[1])):
         return detector_mask
     else:
         logger.info('Fixing detector mask for SumDmask misconfiguration')

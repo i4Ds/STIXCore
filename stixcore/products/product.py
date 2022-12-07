@@ -673,12 +673,13 @@ class EnergyChannelsMixin:
         tuple
             Lower and high energy edges
         """
+        date = SCETime(self.control['scet_coarse'][0], 0).to_datetime()
         if 'energy_bin_edge_mask' in self.control.colnames:
-            low, high = _get_energies_from_mask(self.control['energy_bin_edge_mask'][0])
+            low, high = _get_energies_from_mask(date, self.control['energy_bin_edge_mask'][0])
         # elif 'energy_bin_mask' in self.control.colnames:
         #     energies = _get_energies_from_mask(self.control['energy_bin_mask'][0])
         else:
-            low, high = _get_energies_from_mask()
+            low, high = _get_energies_from_mask(date)
 
         return low * u.keV, high * u.keV, range(len(low))
 

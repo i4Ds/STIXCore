@@ -2,7 +2,7 @@ from pathlib import Path
 
 import numpy as np
 
-from stixcore.config.reader import read_energy_channels
+from stixcore.config.reader import get_sci_channels, read_energy_channels
 from stixcore.util.logging import get_logger
 
 __all__ = ['ENERGY_CHANNELS', '_get_compression_scheme', '_get_energy_bins', '_get_detector_mask',
@@ -181,7 +181,7 @@ def _get_sub_spectrum_mask(packets):
     return sub_spectrum_masks, meta
 
 
-def _get_energies_from_mask(mask=None):
+def _get_energies_from_mask(date, mask=None):
     """
     Return energy channels for
     Parameters
@@ -194,10 +194,13 @@ def _get_energies_from_mask(mask=None):
     tuple
         Lower and high energy edges
     """
+    sci_energy_channels = get_sci_channels(date.replace(tzinfo=None))
+    e_lower = sci_energy_channels['Elower'].filled(np.nan).value
+    e_upper = sci_energy_channels['Eupper'].filled(np.nan).value
 
     if mask is None:
-        low = [ENERGY_CHANNELS[edge].e_lower for edge in range(32)]
-        high = [ENERGY_CHANNELS[edge].e_upper for edge in range(32)]
+        low = [e_lower[edge] for edge in range(32)]
+        high = [e_upper[edge] for edge in range(32)]
     elif len(mask) == 33:
         edges = np.where(np.array(mask) == 1)[0]
         channel_edges = [edges[i:i + 2].tolist() for i in range(len(edges) - 1)]
@@ -205,14 +208,14 @@ def _get_energies_from_mask(mask=None):
         high = []
         for edge in channel_edges:
             l, h = edge
-            low.append(ENERGY_CHANNELS[l].e_lower)
-            high.append(ENERGY_CHANNELS[h - 1].e_upper)
+            low.append(e_lower[l])
+            high.append(e_upper[h - 1])
     elif len(mask) == 32:
         edges = np.where(np.array(mask) == 1)
         low_ind = np.min(edges)
         high_ind = np.max(edges)
-        low = [ENERGY_CHANNELS[i].e_lower for i in range(low_ind, high_ind+1)]
-        high = [ENERGY_CHANNELS[i].e_upper for i in range(low_ind, high_ind+1)]
+        low = [e_lower[i] for i in range(low_ind, high_ind+1)]
+        high = [e_upper[i] for i in range(low_ind, high_ind+1)]
     else:
         raise ValueError(f'Energy mask or edges must have a length of 32 or 33 not {len(mask)}')
 

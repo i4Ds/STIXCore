@@ -10,7 +10,7 @@ resources:
   repositories:
   - repository: OpenAstronomy
     type: github
-    endpoint: i4Ds
+    endpoint: samaloney
     name: OpenAstronomy/azure-pipelines-templates
     ref: master
 

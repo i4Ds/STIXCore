@@ -408,8 +408,8 @@ class SCETime(SCETBase):
 
     @classmethod
     def from_btime(cls, btime):
-        coarse = btime >> np.int(16)
-        fine = btime - (coarse << np.int(16))
+        coarse = btime >> 16
+        fine = btime - (coarse << 16)
         return SCETime(coarse=coarse, fine=fine)
 
     @classmethod

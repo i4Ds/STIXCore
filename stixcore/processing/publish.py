@@ -399,7 +399,7 @@ def publish_fits_to_esa(args):
                 c_entry = f"BSD request id: '{rid}' reason: '{reason}'"
                 fits.setval(p, "COMMENT", value=c_entry)
         except Exception as e:
-            logger.error(e, exc_info=True)
+            logger.info(e, exc_info=True)
             logger.info("no BSD request comment added")
 
     def addHistory(p, name):
@@ -423,7 +423,7 @@ def publish_fits_to_esa(args):
         converters = {'_id': np.uint, 'unique_id': np.uint, 'start_utc': datetime,
                       'duration': np.uint, 'type': str, 'description': str}
         if update or not file.exists():
-            rid_lut = Table()
+            rid_lut = Table(names=converters.keys(), dtype=converters.values())
             last_date = date(2018, 1, 1)
             today = date.today()
             if file.exists():
@@ -455,6 +455,7 @@ def publish_fits_to_esa(args):
             ascii.write(rid_lut, file, overwrite=True, delimiter=",")
             logger.info(f'write total {len(rid_lut)} entries to local storage')
         else:
+            logger.warn("read lut")
             rid_lut = ascii.read(args.rid_lut_file, delimiter=",", converters=converters)
 
         rid_lut['description'] = rid_lut['description'].filled()

@@ -169,7 +169,7 @@ if __name__ == '__main__':
                             level=logging.INFO)
 
         rebuild_end2end(files, splits=1, outdir=datapath,
-                        socdir=Path("/data/stix/SOLSOC/from_edds/tm/"))
+                        socdir=Path("/data/stix/SOLSOC/from_edds/tm/incomming/"))
 
         if zippath.parent.exists() and datapath.exists():
             zipcmd = f"zip -r -j - {str(datapath)} > {str(zippath)}"

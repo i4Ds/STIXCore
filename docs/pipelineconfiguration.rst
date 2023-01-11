@@ -120,13 +120,13 @@ SETUP - Pipeline as systemd service
 
 `(venv) stixcore@pub099:~/STIXCore$ stix-pipeline-status -h`
 
-Sartup Behaviour
-^^^^^^^^^^^^^^^^
+Startup Behaviour
+^^^^^^^^^^^^^^^^^
 
 By default the service starts (restart after booting/error) with a search for unprocessed TM files.
 This can be disabled with the config `start_with_unprocessed` parameter.
 
-You might toggle the parameter only for manualy restarting the service after you have (re)processed some/all TM data in a batch mode. This would allow for a transition from reprocess all at obe to daly mode again.
+You might toggle the parameter only for manually restarting the service after you have (re)processed some/all TM data in a batch mode. This would allow for a transition from reprocess all at one to daily mode again.
 
 ```
 [Pipeline]

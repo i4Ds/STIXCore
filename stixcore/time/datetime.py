@@ -408,8 +408,8 @@ class SCETime(SCETBase):
 
     @classmethod
     def from_btime(cls, btime):
-        coarse = btime >> np.int(16)
-        fine = btime - (coarse << np.int(16))
+        coarse = btime >> 16
+        fine = btime - (coarse << 16)
         return SCETime(coarse=coarse, fine=fine)
 
     @classmethod
@@ -594,8 +594,8 @@ class SCETimeDelta(SCETBase):
         neg_idx = np.where(btime < 0)
         btime[neg_idx] = abs(btime[neg_idx])
 
-        coarse = btime >> np.int(16)
-        fine = btime - (coarse << np.int(16))
+        coarse = btime >> 16
+        fine = btime - (coarse << 16)
         td = cls(coarse, fine)
 
         td[neg_idx] = -td[neg_idx]

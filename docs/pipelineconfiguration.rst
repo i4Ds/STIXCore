@@ -104,18 +104,32 @@ SETUP - Pipeline as systemd service
 
 `sudo systemctl start stix-pipeline.service`
 
-5: To check the status of the pipeline service
+* To check the status of the pipeline service
 
 `sudo systemctl status stix-pipeline.service`
 
-6: To enable the service on every reboot
+* To enable the service on every reboot
 
 `sudo systemctl enable stix-pipeline.service`
 
-7: To disable the service on every reboot
+* To disable the service on every reboot
 
 `sudo systemctl disable stix-pipeline.service`
 
-8: to get/request detailed processing data of the running service you can use a local endpoint
+* to get/request detailed processing data of the running service you can use a local endpoint
 
 `(venv) stixcore@pub099:~/STIXCore$ stix-pipeline-status -h`
+
+Startup Behaviour
+^^^^^^^^^^^^^^^^^
+
+By default the service starts (restart after booting/error) with a search for unprocessed TM files.
+This can be disabled with the config `start_with_unprocessed` parameter.
+
+You might toggle the parameter only for manually restarting the service after you have (re)processed some/all TM data in a batch mode. This would allow for a transition from reprocess all at one to daily mode again.
+
+```
+[Pipeline]
+start_with_unprocessed = False
+
+```

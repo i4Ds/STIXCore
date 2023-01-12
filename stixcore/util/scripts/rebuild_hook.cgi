@@ -38,6 +38,7 @@ echo "<br />Git: "
 git fetch
 git reset --hard origin/master
 git clean -f -d
+git submodule update --init
 
 echo "<br />"
 

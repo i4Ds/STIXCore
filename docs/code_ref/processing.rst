@@ -12,3 +12,5 @@ data products levels.
 .. automodapi:: stixcore.processing.engineering
 
 .. automodapi:: stixcore.processing.sswidl
+
+.. automodapi:: stixcore.processing.publish

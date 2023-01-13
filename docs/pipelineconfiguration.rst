@@ -156,21 +156,33 @@ STIX publish to ESA processing step
 optional arguments:
   -h, --help            show this help message and exit
   -t TARGET_DIR, --target_dir TARGET_DIR
-                        target directory where fits files should be copied to
+                        target directory where fits files should be copied to (default:
+                        /data/stix/out/test/esa)
   -T TARGET_HOST, --target_host TARGET_HOST
                         target host server where fits files should be copied to
+                        (default: localhost)
   -s SAME_ESA_NAME_DIR, --same_esa_name_dir SAME_ESA_NAME_DIR
-                        target directory where fits files should be copied to if there are any naming conflicts
-                        with already published files
+                        target directory where fits files should be copied to if there
+                        are any naming conflicts with already published files (default:
+                        /data/stix/out/test/esa_conflicts)
+  -r RID_LUT_FILE, --rid_lut_file RID_LUT_FILE
+                        Path to the rid LUT file (default:
+                        ./stixcore/data/publish/rid_lut.scv)
+  --update_rid_lut      update rid lut file before publishing (default: False)
+  --sort_files          should the matched FITS be sorted by name before publishing.
+                        (default: False)
   -d DB_FILE, --db_file DB_FILE
-                        Path to the history publishing database
+                        Path to the history publishing database (default:
+                        ./stixcore/data/publish/published.sqlite)
   -w WAITING_PERIOD, --waiting_period WAITING_PERIOD
                         how long to wait after last file modification before publishing
+                        (default: 14d)
   -v INCLUDE_VERSIONS, --include_versions INCLUDE_VERSIONS
-                        what versions should be published
+                        what versions should be published (default: *)
   -l INCLUDE_LEVELS, --include_levels INCLUDE_LEVELS
-                        what levels should be published
+                        what levels should be published (default: L0, L1, L2)
   -p INCLUDE_PRODUCTS, --include_products INCLUDE_PRODUCTS
-                        what products should be published
+                        what products should be published (default: ql,hk,sci,aux)
   -f FITS_DIR, --fits_dir FITS_DIR
-                        input FITS directory for files to publish
+                        input FITS directory for files to publish (default:
+                        /data/stix/out/test/pipeline)

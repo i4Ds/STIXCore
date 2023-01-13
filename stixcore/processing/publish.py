@@ -320,16 +320,17 @@ def publish_fits_to_esa(args):
 
     Parameters
     ----------
-    args : _type_
-        _description_
+    args : list
+        see -h for details
 
     Returns
     -------
-    _type_
-        _description_
+    list
+        list of published files
     """
 
-    parser = argparse.ArgumentParser(description='STIX publish to ESA processing step')
+    parser = argparse.ArgumentParser(description='STIX publish to ESA processing step',
+                                     formatter_class=argparse.ArgumentDefaultsHelpFormatter)
 
     # pathes
     parser.add_argument("-t", "--target_dir",

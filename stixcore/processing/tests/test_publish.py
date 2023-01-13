@@ -173,8 +173,8 @@ def test_publish_fits_to_esa(product, out_dir):
     assert len(res[PublishResult.PUBLISHED]) == 1
     # 2 where published as supplement
     assert len(res[PublishResult.MODIFIED]) == 2
-    # 3 where ignored as the data is the same
+    # 2 where ignored as the data is the same
     assert len(res[PublishResult.IGNORED]) == 2
-    # 1 error as it would be a third supplement
+    # 2 errors as it would be a third/more supplement
     assert len(res[PublishResult.ERROR]) == 2
     assert res[PublishResult.ERROR][0][1] == 'max supplement error'

@@ -420,7 +420,7 @@ class FitsLBProcessor(FitsProcessor):
             primary_header = self.generate_primary_header(filename, prod)
             primary_hdu = fits.PrimaryHDU()
             primary_hdu.header.update(primary_header)
-            primary_hdu.header.update({'HISTORY': f'Parent {prod.parent}'})
+            primary_hdu.header.update({'HISTORY': 'Processed by STIXCore'})
 
             control_hdu = fits.BinTableHDU(control)
             control_hdu.name = 'CONTROL'

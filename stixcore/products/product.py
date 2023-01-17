@@ -311,7 +311,7 @@ class Control(QTable, AddParametersMixin):
             control['integration_time'] = (packets.get_value('NIX00405') + (NIX00405_offset * u.s))
             control.add_meta(name='integration_time', nix='NIX00405', packets=packets)
         except AttributeError:
-            control['integration_time'] = np.zeros_like(control['scet_coarse'], np.float) * u.s
+            control['integration_time'] = np.zeros_like(control['scet_coarse'], float) * u.s
 
         # control = unique(control)
         control['index'] = np.arange(len(control)).astype(get_min_uint(len(control)))

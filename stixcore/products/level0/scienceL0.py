@@ -743,8 +743,7 @@ class Spectrogram(ScienceProduct):
         data.add_meta(name='rcr', nix='NIX00401', packets=packets)
         data['pixel_masks'] = pixel_masks
         data.add_meta(name='pixel_masks', nix='NIXD0407', packets=packets)
-        data.add_basic(name='triggers_err', nix='NIX00267', attr='error', packets=packets)
-        data['triggers_err'] = np.float32(data['triggers_err'])
+        data['triggers_err'] = np.float32(np.sqrt(packets.get_value('NIX00267', attr="error")))
         data['counts'] = (full_counts * u.ct).astype(
             get_min_uint(full_counts))[..., e_min.min():e_max.max()+1]
         data.add_meta(name='counts', nix='NIX00268', packets=packets)

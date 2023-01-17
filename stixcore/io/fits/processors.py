@@ -420,7 +420,7 @@ class FitsLBProcessor(FitsProcessor):
             primary_header = self.generate_primary_header(filename, prod)
             primary_hdu = fits.PrimaryHDU()
             primary_hdu.header.update(primary_header)
-            primary_hdu.header.update({'HISTORY': 'Processed by STIXCore'})
+            primary_hdu.header.update({'HISTORY': f'Parent {prod.parent}'})
 
             control_hdu = fits.BinTableHDU(control)
             control_hdu.name = 'CONTROL'
@@ -498,6 +498,10 @@ class FitsL0Processor:
             primary_header = self.generate_primary_header(filename, prod)
             primary_hdu = fits.PrimaryHDU()
             primary_hdu.header.update(primary_header)
+
+            # Add comment and history
+            [primary_hdu.header.add_comment(com) for com in prod.comment]
+            [primary_hdu.header.add_history(com) for com in prod.history]
             primary_hdu.header.update({'HISTORY': 'Processed by STIX'})
 
             # Convert time to be relative to start date
@@ -784,6 +788,10 @@ class FitsL1Processor(FitsL0Processor):
             primary_hdu.header.update(primary_header)
             primary_hdu.header.update(header_override)
             primary_hdu.header.update(product.get_additional_header_keywords())
+
+            # Add comment and history
+            [primary_hdu.header.add_comment(com) for com in prod.comment]
+            [primary_hdu.header.add_history(com) for com in prod.history]
             primary_hdu.header.update({'HISTORY': 'Processed by STIX L2'})
 
             # Convert time to be relative to start date

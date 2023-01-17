@@ -50,14 +50,8 @@ class QLProduct(GenericProduct, EnergyChannelsMixin):
             a time range lookup what IDB versions are used within this data,
             by default defaultdict(SCETimeRange)
         """
-        self.service_type = service_type
-        self.service_subtype = service_subtype
-        self.ssid = ssid
-        self.type = 'ql'
-        self.control = control
-        self.data = data
-        self.idb_versions = idb_versions
-        self.__dict__.update(kwargs)
+        super().__init__(service_type=service_type, service_subtype=service_subtype, ssid=ssid,
+                         control=control, data=data, idb_versions=idb_versions, **kwargs)
 
     @classmethod
     def from_levelb(cls, levelb, *, parent='', NIX00405_offset=0):

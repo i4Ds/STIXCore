@@ -861,7 +861,7 @@ class FitsL2Processor(FitsL1Processor):
             # Name, Value, Comment
             ('LEVEL', 'L2', 'Processing level of the data'),
             ('VERS_SW', str(stixcore.__version__), 'Version of SW that provided FITS file'),
-            ('HISTORY', 'Processed by STIX L2'),
+            ('HISTORY', 'Processed by STIXCore L2'),
         )
 
         return L1headers, L2headers

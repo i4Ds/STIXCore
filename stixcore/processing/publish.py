@@ -422,7 +422,9 @@ def publish_fits_to_esa(args):
 
     def read_rid_lut(file, update=False):
         converters = {'_id': np.uint, 'unique_id': np.uint, 'start_utc': datetime,
-                      'duration': np.uint, 'type': str, 'description': str}
+                      'duration': np.uint, 'type': str, 'subject': str,
+                      'purpose': str, 'comment': str}
+
         if update or not file.exists():
             rid_lut = Table(names=converters.keys(), dtype=converters.values())
             last_date = date(2018, 1, 1)
@@ -459,7 +461,8 @@ def publish_fits_to_esa(args):
             logger.warn("read lut")
             rid_lut = ascii.read(args.rid_lut_file, delimiter=",", converters=converters)
 
-        rid_lut['description'] = rid_lut['description'].filled()
+        rid_lut['description'] = [", ".join(r.values()) for r in
+                                  rid_lut['subject', 'purpose', 'comment'].filled()]
         rid_lut.add_index('unique_id')
 
         return rid_lut

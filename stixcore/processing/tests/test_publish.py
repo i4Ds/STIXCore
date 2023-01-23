@@ -84,7 +84,6 @@ def test_publish_history_add_file(out_dir):
     assert items_a4[0] == items_a3[1]
 
 
-@pytest.mark.remote_data
 @patch('stixcore.products.level1.scienceL1.Spectrogram')
 def test_publish_fits_to_esa(product, out_dir):
     target_dir = out_dir / "esa"

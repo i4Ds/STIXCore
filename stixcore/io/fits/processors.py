@@ -420,7 +420,7 @@ class FitsLBProcessor(FitsProcessor):
             primary_header = self.generate_primary_header(filename, prod)
             primary_hdu = fits.PrimaryHDU()
             primary_hdu.header.update(primary_header)
-            primary_hdu.header.update({'HISTORY': 'Processed by STIXCore'})
+            primary_hdu.header.update({'HISTORY': 'Processed by STIXCore LB'})
 
             control_hdu = fits.BinTableHDU(control)
             control_hdu.name = 'CONTROL'
@@ -498,7 +498,7 @@ class FitsL0Processor:
             primary_header = self.generate_primary_header(filename, prod, version=version)
             primary_hdu = fits.PrimaryHDU()
             primary_hdu.header.update(primary_header)
-            primary_hdu.header.update({'HISTORY': 'Processed by STIX'})
+            primary_hdu.header.update({'HISTORY': 'Processed by STIXCore L0'})
 
             # Convert time to be relative to start date
             # it is important that the change to the relative time is done after the header is
@@ -785,7 +785,7 @@ class FitsL1Processor(FitsL0Processor):
             primary_hdu.header.update(primary_header)
             primary_hdu.header.update(header_override)
             primary_hdu.header.update(product.get_additional_header_keywords())
-            primary_hdu.header.update({'HISTORY': 'Processed by STIX L2'})
+            primary_hdu.header.update({'HISTORY': 'Processed by STIXCore L1'})
 
             # Convert time to be relative to start date
             # it is important that the change to the relative time is done after the header is
@@ -861,7 +861,7 @@ class FitsL2Processor(FitsL1Processor):
             # Name, Value, Comment
             ('LEVEL', 'L2', 'Processing level of the data'),
             ('VERS_SW', str(stixcore.__version__), 'Version of SW that provided FITS file'),
-            ('HISTORY', 'Processed by STIX'),
+            ('HISTORY', 'Processed by STIXCore L2'),
         )
 
         return L1headers, L2headers

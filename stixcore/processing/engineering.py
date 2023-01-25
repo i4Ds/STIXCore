@@ -158,7 +158,17 @@ def raw_to_engineering_product(product, idbm):
                                         product.service_subtype,
                                         (product.ssid if hasattr(product, "ssid") else None),
                                         table[col].meta["NIXS"],
-                                        table[col].meta["PCF_CURTX"])[0]
+                                        table[col].meta["PCF_CURTX"])
+                if len(calib_param) == 0:
+                    # for this idb period no conversion with the same ID (PCF_CURTX) is defined
+                    # so look it up again
+                    calib_param = idb.get_params_for_calibration(
+                                        product.service_type,
+                                        product.service_subtype,
+                                        (product.ssid if hasattr(product, "ssid") else None),
+                                        table[col].meta["NIXS"])
+
+                calib_param = calib_param[0]
 
                 raw = Parameter(table[col].meta["NIXS"],
                                 table[idb_time_period][col], None)
@@ -171,10 +181,19 @@ def raw_to_engineering_product(product, idbm):
 
                 # set the unit if needed
                 if hasattr(eng.engineering, "unit") and table[CCN].unit != eng.engineering.unit:
-                    meta = table[col].meta
-                    table[CCN].unit = eng.engineering.unit
-                    # restore the meta info
-                    setattr(table[CCN], "meta", meta)
+                    if table[CCN].unit is None:
+                        meta = table[col].meta
+                        table[CCN].unit = eng.engineering.unit
+                        # restore the meta info
+                        setattr(table[CCN], "meta", meta)
+                    else:
+                        # convert the values to the already existing unit in the column
+                        # (e.g. ms to s) if this fails (e.g. s to K) something is very
+                        # off and should raise an error anyway
+                        eng.engineering = eng.engineering.to(table[CCN].unit)
+                        logger.warning(f"Automated unit conversion triggered: "
+                                       f"{ eng.engineering.unit} to {table[CCN].unit}"
+                                       f" for {col} / {table[col].meta['NIXS']}")
 
                 # override the data into the new column
                 table[CCN][idb_time_period] = eng.engineering

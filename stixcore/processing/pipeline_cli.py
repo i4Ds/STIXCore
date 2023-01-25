@@ -1,23 +1,27 @@
-#!/usr/bin/env python
-
 import os
+import re
 import sys
 import shutil
 import logging
 import argparse
+import warnings
 from enum import Enum
 from pathlib import Path
 from collections import defaultdict
 
 from stixcore.config.config import CONFIG
 from stixcore.ephemeris.manager import Spice, SpiceKernelManager
-from stixcore.io.soc.manager import SOCManager
+from stixcore.io.soc.manager import SOCManager, SOCPacketFile
 from stixcore.processing.L0toL1 import Level1
 from stixcore.processing.L1toL2 import Level2
 from stixcore.processing.LBtoL0 import Level0
+from stixcore.processing.pipeline import PipelineStatus
 from stixcore.processing.TMTCtoLB import process_tmtc_to_levelbinary
 from stixcore.soop.manager import SOOPManager
 from stixcore.tmtc.packets import TMTC
+
+warnings.filterwarnings('ignore', module='astropy.io.fits.card')
+warnings.filterwarnings('ignore', module='astropy.utils.metadata')
 
 
 def clear_dir(dir):
@@ -50,7 +54,7 @@ class ProductLevel(Enum):
         return ProductLevel.TM
 
 
-if __name__ == '__main__':
+def main():
 
     parser = argparse.ArgumentParser(description='stix pipeline processing')
 
@@ -125,6 +129,9 @@ if __name__ == '__main__':
     parser.add_argument("--filter", "-F",
                         help="filter expression applied to all input files example '*sci*.fits'",
                         default=None, type=str, dest='filter')
+    parser.add_argument("--input_files", "-i",
+                        help="input txt file with list af absolute paths of files to process",
+                        default=None, type=str, dest='input_files')
     parser.add_argument("-c", "--clean",
                         help="clean all files from <fits_dir> first",
                         default=False, type=bool, const=True, nargs="?")
@@ -179,7 +186,29 @@ if __name__ == '__main__':
     l1_proc = Level1(fitsdir, fitsdir)
     l2_proc = Level2(fitsdir, fitsdir)
 
+    PipelineStatus.log_setup()
+
+    input_files = list()
+
     processed_files = defaultdict(list)
+
+    if args.input_files:
+        try:
+            p = re.compile('.*' if not FILTER else FILTER)
+            with open(args.input_files, "r") as f:
+                for ifile in f:
+                    try:
+                        ifile = Path(ifile.strip())
+                        if len(ifile.name) > 1 and ifile.exists() and p.match(str(ifile)):
+                            input_files.append(ifile)
+                    except Exception as e:
+                        print(e)
+                        print("skipping this input file line")
+        except IOError as e:
+            print(e)
+            print("Fall back to default input")
+
+    has_input_files = len(input_files) > 0
 
     if args.clean and fitsdir.exists:
         confirm = input(f"clean {fitsdir} Y/N: ")
@@ -187,7 +216,11 @@ if __name__ == '__main__':
             clear_dir(fitsdir)
 
     if ProductLevel.LB.value >= args.start_level.value:
-        tmfiles = soc.get_files(tmtc=TMTC.All if FILTER is None else FILTER)
+        if has_input_files:
+            tmfiles = [SOCPacketFile(f) in input_files]
+        else:
+            tmfiles = soc.get_files(tmtc=TMTC.All if FILTER is None else FILTER)
+
         processed_files[ProductLevel.LB].extend(
             list(process_tmtc_to_levelbinary(tmfiles, archive_path=fitsdir)))
         FILTER = None
@@ -195,7 +228,10 @@ if __name__ == '__main__':
     if args.start_level == ProductLevel.L0:
         if not FILTER:
             FILTER = "*.fits"
-        processed_files[ProductLevel.LB].extend((fitsdir / "LB").rglob(FILTER))
+        if has_input_files:
+            processed_files[ProductLevel.LB].extend(input_files)
+        else:
+            processed_files[ProductLevel.LB].extend((fitsdir / "LB").rglob(FILTER))
 
     if ((ProductLevel.L0.value >= args.start_level.value)
             and (args.end_level.value >= ProductLevel.L0.value)):
@@ -206,7 +242,10 @@ if __name__ == '__main__':
     if args.start_level == ProductLevel.L1:
         if not FILTER:
             FILTER = "*.fits"
-        processed_files[ProductLevel.L0].extend((fitsdir / "L0").rglob(FILTER))
+        if has_input_files:
+            processed_files[ProductLevel.L0].extend(input_files)
+        else:
+            processed_files[ProductLevel.L0].extend((fitsdir / "L0").rglob(FILTER))
 
     if ((ProductLevel.L1.value >= args.start_level.value)
             and (args.end_level.value >= ProductLevel.L1.value)):
@@ -217,7 +256,10 @@ if __name__ == '__main__':
     if args.start_level == ProductLevel.L2:
         if not FILTER:
             FILTER = "*.fits"
-        processed_files[ProductLevel.L1].extend((fitsdir / "L1").rglob(FILTER))
+        if has_input_files:
+            processed_files[ProductLevel.L1].extend(input_files)
+        else:
+            processed_files[ProductLevel.L1].extend((fitsdir / "L1").rglob(FILTER))
 
     if ((ProductLevel.L2.value >= args.start_level.value)
             and (args.end_level.value >= ProductLevel.L2.value)):
@@ -230,3 +272,7 @@ if __name__ == '__main__':
         for f in processed_files[le]:
             print(str(f), file=outstream)
     outstream.close()
+
+
+if __name__ == '__main__':
+    main()

@@ -14,11 +14,11 @@ from stixcore.ephemeris.manager import Spice
 from stixcore.processing.sswidl import SSWIDLProcessor, SSWIDLTask
 from stixcore.products import Product
 from stixcore.products.level0.housekeepingL0 import HKProduct
-from stixcore.products.product import GenericPacket, L2Mixin
+from stixcore.products.product import L2Mixin
 from stixcore.time import SCETime, SCETimeDelta, SCETimeRange
 from stixcore.util.logging import get_logger
 
-__all__ = ['MiniReport', 'MaxiReport', 'Auxiliary', 'AspectIDLProcessing']
+__all__ = ['MiniReport', 'MaxiReport', 'Ephemeris', 'AspectIDLProcessing']
 
 logger = get_logger(__name__)
 
@@ -59,7 +59,7 @@ class MaxiReport(HKProduct, L2Mixin):
         self.type = 'hk'
 
     @classmethod
-    def from_level1(cls, l1product, idbm=GenericPacket.idb_manager, parent='', idlprocessor=None):
+    def from_level1(cls, l1product, parent='', idlprocessor=None):
 
         # create a l2 HK product
         l2 = cls(service_type=l1product.service_type,
@@ -236,7 +236,7 @@ class AspectIDLProcessing(SSWIDLTask):
         """Postprocessing step after the IDL tasks returned the aspect data.
 
         The aspect data and additional auxiliary data will be compiled
-        into `Auxiliary` data product and written out to fits file.
+        into `Ephemeris` data product and written out to fits file.
 
         Parameters
         ----------
@@ -295,7 +295,7 @@ class AspectIDLProcessing(SSWIDLTask):
 
                 control['parent'] = str(file_path.name)
 
-                aux = Auxiliary(control=control, data=data, idb_versions=HK.idb_versions)
+                aux = Ephemeris(control=control, data=data, idb_versions=HK.idb_versions)
 
                 aux.add_additional_header_keywords(
                     ('STX_GSW', result.idlgswversion.decode(),
@@ -309,7 +309,7 @@ class AspectIDLProcessing(SSWIDLTask):
         return files
 
 
-class Auxiliary(HKProduct, L2Mixin):
+class Ephemeris(HKProduct, L2Mixin):
     """Aspect auxiliary data.
 
     In level 2 format.
@@ -320,7 +320,7 @@ class Auxiliary(HKProduct, L2Mixin):
         super().__init__(service_type=service_type, service_subtype=service_subtype,
                          ssid=ssid, control=control, data=data,
                          idb_versions=idb_versions, **kwargs)
-        self.name = 'auxiliary'
+        self.name = 'ephemeris'
         self.level = 'L2'
         self.type = 'aux'
         self.ssid = 1

@@ -16,9 +16,10 @@ from astropy.time import Time
 
 import stixcore.processing.decompression as decompression
 import stixcore.processing.engineering as engineering
+from stixcore.idb.manager import IDBManager
 from stixcore.time import SCETime, SCETimeDelta, SCETimeRange
 from stixcore.tmtc.packet_factory import Packet
-from stixcore.tmtc.packets import GenericPacket, PacketSequence
+from stixcore.tmtc.packets import PacketSequence
 
 __all__ = ['GenericProduct', 'ProductFactory', 'Product', 'ControlSci',
            'EnergyChannelsMixin', 'read_qtable',
@@ -181,7 +182,7 @@ class ProductFactory(BasicRegistrationFactory):
                     try:
                         energies = read_qtable(file_path, hdu='ENERGIES')
                     except KeyError:
-                        logger.info(f"no ENERGIES data found in FITS: {file_path}")
+                        logger.debug(f"no ENERGIES data found in FITS: {file_path}")
                 idb_versions = defaultdict(SCETimeRange)
                 if level in ('L0', 'L1'):
                     try:
@@ -480,40 +481,85 @@ class GenericProduct(BaseProduct):
         if not isinstance(other, type(self)):
             raise TypeError(f'Products must of same type not {type(self)} and {type(other)}')
 
-        # TODO reindex and update data control_index
+        # make a deep copy of the data and control
         other_control = other.control[:]
         other_data = other.data[:]
-        other_control['index'] = other.control['index'] + self.control['index'].max() + 1
-        control = vstack((self.control, other_control))
-        # control = unique(control, keys=['scet_coarse', 'scet_fine'])
-        # control = control.group_by(['scet_coarse', 'scet_fine'])
+        self_control = self.control[:]
+        self_data = self.data[:]
 
-        other_data['control_index'] = other.data['control_index'] + self.control['index'].max() + 1
+        # keep old index in a unique way
+        other_control['old_index'] = [f"o{i}" for i in other_control['index']]
+        self_control['old_index'] = [f"s{i}" for i in self_control['index']]
+        other_data['old_index'] = [f"o{i}" for i in other_data['control_index']]
+        self_data['old_index'] = [f"s{i}" for i in self_data['control_index']]
 
-        logger.debug('len self: %d, len other %d', len(self.data), len(other_data))
+        control = vstack((self_control, other_control))
 
-        data = vstack((self.data, other_data))
+        logger.debug('len self: %d, len other %d', len(self_data), len(other_data))
+
+        data = (vstack((self_data, other_data))
+                if self.scet_timerange.start <= other.scet_timerange.start
+                else vstack((other_data, self_data)))
 
         logger.debug('len stacked %d', len(data))
 
         # Not sure where the rounding issue is arising need to investigate
         data['time_float'] = np.around(data['time'].as_float().value, 2)
 
+        # remove dublicate data based on time bin and sort the data
         data = unique(data, keys=['time_float'])
+        data.sort(['time_float'])
 
         logger.debug('len unique %d', len(data))
 
         data.remove_column('time_float')
 
-        unique_control_inds = np.unique(data['control_index'])
-        control = control[np.nonzero(control['index'][:, None] == unique_control_inds)[1]]
+        # update the control index in data to a new unique sequence
+        newids = dict()
+
+        for row in data:
+            oid = row['old_index']
+
+            if oid not in newids:
+                newids[oid] = len(newids)
+            nid = newids[oid]
+            row['control_index'] = nid
+
+        del_rows = list()
+
+        # update the index in control as used in data
+        for idx, row in enumerate(control):
+            oid = row['old_index']
+
+            if oid not in newids:
+                del_rows.append(idx)
+                continue
+            nid = newids[oid]
+            row['index'] = nid
+
+        # when a old index from the control is not used any more in data it will be deleted
+        control.remove_rows(del_rows)
+
+        # sort the data by index (driven by the time in data)
+        control.sort('index')
+
+        del control['old_index']
+        del data['old_index']
+
+        # fake a deep clone of the timings
+        idb_versions = defaultdict(SCETimeRange)
+        for idb_key, date_range in self.idb_versions.items():
+            idb_versions[idb_key] = SCETimeRange(start=SCETime(date_range.start.coarse,
+                                                               date_range.start.fine),
+                                                 end=SCETime(date_range.end.coarse,
+                                                             date_range.end.fine))
 
         for idb_key, date_range in other.idb_versions.items():
-            self.idb_versions[idb_key].expand(date_range)
+            idb_versions[idb_key].expand(date_range)
 
         return type(self)(service_type=self.service_type, service_subtype=self.service_subtype,
                           ssid=self.ssid, control=control, data=data,
-                          idb_versions=self.idb_versions, level=self.level)
+                          idb_versions=idb_versions, level=self.level)
 
     def __repr__(self):
         return f'<{self.__class__.__name__}' \
@@ -582,6 +628,13 @@ class GenericProduct(BaseProduct):
     @classmethod
     def getLeveL0Packets(cls, levelb):
         packets = [Packet(d) for d in levelb.data['data']]
+        # packets = []
+        # for i, d in enumerate(levelb.data['data']):
+        #    try:
+        #        packets.append(Packet(d))
+        #    except Exception:
+        #        logger.warning(f"corrupt package {i}")
+        #        pass
 
         idb_versions = defaultdict(SCETimeRange)
 
@@ -645,7 +698,7 @@ class L1Mixin(FitsHeaderMixin):
         return self.scet_timerange.to_timerange()
 
     @classmethod
-    def from_level0(cls, l0product, idbm=GenericPacket.idb_manager, parent=''):
+    def from_level0(cls, l0product, parent=''):
         l1 = cls(service_type=l0product.service_type,
                  service_subtype=l0product.service_subtype,
                  ssid=l0product.ssid,
@@ -655,7 +708,7 @@ class L1Mixin(FitsHeaderMixin):
 
         l1.control.replace_column('parent', [parent] * len(l1.control))
         l1.level = 'L1'
-        engineering.raw_to_engineering_product(l1, idbm)
+        engineering.raw_to_engineering_product(l1, IDBManager.instance)
         return l1
 
 
@@ -665,7 +718,7 @@ class L2Mixin(FitsHeaderMixin):
         return self.scet_timerange.to_timerange()
 
     @classmethod
-    def from_level1(cls, l1product, idbm=GenericPacket.idb_manager, parent='', idlprocessor=None):
+    def from_level1(cls, l1product, parent='', idlprocessor=None):
         l2 = cls(service_type=l1product.service_type,
                  service_subtype=l1product.service_subtype,
                  ssid=l1product.ssid,

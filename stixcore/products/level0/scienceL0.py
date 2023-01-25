@@ -10,7 +10,6 @@ from stixcore.products.common import (
     _get_compression_scheme,
     _get_detector_mask,
     _get_pixel_mask,
-    _get_unique,
     get_min_uint,
     rebin_proportional,
 )
@@ -28,7 +27,9 @@ ENERGY_CHANNELS = read_energy_channels(Path(__file__).parent.parent.parent / "co
 __all__ = ['ScienceProduct', 'RawPixelData', 'CompressedPixelData', 'SummedPixelData',
            'Visibility', 'Spectrogram', 'Aspect']
 
-SUM_DMASK_SCET_COARSE_RANGE = range(659318490, 668863556)
+SUM_DMASK_SCET_COARSE_RANGE = (659318490, 668863556)
+PIXEL_MASK_LOOKUP = np.zeros(2049)
+PIXEL_MASK_LOOKUP[[int(2**i) for i in range(12)]] = np.arange(0, 12, dtype=int)
 
 
 def fix_detector_mask(control, detector_mask):
@@ -50,7 +51,8 @@ def fix_detector_mask(control, detector_mask):
     -------
     Update detector mask
     """
-    if control['time_stamp'].coarse not in SUM_DMASK_SCET_COARSE_RANGE:
+    if not np.any((control['time_stamp'].coarse >= SUM_DMASK_SCET_COARSE_RANGE[0])
+                  & (control['time_stamp'].coarse <= SUM_DMASK_SCET_COARSE_RANGE[1])):
         return detector_mask
     else:
         logger.info('Fixing detector mask for SumDmask misconfiguration')
@@ -102,7 +104,7 @@ class ScienceProduct(GenericProduct, EnergyChannelsMixin):
         return np.unique(self.control['parent'])
 
     def __add__(self, other):
-        raise(NotCombineException(f"Tried to combine 2 BSD products: \n{self} and \n{other}"))
+        raise NotCombineException(f"Tried to combine 2 BSD products: \n{self} and \n{other}")
 
         # if (np.all(self.control == other.control) and self.scet_timerange == other.scet_timerange
         #         and len(self.data) == len(other.data)):
@@ -138,7 +140,8 @@ class ScienceProduct(GenericProduct, EnergyChannelsMixin):
             data = self.data[np.in1d(self.data['control_index'], control['index'])]
 
             yield type(self)(service_type=self.service_type, service_subtype=self.service_subtype,
-                             ssid=self.ssid, control=control, data=data)
+                             ssid=self.ssid, control=control, data=data,
+                             idb_versions=self.idb_versions)
 
     @classmethod
     def from_levelb(cls, levelb, *, parent=''):
@@ -166,8 +169,8 @@ class ScienceProduct(GenericProduct, EnergyChannelsMixin):
         # control.remove_column('num_structures')
 
         control['index'] = np.ubyte(0)
-        control['packet'] = levelb.control['packet'].reshape(1, -1)
-        control['packet'].dtype = get_min_uint(control['packet'])
+        packet_ids = levelb.control['packet'].reshape(1, -1)
+        control['packet'] = packet_ids.astype(get_min_uint(packet_ids))
         control['raw_file'] = np.unique(levelb.control['raw_file']).reshape(1, -1)
         control['parent'] = parent
 
@@ -201,8 +204,8 @@ class RawPixelData(ScienceProduct):
         data.add_meta(name='integration_time', nix='NIX00405', packets=packets)
         data.add_data('pixel_masks', _get_pixel_mask(packets, 'NIXD0407'))
         data.add_data('detector_masks', _get_detector_mask(packets))
-        data['triggers'] = np.array([packets.get_value(f'NIX00{i}') for i in range(408, 424)]).T
-        data['triggers'].dtype = get_min_uint(data['triggers'])
+        triggers = np.array([packets.get_value(f'NIX00{i}') for i in range(408, 424)]).T
+        data['triggers'] = triggers.astype(get_min_uint(triggers))
         data['triggers'].meta = {'NIXS': [f'NIX00{i}' for i in range(408, 424)]}
         data.add_basic(name='num_samples', nix='NIX00406', packets=packets, dtype=np.uint16)
 
@@ -294,13 +297,30 @@ class CompressedPixelData(ScienceProduct):
         unique_times = np.unique(data['delta_time'])
 
         data.add_basic(name='rcr', nix='NIX00401', attr='value', packets=packets, dtype=np.ubyte)
-        data['num_pixel_sets'] = np.atleast_1d(_get_unique(packets, 'NIX00442', np.ubyte))
-        data.add_meta(name='num_pixel_sets', nix='NIX00442', packets=packets)
-        pixel_masks, pm_meta = _get_pixel_mask(packets, 'NIXD0407')
-        pixel_masks = pixel_masks.reshape(-1, data['num_pixel_sets'][0], 12)
-        if packets.ssid == 21 and data['num_pixel_sets'][0] != 12:
-            pixel_masks = np.pad(pixel_masks, ((0, 0), (0, 12 - data['num_pixel_sets'][0]), (0, 0)))
-        data.add_data('pixel_masks', (pixel_masks, pm_meta))
+        data.add_basic(name='num_pixel_sets', nix='NIX00442', attr='value', packets=packets,
+                       dtype=np.ubyte)
+
+        pixel_mask_ints = packets.get_value('NIXD0407')
+        if cls is CompressedPixelData:
+            pixel_indices = PIXEL_MASK_LOOKUP[pixel_mask_ints]
+            start = 0
+            end = 0
+            res = []
+            for npx in data['num_pixel_sets']:
+                end += npx
+                cur_pm = pixel_indices[start:end].astype(int).tolist()
+                full_pm = np.full((12), 0, dtype=np.ubyte)
+                full_pm[cur_pm] = 1
+                res.append(full_pm)
+                start = end
+                pixel_masks = np.array(res, dtype=np.uint8)
+        elif cls is SummedPixelData:
+            pixel_masks = np.array([list(map(int, format(pm, '012b')))[::-1]
+                                    for pm in pixel_mask_ints])
+            pixel_masks = pixel_masks.astype(np.uint8).reshape(-1, data['num_pixel_sets'][0], 12)
+        param = packets.get('NIXD0407')[0]
+        pixel_meta = {'NIXS': 'NIXD0407', 'PCF_CURTX': param.idb_info.PCF_CURTX}
+        data.add_data('pixel_masks', (pixel_masks, pixel_meta))
         data.add_data('detector_masks', _get_detector_mask(packets))
         # NIX00405 in BSD is 1 indexed
         data['integration_time'] = SCETimeDelta(packets.get_value('NIX00405'))
@@ -322,28 +342,63 @@ class CompressedPixelData(ScienceProduct):
         unique_energies_low = np.unique(tmp['e_low'])
         unique_energies_high = np.unique(tmp['e_high'])
 
-        counts = np.array(packets.get_value('NIX00260'))
-        counts_var = np.array(packets.get_value('NIX00260', attr='error'))
+        counts_flat = np.array(packets.get_value('NIX00260'))
+        counts_var_flat = np.array(packets.get_value('NIX00260', attr='error'))
 
-        counts = counts.reshape(unique_times.size, unique_energies_low.size,
-                                data['detector_masks'][0].sum(), data['num_pixel_sets'][0].sum())
+        if cls is CompressedPixelData:
+            n_detectors = data['detector_masks'][0].sum()
+            start = 0
+            end = 0
+            counts = []
+            counts_var = []
+            pixel_mask_index = -1
+            for i, nc in enumerate(tmp['num_data_elements']):
+                if i % unique_energies_low.size == 0:
+                    pixel_mask_index += 1
+                end += nc
+                cur_counts = counts_flat[start:end].reshape(n_detectors, -1)
+                cur_counts_var = counts_var_flat[start:end].reshape(n_detectors, -1)
+                if cur_counts.shape[1] != 12:
+                    full_counts = np.zeros((n_detectors, 12))
+                    full_counts_var = np.zeros((n_detectors, 12))
+                    pix_m = data['pixel_masks'][pixel_mask_index].astype(bool)
+                    # Sometimes the chanage in pixel mask is reflected in the mask before the actual
+                    # count data so try the correct pixel mask but if this fails user most recent
+                    # matching value
+                    try:
+                        full_counts[:, pix_m] = cur_counts
+                        full_counts_var[:, pix_m] = cur_counts_var
+                    except ValueError:
+                        last_match_index = np.where(data['pixel_masks'].sum(axis=1)
+                                                    == cur_counts.shape[1])
+                        pix_m = data['pixel_masks'][last_match_index[0][-1]].astype(bool)
+                        full_counts[:, pix_m] = cur_counts
+                        full_counts_var[:, pix_m] = cur_counts_var
 
-        counts_var = counts_var.reshape(unique_times.size, unique_energies_low.size,
-                                        data['detector_masks'][0].sum(),
-                                        data['num_pixel_sets'][0].sum())
+                    counts.append(full_counts)
+                    counts_var.append(full_counts_var)
+                else:
+                    counts.append(cur_counts)
+                    counts_var.append(cur_counts_var)
+                start = end
+
+            counts = np.array(counts).reshape(unique_times.size, unique_energies_low.size,
+                                              data['detector_masks'].sum(axis=1).max(),
+                                              12)
+            counts_var = np.array(counts_var).reshape(unique_times.size, unique_energies_low.size,
+                                                      data['detector_masks'].sum(axis=1).max(),
+                                                      12)
+        elif cls is SummedPixelData:
+            counts = counts_flat.reshape(unique_times.size, unique_energies_low.size,
+                                         data['detector_masks'].sum(axis=1).max(),
+                                         data['num_pixel_sets'][0].sum())
+
+            counts_var = counts_var_flat.reshape(unique_times.size, unique_energies_low.size,
+                                                 data['detector_masks'].sum(axis=1).max(),
+                                                 data['num_pixel_sets'][0].sum())
         # t x e x d x p -> t x d x p x e
         counts = counts.transpose((0, 2, 3, 1))
-
-        out_counts = None
-        out_var = None
-
         counts_var = np.sqrt(counts_var.transpose((0, 2, 3, 1)))
-        if packets.ssid == 21:
-            out_counts = np.zeros((unique_times.size, 32, 12, 32))
-            out_var = np.zeros((unique_times.size, 32, 12, 32))
-        elif packets.ssid == 22:
-            out_counts = np.zeros((unique_times.size, 32, 12, 32))
-            out_var = np.zeros((unique_times.size, 32, 12, 32))
 
         dl_energies = np.array([[ENERGY_CHANNELS[lch].e_lower, ENERGY_CHANNELS[hch].e_upper]
                                 for lch, hch in
@@ -381,31 +436,22 @@ class CompressedPixelData(ScienceProduct):
             energy_indices = np.full(32, True)
             energy_indices[[0, -1]] = False
 
-            ix = np.ix_(np.full(unique_times.size, True), data['detector_masks'][0].astype(bool),
-                        np.ones(data['num_pixel_sets'][0], dtype=bool), np.full(32, True))
+            if counts.sum() != rebinned_counts.sum():
+                raise ValueError('Original and reformatted count totals do not match')
+            counts = rebinned_counts
+            counts_var = rebinned_counts_var
 
-            out_counts[ix] = rebinned_counts
-            out_var[ix] = rebinned_counts_var
-        else:
-            energy_indices = np.full(32, False)
-            energy_indices[unique_energies_low.min():unique_energies_high.max() + 1] = True
-
-            ix = np.ix_(np.full(unique_times.size, True),
-                        data['detector_masks'][0].astype(bool),
-                        np.ones(data['num_pixel_sets'][0], dtype=bool),
-                        energy_indices)
-
-            out_counts[ix] = counts
-            out_var[ix] = counts_var
-
-        if counts.sum() != out_counts.sum():
-            raise ValueError('Original and reformatted count totals do not match')
+        # check pixel mask and subscript down to match max
+        if levelb.ssid == 21:
+            cids, *_ = np.where(data['pixel_masks'].sum(axis=0) > 0)
+            counts = counts[..., cids, :]
+            counts_var = counts_var[..., cids, :]
 
         control['energy_bin_mask'] = np.full((1, 32), False, np.ubyte)
         all_energies = set(np.hstack([tmp['e_low'], tmp['e_high']]))
         control['energy_bin_mask'][:, list(all_energies)] = True
 
-        # only fix here as data is send so needed for extraction but will be all zeros
+        # only fix here as data is needed for extraction but will be all zeros
         data['detector_masks'] = fix_detector_mask(control, data['detector_masks'])
 
         sub_index = np.searchsorted(data['delta_time'], unique_times)
@@ -415,11 +461,11 @@ class CompressedPixelData(ScienceProduct):
                         + data['delta_time'] + data['integration_time']/2)
         data['timedel'] = data['integration_time']
         data['counts'] = \
-            (out_counts * u.ct).astype(
-                get_min_uint(out_counts))[..., tmp['e_low'].min():tmp['e_high'].max()+1]
+            (counts * u.ct).astype(
+                get_min_uint(counts))
         data.add_meta(name='counts', nix='NIX00260', packets=packets)
         data['counts_err'] = np.float32(
-            out_var * u.ct)[..., tmp['e_low'].min():tmp['e_high'].max()+1]
+            counts_var * u.ct)
         data['control_index'] = control['index'][0]
 
         data = data['time', 'timedel', 'rcr', 'pixel_masks', 'detector_masks', 'num_pixel_sets',
@@ -597,8 +643,6 @@ class Spectrogram(ScienceProduct):
         control.add_data('compression_scheme_triggers_skm',
                          _get_compression_scheme(packets, 'NIX00267'))
 
-        control['pixel_masks'] = np.unique(_get_pixel_mask(packets)[0], axis=0)
-        control.add_meta(name='pixel_masks', nix='NIXD0407', packets=packets)
         control['detector_masks'] = np.unique(_get_detector_mask(packets)[0], axis=0)
         control['detector_masks'] = fix_detector_mask(control, control['detector_masks'])
         control.add_meta(name='detector_masks', nix='NIX00407', packets=packets)
@@ -683,6 +727,11 @@ class Spectrogram(ScienceProduct):
         deltas = np.hstack(deltas)
         deltas = SCETimeDelta(deltas)
 
+        pixel_masks_orig = _get_pixel_mask(packets)
+        pixel_masks_expaded = [np.repeat(pm.reshape(-1, 1), n, 1) for pm, n in
+                               zip(pixel_masks_orig[0], num_times)]
+        pixel_masks = np.hstack(pixel_masks_expaded).T
+
         # Data
         data = Data()
         data['time'] = control['time_stamp'][0] + centers
@@ -692,8 +741,10 @@ class Spectrogram(ScienceProduct):
         data['triggers'] = data['triggers'].astype(get_min_uint(data['triggers']))
         data['rcr'] = rcr
         data.add_meta(name='rcr', nix='NIX00401', packets=packets)
+        data['pixel_masks'] = pixel_masks
+        data.add_meta(name='pixel_masks', nix='NIXD0407', packets=packets)
         data.add_basic(name='triggers_err', nix='NIX00267', attr='error', packets=packets)
-        data['triggers_err'] = np.float32(data['triggers_err'])
+        data['triggers_err'] = np.float32(np.sqrt(data['triggers_err']))
         data['counts'] = (full_counts * u.ct).astype(
             get_min_uint(full_counts))[..., e_min.min():e_max.max()+1]
         data.add_meta(name='counts', nix='NIX00268', packets=packets)

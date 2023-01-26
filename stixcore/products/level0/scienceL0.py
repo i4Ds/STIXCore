@@ -329,7 +329,7 @@ class CompressedPixelData(ScienceProduct):
 
         data['triggers'] = triggers.T.astype(get_min_uint(triggers))
         data['triggers'].meta = {'NIXS': [f'NIX00{i}' for i in range(242, 258)]}
-        data['triggers_err'] = np.float32(np.sqrt(triggers_var).T)
+        data['triggers_comp_err'] = np.float32(np.sqrt(triggers_var).T)
         data.add_basic(name='num_energy_groups', nix='NIX00258', packets=packets, dtype=np.ubyte)
 
         tmp = dict()
@@ -461,12 +461,13 @@ class CompressedPixelData(ScienceProduct):
             (counts * u.ct).astype(
                 get_min_uint(counts))
         data.add_meta(name='counts', nix='NIX00260', packets=packets)
-        data['counts_err'] = np.float32(
+        data['counts_comp_err'] = np.float32(
             counts_var * u.ct)
         data['control_index'] = control['index'][0]
 
         data = data['time', 'timedel', 'rcr', 'pixel_masks', 'detector_masks', 'num_pixel_sets',
-                    'num_energy_groups', 'triggers', 'triggers_err', 'counts', 'counts_err']
+                    'num_energy_groups', 'triggers', 'triggers_comp_err',
+                    'counts', 'counts_comp_err']
         data['control_index'] = np.ubyte(0)
 
         return cls(service_type=packets.service_type,
@@ -563,7 +564,7 @@ class Visibility(ScienceProduct):
         data['triggers'].meta = {'NIXS': [f'NIX00{i}' for i in range(242, 258)]}  # ,
         #                         'PCF_CURTX': [packets.get(f'NIX00{i}')[0].idb_info.PCF_CURTX
         #                                       for i in range(242, 258)]}
-        data['triggers_err'] = np.sqrt(triggers_var).reshape(-1, 16)
+        data['triggers_comp_err'] = np.sqrt(triggers_var).reshape(-1, 16)
 
         tids = np.searchsorted(data['delta_time'], unique_times)
         data = data[tids]
@@ -587,14 +588,14 @@ class Visibility(ScienceProduct):
 
         data['real'] = packets.get_value('NIX00263').reshape(unique_times.size, num_detectors, -1)
         data.add_meta(name='real', nix='NIX00263', packets=packets)
-        data['real_err'] = np.sqrt(
+        data['real_comp_err'] = np.sqrt(
             packets.get_value('NIX00263', attr='error').reshape(unique_times.size,
                                                                 num_detectors, -1))
-        data.add_meta(name='real_err', nix='NIX00263', packets=packets)
+        data.add_meta(name='real_comp_err', nix='NIX00263', packets=packets)
         data['imaginary'] = packets.get_value('NIX00264').reshape(unique_times.size,
                                                                   num_detectors, -1)
         data.add_meta(name='imaginary', nix='NIX00264', packets=packets)
-        data['imaginary_err'] = np.sqrt(
+        data['imaginary_comp_err'] = np.sqrt(
             packets.get_value('NIX00264', attr='error').reshape(unique_times.size,
                                                                 num_detectors, -1))
         data.add_meta(name='imaginary', nix='NIX00264', packets=packets)
@@ -740,12 +741,12 @@ class Spectrogram(ScienceProduct):
         data.add_meta(name='rcr', nix='NIX00401', packets=packets)
         data['pixel_masks'] = pixel_masks
         data.add_meta(name='pixel_masks', nix='NIXD0407', packets=packets)
-        data.add_basic(name='triggers_err', nix='NIX00267', attr='error', packets=packets)
-        data['triggers_err'] = np.float32(np.sqrt(data['triggers_err']))
+        data.add_basic(name='triggers_comp_err', nix='NIX00267', attr='error', packets=packets)
+        data['triggers_comp_err'] = np.float32(np.sqrt(data['triggers_comp_err']))
         data['counts'] = (full_counts * u.ct).astype(
             get_min_uint(full_counts))[..., e_min.min():e_max.max()+1]
         data.add_meta(name='counts', nix='NIX00268', packets=packets)
-        data['counts_err'] = np.float32(np.sqrt(
+        data['counts_comp_err'] = np.float32(np.sqrt(
             full_counts_var) * u.ct)[..., e_min.min():e_max.max()+1]
         data['control_index'] = np.ubyte(0)
 

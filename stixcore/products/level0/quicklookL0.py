@@ -155,12 +155,12 @@ class LightCurve(QLProduct):
         data.add_meta(name='timedel', nix='NIX00405', packets=packets)
         data['triggers'] = triggers.astype(get_min_uint(triggers))
         data.add_meta(name='triggers', nix='NIX00274', packets=packets)
-        data['triggers_err'] = np.float32(np.sqrt(triggers_var))
+        data['triggers_comp_err'] = np.float32(np.sqrt(triggers_var))
         data['rcr'] = np.hstack(packets.get_value('NIX00276')).flatten().astype(np.ubyte)
         data.add_meta(name='rcr', nix='NIX00276', packets=packets)
         data['counts'] = (counts.T*u.ct).astype(get_min_uint(counts))
         data.add_meta(name='counts', nix='NIX00272', packets=packets)
-        data['counts_err'] = np.float32(np.sqrt(counts_var).T * u.ct)
+        data['counts_comp_err'] = np.float32(np.sqrt(counts_var).T * u.ct)
 
         return cls(service_type=packets.service_type,
                    service_subtype=packets.service_subtype,
@@ -241,10 +241,10 @@ class Background(QLProduct):
         data.add_meta(name='timedel', nix='NIX00405', packets=packets)
         data['triggers'] = triggers.astype(get_min_uint(triggers))
         data.add_meta(name='triggers', nix='NIX00274', packets=packets)
-        data['triggers_err'] = np.float32(np.sqrt(triggers_var))
+        data['triggers_comp_err'] = np.float32(np.sqrt(triggers_var))
         data['counts'] = (counts.T*u.ct).astype(get_min_uint(counts))
         data.add_meta(name='counts', nix='NIX00278', packets=packets)
-        data['counts_err'] = np.float32(np.sqrt(counts_var).T * u.ct)
+        data['counts_comp_err'] = np.float32(np.sqrt(counts_var).T * u.ct)
 
         return cls(service_type=packets.service_type,
                    service_subtype=packets.service_subtype,
@@ -335,10 +335,10 @@ class Spectra(QLProduct):
         data['spectra'] = (counts.reshape(-1, 32, num_energies) * u.ct).astype(get_min_uint(counts))
         data['spectra'].meta = {'NIXS': 'NIX00452',
                                 'PCF_CURTX': packets.get('NIX00452')[0].idb_info.PCF_CURTX}
-        data['spectra_err'] = np.float32(np.sqrt(counts_var.reshape(-1, 32, num_energies)))
+        data['spectra_comp_err'] = np.float32(np.sqrt(counts_var.reshape(-1, 32, num_energies)))
         data['triggers'] = triggers.reshape(-1, num_energies).astype(get_min_uint(triggers))
         data.add_meta(name='triggers', nix='NIX00484', packets=packets)
-        data['triggers_err'] = np.float32(np.sqrt(triggers_var.reshape(-1, num_energies)))
+        data['triggers_comp_err'] = np.float32(np.sqrt(triggers_var.reshape(-1, num_energies)))
         data['num_integrations'] = num_integrations.reshape(-1, num_energies).astype(np.ubyte)[:, 0]
         data.add_meta(name='num_integrations', nix='NIX00485', packets=packets)
 
@@ -434,7 +434,7 @@ class Variance(QLProduct):
         data['control_index'] = control_indices
         data['variance'] = variance.astype(get_min_uint(variance))
         data.add_meta(name='variance', nix='NIX00281', packets=packets)
-        data['variance_err'] = np.float32(np.sqrt(variance_var))
+        data['variance_comp_err'] = np.float32(np.sqrt(variance_var))
 
         return cls(service_type=packets.service_type,
                    service_subtype=packets.service_subtype,
@@ -627,7 +627,7 @@ class EnergyCalibration(QLProduct):
 
         data['counts'] = (full_counts*u.ct).astype(get_min_uint(full_counts))
         data.add_meta(name='counts', nix='NIX00158', packets=packets)
-        data['counts_err'] = (np.sqrt(full_counts_var)*u.ct).astype(np.float32)
+        data['counts_comp_err'] = (np.sqrt(full_counts_var)*u.ct).astype(np.float32)
         data['control_index'] = np.arange(len(control)).astype(np.uint16)
 
         return cls(service_type=packets.service_type,

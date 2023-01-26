@@ -1,4 +1,5 @@
 from pathlib import Path
+from datetime import datetime
 from itertools import chain
 
 import numpy as np
@@ -38,6 +39,10 @@ BITS_TO_UINT = {
     32: np.uint32,
     64: np.uint64
 }
+
+# date when the min integration time was changed from 1.0s to 0.5s needed to fix count and time
+# offset issue
+MIN_INT_TIME_CHANGE = datetime(2021, 9, 6, 13)
 
 
 def read_qtable(file, hdu, hdul=None):
@@ -130,18 +135,21 @@ class ProductFactory(BasicRegistrationFactory):
         if len(args) == 1 and len(kwargs) == 0:
             if isinstance(args[0], (str, Path)):
                 file_path = Path(args[0])
-                header = fits.getheader(file_path)
+                pri_header = fits.getheader(file_path)
 
-                service_type = int(header.get('stype')) if 'stype' in header else 0
-                service_subtype = int(header.get('sstype')) if 'sstype' in header else 0
-                parent = header.get('parent').split(';') if 'parent' in header else ''
-                raw = header.get('raw_file').split(';') if 'raw_file' in header else ''
+                service_type = int(pri_header.get('stype')) if 'stype' in pri_header else 0
+                service_subtype = int(pri_header.get('sstype')) if 'sstype' in pri_header else 0
+                parent = pri_header.get('parent').split(';') if 'parent' in pri_header else ''
+                raw = pri_header.get('raw_file').split(';') if 'raw_file' in pri_header else ''
+                comment = [c for c in pri_header.get('comment', [])]
+                history = [h for h in pri_header.get('history', [])]
+
                 try:
-                    ssid = int(header.get('ssid'))
+                    ssid = int(pri_header.get('ssid'))
                 except (ValueError, TypeError):
                     ssid = None
-                level = header.get('Level')
-                header.get('TIMESYS')
+                level = pri_header.get('Level')
+                pri_header.get('TIMESYS')
 
                 hdul = fits.open(file_path)
                 control = read_qtable(file_path, hdu='CONTROL', hdul=hdul)
@@ -168,7 +176,7 @@ class ProductFactory(BasicRegistrationFactory):
 
                 if level not in ['LB', 'LL01']:
                     data['timedel'] = SCETimeDelta(data['timedel'])
-                    offset = SCETime.from_float(header['OBT_BEG']*u.s)
+                    offset = SCETime.from_float(pri_header['OBT_BEG']*u.s)
 
                     try:
                         control['time_stamp'] = SCETime.from_float(control['time_stamp'])
@@ -202,11 +210,11 @@ class ProductFactory(BasicRegistrationFactory):
                             service_subtype=service_subtype,
                             ssid=ssid, control=control,
                             data=data, energies=energies, idb_versions=idb_versions,
-                            raw=raw, parent=parent)
+                            raw=raw, parent=parent, comment=comment, history=history)
 
                 # store the old fits header for later reuse
                 if isinstance(p, (L1Mixin, L2Mixin)):
-                    p.fits_header = header
+                    p.fits_header = pri_header
 
                 return p
 
@@ -303,7 +311,7 @@ class Control(QTable, AddParametersMixin):
             control['integration_time'] = (packets.get_value('NIX00405') + (NIX00405_offset * u.s))
             control.add_meta(name='integration_time', nix='NIX00405', packets=packets)
         except AttributeError:
-            control['integration_time'] = np.zeros_like(control['scet_coarse'], np.float) * u.s
+            control['integration_time'] = np.zeros_like(control['scet_coarse'], float) * u.s
 
         # control = unique(control)
         control['index'] = np.arange(len(control)).astype(get_min_uint(len(control)))
@@ -390,15 +398,19 @@ class GenericProduct(BaseProduct):
         data : stix_parser.products.quicklook.Data
             Table containing data
         """
-        self.service_type = service_type
-        self.service_subtype = service_subtype
-        self.ssid = ssid
-        self.type = 'ql'
+
+        self.__dict__.update(kwargs)
         self.control = control
         self.data = data
         self.idb_versions = idb_versions
         self.level = kwargs.get('level')
-        self.__dict__.update(kwargs)
+        self.service_subtype = service_subtype
+        self.service_type = service_type
+        self.ssid = ssid
+        self.type = 'ql'
+
+        self.comment = kwargs.get('comment', [])
+        self.history = kwargs.get('history', [])
 
     @property
     def scet_timerange(self):
@@ -589,7 +601,7 @@ class GenericProduct(BaseProduct):
                     out = type(self)(service_type=self.service_type,
                                      service_subtype=self.service_subtype, ssid=self.ssid,
                                      control=control, data=data, idb_versions=self.idb_versions,
-                                     level=self.level)
+                                     level=self.level, comment=self.comment, history=self.history)
 
                     # TODO N.H. check if always right or better recreate
                     if hasattr(self, "fits_header") and self.fits_header is not None:
@@ -617,7 +629,7 @@ class GenericProduct(BaseProduct):
                     out = type(self)(service_type=self.service_type,
                                      service_subtype=self.service_subtype, ssid=self.ssid,
                                      control=control, data=data, idb_versions=self.idb_versions,
-                                     level=self.level)
+                                     level=self.level, comment=self.comment, history=self.history)
 
                     # TODO N.H. check if always right or better recreate
                     if hasattr(self, "fits_header") and self.fits_header is not None:
@@ -704,7 +716,43 @@ class L1Mixin(FitsHeaderMixin):
                  ssid=l0product.ssid,
                  control=l0product.control,
                  data=l0product.data,
-                 idb_versions=l0product.idb_versions)
+                 idb_versions=l0product.idb_versions,
+                 comment=l0product.comment,
+                 history=l0product.history)
+
+        if l1.service_type == 21 and l1.service_subtype == 6 and l1.ssid in (20, 21, 22, 23, 24):
+            # Time and count arrays were off by one so need to shift before FSW version
+            # https://github.com/i4Ds/STIXCore/issues/286
+            idbs = sorted([tuple(map(int, k.split('.'))) for k in l0product.idb_versions.keys()])
+            if len(idbs) > 1:
+                raise ValueError('More than one IDB found in BSD product')
+
+            # Problem only occurred before 2.26.36 version of FSW problem was fixed in
+            if idbs[0] < (2, 26, 36) and len(l1.data) > 1:
+                # Check if request was at min configured time resolution
+                if (l1.utc_timerange.start.datetime < MIN_INT_TIME_CHANGE
+                    and l1.data['timedel'].as_float().min() == 1*u.s) or \
+                        (l1.utc_timerange.start.datetime >= MIN_INT_TIME_CHANGE
+                         and l1.data['timedel'].as_float().min() == 0.5*u.s):
+                    correct_counts = l1.data['counts'][1:]
+                    correct_count_errs = l1.data['counts_err'][1:]
+                    correct_triggers = l1.data['triggers'][1:]
+                    correct_trigger_errs = l1.data['triggers_err'][1:]
+                    correct_times = l1.data['time'][1:]
+                    correct_durations = l1.data['timedel'][1:]
+                    correct_rcr = l1.data['rcr'][1:]
+                    l1.data = l1.data[0:-1]
+                    l1.data['counts'] = correct_counts
+                    l1.data['counts_err'] = correct_count_errs
+                    l1.data['triggers'] = correct_triggers
+                    l1.data['triggers_err'] = correct_trigger_errs
+                    l1.data['time'] = correct_times
+                    l1.data['timedel'] = correct_durations
+                    l1.data['rcr'] = correct_rcr
+                    l1.history.append('Time and count arrays were shifted to fix offset')
+                else:
+                    l1.comment.append('Time and count arrays offset not fixed'
+                                      ' as possibly summed on board')
 
         l1.control.replace_column('parent', [parent] * len(l1.control))
         l1.level = 'L1'

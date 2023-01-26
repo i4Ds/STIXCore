@@ -85,15 +85,11 @@ class ScienceProduct(GenericProduct, EnergyChannelsMixin):
             a time range lookup what IDB versions are used within this data,
             by default defaultdict(SCETimeRange)
         """
-        self.service_type = service_type
-        self.service_subtype = service_subtype
-        self.ssid = ssid
-        self.control = control
-        self.data = data
+        super().__init__(service_type=service_type, service_subtype=service_subtype, ssid=ssid,
+                         control=control, data=data, **kwargs)
         self.idb_versions = kwargs.get('idb_versions', None)
-        self.type = 'sci'
         self.level = 'L0'
-        self.__dict__.update(kwargs)
+        self.type = 'sci'
 
     @property
     def raw(self):
@@ -141,7 +137,8 @@ class ScienceProduct(GenericProduct, EnergyChannelsMixin):
 
             yield type(self)(service_type=self.service_type, service_subtype=self.service_subtype,
                              ssid=self.ssid, control=control, data=data,
-                             idb_versions=self.idb_versions)
+                             idb_versions=self.idb_versions, comment=self.comment,
+                             history=self.history)
 
     @classmethod
     def from_levelb(cls, levelb, *, parent=''):

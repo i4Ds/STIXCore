@@ -99,6 +99,7 @@ class MaxiReport(HKProduct, L2Mixin):
             data['y_srf'] = 0.0
             data['z_srf'] = 0.0
             data['calib'] = 0.0
+            data['quality'] = 3
             data['error'] = ""
             data['control_index'] = l2.data['control_index']
 
@@ -171,6 +172,7 @@ class AspectIDLProcessing(SSWIDLTask):
                                 y_srf : hk_file.DATA.y_srf[i], $
                                 z_srf : hk_file.DATA.z_srf[i], $
                                 calib : hk_file.DATA.calib[i],  $
+                                quality : hk_file.DATA.quality[i], $
                                 error : hk_file.DATA.error[i], $
                                 control_index : hk_file.DATA.control_index[i], $
                                 parentfits : file_index $
@@ -275,7 +277,10 @@ class AspectIDLProcessing(SSWIDLTask):
                 data['spice_disc_size'] = (idldata['spice_disc_size'] * u.arcsec).astype(np.float32)
                 data['y_srf'] = (idldata['y_srf'] * u.arcsec).astype(np.float32)
                 data['z_srf'] = (idldata['z_srf'] * u.arcsec).astype(np.float32)
-                # TODO do calculations
+                data['quality'] = (idldata['quality']).astype(np.byte)
+                # TODO fix full description to real quality enums
+                data['quality'].description = ("0: good, 1: suspicious, "
+                                               "2: very uncertain, 3: not usable")
 
                 data['solo_loc_carrington_lonlat'] = np.tile(np.array([0.0, 0.0]), (n, 1)).\
                     astype(np.float32) * u.deg
@@ -302,7 +307,7 @@ class AspectIDLProcessing(SSWIDLTask):
                     ('STX_GSW', result.idlgswversion.decode(),
                      'Version of STX-GSW that provided data'))
                 aux.add_additional_header_keywords(
-                    ('HISTORY', 'some data processed by STX-GSW', ''))
+                    ('HISTORY', 'aspect data processed by STX-GSW', ''))
                 files.extend(fits_processor.write_fits(aux))
         else:
             logger.error("IDL ERROR")

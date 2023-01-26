@@ -27,7 +27,7 @@ ENERGY_CHANNELS = read_energy_channels(Path(__file__).parent.parent.parent / "co
 __all__ = ['ScienceProduct', 'RawPixelData', 'CompressedPixelData', 'SummedPixelData',
            'Visibility', 'Spectrogram', 'Aspect']
 
-SUM_DMASK_SCET_COARSE_RANGE = range(659318490, 668863556)
+SUM_DMASK_SCET_COARSE_RANGE = (659318490, 668863556)
 PIXEL_MASK_LOOKUP = np.zeros(2049)
 PIXEL_MASK_LOOKUP[[int(2**i) for i in range(12)]] = np.arange(0, 12, dtype=int)
 
@@ -51,7 +51,8 @@ def fix_detector_mask(control, detector_mask):
     -------
     Update detector mask
     """
-    if control['time_stamp'].coarse not in SUM_DMASK_SCET_COARSE_RANGE:
+    if not np.any((control['time_stamp'].coarse >= SUM_DMASK_SCET_COARSE_RANGE[0])
+                  & (control['time_stamp'].coarse <= SUM_DMASK_SCET_COARSE_RANGE[1])):
         return detector_mask
     else:
         logger.info('Fixing detector mask for SumDmask misconfiguration')
@@ -394,17 +395,7 @@ class CompressedPixelData(ScienceProduct):
                                                  data['num_pixel_sets'][0].sum())
         # t x e x d x p -> t x d x p x e
         counts = counts.transpose((0, 2, 3, 1))
-
-        out_counts = None
-        out_var = None
-
         counts_var = np.sqrt(counts_var.transpose((0, 2, 3, 1)))
-        if packets.ssid == 21:
-            out_counts = np.zeros((unique_times.size, 32, 12, 32))
-            out_var = np.zeros((unique_times.size, 32, 12, 32))
-        elif packets.ssid == 22:
-            out_counts = np.zeros((unique_times.size, 32, 12, 32))
-            out_var = np.zeros((unique_times.size, 32, 12, 32))
 
         dl_energies = np.array([[ENERGY_CHANNELS[lch].e_lower, ENERGY_CHANNELS[hch].e_upper]
                                 for lch, hch in
@@ -442,41 +433,22 @@ class CompressedPixelData(ScienceProduct):
             energy_indices = np.full(32, True)
             energy_indices[[0, -1]] = False
 
-            if cls is CompressedPixelData:
-                ix = np.ix_(np.full(unique_times.size, True),
-                            data['detector_masks'][0].astype(bool),
-                            np.ones(12, dtype=bool), np.full(32, True))
-            elif cls is SummedPixelData:
-                ix = np.ix_(np.full(unique_times.size, True),
-                            data['detector_masks'][0].astype(bool),
-                            np.ones(4, dtype=bool), np.full(32, True))
+            if counts.sum() != rebinned_counts.sum():
+                raise ValueError('Original and reformatted count totals do not match')
+            counts = rebinned_counts
+            counts_var = rebinned_counts_var
 
-            out_counts[ix] = rebinned_counts
-            out_var[ix] = rebinned_counts_var
-        else:
-            energy_indices = np.full(32, False)
-            energy_indices[unique_energies_low.min():unique_energies_high.max() + 1] = True
-
-            if cls is CompressedPixelData:
-                ix = np.ix_(np.full(unique_times.size, True),
-                            data['detector_masks'][0].astype(bool),
-                            np.ones(12, dtype=bool), energy_indices)
-            elif cls is SummedPixelData:
-                ix = np.ix_(np.full(unique_times.size, True),
-                            data['detector_masks'][0].astype(bool),
-                            np.ones(4, dtype=bool), energy_indices)
-
-            out_counts[ix] = counts
-            out_var[ix] = counts_var
-
-        if counts.sum() != out_counts.sum():
-            raise ValueError('Original and reformatted count totals do not match')
+        # check pixel mask and subscript down to match max
+        if levelb.ssid == 21:
+            cids, *_ = np.where(data['pixel_masks'].sum(axis=0) > 0)
+            counts = counts[..., cids, :]
+            counts_var = counts_var[..., cids, :]
 
         control['energy_bin_mask'] = np.full((1, 32), False, np.ubyte)
         all_energies = set(np.hstack([tmp['e_low'], tmp['e_high']]))
         control['energy_bin_mask'][:, list(all_energies)] = True
 
-        # only fix here as data is send so needed for extraction but will be all zeros
+        # only fix here as data is needed for extraction but will be all zeros
         data['detector_masks'] = fix_detector_mask(control, data['detector_masks'])
 
         sub_index = np.searchsorted(data['delta_time'], unique_times)
@@ -486,11 +458,11 @@ class CompressedPixelData(ScienceProduct):
                         + data['delta_time'] + data['integration_time']/2)
         data['timedel'] = data['integration_time']
         data['counts'] = \
-            (out_counts * u.ct).astype(
-                get_min_uint(out_counts))[..., tmp['e_low'].min():tmp['e_high'].max()+1]
+            (counts * u.ct).astype(
+                get_min_uint(counts))
         data.add_meta(name='counts', nix='NIX00260', packets=packets)
         data['counts_err'] = np.float32(
-            out_var * u.ct)[..., tmp['e_low'].min():tmp['e_high'].max()+1]
+            counts_var * u.ct)
         data['control_index'] = control['index'][0]
 
         data = data['time', 'timedel', 'rcr', 'pixel_masks', 'detector_masks', 'num_pixel_sets',
@@ -769,7 +741,7 @@ class Spectrogram(ScienceProduct):
         data['pixel_masks'] = pixel_masks
         data.add_meta(name='pixel_masks', nix='NIXD0407', packets=packets)
         data.add_basic(name='triggers_err', nix='NIX00267', attr='error', packets=packets)
-        data['triggers_err'] = np.float32(data['triggers_err'])
+        data['triggers_err'] = np.float32(np.sqrt(data['triggers_err']))
         data['counts'] = (full_counts * u.ct).astype(
             get_min_uint(full_counts))[..., e_min.min():e_max.max()+1]
         data.add_meta(name='counts', nix='NIX00268', packets=packets)

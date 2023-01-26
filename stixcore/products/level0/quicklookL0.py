@@ -291,25 +291,20 @@ class Spectra(QLProduct):
         control.add_basic(name='num_samples', nix='NIX00089', packets=packets)
 
         # TODO Handel NIX00089 value of zero ie valid packet with no data
-
-        # Due to the way packets are split up full contiguous block of detector 1-32 are not always
-        # down-linked to the ground so need to pad the array to write to table and later fits
-        total_samples = control['num_samples'].sum()
-        full, partial = divmod(total_samples, 32)
-        pad_after = 0
-        if partial != 0:
-            pad_after = 32 - partial
-
-        control_indices = np.pad(np.hstack([np.full(ns, cind) for ns, cind in
-                                            control[['num_samples', 'index']]]), (0, pad_after),
-                                 constant_values=-1)
+        # Due to the way packets are split up a full contiguous block of detectors 1-32 is not
+        # always down-linked to the ground so need to pad the arrays to write to table and later
+        # fits
+        did = packets.get_value('NIX00100')
+        pad_before = did[0]
+        pad_after = 31 - did[-1]
+        control_indices = np.hstack([np.full(ns, cind) for ns, cind
+                                     in control[['num_samples', 'index']]])
+        control_indices = np.pad(control_indices, (pad_before, pad_after),
+                                 mode='edge')
         control_indices = control_indices.reshape(-1, 32)
 
-        duration, time, scet_timerange = cls._get_time(control, num_energies, packets, pad_after)
-
-        # sample x detector x energy
-        # counts = np.array([eng_packets.get('NIX00{}'.format(i)) for i in range(452, 484)],
-        #                   np.uint32).T * u.ct
+        duration, time, scet_timerange = cls._get_time(control, num_energies, packets,
+                                                       pad_before, pad_after)
 
         counts = []
         counts_var = []
@@ -318,17 +313,16 @@ class Spectra(QLProduct):
             counts_var.append(packets.get_value('NIX00{}'.format(i), attr='error'))
         counts = np.vstack(counts).T
         counts_var = np.vstack(counts_var).T
-        counts = np.pad(counts, ((0, pad_after), (0, 0)), constant_values=0)
-        counts_var = np.pad(counts_var, ((0, pad_after), (0, 0)), constant_values=0)
+        counts = np.pad(counts, ((pad_before, pad_after), (0, 0)), constant_values=0)
+        counts_var = np.pad(counts_var, ((pad_before, pad_after), (0, 0)), constant_values=0)
         triggers = packets.get_value('NIX00484').T.reshape(-1)
         triggers_var = packets.get_value('NIX00484', attr='error').T.reshape(-1)
-        triggers = np.pad(triggers, (0, pad_after), constant_values=0)
-        triggers_var = np.pad(triggers_var, (0, pad_after), constant_values=0)
+        triggers = np.pad(triggers, (pad_before, pad_after), mode='edge')
+        triggers_var = np.pad(triggers_var, (pad_before, pad_after), mode='edge')
 
-        detector_index = np.pad(np.array(packets.get_value('NIX00100'), np.int16), (0, pad_after),
-                                constant_values=-1)
+        detector_index = np.pad(np.array(did, np.int16), (pad_before, pad_after), mode='edge')
         num_integrations = np.pad(np.array(packets.get_value('NIX00485'), np.uint16),
-                                  (0, pad_after), constant_values=0)
+                                  (pad_before, pad_after), mode='edge')
 
         # Data
         data = Data()
@@ -339,17 +333,13 @@ class Spectra(QLProduct):
         data['detector_index'] = detector_index.reshape(-1, 32).astype(np.ubyte)
         data.add_meta(name='detector_index', nix='NIX00100', packets=packets)
         data['spectra'] = (counts.reshape(-1, 32, num_energies) * u.ct).astype(get_min_uint(counts))
-
-        # data['spectra'].meta = {'NIXS': [f'NIX00{i}' for i in range(452, 484)],
-        #                        'PCF_CURTX': [packets.get(f'NIX00{i}')[0].idb_info.PCF_CURTX
-        #                                      for i in range(452, 484)]}
         data['spectra'].meta = {'NIXS': 'NIX00452',
                                 'PCF_CURTX': packets.get('NIX00452')[0].idb_info.PCF_CURTX}
         data['spectra_err'] = np.float32(np.sqrt(counts_var.reshape(-1, 32, num_energies)))
         data['triggers'] = triggers.reshape(-1, num_energies).astype(get_min_uint(triggers))
         data.add_meta(name='triggers', nix='NIX00484', packets=packets)
         data['triggers_err'] = np.float32(np.sqrt(triggers_var.reshape(-1, num_energies)))
-        data['num_integrations'] = num_integrations.reshape(-1, num_energies).astype(np.ubyte)
+        data['num_integrations'] = num_integrations.reshape(-1, num_energies).astype(np.ubyte)[:, 0]
         data.add_meta(name='num_integrations', nix='NIX00485', packets=packets)
 
         return cls(service_type=packets.service_type,
@@ -361,7 +351,7 @@ class Spectra(QLProduct):
                    packets=packets)
 
     @classmethod
-    def _get_time(cls, control, num_energies, packets, pad_after):
+    def _get_time(cls, control, num_energies, packets, pad_before, pad_after):
         times = []
         durations = []
         start = 0
@@ -376,10 +366,10 @@ class Spectra(QLProduct):
             start += ns
 
         time = np.array([(t.coarse, t.fine) for t in times])
-        time = np.pad(time, ((0, pad_after), (0, 0)), mode='edge')
+        time = np.pad(time, ((pad_before, pad_after), (0, 0)), mode='edge')
         time = SCETime(time[:, 0], time[:, 1]).reshape(-1, num_energies)
-        duration = SCETimeDelta(np.pad(np.hstack(durations),
-                                       (0, pad_after)).reshape(-1, num_energies))
+        duration = SCETimeDelta(np.pad(np.hstack(durations), (pad_before, pad_after),
+                                       mode='edge').reshape(-1, num_energies))
 
         scet_timerange = SCETimeRange(start=time[0, 0]-duration[0, 0]/2,
                                       end=time[-1, -1]+duration[-1, 0]/2)

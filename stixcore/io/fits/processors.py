@@ -504,7 +504,6 @@ class FitsL0Processor:
             [primary_hdu.header.add_history(com) for com in prod.history]
             primary_hdu.header.update({'HISTORY': 'Processed by STIXCore L0'})
 
-
             # Convert time to be relative to start date
             # it is important that the change to the relative time is done after the header is
             # generated as this will use the original SCET time data
@@ -795,7 +794,6 @@ class FitsL1Processor(FitsL0Processor):
             [primary_hdu.header.add_comment(com) for com in prod.comment]
             [primary_hdu.header.add_history(com) for com in prod.history]
             primary_hdu.header.update({'HISTORY': 'Processed by STIXCore L1'})
-
 
             # Convert time to be relative to start date
             # it is important that the change to the relative time is done after the header is

@@ -221,7 +221,7 @@ class FitsLL01Processor(FitsProcessor):
 
             # add comment in the FITS for all error values
             for col in data.columns:
-                if col.endswith('_err'):
+                if col.endswith('_comp_err'):
                     data[col].description = "Error due only to integer compression"
 
             idb_versions = QTable(rows=[(version, range.start.as_float(), range.end.as_float())
@@ -488,7 +488,7 @@ class FitsL0Processor:
 
             # add comment in the FITS for all error values
             for col in data.columns:
-                if col.endswith('_err'):
+                if col.endswith('_comp_err'):
                     data[col].description = "Error due only to integer compression"
 
             idb_versions = QTable(rows=[(version, range.start.as_float(), range.end.as_float())
@@ -776,7 +776,7 @@ class FitsL1Processor(FitsL0Processor):
 
             # add comment in the FITS for all error values
             for col in data.columns:
-                if col.endswith('_err'):
+                if col.endswith('_comp_err'):
                     data[col].description = "Error due only to integer compression"
 
             idb_versions = QTable(rows=[(version, range.start.as_float(), range.end.as_float())

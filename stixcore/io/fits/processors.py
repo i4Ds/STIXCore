@@ -701,12 +701,12 @@ class FitsL1Processor(FitsL0Processor):
                                                           otype=SoopObservationType.ALL)
         soop_headers = tuple(kw.tuple for kw in soop_keywords)
         soop_defaults = (
-            ('OBS_MODE', '', 'Observation mode'),
-            ('OBS_TYPE', '', 'Encoded version of OBS_MODE'),
-            ('OBS_ID', '', 'Unique ID of the individual observation'),
-            ('SOOPNAME', '', 'Name of the SOOP Campaign that the data belong to'),
-            ('SOOPTYPE', '', 'Campaign ID(s) that the data belong to'),
-            ('TARGET', '', 'Type of target from planning')
+            ('OBS_MODE', 'none', 'Observation mode'),
+            ('OBS_TYPE', 'none', 'Encoded version of OBS_MODE'),
+            ('OBS_ID', 'none', 'Unique ID of the individual observation'),
+            ('SOOPNAME', 'none', 'Name of the SOOP Campaign that the data belong to'),
+            ('SOOPTYPE', 'none', 'Campaign ID(s) that the data belong to'),
+            ('TARGET', 'none', 'Type of target from planning')
         )
 
         soop_key_names = [sh[0] for sh in soop_headers]

@@ -225,7 +225,7 @@ class SOOP:
         `list`
             list of `HeaderKeyword`
         """
-        return list([HeaderKeyword(name="TARGET", value="TBC",
+        return list([HeaderKeyword(name="TARGET", value="none",
                                    comment="Type of target from planning"),
                     HeaderKeyword(name="SOOPTYPE", value=self.encodedSoopType,
                                   comment="Campaign ID(s) that the data belong to"),

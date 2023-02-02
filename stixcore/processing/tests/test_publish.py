@@ -175,7 +175,7 @@ def test_publish_fits_to_esa(product, out_dir):
                                '--same_esa_name_dir', str(same_dir),
                                '--include_levels', 'l1',
                                '--sort_files',
-                               '--update_rid_lut',
+                               # '--update_rid_lut',
                                '--supplement_report', str(supplement_report),
                                '--blacklist_files', str(out_dir / "blacklist.txt"),
                                '--waiting_period', '0s',

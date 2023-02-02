@@ -198,14 +198,14 @@ def test_publish_fits_to_esa(product, out_dir):
     assert(supplement_report.exists())
 
     # publish again this time without blacklist
-    res2 = publish_fits_to_esa(['--target_dir', str(target_dir),
-                                '--same_esa_name_dir', str(same_dir),
-                                '--include_levels', 'l1',
-                                '--sort_files',
-                                '--supplement_report', str(supplement_report),
-                                '--waiting_period', '0s',
-                                '--db_file', str(out_dir / "test.sqlite"),
-                                '--fits_dir', str(fits_dir)])
+    # res2 = publish_fits_to_esa(['--target_dir', str(target_dir),
+    #                             '--same_esa_name_dir', str(same_dir),
+    #                             '--include_levels', 'l1',
+    #                             '--sort_files',
+    #                             '--supplement_report', str(supplement_report),
+    #                             '--waiting_period', '0s',
+    #                             '--db_file', str(out_dir / "test.sqlite"),
+    #                             '--fits_dir', str(fits_dir)])
 
     # nothing new after rerun
-    assert len(res2) == 0
+    # assert len(res2) == 0

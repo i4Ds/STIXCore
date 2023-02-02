@@ -158,11 +158,26 @@ def test_publish_fits_to_esa(product, out_dir):
     product.data['fcounts'][0] = 400
     files.extend(processor.write_fits(product))  # sub4 -> ERROR
 
+    product.control['request_id'] = 130
+    product.data = data[:]
+    product.data['fcounts'][0] = 400
+    product.ssid = 23
+    product.type = 'sci'
+    product.name = 'xray-vis'
+    files.extend(processor.write_fits(product))  # blacklist
+
+    with open(out_dir / "blacklist.txt", "w") as blacklist:
+        blacklist.write(files[-1].name+"\n")
+
+    supplement_report = out_dir / "supplement_report.csv"
+
     res = publish_fits_to_esa(['--target_dir', str(target_dir),
                                '--same_esa_name_dir', str(same_dir),
                                '--include_levels', 'l1',
                                '--sort_files',
                                '--update_rid_lut',
+                               '--supplement_report', str(supplement_report),
+                               '--blacklist_files', str(out_dir / "blacklist.txt"),
                                '--waiting_period', '0s',
                                '--db_file', str(out_dir / "test.sqlite"),
                                '--fits_dir', str(fits_dir)])
@@ -174,6 +189,23 @@ def test_publish_fits_to_esa(product, out_dir):
     assert len(res[PublishResult.MODIFIED]) == 2
     # 2 where ignored as the data is the same
     assert len(res[PublishResult.IGNORED]) == 2
+    # 1 where added to blacklist
+    assert len(res[PublishResult.BLACKLISTED]) == 1
     # 2 errors as it would be a third/more supplement
     assert len(res[PublishResult.ERROR]) == 2
     assert res[PublishResult.ERROR][0][1] == 'max supplement error'
+
+    assert(supplement_report.exists())
+
+    # publish again this time without blacklist
+    res2 = publish_fits_to_esa(['--target_dir', str(target_dir),
+                                '--same_esa_name_dir', str(same_dir),
+                                '--include_levels', 'l1',
+                                '--sort_files',
+                                '--supplement_report', str(supplement_report),
+                                '--waiting_period', '0s',
+                                '--db_file', str(out_dir / "test.sqlite"),
+                                '--fits_dir', str(fits_dir)])
+
+    # nothing new after rerun
+    assert len(res2) == 0

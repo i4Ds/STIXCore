@@ -492,7 +492,7 @@ class SummedPixelData(CompressedPixelData):
     def __init__(self, *, service_type, service_subtype, ssid, control, data, **kwargs):
         super().__init__(service_type=service_type, service_subtype=service_subtype,
                          ssid=ssid, control=control, data=data, **kwargs)
-        self.name = 'xray-spd'
+        self.name = 'xray-scpd'
 
     @classmethod
     def is_datasource_for(cls, *, service_type, service_subtype, ssid, **kwargs):
@@ -512,7 +512,6 @@ class Visibility(ScienceProduct):
         super().__init__(service_type=service_type, service_subtype=service_subtype,
                          ssid=ssid, control=control, data=data, idb_versions=idb_versions, **kwargs)
         self.name = 'xray-vis'
-        self.level = 'L0'
 
     @classmethod
     def from_levelb(cls, levelb, parent=''):

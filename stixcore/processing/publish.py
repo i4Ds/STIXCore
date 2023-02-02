@@ -1,5 +1,6 @@
 import os
 import sys
+import time
 import shutil
 import smtplib
 import sqlite3
@@ -453,6 +454,8 @@ def publish_fits_to_esa(args):
                     continue
                 logger.info(f'found {len(update_lut)} entries')
                 rid_lut = vstack([rid_lut, update_lut])
+                # the stix datacenter API is throttled to 2 calls per second
+                time.sleep(0.5)
 
             rid_lut = unique(rid_lut, silent=True)
             ascii.write(rid_lut, file, overwrite=True, delimiter=",")

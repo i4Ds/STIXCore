@@ -88,5 +88,5 @@ def test_get_fits_headers_in_off_times(spice):
 
     h = spice.get_fits_headers(start_time=start_scet, average_time=avg_scet)
 
-    assert h[1][0] == 'SPICE_ERROR'
+    assert h[1][0] == 'SPICE_ER'
     assert h[2][1] == ''

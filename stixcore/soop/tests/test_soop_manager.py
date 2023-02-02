@@ -99,7 +99,7 @@ def test_soop_manager_get_keywords(soop_manager):
     assert len(keylist) == 6
     keyset = KeywordSet(keylist)
     assert keyset.get(HeaderKeyword(name='TARGET')).value\
-        == "TBC"
+        == "none"
     assert keyset.get(HeaderKeyword(name='SOOPTYPE')).value\
         == "LF5"
     assert keyset.get(HeaderKeyword(name='SOOPNAME')).value\

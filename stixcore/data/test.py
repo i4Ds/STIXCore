@@ -13,7 +13,8 @@ class EphemerisTestData:
 
 class SOOPTestData:
     def __init__(self, data_dir):
-        self.DIR = data_dir / "soop"
+        self.DIR = data_dir / 'soop'
+        self.API_RES = data_dir / 'soop' / 'api' / 'soop_api.json'
         self.__doc__ = "\n".join([f'{str(k)}: {repr(v)}\n\n' for k, v in self.__dict__.items()])
 
 

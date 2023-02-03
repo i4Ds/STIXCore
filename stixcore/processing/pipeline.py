@@ -13,6 +13,7 @@ from queue import Queue
 from pprint import pformat
 from pathlib import Path
 from datetime import datetime
+from configparser import ConfigParser
 
 from polling2 import poll_decorator
 from watchdog.events import FileSystemEventHandler, LoggingEventHandler
@@ -234,9 +235,15 @@ class PipelineStatus(metaclass=Singleton):
     @staticmethod
     def get_config():
         s = io.StringIO()
-        s.write("\nCONFIG\n\n")
         CONFIG.write(s)
-
+        s.seek(0)
+        clone_config = ConfigParser()
+        clone_config.read_file(s)
+        # curate the pw
+        clone_config.set("SOOP", "password", "xxxx")
+        s = io.StringIO()
+        s.write("\nCONFIG\n\n")
+        clone_config.write(s)
         s.seek(0)
         return s.read()
 

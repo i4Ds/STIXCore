@@ -2,16 +2,19 @@ import os
 import re
 import sys
 import json
-import warnings
 from enum import Enum
 from pathlib import Path
+from collections import defaultdict
 from collections.abc import Iterable
 
 import dateutil.parser
+import requests
 from intervaltree import IntervalTree
 
+from stixcore.config.config import CONFIG
 from stixcore.data.test import test_data
 from stixcore.util.logging import get_logger
+from stixcore.util.singleton import Singleton
 
 __all__ = ['SOOPManager', 'SoopObservationType', 'KeywordSet',
            'HeaderKeyword', 'SoopObservation', 'SOOP']
@@ -280,30 +283,13 @@ class SoopObservation:
                f'{self.socIds}, {self.compositeId}, {self.startDate}, {self.endDate}>'
 
 
-class Singleton(type):
-    def __init__(cls, *args, **kwargs):
-        cls._instance = None
-
-    @property
-    def instance(cls):
-        if cls._instance is None:
-            raise ValueError('Singleton not initalized')
-        return cls._instance
-
-    @instance.setter
-    def instance(cls, value):
-        if not isinstance(value, cls):
-            raise ValueError(f'Singleton must be of type: {cls}')
-        cls._instance = value
-
-
 class SOOPManager(metaclass=Singleton):
     """Manages LTP files provided by GFTS"""
 
     SOOP_FILE_FILTER = "SSTX_observation_timeline_export_*.json"
     SOOP_FILE_REGEX = re.compile(r'.*SSTX_observation_timeline_export_.*.json$')
 
-    def __init__(self, data_root):
+    def __init__(self, data_root, *, mock_api=False):
         """Create the manager for a given data path root.
 
         All existing files will be index and the dir is observed.
@@ -313,7 +299,11 @@ class SOOPManager(metaclass=Singleton):
         data_root : `str` | `pathlib.Path`
             Path to the directory with all LTP files.
         """
+        self.data = defaultdict(lambda: {"version": 0, "soops": [], "observations": []})
+        self.soops = IntervalTree()
+        self.observations = IntervalTree()
         self.filecounter = 0
+        self.mock_api = mock_api
         self.data_root = data_root
 
     @property
@@ -342,17 +332,26 @@ class SOOPManager(metaclass=Singleton):
 
         self._data_root = path
 
-        self.soops = IntervalTree()
-        self.observations = IntervalTree()
-
         files = sorted(list(self._data_root.glob(SOOPManager.SOOP_FILE_FILTER)),
-                       key=os.path.basename)
+                       key=os.path.basename, reverse=True)
 
         if len(files) == 0:
             raise ValueError(f'No current SOOP files found at: {self._data_root}')
 
         for sfile in files:
-            self.add_soop_file_to_index(sfile)
+            self.add_soop_file_to_index(sfile, rebuild_index=False)
+        self.rebuild_index()
+
+    def __getstate__(self):
+        # in case this gets pickled we only keep the index as in the parallel processes the
+        # index is read only anyway
+        return {'soops': self.soops, 'observations': self.observations}
+
+    def __setstate__(self, data):
+        # we get unpickled also we are in a parallel process we restore just the index for reading
+        self._data_root = None
+        self.soops = data['soops']
+        self.observations = data['observations']
 
     def find_soops(self, *, start, end=None):
         """Search for all SOOPs in the index.
@@ -376,6 +375,51 @@ class SOOPManager(metaclass=Singleton):
             intervals = self.soops.overlap(start, end)
 
         return list([o.data for o in intervals])
+
+    def download_all_soops_from_api(self, ltpname, version, destination):
+        soops = {'info': {}, 'soops': [], 'observations': [], 'events': ''}
+        if self.mock_api:
+            with open(test_data.soop.API_RES, 'r') as fp:
+                soops = json.load(fp)
+        else:
+            endpoint = CONFIG.get("SOOP", "endpoint")
+            user = CONFIG.get("SOOP", "user", fallback="user")
+            pw = CONFIG.get("SOOP", "password", fallback="pw")
+
+            request_client = requests.session()
+            l_url = f"{endpoint}/authentication?j_username={user}&j_password={pw}&rememberme=true&submit=Login"  # noqa
+            request_client.get(l_url)
+            # sets cookie
+            xref_token = request_client.cookies['XSRF-TOKEN']
+            login_headers = {'Cookie': f'XSRF-TOKEN={xref_token};',
+                             'X-XSRF-TOKEN': f'{xref_token}',
+                             'Connection': 'keep-alive'}
+            post = requests.post(url=l_url, headers=login_headers)
+            if not post.ok:
+                logger.error(f"SOOP API ERROR: {post.status_code} > {post.reason}")
+            elif 400 <= post.status_code < 404:
+                logger.error("SOOP API LOGIN ERROR")
+            else:
+                jsession_id = post.cookies['JSESSIONID']
+                p_url = f"{endpoint}/plan/ote/{ltpname}/{version}"
+                logger.info(f'SOOP API download: {p_url}')
+                je_headers = {'Cookie': f'XSRF-TOKEN={xref_token}; JSESSIONID={jsession_id}',
+                              'X-XSRF-TOKEN': f'{xref_token}'}
+                try:
+                    api_soops = request_client.get(url=p_url, headers=je_headers).json()
+                    # clean unnecessary data
+                    api_soops['events'] = ""
+                    api_soops['observations'] = []
+
+                    soops = api_soops
+                except Exception as e:
+                    logger.error("SOOP API ERROR", e, stack_info=True)
+        if not destination.parent.exists():
+            logger.info(f'path not found for soop download: {destination.parent} creating dir')
+            destination.parent.mkdir(parents=True, exist_ok=True)
+
+        with open(destination, 'w') as fp:
+            json.dump(soops, fp, indent=4)
 
     def find_observations(self, *, start, end=None, otype=SoopObservationType.ALL):
         """Search for all observations in the index.
@@ -435,32 +479,69 @@ class SOOPManager(metaclass=Singleton):
 
         soops = self.find_soops(start=start, end=end)
         if len(soops) == 0:
-            warnings.warn(f"No soops found for time: {start} - {end}", UserWarning)
+            logger.info(f"No soops found for time: {start} - {end}")
         for soop in soops:
+            logger.info(f"Soop found: {soop}")
             kwset.append(soop.to_fits_keywords())
 
         obss = self.find_observations(start=start, end=end, otype=otype)
         if len(obss) == 0:
-            warnings.warn(f"No observations found for time: {start} - {end} : {otype}", UserWarning)
+            logger.info(f"No observations found for time: {start} - {end} : {otype}")
         for obs in obss:
             kwset.append(obs.to_fits_keywords())
 
         return kwset.to_list()
 
-    def add_soop_file_to_index(self, path, **args):
-        logger.info(f"Read SOOP file: {path}")
-        with open(path) as f:
-            ltp_data = json.load(f)
-            for jsond in ltp_data["soops"]:
+    def rebuild_index(self):
+        self.soops = IntervalTree()
+        self.observations = IntervalTree()
+
+        for ltp_name in self.data.keys():
+            ltp = self.data[ltp_name]
+            for jsond in ltp["soops"]:
                 soop = SOOP(jsond)
                 self.soops.addi(soop.startDate, soop.endDate, soop)
-            for jsond in ltp_data["observations"]:
+            for jsond in ltp["observations"]:
                 obs = SoopObservation(jsond)
                 self.observations.addi(obs.startDate, obs.endDate, obs)
+
+        logger.info(f"SOOP Rebuild Index: soops: {len(self.soops)}"
+                    f"observations {len(self.observations)}")
+
+    def add_soop_file_to_index(self, path, *, rebuild_index=True, **args):
+        logger.info(f"Read SOOP file: {path}")
+        with open(path) as f:
+            ltp_stix = json.load(f)
+
+            plan = str(ltp_stix['info']['name'])
+            version = int(ltp_stix['info']['internalVersion'])
+
+            all_soop_file = (Path(CONFIG.get('SOOP', 'soop_files_download'))
+                             / f"{plan}.{version}.all.json")
+
+            if not all_soop_file.exists():
+                self.download_all_soops_from_api(plan, version, all_soop_file)
+
+            with open(all_soop_file) as f_all:
+                ltp_data_all = json.load(f_all)
+
+            if self.data[plan]['version'] <= version:
+                logger.info(f"newer version ({version}) found for {plan}: replacing")
+                # replace to new version
+                self.data[plan]['version'] = version
+                # for soops we store all soops from all instruments
+                self.data[plan]['soops'] = ltp_data_all['soops']
+                # for observations we only store STIX related
+                self.data[plan]['observations'] = ltp_stix["observations"]
+            else:
+                logger.info(f"older version ({version}) found for {plan}: skipping")
+
+            if rebuild_index:
+                self.rebuild_index()
 
             self.filecounter += 1
 
 
 if 'pytest' in sys.modules:
     # only set the global in test scenario
-    SOOPManager.instance = SOOPManager(test_data.soop.DIR)
+    SOOPManager.instance = SOOPManager(test_data.soop.DIR, mock_api=True)

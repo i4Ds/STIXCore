@@ -58,7 +58,7 @@ def int_def(value, default=0):
 
 def get_sci_channels(date):
     r"""
-    Get the sciency engey channel info for given data
+    Get the science energy channel info for given date
 
     Parameters
     ----------
@@ -87,14 +87,15 @@ def get_sci_channels(date):
 
 def read_energy_channel_index(echan_index_file):
     r"""
+    Read science energy channel index file
 
     Parameters
     ----------
-    echan_index_file
+    echan_index_file: `str` or `pathlib.Path`
 
     Returns
     -------
-
+    Science Energy Channel lookup
     """
     echans = Table.read(echan_index_file)
     echan_it = IntervalTree()
@@ -106,17 +107,18 @@ def read_energy_channel_index(echan_index_file):
 
 
 def read_sci_energy_channels(path):
-    """ Read the configuration of the sub-collimator from the configuration file.
+    """
+    Read science energy channel definitions.
 
-        Parameters
-        ----------
-        path : `pathlib.Path`
-            path to the config file
+    Parameters
+    ----------
+    path : `pathlib.Path`
+        path to the config file
 
-        Returns
-        -------
-        `Table`
-            params for all 32 sub-collimators
+    Returns
+    -------
+    `astropy.table.QTable`
+        The science energy channels
     """
     converters = {'Channel Number': int,
                   'Channel Edge': int,

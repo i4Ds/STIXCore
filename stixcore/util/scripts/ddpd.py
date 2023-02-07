@@ -2,7 +2,9 @@
 
 Workflow:
 
-add all products that shoudl be included into the doc into the main.files list
+sample LL dada products are in /home/nicky/LL
+
+add all products that should be included into the doc into the main.files list
 
 run the script (best on pub099).
 It will generate output in stixcore/util/scripts/ddpd.html
@@ -11,7 +13,9 @@ Descriptions are derived from defferent sources doc strings, idb, fits files
 last override is from stixcore/data/test/ddpd.in.csv
 
 open the html in word.
-run the following VB script to select all tabeles:
+run the following VB script to select all tables:
+
+https://www.datanumen.com/blogs/2-ways-apply-style-tables-word-document/
 
 'Select all tables in a Word document.
 Sub SelectAllTables()
@@ -176,7 +180,9 @@ def data2table(data, level):
                    ("Description", "width: 40%")], des, "cdata")
 
 
-def mydescriptor(prod):
+def mydescriptor(prod, sup=0):
+    if sup > 0:
+        return f"stix-{prod.type}-{prod.name}-sup{sup}"
     return f"stix-{prod.type}-{prod.name}"
 
 
@@ -198,7 +204,7 @@ def product(file_in):
     file, remote = file_in
     prod = Product(file)
     with div() as di:
-        h4(f"{type(prod).__name__}")
+        a(h4(f"{type(prod).__name__}"), id=f"{prod.level}-{prod.type}-{prod.name}")
         with ul():
             with li():
                 b("Description: ")
@@ -230,6 +236,34 @@ def product(file_in):
                 data2table(data, prod.level)
             except KeyError:
                 pass
+        if prod.type == 'sci':
+            h5("Supplements")
+            with ul():
+                with li():
+                    b("Description: ")
+                    span(f"""For {type(prod).__name__} data products, supplementary data of this type may be available for the same time period.
+                          These data originate from the same raw measurements recorded onboard but were downlinked with another configuration by an operator request.
+                          Most commonly, the various configuration uses cases are different pixel/detector masks or time/energy binning.
+                          Such supplements can contain additional but also (partly) overlapping data compared to the already existing data product of the same time and type (base product).
+                          In the FITS "COMMENT" header keyword, you will find a reference to the base product and a brief description of the TM configuration for this product.
+                          If supplement data products are available for the same time period, merging this data into the base product for the best scientific approach could be worthwhile.
+                          But this merging has to be done manually by the user. Please contact the STIX team if you have any questions.""") # noqa
+                with li():
+                    b("Descriptors: ")
+                    span(mydescriptor(prod, sup=1))
+                    span(mydescriptor(prod, sup=2))
+                with li():
+                    b("Free field: ")
+                    span(myfreefield(prod))
+                with li():
+                    b("Level: ")
+                    span(prod.level)
+                with li():
+                    b("File cadence: ")
+                    span(myfilecadence(prod))
+                with li():
+                    b("Keyword and Extension definition see:")
+                    span(a(type(prod).__name__, href=f"#{prod.level}-{prod.type}-{prod.name}"))
 
         return((prod.level, prod.type, di))
 
@@ -253,9 +287,9 @@ if __name__ == '__main__':
         # science
         "L0/21/6/20/solo_L0_stix-sci-xray-rpd_0678187309-0678187429_V01_2106280011-54760.fits", # noqa
         "L0/21/6/21/solo_L0_stix-sci-xray-cpd_0688454771-0688455372_V01_2110250007-65280.fits", # noqa
-        "L0/21/6/22/solo_L0_stix-sci-xray-spd_0678187309-0678187429_V01_2106280006-54720.fits", # noqa
+        "L0/21/6/22/solo_L0_stix-sci-xray-scpd_0642038387-0642038407_V01_0087031810-50884.fits", # noqa
         "L0/21/6/23/solo_L0_stix-sci-xray-vis_0678187308-0678187429_V01_2106280004-54716.fits", # noqa
-        "L0/21/6/42/solo_L0_stix-sci-aspect-burst_0687412111-0687412634_V01_0.fits", # noqa
+        "L0/21/6/42/solo_L0_stix-sci-aspect-burst_0687412111-0687419343_V01_2110130059.fits", # noqa
         "L0/21/6/24/solo_L0_stix-sci-xray-spec_0689786926-0689801914_V01_2111090002-50819.fits", # noqa
         # QL
         "L0/21/6/31/solo_L0_stix-ql-background_0668822400_V01.fits",
@@ -274,8 +308,8 @@ if __name__ == '__main__':
         "L1/2021/06/28/SCI/solo_L1_stix-sci-xray-cpd_20210628T190505-20210628T191459_V01_2106280009-54755.fits", # noqa
         "L1/2021/06/28/SCI/solo_L1_stix-sci-xray-scpd_20210628T092301-20210628T092502_V01_2106280006-54720.fits", # noqa
         "L1/2021/06/28/SCI/solo_L1_stix-sci-xray-vis_20210628T092301-20210628T092502_V01_2106280004-54716.fits", # noqa
-        "L1/2021/10/13/SCI/solo_L1_stix-sci-aspect-burst_20211013T034959-20211013T035842_V01_0.fits", # noqa
-        "L1/2021/06/28/SCI/solo_L1_stix-sci-xray-spec_20210628T230112-20210628T234143_V01_2106280041-54988.fits", # noqa
+        "L1/2021/10/13/SCI/solo_L1_stix-sci-aspect-burst_20211013T034959-20211013T055031_V01_2110130059.fits", # noqa
+        "L1/2021/06/28/SCI/solo_L1_stix-sci-xray-spec_20210628T230132-20210628T234143_V01_2106280041-54988.fits", # noqa
         # QL
         "L1/2020/06/16/QL/solo_L1_stix-ql-background_20200616_V01.fits",
         "L1/2020/06/16/QL/solo_L1_stix-ql-flareflag_20200616_V01.fits",
@@ -289,7 +323,7 @@ if __name__ == '__main__':
 
     remote = ["http://pub099.cs.technik.fhnw.ch/data/fits/" + x for x in files]
     # files = ["/home/shane/fits_test/" + x for x in files]
-    files = [("/home/shane/fits_20220321/" + x, remote[i]) for i, x in enumerate(files)]
+    files = [("/data/stix/out/test/esa_release_test/" + x, remote[i]) for i, x in enumerate(files)]
 
     with tempfile.TemporaryDirectory() as tempdir:
         temppath = Path(tempdir)
@@ -330,3 +364,5 @@ if __name__ == '__main__':
 
         with open(Path(__file__).parent / "ddpd.html", "w") as fd:
             fd.write(doc.render(xhtml=True))
+
+        print("all done")

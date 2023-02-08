@@ -224,7 +224,7 @@ def _get_energies_from_mask(date, mask=None):
 
 def get_min_uint(values):
     """
-    Find smallest unsigned int that can represent values
+    Find the smallest unsigned int that can represent max value.
     """
     max_value = np.array(values).max()
     if max_value < 256:  # 2**8

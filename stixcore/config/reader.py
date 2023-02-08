@@ -121,8 +121,8 @@ def read_sci_energy_channels(path):
         The science energy channels
     """
     converters = {'Channel Number': int,
-                  'Channel Edge': int,
-                  'Energy Edge': int,
+                  'Channel Edge': float,
+                  'Energy Edge': float,
                   'Elower': float,
                   'Eupper': float,
                   'BinWidth': float,

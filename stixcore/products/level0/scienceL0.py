@@ -5,13 +5,12 @@ import numpy as np
 
 import astropy.units as u
 
-from stixcore.config.reader import get_sci_channels, read_energy_channels
+from stixcore.config.reader import read_energy_channels
 from stixcore.products.common import (
     _get_compression_scheme,
     _get_detector_mask,
     _get_pixel_mask,
     get_min_uint,
-    rebin_proportional,
 )
 from stixcore.products.product import ControlSci, Data, EnergyChannelsMixin, GenericProduct
 from stixcore.time import SCETime, SCETimeRange
@@ -236,7 +235,9 @@ class RawPixelData(ScienceProduct):
         for i, (pid, did, cid, cc) in enumerate(dd):
             counts[time_indices[i], did, pid, cid] = cc
 
+        # SumDMask config issue
         data['detector_masks'] = fix_detector_mask(control, data['detector_masks'])
+        counts = counts[:, data['detector_masks'][0], ...]
 
         sub_index = np.searchsorted(data['start_time'], unique_times)
         data = data[sub_index]
@@ -310,7 +311,7 @@ class CompressedPixelData(ScienceProduct):
                 full_pm[cur_pm] = 1
                 res.append(full_pm)
                 start = end
-                pixel_masks = np.array(res, dtype=np.uint8)
+            pixel_masks = np.array(res, dtype=np.uint8)
         elif cls is SummedPixelData:
             pixel_masks = np.array([list(map(int, format(pm, '012b')))[::-1]
                                     for pm in pixel_mask_ints])
@@ -359,7 +360,7 @@ class CompressedPixelData(ScienceProduct):
                     full_counts = np.zeros((n_detectors, 12))
                     full_counts_var = np.zeros((n_detectors, 12))
                     pix_m = data['pixel_masks'][pixel_mask_index].astype(bool)
-                    # Sometimes the chanage in pixel mask is reflected in the mask before the actual
+                    # Sometimes the change in pixel mask is reflected in the mask before the actual
                     # count data so try the correct pixel mask but if this fails user most recent
                     # matching value
                     try:
@@ -397,60 +398,67 @@ class CompressedPixelData(ScienceProduct):
         counts = counts.transpose((0, 2, 3, 1))
         counts_var = np.sqrt(counts_var.transpose((0, 2, 3, 1)))
 
-        sci_energy_channels = get_sci_channels(
-            control['time_stamp'][0].to_datetime().replace(tzinfo=None))
-        sci_energies = sci_energy_channels['Elower'].filled(np.nan).value
-        sci_eupper = sci_energy_channels['Eupper'].filled(np.nan).value
-        dl_energies = np.array([[sci_energies[lch], sci_eupper[hch]]for lch, hch in
-                                zip(unique_energies_low, unique_energies_high)])
-        dl_energies = np.unique(dl_energies)
-
-        # If there is any onboard summing of energy channels rebin back to standard sci channels
-        if (unique_energies_high - unique_energies_low).sum() > 0:
-            rebinned_counts = np.zeros((*counts.shape[:-1], 32))
-            rebinned_counts_var = np.zeros((*counts_var.shape[:-1], 32))
-            e_ch_start = 0
-            e_ch_end = counts.shape[-1]
-            if dl_energies[0] == 0.0:
-                rebinned_counts[..., 0] = counts[..., 0]
-                rebinned_counts_var[..., 0] = counts_var[..., 0]
-                e_ch_start += 1
-            elif dl_energies[-1] == np.inf:
-                rebinned_counts[..., -1] = counts[..., -1]
-                rebinned_counts_var[..., -1] = counts_var[..., -1]
-                e_ch_end -= 1
-
-            torebin = np.where((dl_energies >= 4.0) & (dl_energies <= 150.0))
-            rebinned_counts[..., 1:-1] = np.apply_along_axis(
-                rebin_proportional, -1,
-                counts[..., e_ch_start:e_ch_end].reshape(-1, e_ch_end - e_ch_start),
-                dl_energies[torebin],  sci_energies[1:-1]).reshape((*counts.shape[:-1], 30))
-
-            rebinned_counts_var[..., 1:-1] = np.apply_along_axis(
-                rebin_proportional, -1,
-                counts_var[..., e_ch_start:e_ch_end].reshape(-1, e_ch_end - e_ch_start),
-                dl_energies[torebin], sci_energies[1:-1]).reshape((*counts_var.shape[:-1], 30))
-
-            energy_indices = np.full(32, True)
-            energy_indices[[0, -1]] = False
-
-            if counts.sum() != rebinned_counts.sum():
-                raise ValueError('Original and reformatted count totals do not match')
-            counts = rebinned_counts
-            counts_var = rebinned_counts_var
+        # No longer re-binning back to science energy channels leaving here for incase
+        # dl_energies = np.array([[ENERGY_CHANNELS[lch].e_lower, ENERGY_CHANNELS[hch].e_upper]
+        #                         for lch, hch in
+        #                         zip(unique_energies_low, unique_energies_high)]).reshape(-1)
+        # dl_energies = np.unique(dl_energies)
+        # sci_energies = np.hstack([[ENERGY_CHANNELS[ch].e_lower for ch in range(32)],
+        #                           ENERGY_CHANNELS[31].e_upper])
+        #
+        # # If there is any onboard summing of energy channels rebin back to standard sci channels
+        # if (unique_energies_high - unique_energies_low).sum() > 0:
+        #     r
+        #     rebinned_counts = np.zeros((*counts.shape[:-1], 32))
+        #     rebinned_counts_var = np.zeros((*counts_var.shape[:-1], 32))
+        #     e_ch_start = 0
+        #     e_ch_end = counts.shape[-1]
+        #     if dl_energies[0] == 0.0:
+        #         rebinned_counts[..., 0] = counts[..., 0]
+        #         rebinned_counts_var[..., 0] = counts_var[..., 0]
+        #         e_ch_start += 1
+        #     elif dl_energies[-1] == np.inf:
+        #         rebinned_counts[..., -1] = counts[..., -1]
+        #         rebinned_counts_var[..., -1] = counts_var[..., -1]
+        #         e_ch_end -= 1
+        #
+        #     torebin = np.where((dl_energies >= 4.0) & (dl_energies <= 150.0))
+        #     rebinned_counts[..., 1:-1] = np.apply_along_axis(
+        #         rebin_proportional, -1,
+        #         counts[..., e_ch_start:e_ch_end].reshape(-1, e_ch_end - e_ch_start),
+        #         dl_energies[torebin],  sci_energies[1:-1]).reshape((*counts.shape[:-1], 30))
+        #
+        #     rebinned_counts_var[..., 1:-1] = np.apply_along_axis(
+        #         rebin_proportional, -1,
+        #         counts_var[..., e_ch_start:e_ch_end].reshape(-1, e_ch_end - e_ch_start),
+        #         dl_energies[torebin], sci_energies[1:-1]).reshape((*counts_var.shape[:-1], 30))
+        #
+        #     energy_indices = np.full(32, True)
+        #     energy_indices[[0, -1]] = False
+        #
+        #     e_min_idx = unique_energies_low.min()
+        #     e_max_idx = unique_energies_high.max()
+        #
+        #     if counts.sum() != rebinned_counts[...,e_min_idx:e_max_idx+1].sum():
+        #         raise ValueError('Original and reformatted count totals do not match')
+        #
+        #     counts = rebinned_counts[...,e_min_idx:e_max_idx+1]
+        #     counts_var = rebinned_counts_var[...,e_min_idx:e_max_idx+1]
 
         # check pixel mask and subscript down to match max
         if levelb.ssid == 21:
-            cids, *_ = np.where(data['pixel_masks'].sum(axis=0) > 0)
-            counts = counts[..., cids, :]
-            counts_var = counts_var[..., cids, :]
+            pids, *_ = np.where(data['pixel_masks'].sum(axis=0) > 0)
+            counts = counts[..., pids, :]
+            counts_var = counts_var[..., pids, :]
 
-        control['energy_bin_mask'] = np.full((1, 32), False, np.ubyte)
-        all_energies = set(np.hstack([tmp['e_low'], tmp['e_high']]))
-        control['energy_bin_mask'][:, list(all_energies)] = True
+        control['energy_bin_edge_mask'] = np.full((1, 33), False, np.ubyte)
+        edges = set(np.hstack([unique_energies_low, unique_energies_high+1]))
+        control['energy_bin_edge_mask'][:, list(edges)] = 1
 
         # only fix here as data is needed for extraction but will be all zeros
         data['detector_masks'] = fix_detector_mask(control, data['detector_masks'])
+        # now slice counts by updated mask
+        counts = counts[:, data['detector_masks'][0], ...]
 
         sub_index = np.searchsorted(data['delta_time'], unique_times)
         data = data[sub_index]
@@ -575,10 +583,9 @@ class Visibility(ScienceProduct):
         e_low = np.array(packets.get_value('NIXD0016'))
         e_high = np.array(packets.get_value('NIXD0017'))
 
-        # TODO create energy bin mask
-        control['energy_bin_mask'] = np.full((1, 32), False, np.ubyte)
-        all_energies = set(np.hstack([e_low, e_high]))
-        control['energy_bin_mask'][:, list(all_energies)] = True
+        control['energy_bin_edge_mask'] = np.full((1, 33), False, np.ubyte)
+        edges = set(np.hstack([e_low, e_high+1]))
+        control['energy_bin_edge_mask'][:, list(edges)] = 1
 
         data['flux'] = np.array(packets.get_value('NIX00261')).reshape(unique_times.size, -1)
         data.add_meta(name='flux', nix='NIX00261', packets=packets)
@@ -646,10 +653,10 @@ class Spectrogram(ScienceProduct):
         control.add_meta(name='detector_masks', nix='NIX00407', packets=packets)
         raw_rcr = packets.get_value('NIX00401', attr='value')
 
-        e_min = np.array(packets.get_value('NIXD0442'))
-        e_max = np.array(packets.get_value('NIXD0443'))
-        energy_unit = np.array(packets.get_value('NIXD0019')) + 1
-        num_times = np.array(packets.get_value('NIX00089'))
+        e_min = packets.get_value('NIXD0442')
+        e_max = packets.get_value('NIXD0443') + 1
+        energy_unit = packets.get_value('NIXD0019') + 1
+        num_times = packets.get_value('NIX00089')
         total_num_times = num_times.sum()
 
         rcr = np.hstack([np.full(nt, rcr) for rcr, nt in zip(raw_rcr, num_times)]).astype(np.ubyte)
@@ -660,20 +667,13 @@ class Spectrogram(ScienceProduct):
         counts = counts.reshape(total_num_times, -1)
         counts_var = counts_var.reshape(total_num_times, -1)
 
-        full_counts = np.zeros((total_num_times, 32))
-        full_counts_var = np.zeros((total_num_times, 32))
+        # orig_counts_sum = counts.sum()
 
         cids = [np.arange(emin, emax + 1, eunit) for (emin, emax, eunit)
                 in zip(e_min, e_max, energy_unit)]
 
-        control['energy_bin_mask'] = np.full((1, 32), False, np.ubyte)
-        control['energy_bin_mask'][:, cids] = True
-
-        # dl_energies = np.array([[ENERGY_CHANNELS[ch].e_lower for ch in chs]
-        #                         + [ENERGY_CHANNELS[chs[-1]].e_upper] for chs in cids][0])
-        #
-        # sci_energies = np.hstack([[ENERGY_CHANNELS[ch].e_lower for ch in range(32)],
-        #                           ENERGY_CHANNELS[31].e_upper])
+        control['energy_bin_edge_mask'] = np.full((1, 33), 0, np.ubyte)
+        control['energy_bin_edge_mask'][:, cids] = 1
 
         try:
             delta_time = packets.get_value('NIX00441')
@@ -682,40 +682,10 @@ class Spectrogram(ScienceProduct):
 
         closing_time_offset = packets.get_value('NIX00269')
 
-        sci_energy_channels = get_sci_channels(
-            control['time_stamp'][0].to_datetime().replace(tzinfo=None))
-        sci_energies = sci_energy_channels['Elower'].filled(np.nan).value
-
-        dl_energies = np.array([[sci_energies[ch] for ch in chs]
-                                + [sci_energies[chs[-1] + 1]] for chs in cids][0])
-
-        ind = 0
         centers = []
         deltas = []
-
+        ind = 0
         for i, nt in enumerate(num_times):
-            # counts
-            e_ch_start = 0
-            e_ch_end = counts.shape[1]
-            if dl_energies[0] == 0:
-                full_counts[ind:ind + nt, 0] = counts[ind:ind + nt, 0]
-                full_counts_var[ind:ind + nt, 0] = counts_var[ind:ind + nt, 0]
-                e_ch_start = 1
-            if np.isnan(dl_energies[-1]):
-                full_counts[ind:ind + nt, -1] = counts[ind:ind + nt, -1]
-                full_counts_var[ind:ind + nt, -1] = counts[ind:ind + nt, -1]
-                e_ch_end -= 1
-
-            torebin = np.where((dl_energies >= 4.0) & (dl_energies <= 150.0))
-            full_counts[ind:ind + nt, 1:-1] = np.apply_along_axis(
-                rebin_proportional, 1, counts[ind:ind + nt, e_ch_start:e_ch_end],
-                dl_energies[torebin], sci_energies[1:-1])
-
-            full_counts_var[ind:ind + nt, 1:-1] = np.apply_along_axis(
-                rebin_proportional, 1, counts_var[ind:ind + nt, e_ch_start:e_ch_end],
-                dl_energies[torebin], sci_energies[1:-1])
-
-            # times
             edge = np.hstack(
                 [delta_time[ind:ind + nt], delta_time[ind + nt - 1] + closing_time_offset[i]])
             delta = np.diff(edge)
@@ -723,19 +693,49 @@ class Spectrogram(ScienceProduct):
             centers.append(center)
             deltas.append(delta)
 
+            # if energy_unit[i] > 1:
+            #     logger.debug('Spectrogram binned onboard re-binning to standard science channels')
+            #
+            #     dl_energies = np.array([ENERGY_CHANNELS[chs].e_lower for chs in cids[i][:-1]]
+            #                            + [ENERGY_CHANNELS[cids[i][-2]].e_upper])
+            #
+            #     sci_energies = np.array([ENERGY_CHANNELS[chs].e_lower for chs in range(32)]
+            #                             + [ENERGY_CHANNELS[31].e_upper])
+            #
+            #     e_ch_start = 0
+            #     e_ch_end = counts.shape[1]
+            #
+            #     if e_min[i][0] == 0:
+            #         counts[ind:ind + nt, 0] = counts[ind:ind + nt, 0]
+            #         counts_var[ind:ind + nt, 0] = counts_var[ind:ind + nt, 0]
+            #         e_ch_start +=1
+            #     if e_max[i][-1] == 32:
+            #         counts[ind:ind + nt, -1] = counts[ind:ind + nt, -1]
+            #         counts_var[ind:ind + nt, -1] = counts[ind:ind + nt, -1]
+            #         e_ch_end -= 1
+            #
+            #     torebin = np.where((cids[i] >= 1) & (cids[i] <= 31))
+            #     counts[ind:ind + nt, 1:-1] = np.apply_along_axis(
+            #         rebin_proportional, 1, counts[ind:ind + nt, e_ch_start:e_ch_end],
+            #         dl_energies[torebin], sci_energies[1:-1])
+            #
+            #     counts_var[ind:ind + nt, 1:-1] = np.apply_along_axis(
+            #         rebin_proportional, 1, counts_var[ind:ind + nt, e_ch_start:e_ch_end],
+            #         dl_energies[torebin], sci_energies[1:-1])
+
             ind += nt
 
-        if counts.sum() != full_counts.sum():
-            raise ValueError('Original and reformatted count totals do not match')
+        # if counts.sum() != orig_counts_sum:
+        #     raise ValueError('Original and rebinned count totals do not match')
 
         centers = np.hstack(centers)
         deltas = np.hstack(deltas)
         deltas = SCETimeDelta(deltas)
 
         pixel_masks_orig = _get_pixel_mask(packets)
-        pixel_masks_expaded = [np.repeat(pm.reshape(-1, 1), n, 1) for pm, n in
-                               zip(pixel_masks_orig[0], num_times)]
-        pixel_masks = np.hstack(pixel_masks_expaded).T
+        pixel_masks_expanded = [np.repeat(pm.reshape(-1, 1), n, 1) for pm, n in
+                                zip(pixel_masks_orig[0], num_times)]
+        pixel_masks = np.hstack(pixel_masks_expanded).T
 
         # Data
         data = Data()
@@ -750,11 +750,11 @@ class Spectrogram(ScienceProduct):
         data.add_meta(name='pixel_masks', nix='NIXD0407', packets=packets)
         data.add_basic(name='triggers_comp_err', nix='NIX00267', attr='error', packets=packets)
         data['triggers_comp_err'] = np.float32(np.sqrt(data['triggers_comp_err']))
-        data['counts'] = (full_counts * u.ct).astype(
-            get_min_uint(full_counts))[..., e_min.min():e_max.max()+1]
+        data['counts'] = (counts * u.ct).astype(
+            get_min_uint(counts))[..., e_min.min():e_max.max()+1]
         data.add_meta(name='counts', nix='NIX00268', packets=packets)
         data['counts_comp_err'] = np.float32(np.sqrt(
-            full_counts_var) * u.ct)[..., e_min.min():e_max.max()+1]
+            counts_var) * u.ct)[..., e_min.min():e_max.max()+1]
         data['control_index'] = np.ubyte(0)
 
         return cls(service_type=packets.service_type,

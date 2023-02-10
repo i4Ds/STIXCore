@@ -13,6 +13,9 @@ from stixcore.config.data_types import EnergyChannel
 
 __all__ = ['read_energy_channels', 'read_subc_params']
 
+SCI_INDEX = None
+SCI_CHANNELS = {}
+
 
 def float_def(value, default=np.inf):
     """Parse the value into a float or return the default value.
@@ -69,18 +72,29 @@ def get_sci_channels(date):
     `astropy.table.QTable`
         Science Energy Channels
     """
-    root = Path(__file__).parent.parent
-    sci_chan_index_file = Path(root, *['config', 'data', 'common',
-                                       'detector', 'science_echan_index.csv'])
+    global SCI_INDEX, SCI_CHANNELS
 
-    sci_chan_index = read_energy_channel_index(sci_chan_index_file)
-    sci_info = sci_chan_index.at(date)
+    # Cache index
+    if SCI_INDEX is None:
+        root = Path(__file__).parent.parent
+        sci_chan_index_file = Path(root, *['config', 'data', 'common',
+                                   'detector', 'science_echan_index.csv'])
+        sci_chan_index = read_energy_channel_index(sci_chan_index_file)
+        SCI_INDEX = sci_chan_index
+
+    sci_info = SCI_INDEX.at(date)
     if len(sci_info) == 0:
         raise ValueError(f'No Science Energy Channel file found for date {date}')
     elif len(sci_info) > 1:
         raise ValueError(f'Multiple Science Energy Channel file for date {date}')
     start_date, end_date, sci_echan_file = list(sci_info)[0]
-    sci_echan_table = read_sci_energy_channels(sci_echan_file)
+
+    # Cache sci channels
+    if sci_echan_file in SCI_CHANNELS:
+        sci_echan_table = SCI_CHANNELS[sci_echan_file]
+    else:
+        sci_echan_table = read_sci_energy_channels(sci_echan_file)
+        SCI_CHANNELS[sci_echan_file] = sci_echan_file
 
     return sci_echan_table
 

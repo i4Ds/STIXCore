@@ -90,11 +90,11 @@ def get_sci_channels(date):
     start_date, end_date, sci_echan_file = list(sci_info)[0]
 
     # Cache sci channels
-    if sci_echan_file in SCI_CHANNELS:
-        sci_echan_table = SCI_CHANNELS[sci_echan_file]
+    if sci_echan_file.name in SCI_CHANNELS:
+        sci_echan_table = SCI_CHANNELS[sci_echan_file.name]
     else:
         sci_echan_table = read_sci_energy_channels(sci_echan_file)
-        SCI_CHANNELS[sci_echan_file] = sci_echan_file
+        SCI_CHANNELS[sci_echan_file.name] = sci_echan_table
 
     return sci_echan_table
 

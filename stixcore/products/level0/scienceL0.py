@@ -701,7 +701,7 @@ class Spectrogram(ScienceProduct):
                 full_counts[ind:ind + nt, 0] = counts[ind:ind + nt, 0]
                 full_counts_var[ind:ind + nt, 0] = counts_var[ind:ind + nt, 0]
                 e_ch_start = 1
-            if dl_energies[-1] == np.inf:
+            if np.isnan(dl_energies[-1]):
                 full_counts[ind:ind + nt, -1] = counts[ind:ind + nt, -1]
                 full_counts_var[ind:ind + nt, -1] = counts[ind:ind + nt, -1]
                 e_ch_end -= 1

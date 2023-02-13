@@ -5,7 +5,7 @@ import numpy as np
 
 import astropy.units as u
 
-from stixcore.config.reader import read_energy_channels
+from stixcore.config.reader import get_sci_channels, read_energy_channels
 from stixcore.products.common import (
     _get_compression_scheme,
     _get_detector_mask,
@@ -397,12 +397,13 @@ class CompressedPixelData(ScienceProduct):
         counts = counts.transpose((0, 2, 3, 1))
         counts_var = np.sqrt(counts_var.transpose((0, 2, 3, 1)))
 
-        dl_energies = np.array([[ENERGY_CHANNELS[lch].e_lower, ENERGY_CHANNELS[hch].e_upper]
-                                for lch, hch in
-                                zip(unique_energies_low, unique_energies_high)]).reshape(-1)
+        sci_energy_channels = get_sci_channels(
+            control['time_stamp'][0].to_datetime().replace(tzinfo=None))
+        sci_energies = sci_energy_channels['Elower'].filled(np.nan).value
+        sci_eupper = sci_energy_channels['Eupper'].filled(np.nan).value
+        dl_energies = np.array([[sci_energies[lch], sci_eupper[hch]]for lch, hch in
+                                zip(unique_energies_low, unique_energies_high)])
         dl_energies = np.unique(dl_energies)
-        sci_energies = np.hstack([[ENERGY_CHANNELS[ch].e_lower for ch in range(32)],
-                                  ENERGY_CHANNELS[31].e_upper])
 
         # If there is any onboard summing of energy channels rebin back to standard sci channels
         if (unique_energies_high - unique_energies_low).sum() > 0:
@@ -668,20 +669,39 @@ class Spectrogram(ScienceProduct):
         control['energy_bin_mask'] = np.full((1, 32), False, np.ubyte)
         control['energy_bin_mask'][:, cids] = True
 
-        dl_energies = np.array([[ENERGY_CHANNELS[ch].e_lower for ch in chs]
-                                + [ENERGY_CHANNELS[chs[-1]].e_upper] for chs in cids][0])
+        # dl_energies = np.array([[ENERGY_CHANNELS[ch].e_lower for ch in chs]
+        #                         + [ENERGY_CHANNELS[chs[-1]].e_upper] for chs in cids][0])
+        #
+        # sci_energies = np.hstack([[ENERGY_CHANNELS[ch].e_lower for ch in range(32)],
+        #                           ENERGY_CHANNELS[31].e_upper])
 
-        sci_energies = np.hstack([[ENERGY_CHANNELS[ch].e_lower for ch in range(32)],
-                                  ENERGY_CHANNELS[31].e_upper])
+        try:
+            delta_time = packets.get_value('NIX00441')
+        except AttributeError:
+            delta_time = packets.get_value('NIX00404')
+
+        closing_time_offset = packets.get_value('NIX00269')
+
+        sci_energy_channels = get_sci_channels(
+            control['time_stamp'][0].to_datetime().replace(tzinfo=None))
+        sci_energies = sci_energy_channels['Elower'].filled(np.nan).value
+
+        dl_energies = np.array([[sci_energies[ch] for ch in chs]
+                                + [sci_energies[chs[-1] + 1]] for chs in cids][0])
+
         ind = 0
-        for nt in num_times:
+        centers = []
+        deltas = []
+
+        for i, nt in enumerate(num_times):
+            # counts
             e_ch_start = 0
             e_ch_end = counts.shape[1]
             if dl_energies[0] == 0:
                 full_counts[ind:ind + nt, 0] = counts[ind:ind + nt, 0]
                 full_counts_var[ind:ind + nt, 0] = counts_var[ind:ind + nt, 0]
                 e_ch_start = 1
-            if dl_energies[-1] == np.inf:
+            if np.isnan(dl_energies[-1]):
                 full_counts[ind:ind + nt, -1] = counts[ind:ind + nt, -1]
                 full_counts_var[ind:ind + nt, -1] = counts[ind:ind + nt, -1]
                 e_ch_end -= 1
@@ -695,30 +715,18 @@ class Spectrogram(ScienceProduct):
                 rebin_proportional, 1, counts_var[ind:ind + nt, e_ch_start:e_ch_end],
                 dl_energies[torebin], sci_energies[1:-1])
 
-            ind += nt
-
-        if counts.sum() != full_counts.sum():
-            raise ValueError('Original and reformatted count totals do not match')
-
-        try:
-            delta_time = packets.get_value('NIX00441')
-        except AttributeError:
-            delta_time = packets.get_value('NIX00404')
-
-        closing_time_offset = packets.get_value('NIX00269')
-
-        # TODO incorporate into main loop above
-        centers = []
-        deltas = []
-        last = 0
-        for i, nt in enumerate(num_times):
+            # times
             edge = np.hstack(
-                [delta_time[last:last + nt], delta_time[last + nt - 1] + closing_time_offset[i]])
+                [delta_time[ind:ind + nt], delta_time[ind + nt - 1] + closing_time_offset[i]])
             delta = np.diff(edge)
             center = edge[:-1] + delta / 2
             centers.append(center)
             deltas.append(delta)
-            last = last + nt
+
+            ind += nt
+
+        if counts.sum() != full_counts.sum():
+            raise ValueError('Original and reformatted count totals do not match')
 
         centers = np.hstack(centers)
         deltas = np.hstack(deltas)

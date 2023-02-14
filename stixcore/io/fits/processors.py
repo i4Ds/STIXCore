@@ -569,7 +569,7 @@ class FitsL0Processor:
         hdul : list
             list of all extensions the energy to add to
         """
-        if getattr(product, 'get_energies', False) is not False and not isinstance(product, Aspect):
+        if getattr(product, 'get_energies', False) is not False and not product.ssid == 42:
             elow, ehigh, channel = product.get_energies()
             energies = QTable()
             energies['channel'] = np.uint8(channel)

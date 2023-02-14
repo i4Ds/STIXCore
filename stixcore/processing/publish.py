@@ -417,8 +417,8 @@ def publish_fits_to_esa(args):
                 fits.setval(p, "COMMENT", value=c_entry)
                 return c_entry
         except Exception as e:
-            logger.info(e, exc_info=True)
-            logger.info("no BSD request comment added")
+            logger.debug(e, exc_info=True)
+            logger.info(f"no BSD request comment added nothing found in LUT for rid: {rid}")
         return ''
 
     def addHistory(p, name):
@@ -565,7 +565,7 @@ def publish_fits_to_esa(args):
         supplement_report = Table(names=["filename", "basefile", 'comment'],
                                   dtype=[str, str, str])
         if not args.supplement_report.exists():
-            ascii.write(supplement_report, args.supplement_report, delimiter=",")
+            ascii.write(supplement_report, args.supplement_report, delimiter="\t")
 
     tempdir = tempfile.TemporaryDirectory()
     tempdir_path = Path(tempdir.name)
@@ -726,7 +726,7 @@ def publish_fits_to_esa(args):
         # append the new report
         with open(args.supplement_report, mode='a') as f:
             f.seek(0, os.SEEK_END)
-            supplement_report.write(f, format='ascii.no_header', delimiter=",")
+            supplement_report.write(f, format='ascii.no_header', delimiter="\t")
     hist.close()
     tempdir.cleanup()
     return published

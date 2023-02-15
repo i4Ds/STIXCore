@@ -173,7 +173,6 @@ def main():
         spicemeta = _spm.get_latest_mk(top_n=30)
 
     Spice.instance = Spice(spicemeta)
-    print(f"Spice kernel @: {Spice.instance.meta_kernel_path}")
 
     soc = SOCManager(Path(CONFIG.get('Paths', 'tm_archive')))
 

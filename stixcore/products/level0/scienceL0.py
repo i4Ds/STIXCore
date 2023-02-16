@@ -240,7 +240,8 @@ class RawPixelData(ScienceProduct):
         # now slice counts by updated mask if necessary
         orig_sum = counts.sum()
         if counts.shape[1] != data['detector_masks'][0].sum():
-            counts = counts[:, data['detector_masks'][0].astype(bool), ...]
+            non_zero_detectors = np.where(counts.sum(axis=(0, 2, 3)) > 0)
+            counts = counts[:, non_zero_detectors, ...]
             new_sum = counts.sum()
             if new_sum != orig_sum:
                 raise ValueError('Subscribed counts sum does not match original sum')
@@ -466,7 +467,8 @@ class CompressedPixelData(ScienceProduct):
         # now slice counts by updated mask if necessary
         orig_sum = counts.sum()
         if counts.shape[1] != data['detector_masks'][0].sum():
-            counts = counts[:, data['detector_masks'][0].astype(bool), ...]
+            non_zero_detectors = np.where(counts.sum(axis=(0, 2, 3)) > 0)
+            counts = counts[:, non_zero_detectors, ...]
             new_sum = counts.sum()
             if new_sum != orig_sum:
                 raise ValueError('Subscribed counts sum does not match original sum')
@@ -761,11 +763,9 @@ class Spectrogram(ScienceProduct):
         data.add_meta(name='pixel_masks', nix='NIXD0407', packets=packets)
         data.add_basic(name='triggers_comp_err', nix='NIX00267', attr='error', packets=packets)
         data['triggers_comp_err'] = np.float32(np.sqrt(data['triggers_comp_err']))
-        data['counts'] = (counts * u.ct).astype(
-            get_min_uint(counts))[..., e_min.min():e_max.max()+1]
+        data['counts'] = (counts * u.ct).astype(get_min_uint(counts))
         data.add_meta(name='counts', nix='NIX00268', packets=packets)
-        data['counts_comp_err'] = np.float32(np.sqrt(
-            counts_var) * u.ct)[..., e_min.min():e_max.max()+1]
+        data['counts_comp_err'] = np.float32(np.sqrt(counts_var) * u.ct)
         data['control_index'] = np.ubyte(0)
 
         return cls(service_type=packets.service_type,

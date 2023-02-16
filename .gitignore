@@ -159,7 +159,6 @@ htmlcov/
 pdpp.html
 stixcore/util/scripts/ddpd.html
 stixcore/data/test/ephemeris/spice/kernels/mk/*.abs
-stixcore/data/test/soop/*.all.json
 stixcore/data/soop/
 stixcore/data/publish/
 stixcore/data/test/products/end2end/

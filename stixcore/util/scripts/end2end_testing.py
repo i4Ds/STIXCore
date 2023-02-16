@@ -137,7 +137,7 @@ def end2end_pipeline(indir, fitsdir):
     _spm = SpiceKernelManager(test_data.ephemeris.KERNELS_DIR)
     Spice.instance = Spice(_spm.get_latest_mk())
 
-    # pinpoint the api files location
+    # pinpoint the soop api files location of the
     CONFIG.set('SOOP', 'soop_files_download', str(test_data.soop.DIR))
 
     SOOPManager.instance = SOOPManager(test_data.soop.DIR, mock_api=True)

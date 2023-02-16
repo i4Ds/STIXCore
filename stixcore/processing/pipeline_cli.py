@@ -216,7 +216,7 @@ def main():
 
     if ProductLevel.LB.value >= args.start_level.value:
         if has_input_files:
-            tmfiles = [SOCPacketFile(f) in input_files]
+            tmfiles = [SOCPacketFile(f) for f in input_files]
         else:
             tmfiles = soc.get_files(tmtc=TMTC.All if FILTER is None else FILTER)
 

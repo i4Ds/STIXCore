@@ -237,7 +237,13 @@ class RawPixelData(ScienceProduct):
 
         # SumDMask config issue
         data['detector_masks'] = fix_detector_mask(control, data['detector_masks'])
-        counts = counts[:, data['detector_masks'][0], ...]
+        # now slice counts by updated mask if necessary
+        orig_sum = counts.sum()
+        if counts.shape[1] != data['detector_masks'][0].sum():
+            counts = counts[:, data['detector_masks'][0].astype(bool), ...]
+            new_sum = counts.sum()
+            if new_sum != orig_sum:
+                raise ValueError('Subscribed counts sum does not match original sum')
 
         sub_index = np.searchsorted(data['start_time'], unique_times)
         data = data[sub_index]
@@ -458,8 +464,12 @@ class CompressedPixelData(ScienceProduct):
         # only fix here as data is needed for extraction but will be all zeros
         data['detector_masks'] = fix_detector_mask(control, data['detector_masks'])
         # now slice counts by updated mask if necessary
+        orig_sum = counts.sum()
         if counts.shape[1] != data['detector_masks'][0].sum():
             counts = counts[:, data['detector_masks'][0].astype(bool), ...]
+            new_sum = counts.sum()
+            if new_sum != orig_sum:
+                raise ValueError('Subscribed counts sum does not match original sum')
 
         sub_index = np.searchsorted(data['delta_time'], unique_times)
         data = data[sub_index]

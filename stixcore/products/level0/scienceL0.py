@@ -457,8 +457,9 @@ class CompressedPixelData(ScienceProduct):
 
         # only fix here as data is needed for extraction but will be all zeros
         data['detector_masks'] = fix_detector_mask(control, data['detector_masks'])
-        # now slice counts by updated mask
-        counts = counts[:, data['detector_masks'][0], ...]
+        # now slice counts by updated mask if necessary
+        if counts.shape[1] != data['detector_masks'][0].sum():
+            counts = counts[:, data['detector_masks'][0].astype(bool), ...]
 
         sub_index = np.searchsorted(data['delta_time'], unique_times)
         data = data[sub_index]

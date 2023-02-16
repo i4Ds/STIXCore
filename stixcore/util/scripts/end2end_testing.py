@@ -137,7 +137,7 @@ def end2end_pipeline(indir, fitsdir):
     _spm = SpiceKernelManager(test_data.ephemeris.KERNELS_DIR)
     Spice.instance = Spice(_spm.get_latest_mk())
 
-    SOOPManager.instance = SOOPManager(test_data.soop.DIR)
+    SOOPManager.instance = SOOPManager(test_data.soop.DIR, mock_api=True)
 
     idbpath = Path(__file__).parent.parent.parent / "data" / "idb"
     IDBManager.instance = IDBManager(idbpath)  # force_version="2.26.35")

@@ -216,9 +216,12 @@ class RawPixelData(ScienceProduct):
         tmp['channel'] = np.array(packets.get_value('NIXD0154'), np.ubyte)
         tmp['continuation_bits'] = np.array(packets.get_value('NIXD0159'), np.ubyte)
 
-        control['energy_bin_mask'] = np.full((1, 32), False, np.ubyte)
+        emask = np.full(33, False, np.ubyte)
         all_energies = set(tmp['channel'])
-        control['energy_bin_mask'][:, list(all_energies)] = True
+        eids = np.array(list(all_energies))
+        emask[eids] = 1
+        emask[eids+1] = 1
+        control['energy_bin_edge_mask'] = emask.reshape(1, -1)
 
         # Find contiguous time indices
         unique_times = np.unique(data['start_time'])
@@ -240,7 +243,7 @@ class RawPixelData(ScienceProduct):
         # now slice counts by updated mask if necessary
         orig_sum = counts.sum()
         if counts.shape[1] != data['detector_masks'][0].sum():
-            non_zero_detectors = np.where(counts.sum(axis=(0, 2, 3)) > 0)
+            non_zero_detectors, *_ = np.where(counts.sum(axis=(0, 2, 3)) > 0)
             counts = counts[:, non_zero_detectors, ...]
             new_sum = counts.sum()
             if new_sum != orig_sum:
@@ -467,7 +470,7 @@ class CompressedPixelData(ScienceProduct):
         # now slice counts by updated mask if necessary
         orig_sum = counts.sum()
         if counts.shape[1] != data['detector_masks'][0].sum():
-            non_zero_detectors = np.where(counts.sum(axis=(0, 2, 3)) > 0)
+            non_zero_detectors, *_ = np.where(counts.sum(axis=(0, 2, 3)) > 0)
             counts = counts[:, non_zero_detectors, ...]
             new_sum = counts.sum()
             if new_sum != orig_sum:

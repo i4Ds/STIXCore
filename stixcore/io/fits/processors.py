@@ -24,6 +24,7 @@ logger = get_logger(__name__)
 
 LLDP_VERSION = "00.07.00"
 Y_M_D_H_M = "%Y%m%d%H%M"
+NAN = 2 ** 32 - 1
 
 
 def set_bscale_unsigned(table_hdu):
@@ -103,7 +104,8 @@ class FitsProcessor:
             # ('APID', '', 'APIC number of associated TM'),
             ('DATE', datetime.now().isoformat(timespec='milliseconds'),
              'FITS file creation date in UTC'),
-
+            ('BLANK', NAN,
+             'Value marking undefined pixels (before the application of BSCALE, BZERO)'),
             ('LEVEL', product.level, 'Data processing level'),
             ('ORIGIN', 'STIX Team, FHNW', 'FHNW'),
             ('CREATOR', 'stixcore', 'FITS creation software'),
@@ -175,6 +177,8 @@ class FitsLL01Processor(FitsProcessor):
             ('FILENAME', filename, 'FITS filename'),
             ('DATE', curtime.now().isoformat(timespec='milliseconds'),
              'FITS file creation date in UTC'),
+            ('BLANK', NAN,
+             'Value marking undefined pixels (before the application of BSCALE, BZERO)'),
             ('OBT_BEG', product.scet_timerange.start.to_string()),
             ('OBT_END', product.scet_timerange.end.to_string()),
             ('TIMESYS', 'OBT', 'System used for time keywords'),

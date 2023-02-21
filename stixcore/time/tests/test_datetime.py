@@ -118,8 +118,8 @@ def test_time_eq():
 def test_time_broadcast():
     t = SCETime(0, 0)
     t1 = t + np.arange(100) * u.s
-    t2 = SCETime(np.arange(100, dtype=np.int), 0)
-    t3 = SCETime(0, np.arange(100, dtype=np.int))
+    t2 = SCETime(np.arange(100, dtype=int), 0)
+    t3 = SCETime(0, np.arange(100, dtype=int))
     assert t1.shape == (100,)
     assert t2.shape == (100,)
     assert t3.shape == (100,)

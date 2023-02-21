@@ -1,5 +1,6 @@
 import os
 import sys
+import time
 import shutil
 import smtplib
 import sqlite3
@@ -57,6 +58,9 @@ class PublishResult(Enum):
     MODIFIED = 12
     """Other files with the same ESA file name have already be published.
     Therefore the filename was modified to a supplementary data product. (-sub1/2)"""
+
+    BLACKLISTED = 13
+    """This files was ignored via a blacklist and not published to ESA"""
 
     ERROR = 14
     """An error was raised during publication"""
@@ -157,7 +161,7 @@ class PublishHistoryStorage:
         parts = name[:-5].split('_')
         version = int(parts[4].lower().replace("v", ""))
         esa_name = '_'.join(parts[0:5])
-        m_date = path.stat().st_mtime
+        m_date = path.stat().st_ctime
         try:
             self.cur.execute("""insert into published
                                     (name, path, version, p_date, m_date, esaname)
@@ -277,12 +281,12 @@ def send_mail_report(files):
             host = CONFIG.get('Pipeline', 'error_mail_smpt_host', fallback='localhost')
             port = CONFIG.getint('Pipeline', 'error_mail_smpt_port', fallback=25)
             smtp_server = smtplib.SMTP(host=host, port=port)
-            summary = (f"E {len(files[PublishResult.ERROR])} "
-                       f"I {len(files[PublishResult.IGNORED])} "
-                       f"S {len(files[PublishResult.MODIFIED])} "
-                       f"P {len(files[PublishResult.PUBLISHED])}")
+            su = (f"E {len(files[PublishResult.ERROR])} "
+                  f"I {len(files[PublishResult.IGNORED]) + len(files[PublishResult.BLACKLISTED])} "
+                  f"S {len(files[PublishResult.MODIFIED])} "
+                  f"P {len(files[PublishResult.PUBLISHED])}")
             error = "" if len(files[PublishResult.ERROR]) <= 0 else "ERROR-"
-            message = f"""Subject: StixCore TMTC Publishing {error}Report {summary}
+            message = f"""Subject: StixCore TMTC Publishing {error}Report {su}
 
 ERRORS (E)
 **********
@@ -298,6 +302,10 @@ RE-REQUESTED (I)
 SUPPLEMENTS (S)
 ***************
 {pformat(files[PublishResult.MODIFIED])}
+
+BLACKLISTED (I)
+***************
+{pformat(files[PublishResult.BLACKLISTED])}
 
 PUBLISHED (P)
 *************
@@ -362,6 +370,14 @@ def publish_fits_to_esa(args):
                         default=False,
                         action='store_true', dest='sort_files')
 
+    parser.add_argument("--blacklist_files",
+                        help="input txt file with file names to that should not be delivered",
+                        default=None, type=str, dest='blacklist_files')
+
+    parser.add_argument("--supplement_report",
+                        help="path to file where supplements and reqeust reasons are summarized",
+                        default=None, type=str, dest='supplement_report')
+
     parser.add_argument("-d", "--db_file",
                         help="Path to the history publishing database", type=str,
                         default=CONFIG.get('Publish', 'db_file',
@@ -399,9 +415,11 @@ def publish_fits_to_esa(args):
                 reason = " ".join(np.atleast_1d(reqeust['description']))
                 c_entry = f"BSD request id: '{rid}' reason: '{reason}'"
                 fits.setval(p, "COMMENT", value=c_entry)
+                return c_entry
         except Exception as e:
-            logger.info(e, exc_info=True)
-            logger.info("no BSD request comment added")
+            logger.debug(e, exc_info=True)
+            logger.info(f"no BSD request comment added nothing found in LUT for rid: {rid}")
+        return ''
 
     def addHistory(p, name):
         time_formated = datetime.now().isoformat(timespec='milliseconds')
@@ -453,6 +471,8 @@ def publish_fits_to_esa(args):
                     continue
                 logger.info(f'found {len(update_lut)} entries')
                 rid_lut = vstack([rid_lut, update_lut])
+                # the stix datacenter API is throttled to 2 calls per second
+                time.sleep(0.5)
 
             rid_lut = unique(rid_lut, silent=True)
             ascii.write(rid_lut, file, overwrite=True, delimiter=",")
@@ -521,6 +541,32 @@ def publish_fits_to_esa(args):
     hist = PublishHistoryStorage(db_file)
     n_candidates = 0
 
+    blacklist_files = list()
+
+    if args.blacklist_files:
+        try:
+            with open(args.blacklist_files, "r") as f:
+                for ifile in f:
+                    try:
+                        ifile = ifile.strip()
+                        if len(ifile) > 1:
+                            blacklist_files.append(ifile)
+                    except Exception as e:
+                        print(e)
+                        print("skipping this blacklist file line")
+            blacklist_files = set(blacklist_files)
+        except IOError as e:
+            print(e)
+            print("Fall back to no blacklist files")
+
+    supplement_report = None
+    if args.supplement_report:
+        args.supplement_report = Path(args.supplement_report)
+        supplement_report = Table(names=["filename", "basefile", 'comment'],
+                                  dtype=[str, str, str])
+        if not args.supplement_report.exists():
+            ascii.write(supplement_report, args.supplement_report, delimiter="\t")
+
     tempdir = tempfile.TemporaryDirectory()
     tempdir_path = Path(tempdir.name)
 
@@ -541,6 +587,8 @@ def publish_fits_to_esa(args):
     logger.info(f'update_rid_lut: {args.update_rid_lut}')
     logger.info(f"update_rid_lut_url: {CONFIG.get('Publish', 'rid_lut_file_update_url')}")
     logger.info(f'sort file: {args.sort_files}')
+    logger.info(f'blacklist files: {blacklist_files}')
+    logger.info(f'supplement report: {args.supplement_report}')
     logger.info("start publishing")
 
     for c in candidates:
@@ -553,7 +601,7 @@ def publish_fits_to_esa(args):
             if version not in include_versions:
                 continue
 
-        last_mod = c.stat().st_mtime
+        last_mod = c.stat().st_ctime
 
         # should the level by published
         if level not in include_levels:
@@ -571,10 +619,12 @@ def publish_fits_to_esa(args):
         old = hist.find_by_name(c.name)
 
         # was the same file already published
-        if len(old) == 1:
-            old = old[0]
-            if old['m_date'] == last_mod:
-                continue
+        if len(old) > 0:
+            # as the added keyword by publishing will also change the mtime
+            # we do not publish again - just with new name (version)
+            # old = old[0]
+            # if old['m_date'] == last_mod:
+            continue
 
         to_publish.append(c)
 
@@ -587,10 +637,13 @@ def publish_fits_to_esa(args):
     published = defaultdict(list)
     for p in to_publish:
         try:
-            addBSDComment(p, rid_lut)
+            comment = addBSDComment(p, rid_lut)
             add_res, data = hist.add(p)
 
-            if add_res == PublishConflicts.ADDED:
+            if p.name in blacklist_files:
+                hist.set_result(PublishResult.BLACKLISTED, data[0]["id"])
+                published[PublishResult.BLACKLISTED].append(data)
+            elif add_res == PublishConflicts.ADDED:
                 ok, error = copyFile(scp, p, target_dir)
                 if ok:
                     hist.set_result(PublishResult.PUBLISHED, data[0]["id"])
@@ -641,7 +694,10 @@ def publish_fits_to_esa(args):
                         new_name = '_'.join(parts)
 
                         os.rename(tempdir_path / old_name, tempdir_path / new_name)
-                        fits.setval(tempdir_path / new_name, 'COMMENT',value=f"supplement data product combine with: {data[0]['name']}")  # noqa
+                        parent_comment = f"supplement data product combine with: {data[0]['name']}"
+                        fits.setval(tempdir_path / new_name, 'COMMENT', value=parent_comment)
+                        if args.supplement_report:
+                            supplement_report.add_row([new_name, data[0]['name'], comment])
 
                         ok, error = copyFile(scp, tempdir_path / new_name, target_dir)
                         if ok:
@@ -666,6 +722,11 @@ def publish_fits_to_esa(args):
             logger.error(e, exc_info=True)
 
     send_mail_report(published)
+    if args.supplement_report:
+        # append the new report
+        with open(args.supplement_report, mode='a') as f:
+            f.seek(0, os.SEEK_END)
+            supplement_report.write(f, format='ascii.no_header', delimiter="\t")
     hist.close()
     tempdir.cleanup()
     return published

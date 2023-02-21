@@ -221,7 +221,7 @@ class FitsLL01Processor(FitsProcessor):
 
             # add comment in the FITS for all error values
             for col in data.columns:
-                if col.endswith('_err'):
+                if col.endswith('_comp_err'):
                     data[col].description = "Error due only to integer compression"
 
             idb_versions = QTable(rows=[(version, range.start.as_float(), range.end.as_float())
@@ -488,7 +488,7 @@ class FitsL0Processor:
 
             # add comment in the FITS for all error values
             for col in data.columns:
-                if col.endswith('_err'):
+                if col.endswith('_comp_err'):
                     data[col].description = "Error due only to integer compression"
 
             idb_versions = QTable(rows=[(version, range.start.as_float(), range.end.as_float())
@@ -498,6 +498,10 @@ class FitsL0Processor:
             primary_header = self.generate_primary_header(filename, prod, version=version)
             primary_hdu = fits.PrimaryHDU()
             primary_hdu.header.update(primary_header)
+
+            # Add comment and history
+            [primary_hdu.header.add_comment(com) for com in prod.comment]
+            [primary_hdu.header.add_history(com) for com in prod.history]
             primary_hdu.header.update({'HISTORY': 'Processed by STIXCore L0'})
 
             # Convert time to be relative to start date
@@ -565,7 +569,7 @@ class FitsL0Processor:
         hdul : list
             list of all extensions the energy to add to
         """
-        if getattr(product, 'get_energies', False) is not False:
+        if getattr(product, 'get_energies', False) is not False and not product.ssid == 42:
             elow, ehigh, channel = product.get_energies()
             energies = QTable()
             energies['channel'] = np.uint8(channel)
@@ -697,12 +701,12 @@ class FitsL1Processor(FitsL0Processor):
                                                           otype=SoopObservationType.ALL)
         soop_headers = tuple(kw.tuple for kw in soop_keywords)
         soop_defaults = (
-            ('OBS_MODE', '', 'Observation mode'),
-            ('OBS_TYPE', '', 'Encoded version of OBS_MODE'),
-            ('OBS_ID', '', 'Unique ID of the individual observation'),
-            ('SOOPNAME', '', 'Name of the SOOP Campaign that the data belong to'),
-            ('SOOPTYPE', '', 'Campaign ID(s) that the data belong to'),
-            ('TARGET', '', 'Type of target from planning')
+            ('OBS_MODE', 'none', 'Observation mode'),
+            ('OBS_TYPE', 'none', 'Encoded version of OBS_MODE'),
+            ('OBS_ID', 'none', 'Unique ID of the individual observation'),
+            ('SOOPNAME', 'none', 'Name of the SOOP Campaign that the data belong to'),
+            ('SOOPTYPE', 'none', 'Campaign ID(s) that the data belong to'),
+            ('TARGET', 'none', 'Type of target from planning')
         )
 
         soop_key_names = [sh[0] for sh in soop_headers]
@@ -772,7 +776,7 @@ class FitsL1Processor(FitsL0Processor):
 
             # add comment in the FITS for all error values
             for col in data.columns:
-                if col.endswith('_err'):
+                if col.endswith('_comp_err'):
                     data[col].description = "Error due only to integer compression"
 
             idb_versions = QTable(rows=[(version, range.start.as_float(), range.end.as_float())
@@ -785,6 +789,10 @@ class FitsL1Processor(FitsL0Processor):
             primary_hdu.header.update(primary_header)
             primary_hdu.header.update(header_override)
             primary_hdu.header.update(product.get_additional_header_keywords())
+
+            # Add comment and history
+            [primary_hdu.header.add_comment(com) for com in prod.comment]
+            [primary_hdu.header.add_history(com) for com in prod.history]
             primary_hdu.header.update({'HISTORY': 'Processed by STIXCore L1'})
 
             # Convert time to be relative to start date

@@ -481,7 +481,7 @@ class Spice(SpiceKernelLoader, metaclass=Singleton):
             header_results['DATE_SUN'] = (start_time - np.around(sun_solo_lt, precision)*u.s).fits
 
         except Exception:
-            headers = headers + (('SPICE_ERROR', '1',
+            headers = headers + (('SPICE_ER', '1',
                                   'Pointing Data might be corrupt due to SPICE / time issues'),)
 
         headers = headers + (

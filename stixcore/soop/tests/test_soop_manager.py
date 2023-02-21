@@ -16,8 +16,13 @@ MOVE_FILE = 'SSTX_observation_timeline_export_M04_V02.json'
 
 
 @pytest.fixture
+def out_dir(tmp_path):
+    return tmp_path
+
+
+@pytest.fixture
 def soop_manager():
-    return SOOPManager(test_data.soop.DIR)
+    return SOOPManager(test_data.soop.DIR, mock_api=True)
 
 
 def teardown_function():
@@ -45,7 +50,7 @@ def test_soop_manager_watchdog(soop_manager):
 
     # 3 files are in the base dir
     assert soop_manager.filecounter == 3
-    assert len(soop_manager.soops) == 8
+    assert len(soop_manager.soops) == 129
     assert len(soop_manager.observations) == 132
 
     time.sleep(1)
@@ -60,10 +65,19 @@ def test_soop_manager_watchdog(soop_manager):
     if platform.system() != "Darwin":
         # the new data should be integrated now
         assert soop_manager.filecounter == 4
-        assert len(soop_manager.soops) == 10
-        assert len(soop_manager.observations) == 150
+        assert len(soop_manager.soops) == 129
+        assert len(soop_manager.observations) == 132
 
     observer.stop()
+
+
+def test_soop_download_all_soop(soop_manager, out_dir):
+    version = 2
+    lpt = 'LTP09_Sep2022-Dec2022'
+    f = out_dir / f"{lpt}.{version}.all.json"
+    assert not f.exists()
+    soop_manager.download_all_soops_from_api(lpt, version, f)
+    assert f.exists()
 
 
 def test_soop_manager_find_point(soop_manager):
@@ -93,26 +107,36 @@ def test_soop_manager_find_filter(soop_manager):
 
 
 def test_soop_manager_get_keywords(soop_manager):
-    start = dateutil.parser.parse("2021-10-04T12:00:00Z")
-    end = dateutil.parser.parse("2021-10-18T00:00:00Z")
+    start = dateutil.parser.parse("2021-12-24T12:00:00Z")
+    end = dateutil.parser.parse("2021-12-25T00:00:00Z")
     keylist = soop_manager.get_keywords(start=start, end=end, otype=SoopObservationType.ALL)
-    assert len(keylist) == 6
+    assert len(keylist) == 3
+    keyset = KeywordSet(keylist)
+    assert keyset.get(HeaderKeyword(name='OBS_ID')).value\
+        == "SSTX_050A_LF5_11B_5Md2_11X;SSTX_050A_LF5_11B_vFLg_16S"
+    assert keyset.get(HeaderKeyword(name='OBS_TYPE')).value\
+        == "5Md2;vFLg"
+    assert keyset.get(HeaderKeyword(name='OBS_MODE')).value\
+        == "STIX_ANALYSIS;STIX_BASIC"
+
+    start = dateutil.parser.parse("2022-11-05T12:00:00Z")
+    end = dateutil.parser.parse("2022-11-05T20:00:00Z")
+    keylist = soop_manager.get_keywords(start=start, end=end, otype=SoopObservationType.ALL)
+    assert len(keylist) == 3
     keyset = KeywordSet(keylist)
     assert keyset.get(HeaderKeyword(name='TARGET')).value\
-        == "TBC"
+        == "none"
     assert keyset.get(HeaderKeyword(name='SOOPTYPE')).value\
-        == "LF5"
+        == "LF2"
     assert keyset.get(HeaderKeyword(name='SOOPNAME')).value\
-        == "L_FULL_LRES_MCAD_Coronal-Synoptic"
-    assert keyset.get(HeaderKeyword(name='OBS_ID')).value\
-        .count(";") == 15
+        == "L_FULL_HRES_HCAD_Eruption-Watch"
 
 
 def test_soop_manager_get_keywords_time_not_found(soop_manager):
     start = dateutil.parser.parse("2016-10-04T12:00:00Z")
     end = dateutil.parser.parse("2016-10-18T00:00:00Z")
-    with pytest.warns(UserWarning, match='No soops'):
-        _ = soop_manager.get_keywords(start=start, end=end, otype=SoopObservationType.ALL)
+    keylist = soop_manager.get_keywords(start=start, end=end, otype=SoopObservationType.ALL)
+    assert len(keylist) == 0
 
 
 def test_soop_manager_keywordset():

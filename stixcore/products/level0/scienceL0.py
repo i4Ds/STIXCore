@@ -249,6 +249,9 @@ class RawPixelData(ScienceProduct):
             if new_sum != orig_sum:
                 raise ValueError('Subscribed counts sum does not match original sum')
 
+        # Slice counts to only include requested energy channels
+        counts = counts[..., eids]
+
         sub_index = np.searchsorted(data['start_time'], unique_times)
         data = data[sub_index]
         data['time'] = control["time_stamp"][0] \

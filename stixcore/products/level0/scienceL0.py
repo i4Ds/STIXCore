@@ -475,6 +475,7 @@ class CompressedPixelData(ScienceProduct):
         if counts.shape[1] != data['detector_masks'][0].sum():
             non_zero_detectors, *_ = np.where(counts.sum(axis=(0, 2, 3)) > 0)
             counts = counts[:, non_zero_detectors, ...]
+            counts_var = counts_var[:, non_zero_detectors, ...]
             new_sum = counts.sum()
             if new_sum != orig_sum:
                 raise ValueError('Subscribed counts sum does not match original sum')

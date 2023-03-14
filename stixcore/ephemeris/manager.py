@@ -444,41 +444,35 @@ class Spice(SpiceKernelLoader, metaclass=Singleton):
                                                           'None', 'Earth')
             sun_earth_hee, sun_earth_lt = spiceypy.spkezr('Earth', et, 'SOLO_HEE', 'None', 'Sun')
 
-            precision = 2
-
             header_results['RSUN_ARC'] = rsun_arc.to_value('arcsec')
-            header_results['HGLT_OBS'] = np.around(hg_lat.to_value('deg'), precision)
-            header_results['HGLN_OBS'] = np.around(hg_lon.to_value('deg'), precision)
-            header_results['CRLT_OBS'] = np.around(hg_lat.to_value('deg'), precision)
-            header_results['CRLN_OBS'] = np.around(hg_lon.to_value('deg'), precision)
-            header_results['DSUN_OBS'] = np.around(hg_rad.to_value('m'), precision)
-            header_results['HEEX_OBS'] = np.around((solo_sun_hee[0]*u.km).to_value('m'), precision)
-            header_results['HEEY_OBS'] = np.around((solo_sun_hee[1]*u.km).to_value('m'), precision)
-            header_results['HEEZ_OBS'] = np.around((solo_sun_hee[2]*u.km).to_value('m'), precision)
-            header_results['HCIX_OBS'] = np.around((solo_sun_hci[0]*u.km).to_value('m'), precision)
-            header_results['HCIY_OBS'] = np.around((solo_sun_hci[1]*u.km).to_value('m'), precision)
-            header_results['HCIZ_OBS'] = np.around((solo_sun_hci[2]*u.km).to_value('m'), precision)
-            header_results['HCIX_VOB'] = np.around((solo_sun_hci[3]*(u.km/u.s)).to_value('m/s'),
-                                                   precision)
-            header_results['HCIY_VOB'] = np.around((solo_sun_hci[4]*(u.km/u.s)).to_value('m/s'),
-                                                   precision)
-            header_results['HCIZ_VOB'] = np.around((solo_sun_hci[5]*(u.km/u.s)).to_value('m/s'),
-                                                   precision)
-            header_results['HAEX_OBS'] = np.around((solo_sun_hae[0]*u.km).to_value('m'), precision)
-            header_results['HAEY_OBS'] = np.around((solo_sun_hae[1]*u.km).to_value('m'), precision)
-            header_results['HAEZ_OBS'] = np.around((solo_sun_hae[0]*u.km).to_value('m'), precision)
-            header_results['HEQX_OBS'] = np.around((solo_sun_heeq[0]*u.km).to_value('m'), precision)
-            header_results['HEQY_OBS'] = np.around((solo_sun_heeq[1]*u.km).to_value('m'), precision)
-            header_results['HEQZ_OBS'] = np.around((solo_sun_heeq[2]*u.km).to_value('m'), precision)
-            header_results['GSEX_OBS'] = np.around((solo_sun_gse[0]*u.km).to_value('m'), precision)
-            header_results['GSEY_OBS'] = np.around((solo_sun_gse[1]*u.km).to_value('m'), precision)
-            header_results['GSEZ_OBS'] = np.around((solo_sun_gse[2]*u.km).to_value('m'), precision)
-            header_results['OBS_VR'] = np.around(rad_vel.to_value('m/s'), precision)
-            header_results['EAR_TDEL'] = np.around(sun_earth_lt - sun_solo_lt, precision)
-            header_results['SUN_TIME'] = np.around(sun_solo_lt, precision)
-            header_results['DATE_EAR'] = (start_time + np.around((sun_earth_lt - sun_solo_lt),
-                                                                 precision) * u.s).fits
-            header_results['DATE_SUN'] = (start_time - np.around(sun_solo_lt, precision)*u.s).fits
+            header_results['HGLT_OBS'] = hg_lat.to_value('deg')
+            header_results['HGLN_OBS'] = hg_lon.to_value('deg')
+            header_results['CRLT_OBS'] = hg_lat.to_value('deg')
+            header_results['CRLN_OBS'] = hg_lon.to_value('deg')
+            header_results['DSUN_OBS'] = hg_rad.to_value('m')
+            header_results['HEEX_OBS'] = (solo_sun_hee[0] * u.km).to_value('m')
+            header_results['HEEY_OBS'] = (solo_sun_hee[1] * u.km).to_value('m')
+            header_results['HEEZ_OBS'] = (solo_sun_hee[2] * u.km).to_value('m')
+            header_results['HCIX_OBS'] = (solo_sun_hci[0] * u.km).to_value('m')
+            header_results['HCIY_OBS'] = (solo_sun_hci[1] * u.km).to_value('m')
+            header_results['HCIZ_OBS'] = (solo_sun_hci[2] * u.km).to_value('m')
+            header_results['HCIX_VOB'] = (solo_sun_hci[3] * (u.km/u.s)).to_value('m/s')
+            header_results['HCIY_VOB'] = (solo_sun_hci[4] * (u.km/u.s)).to_value('m/s')
+            header_results['HCIZ_VOB'] = (solo_sun_hci[5] * (u.km/u.s)).to_value('m/s')
+            header_results['HAEX_OBS'] = (solo_sun_hae[0] * u.km).to_value('m')
+            header_results['HAEY_OBS'] = (solo_sun_hae[1] * u.km).to_value('m')
+            header_results['HAEZ_OBS'] = (solo_sun_hae[0] * u.km).to_value('m')
+            header_results['HEQX_OBS'] = (solo_sun_heeq[0] * u.km).to_value('m')
+            header_results['HEQY_OBS'] = (solo_sun_heeq[1] * u.km).to_value('m')
+            header_results['HEQZ_OBS'] = (solo_sun_heeq[2] * u.km).to_value('m')
+            header_results['GSEX_OBS'] = (solo_sun_gse[0] * u.km).to_value('m')
+            header_results['GSEY_OBS'] = (solo_sun_gse[1] * u.km).to_value('m')
+            header_results['GSEZ_OBS'] = (solo_sun_gse[2] * u.km).to_value('m')
+            header_results['OBS_VR'] = rad_vel.to_value('m/s')
+            header_results['EAR_TDEL'] = sun_earth_lt - sun_solo_lt
+            header_results['SUN_TIME'] = sun_solo_lt
+            header_results['DATE_EAR'] = (start_time + (sun_earth_lt - sun_solo_lt) * u.s).fits
+            header_results['DATE_SUN'] = (start_time - sun_solo_lt*u.s).fits
 
         except Exception:
             headers = headers + (('SPICE_ER', '1',

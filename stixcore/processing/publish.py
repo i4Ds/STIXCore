@@ -375,8 +375,10 @@ def publish_fits_to_esa(args):
                         default=None, type=str, dest='blacklist_files')
 
     parser.add_argument("--supplement_report",
-                        help="path to file where supplements and reqeust reasons are summarized",
-                        default=None, type=str, dest='supplement_report')
+                        help="path to file where supplements and request reasons are summarized",
+                        default=CONFIG.get('Publish', 'supplement_report',
+                                           fallback=str(Path.home() / "supplement_report.csv")),
+                        type=str, dest='supplement_report')
 
     parser.add_argument("-d", "--db_file",
                         help="Path to the history publishing database", type=str,
@@ -405,7 +407,7 @@ def publish_fits_to_esa(args):
 
     parser.add_argument("-f", "--fits_dir",
                         help="input FITS directory for files to publish ",
-                        default=CONFIG.get('Paths', 'fits_archive'), type=str)
+                        default=CONFIG.get('Publish', 'fits_dir'), type=str)
 
     args = parser.parse_args(args)
 
@@ -512,7 +514,7 @@ def publish_fits_to_esa(args):
     wait_period_s = wait_period.to(u.s).value
 
     target_dir = Path(args.target_dir)
-    if not target_dir.exists():
+    if (scp is None) and (not target_dir.exists()):
         logger.info(f'path not found to target dir: {target_dir} creating dir')
         target_dir.mkdir(parents=True, exist_ok=True)
 
@@ -740,5 +742,9 @@ def publish_fits_to_esa(args):
     return published
 
 
-if __name__ == '__main__':
+def main():
     publish_fits_to_esa(sys.argv[1:])
+
+
+if __name__ == '__main__':
+    main()

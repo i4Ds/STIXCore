@@ -387,6 +387,10 @@ def publish_fits_to_esa(args):
                         help="how long to wait after last file modification before publishing",
                         default=CONFIG.get('Publish', 'waiting_period', fallback="14d"), type=str)
 
+    parser.add_argument("-n", "--batch_size",
+                        help="maximum number of files to publish at this run",
+                        default=CONFIG.getint('Publish', 'batch_size', fallback=-1), type=int)
+
     parser.add_argument("-v", "--include_versions",
                         help="what versions should be published",
                         default=CONFIG.get('Publish', 'include_versions', fallback="*"), type=str)
@@ -589,6 +593,7 @@ def publish_fits_to_esa(args):
     logger.info(f'sort file: {args.sort_files}')
     logger.info(f'blacklist files: {blacklist_files}')
     logger.info(f'supplement report: {args.supplement_report}')
+    logger.info(f'batch size: {args.batch_size}')
     logger.info("start publishing")
 
     for c in candidates:
@@ -626,6 +631,9 @@ def publish_fits_to_esa(args):
             # if old['m_date'] == last_mod:
             continue
 
+        if (args.batch_size >= 0) and (len(to_publish) >= args.batch_size):
+            logger.info(f'batch size ({args.batch_size}) exceeded > stop looking for more files.')
+            break
         to_publish.append(c)
 
     logger.info(f'#candidates: {n_candidates}')

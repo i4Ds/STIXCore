@@ -375,8 +375,10 @@ def publish_fits_to_esa(args):
                         default=None, type=str, dest='blacklist_files')
 
     parser.add_argument("--supplement_report",
-                        help="path to file where supplements and reqeust reasons are summarized",
-                        default=None, type=str, dest='supplement_report')
+                        help="path to file where supplements and request reasons are summarized",
+                        default=CONFIG.get('Publish', 'supplement_report',
+                                           fallback=str(Path.home() / "supplement_report.csv")),
+                        type=str, dest='supplement_report')
 
     parser.add_argument("-d", "--db_file",
                         help="Path to the history publishing database", type=str,
@@ -386,6 +388,10 @@ def publish_fits_to_esa(args):
     parser.add_argument("-w", "--waiting_period",
                         help="how long to wait after last file modification before publishing",
                         default=CONFIG.get('Publish', 'waiting_period', fallback="14d"), type=str)
+
+    parser.add_argument("-n", "--batch_size",
+                        help="maximum number of files to publish at this run",
+                        default=CONFIG.getint('Publish', 'batch_size', fallback=-1), type=int)
 
     parser.add_argument("-v", "--include_versions",
                         help="what versions should be published",
@@ -397,11 +403,12 @@ def publish_fits_to_esa(args):
 
     parser.add_argument("-p", "--include_products",
                         help="what products should be published", type=str,
-                        default=CONFIG.get('Publish', 'include_products', fallback="ql,hk,sci,aux"))
+                        default=CONFIG.get('Publish', 'include_products',
+                                           fallback="ql,hk,sci,aux,cal"))
 
     parser.add_argument("-f", "--fits_dir",
                         help="input FITS directory for files to publish ",
-                        default=CONFIG.get('Paths', 'fits_archive'), type=str)
+                        default=CONFIG.get('Publish', 'fits_dir'), type=str)
 
     args = parser.parse_args(args)
 
@@ -508,7 +515,7 @@ def publish_fits_to_esa(args):
     wait_period_s = wait_period.to(u.s).value
 
     target_dir = Path(args.target_dir)
-    if not target_dir.exists():
+    if (scp is None) and (not target_dir.exists()):
         logger.info(f'path not found to target dir: {target_dir} creating dir')
         target_dir.mkdir(parents=True, exist_ok=True)
 
@@ -589,6 +596,7 @@ def publish_fits_to_esa(args):
     logger.info(f'sort file: {args.sort_files}')
     logger.info(f'blacklist files: {blacklist_files}')
     logger.info(f'supplement report: {args.supplement_report}')
+    logger.info(f'batch size: {args.batch_size}')
     logger.info("start publishing")
 
     for c in candidates:
@@ -626,6 +634,9 @@ def publish_fits_to_esa(args):
             # if old['m_date'] == last_mod:
             continue
 
+        if (args.batch_size >= 0) and (len(to_publish) >= args.batch_size):
+            logger.info(f'batch size ({args.batch_size}) exceeded > stop looking for more files.')
+            break
         to_publish.append(c)
 
     logger.info(f'#candidates: {n_candidates}')
@@ -732,5 +743,9 @@ def publish_fits_to_esa(args):
     return published
 
 
-if __name__ == '__main__':
+def main():
     publish_fits_to_esa(sys.argv[1:])
+
+
+if __name__ == '__main__':
+    main()

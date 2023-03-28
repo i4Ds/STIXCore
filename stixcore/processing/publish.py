@@ -707,6 +707,8 @@ def publish_fits_to_esa(args):
                         os.rename(tempdir_path / old_name, tempdir_path / new_name)
                         parent_comment = f"supplement data product combine with: {data[0]['name']}"
                         fits.setval(tempdir_path / new_name, 'COMMENT', value=parent_comment)
+                        fits.setval(tempdir_path / new_name, 'FILENAME', value=new_name)
+
                         if args.supplement_report:
                             supplement_report.add_row([new_name, data[0]['name'], comment])
 

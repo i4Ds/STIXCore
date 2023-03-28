@@ -4,6 +4,7 @@ from unittest.mock import patch
 import numpy as np
 import pytest
 
+from astropy.io import fits
 from astropy.table import QTable
 
 from stixcore.io.fits.processors import FitsL1Processor
@@ -195,7 +196,12 @@ def test_publish_fits_to_esa(product, out_dir):
     assert len(res[PublishResult.ERROR]) == 2
     assert res[PublishResult.ERROR][0][1] == 'max supplement error'
 
-    assert(supplement_report.exists())
+    # check if the FILENAME keyword was replaced
+    for f in target_dir.glob("*.fits"):
+        fncw = fits.getval(f, 'FILENAME')
+        assert fncw == f.name
+
+    assert supplement_report.exists()
 
     # publish again this time without blacklist
     # res2 = publish_fits_to_esa(['--target_dir', str(target_dir),

@@ -153,6 +153,10 @@ class MaxiReport(HKProduct):
             name = param.idb_info.get_product_attribute_name()
             data.add_basic(name=name, nix=nix, attr='value', packets=packets)
 
+            if nix in ['NIX00078', 'NIX00079', 'NIX00080', 'NIX00081']:
+                data[name].description = "accumulated over time from last "\
+                                         "report (reference is time bin end)"
+
         data['control_index'] = range(len(control))
 
         return cls(service_type=packets.service_type,

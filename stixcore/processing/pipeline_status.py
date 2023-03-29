@@ -1,8 +1,11 @@
+import sys
 import socket
 import argparse
 
 from stixcore.config.config import CONFIG
 from stixcore.util.logging import get_logger
+
+__all__ = ['pipeline_status']
 
 logger = get_logger(__name__)
 
@@ -31,7 +34,7 @@ def get_status(msg, port=12346):
         sock.close()
 
 
-def main():
+def pipeline_status(args):
     parser = argparse.ArgumentParser(description='stix pipeline status')
     parser.add_argument("-p", "--port",
                         help="connection port for the status info server",
@@ -59,15 +62,18 @@ def main():
                         const="next", type=str, dest='cmd', nargs="?")
 
     parser.add_argument("-C", "--config",
-                        help="get the config of the pipelin service",
+                        help="get the config of the pipeline service",
                         const="config", type=str, dest='cmd', nargs="?")
 
-    args = parser.parse_args()
-    # print(args)
+    args = parser.parse_args(args)
 
     cmd = args.cmd.encode() if args.cmd else b'last'
 
     get_status(cmd, args.port)
+
+
+def main():
+    pipeline_status(sys.argv[1:])
 
 
 if __name__ == '__main__':

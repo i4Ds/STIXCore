@@ -730,7 +730,8 @@ def publish_fits_to_esa(args):
                         new_name = '_'.join(parts)
 
                         os.rename(tempdir_path / old_name, tempdir_path / new_name)
-                        parent_comment = f"supplement data product combine with: {data[0]['name']}"
+                        parent_comment = f"supplement data product combine with: {data[0]['name']}"\
+                                         f". Orig filename of this supplement was {old_name}."
                         fits.setval(tempdir_path / new_name, 'COMMENT', value=parent_comment)
                         fits.setval(tempdir_path / new_name, 'FILENAME', value=new_name)
 

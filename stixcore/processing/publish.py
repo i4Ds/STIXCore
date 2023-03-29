@@ -670,7 +670,7 @@ def publish_fits_to_esa(args):
                 equal_data_once = False
                 new_entry_id = None
                 for f in data:
-                    # do not test against itself
+                    # do not test against itself test
                     if p.name == f['name']:
                         new_entry_id = f['id']
                         continue

@@ -738,25 +738,8 @@ class L1Mixin(FitsHeaderMixin):
                     and l1.data['timedel'].as_float().min() == 1*u.s) or \
                         (l1.utc_timerange.start.datetime >= MIN_INT_TIME_CHANGE
                          and l1.data['timedel'].as_float().min() == 0.5*u.s):
-                    correct_counts = l1.data['counts'][1:]
-                    correct_triggers = l1.data['triggers'][1:]
-                    # RAW PD does not have compressed counts
-                    if l1.ssid > 20:
-                        correct_trigger_errs = l1.data['triggers_comp_err'][1:]
-                        correct_count_errs = l1.data['counts_comp_err'][1:]
-                    correct_times = l1.data['time'][1:]
-                    correct_durations = l1.data['timedel'][1:]
-                    correct_rcr = l1.data['rcr'][1:]
-                    l1.data = l1.data[0:-1]
-                    l1.data['counts'] = correct_counts
-                    # RAW PD does not have compressed counts
-                    if l1.ssid > 20:
-                        l1.data['counts_comp_err'] = correct_count_errs
-                        l1.data['triggers_comp_err'] = correct_trigger_errs
-                    l1.data['triggers'] = correct_triggers
-                    l1.data['time'] = correct_times
-                    l1.data['timedel'] = correct_durations
-                    l1.data['rcr'] = correct_rcr
+                    l1.data['timedel'][1:-1] = l1.data['timedel'][:-2]
+                    l1.data = l1.data[1:-1]
                     l1.history.append('Time and count arrays were shifted to fix offset')
                 else:
                     l1.comment.append('Time and count arrays offset not fixed'

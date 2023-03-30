@@ -157,7 +157,7 @@ def data2table(data, level):
         if colname in descriptions['name']:
             _desc = str(descriptions['description'][descriptions['name'] == colname][0])
             parts = _desc.split("|")
-            if(len(parts) > 1):
+            if len(parts) > 1:
                 _desc = parts[0] if level == "L0" else parts[1]
             if _desc != '--':
                 desc = _desc
@@ -265,7 +265,7 @@ def product(file_in):
                     b("Keyword and Extension definition see:")
                     span(a(type(prod).__name__, href=f"#{prod.level}-{prod.type}-{prod.name}"))
 
-        return((prod.level, prod.type, di))
+        return (prod.level, prod.type, di)
 
 
 if __name__ == '__main__':
@@ -281,8 +281,8 @@ if __name__ == '__main__':
     doc = dominate.document(title='STIX DPDD')
 
     files = [  # LL
-        "LL/solo_LL01_stix-ql-lightcurve_0628185012-0628186272_V202203231133.fits",
-        "LL/solo_LL01_stix-ql-flareflag_0628185012-0628186272_V202203231133.fits",
+        # "LL/solo_LL01_stix-ql-lightcurve_0628185012-0628186272_V202203231133.fits",
+        # "LL/solo_LL01_stix-ql-flareflag_0628185012-0628186272_V202203231133.fits",
         # L0
         # science
         "L0/21/6/20/solo_L0_stix-sci-xray-rpd_0678187309-0678187429_V01_2106280011-54760.fits", # noqa
@@ -301,6 +301,8 @@ if __name__ == '__main__':
         # HK
         "L0/3/25/2/solo_L0_stix-hk-maxi_0647913600_V01.fits",
         "L0/3/25/1/solo_L0_stix-hk-mini_0643507200_V01.fits",
+        # CAL
+        "L0/21/6/41/solo_L0_stix-cal-energy_0640137600_V01.fits",
 
         # L1
         # science
@@ -319,11 +321,14 @@ if __name__ == '__main__':
         "L1/2021/11/16/CAL/solo_L1_stix-cal-energy_20211116_V01.fits",
         # HK
         "L1/2020/06/16/HK/solo_L1_stix-hk-maxi_20200616_V01.fits",
-        "L1/2021/09/20/HK/solo_L1_stix-hk-mini_20210920_V01.fits"]
+        "L1/2021/09/20/HK/solo_L1_stix-hk-mini_20210920_V01.fits",
+        # CAL
+        "L1/2023/02/13/CAL/solo_L1_stix-cal-energy_20230213_V01.fits"
+        ]
 
     remote = ["http://pub099.cs.technik.fhnw.ch/data/fits/" + x for x in files]
     # files = ["/home/shane/fits_test/" + x for x in files]
-    files = [("/data/stix/out/test/esa_release_test/" + x, remote[i]) for i, x in enumerate(files)]
+    files = [("/data/stix/out/fits_v0.2.0/" + x, remote[i]) for i, x in enumerate(files)]
 
     with tempfile.TemporaryDirectory() as tempdir:
         temppath = Path(tempdir)

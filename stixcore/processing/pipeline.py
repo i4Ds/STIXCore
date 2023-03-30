@@ -36,6 +36,7 @@ __all__ = ['GFTSFileHandler', 'process_tm', 'PipelineErrorReport', 'PipelineStat
 logger = get_logger(__name__)
 warnings.filterwarnings('ignore', module='astropy.io.fits.card')
 warnings.filterwarnings('ignore', module='astropy.utils.metadata')
+warnings.filterwarnings('ignore', module='watchdog.events')
 
 TM_REGEX = re.compile(r'.*PktTmRaw.*.xml$')
 

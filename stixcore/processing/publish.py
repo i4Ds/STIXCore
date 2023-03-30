@@ -7,6 +7,7 @@ import sqlite3
 import argparse
 import tempfile
 import urllib.request
+from io import StringIO
 from enum import Enum
 from pprint import pformat
 from pathlib import Path
@@ -24,6 +25,7 @@ from astropy.table import Table
 from astropy.table.operations import unique, vstack
 
 from stixcore.config.config import CONFIG
+from stixcore.processing.pipeline_status import pipeline_status
 from stixcore.util.logging import get_logger
 
 __all__ = ['PublishConflicts', 'PublishHistoryStorage', 'publish_fits_to_esa',
@@ -64,6 +66,18 @@ class PublishResult(Enum):
 
     ERROR = 14
     """An error was raised during publication"""
+
+
+class Capturing(list):
+    def __enter__(self):
+        self._stdout = sys.stdout
+        sys.stdout = self._stringio = StringIO()
+        return self
+
+    def __exit__(self, *args):
+        self.extend(self._stringio.getvalue().splitlines())
+        del self._stringio    # free up some memory
+        sys.stdout = self._stdout
 
 
 class PublishHistoryStorage:
@@ -276,6 +290,12 @@ class PublishHistoryStorage:
 def send_mail_report(files):
     if CONFIG.getboolean('Publish', 'report_mail_send', fallback=False):
         try:
+            try:
+                with Capturing() as open_tm_files:
+                    pipeline_status(["--next"])
+            except Exception as se:
+                open_tm_files = str(se)
+
             sender = CONFIG.get('Pipeline', 'error_mail_sender', fallback='')
             receivers = CONFIG.get('Publish', 'report_mail_receivers').split(",")
             host = CONFIG.get('Pipeline', 'error_mail_smpt_host', fallback='localhost')
@@ -287,6 +307,11 @@ def send_mail_report(files):
                   f"P {len(files[PublishResult.PUBLISHED])}")
             error = "" if len(files[PublishResult.ERROR]) <= 0 else "ERROR-"
             message = f"""Subject: StixCore TMTC Publishing {error}Report {su}
+
+OPEN TM FILES IN QUEUE
+**********************
+
+{open_tm_files}
 
 ERRORS (E)
 **********
@@ -485,7 +510,7 @@ def publish_fits_to_esa(args):
             ascii.write(rid_lut, file, overwrite=True, delimiter=",")
             logger.info(f'write total {len(rid_lut)} entries to local storage')
         else:
-            logger.warn("read lut")
+            logger.warning("read lut")
             rid_lut = ascii.read(args.rid_lut_file, delimiter=",", converters=converters)
 
         rid_lut['description'] = [", ".join(r.values()) for r in
@@ -705,8 +730,11 @@ def publish_fits_to_esa(args):
                         new_name = '_'.join(parts)
 
                         os.rename(tempdir_path / old_name, tempdir_path / new_name)
-                        parent_comment = f"supplement data product combine with: {data[0]['name']}"
+                        parent_comment = f"supplement data product combine with: {data[0]['name']}"\
+                                         f". Orig filename of this supplement was {old_name}."
                         fits.setval(tempdir_path / new_name, 'COMMENT', value=parent_comment)
+                        fits.setval(tempdir_path / new_name, 'FILENAME', value=new_name)
+
                         if args.supplement_report:
                             supplement_report.add_row([new_name, data[0]['name'], comment])
 

@@ -509,7 +509,7 @@ def publish_fits_to_esa(args):
             if not file.parent.exists():
                 logger.info(f'path not found to rid lut file dir: {file.parent} creating dir')
                 file.parent.mkdir(parents=True, exist_ok=True)
-            rid_lut_file_update_url = CONFIG.get('Publish', 'rid_lut_file_update_url') + "test/"
+            rid_lut_file_update_url = CONFIG.get('Publish', 'rid_lut_file_update_url')
 
             try:
                 while (last_date < today):

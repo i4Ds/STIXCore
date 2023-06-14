@@ -328,7 +328,7 @@ if __name__ == '__main__':
 
     remote = ["http://pub099.cs.technik.fhnw.ch/data/fits/" + x for x in files]
     # files = ["/home/shane/fits_test/" + x for x in files]
-    files = [("/data/stix/out/fits_v0.2.0/" + x, remote[i]) for i, x in enumerate(files)]
+    files = [("/data/stix/out/fits_v1.0.0/" + x, remote[i]) for i, x in enumerate(files)]
 
     with tempfile.TemporaryDirectory() as tempdir:
         temppath = Path(tempdir)

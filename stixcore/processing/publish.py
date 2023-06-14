@@ -2,6 +2,7 @@ import os
 import sys
 import time
 import shutil
+import logging
 import smtplib
 import sqlite3
 import argparse
@@ -435,7 +436,25 @@ def publish_fits_to_esa(args):
                         help="input FITS directory for files to publish ",
                         default=CONFIG.get('Publish', 'fits_dir'), type=str)
 
+    parser.add_argument("-o", "--log_dir",
+                        help="output directory for daily logging ",
+                        default=CONFIG.get('Publish', 'log_dir', fallback=str(Path.home())),
+                        type=str, dest='log_dir')
+
+    parser.add_argument("--log_level",
+                        help="the level of logging",
+                        default=None, type=str,
+                        choices=["CRITICAL", "ERROR", "WARNING", "INFO", "DEBUG", "NOTSET"],
+                        dest='log_level')
+
     args = parser.parse_args(args)
+
+    logging.basicConfig(format='%(asctime)s %(message)s', force=True,
+                        filename=Path(args.log_dir) / f"pub_{date.today().strftime('%Y%m%d')}.log",
+                        filemode="a+")
+
+    if args.log_level:
+        logging.getLogger().setLevel(logging.getLevelName(args.log_level))
 
     def addBSDComment(p, rid_lut):
         try:
@@ -481,36 +500,44 @@ def publish_fits_to_esa(args):
             today = date.today()
             if file.exists():
                 rid_lut = ascii.read(args.rid_lut_file, delimiter=",", converters=converters)
-                last_date = datetime.strptime(rid_lut['start_utc'].max(), '%Y-%m-%dT%H:%M:%S')\
-                    .date()
+                mds = rid_lut['start_utc'].max()
+                try:
+                    last_date = datetime.strptime(mds, '%Y-%m-%dT%H:%M:%S').date()
+                except ValueError:
+                    last_date = datetime.strptime(mds, '%Y-%m-%dT%H:%M:%S.%f').date()
 
             if not file.parent.exists():
                 logger.info(f'path not found to rid lut file dir: {file.parent} creating dir')
                 file.parent.mkdir(parents=True, exist_ok=True)
             rid_lut_file_update_url = CONFIG.get('Publish', 'rid_lut_file_update_url')
-            while last_date < today:
-                last_date_1m = last_date + timedelta(days=30)
-                ldf = last_date.strftime('%Y%m%d')
-                ld1mf = last_date_1m.strftime('%Y%m%d')
-                update_url = f"{rid_lut_file_update_url}{ldf}/{ld1mf}"
-                logger.info(f'download publish lut file: {update_url}')
-                last_date = last_date_1m
-                updatefile = tempfile.NamedTemporaryFile().name
-                urllib.request.urlretrieve(update_url, updatefile)
-                update_lut = ascii.read(updatefile, delimiter=",", converters=converters)
 
-                if len(update_lut) < 1:
-                    continue
-                logger.info(f'found {len(update_lut)} entries')
-                rid_lut = vstack([rid_lut, update_lut])
-                # the stix datacenter API is throttled to 2 calls per second
-                time.sleep(0.5)
+            try:
+                while (last_date < today):
+                    last_date_1m = last_date + timedelta(days=30)
+                    ldf = last_date.strftime('%Y%m%d')
+                    ld1mf = last_date_1m.strftime('%Y%m%d')
+                    update_url = f"{rid_lut_file_update_url}{ldf}/{ld1mf}"
+                    logger.info(f'download publish lut file: {update_url}')
+                    last_date = last_date_1m
+                    updatefile = tempfile.NamedTemporaryFile().name
+                    urllib.request.urlretrieve(update_url, updatefile)
+                    update_lut = ascii.read(updatefile, delimiter=",", converters=converters)
+
+                    if len(update_lut) < 1:
+                        continue
+                    logger.info(f'found {len(update_lut)} entries')
+                    rid_lut = vstack([rid_lut, update_lut])
+                    # the stix datacenter API is throttled to 2 calls per second
+                    time.sleep(0.5)
+            except Exception as e:
+                logger.error("RID API ERROR")
+                logger.error(e)
 
             rid_lut = unique(rid_lut, silent=True)
             ascii.write(rid_lut, file, overwrite=True, delimiter=",")
             logger.info(f'write total {len(rid_lut)} entries to local storage')
         else:
-            logger.warning("read lut")
+            logger.info(f"read rid-lut from {args.rid_lut_file}")
             rid_lut = ascii.read(args.rid_lut_file, delimiter=",", converters=converters)
 
         rid_lut['description'] = [", ".join(r.values()) for r in
@@ -622,7 +649,12 @@ def publish_fits_to_esa(args):
     logger.info(f'blacklist files: {blacklist_files}')
     logger.info(f'supplement report: {args.supplement_report}')
     logger.info(f'batch size: {args.batch_size}')
-    logger.info("start publishing")
+    logger.info(f"send Mail report: {CONFIG.getboolean('Publish', 'report_mail_send')}")
+    logger.info(f"receivers: {CONFIG.get('Publish', 'report_mail_receivers')}")
+    logger.info(f'log dir: {args.log_dir}')
+    logger.info(f'log level: {args.log_level}')
+
+    logger.info("\nstart publishing\n")
 
     for c in candidates:
         n_candidates += 1

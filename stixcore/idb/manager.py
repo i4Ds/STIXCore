@@ -161,7 +161,7 @@ class IDBManager(metaclass=Singleton):
         return ''
 
     def compile_version(self, version_label, force=False,
-                        url="http://pub099.cs.technik.fhnw.ch/data/idb/"):
+                        url="https://pub099.cs.technik.fhnw.ch/data/idb/"):
         """Download compiles and installs an IDB version of a public available URL.
            Some IDB parameters will be injected to support the raw tw engineering framework.
 
@@ -173,7 +173,7 @@ class IDBManager(metaclass=Singleton):
             set to True to override the local version, by default False
         url : `str`, optional
             public available IDB versions folder, by default
-            "http://pub099.cs.technik.fhnw.ch/data/idb/"
+            "https://pub099.cs.technik.fhnw.ch/data/idb/"
 
         Returns
         -------
@@ -222,7 +222,7 @@ class IDBManager(metaclass=Singleton):
         return self.has_version(version_label)
 
     def download_version(self, version_label, force=False,
-                         url="http://pub099.cs.technik.fhnw.ch/data/idb/"):
+                         url="https://pub099.cs.technik.fhnw.ch/data/idb/"):
         """Download and installs an IDB version of a public available URL.
 
         Parameters
@@ -233,7 +233,7 @@ class IDBManager(metaclass=Singleton):
             set to True to override the local version, by default False
         url : `str`, optional
             public available IDB versions folder, by default
-            "http://pub099.cs.technik.fhnw.ch/data/idb/"
+            "https://pub099.cs.technik.fhnw.ch/data/idb/"
 
         Returns
         -------

@@ -24,7 +24,7 @@ def out_dir(tmpdir_factory):
 def orig_data(out_dir):
     orig_dir = out_dir / "origdata"
     orig_dir.mkdir(parents=True, exist_ok=True)
-    urllib.request.urlretrieve("http://pub099.cs.technik.fhnw.ch/data/end2end/data/head.zip",
+    urllib.request.urlretrieve("https://pub099.cs.technik.fhnw.ch/data/end2end/data/head.zip",
                                orig_dir / "orig.zip")
 
     with zipfile.ZipFile(orig_dir / "orig.zip", 'r') as zip_ref:

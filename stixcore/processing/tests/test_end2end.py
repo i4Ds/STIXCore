@@ -8,6 +8,7 @@ import pytest
 
 from astropy.io.fits.diff import FITSDiff
 
+from stixcore.products.product import Product
 from stixcore.util.logging import get_logger
 from stixcore.util.scripts.end2end_testing import end2end_pipeline
 
@@ -40,6 +41,14 @@ def orig_fits(orig_data):
 @pytest.fixture(scope="session")
 def current_fits(orig_data, out_dir):
     return end2end_pipeline(orig_data, out_dir)
+
+
+def test_find_parents(current_fits, out_dir):
+    for fits in current_fits:
+        p = Product(fits)
+        if hasattr(p, 'find_parent_files'):
+            parents = p.find_parent_files(out_dir)
+            assert len(parents) > 0
 
 
 @pytest.mark.end2end

@@ -423,9 +423,9 @@ class IDBManager(metaclass=Singleton):
         `str`
             a label like '1.2.3'
         """
-        if(isinstance(version_label, str)):
+        if isinstance(version_label, str):
             return version_label
-        if(isinstance(version_label, (list, tuple))):
+        if isinstance(version_label, (list, tuple)):
             return IDB_VERSION_DELIM.join(map(str, version_label))
 
     def _get_filename_for_version(self, version_label):

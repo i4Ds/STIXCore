@@ -39,6 +39,10 @@ class HKProduct(GenericProduct):
         self.level = 'L0'
         self.type = 'hk'
 
+    @property
+    def fits_daily_file(self):
+        return True
+
     @classmethod
     def from_levelb(cls, levelb, *, parent=''):
         """Converts level binary HK packets to a L1 product.

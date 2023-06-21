@@ -91,6 +91,10 @@ class ScienceProduct(GenericProduct, EnergyChannelsMixin):
         self.type = 'sci'
 
     @property
+    def fits_daily_file(self):
+        return False
+
+    @property
     def raw(self):
         return np.unique(self.control['raw_file'])
 

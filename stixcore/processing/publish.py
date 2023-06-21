@@ -28,6 +28,7 @@ from astropy.table.operations import unique, vstack
 from stixcore.config.config import CONFIG
 from stixcore.processing.pipeline_status import pipeline_status
 from stixcore.util.logging import get_logger
+from stixcore.util.util import get_complete_file_name, is_incomplete_file_name
 
 __all__ = ['PublishConflicts', 'PublishHistoryStorage', 'publish_fits_to_esa',
            'PublishHistoryStorage', 'PublishResult']
@@ -706,6 +707,10 @@ def publish_fits_to_esa(args):
     for p in to_publish:
         try:
             comment = addBSDComment(p, rid_lut)
+
+            if is_incomplete_file_name(p.name):
+                p = p.rename(p.parent / get_complete_file_name(p.name))
+
             add_res, data = hist.add(p)
 
             if p.name in blacklist_files:

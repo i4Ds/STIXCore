@@ -85,6 +85,34 @@ def test_publish_history_add_file(out_dir):
     assert items_a4[0] == items_a3[1]
 
 
+def test_publish_fits_to_esa_incomplete(out_dir):
+
+    PublishHistoryStorage(out_dir / "test.sqlite")
+
+    target_dir = out_dir / "esa"
+    same_dir = out_dir / "same"
+    fits_dir = out_dir / "fits"
+    same_dir.mkdir(parents=True, exist_ok=True)
+    target_dir.mkdir(parents=True, exist_ok=True)
+    fits_dir.mkdir(parents=True, exist_ok=True)
+
+    hdul = fits.HDUList([fits.PrimaryHDU()])
+    hdul.writeto(fits_dir / "solo_L0_stix-ql-background_0678250000_V01U.fits",
+                 overwrite=True, checksum=True)
+
+    hdul.writeto(fits_dir / "solo_L0_stix-ql-variance_0678240000_V01.fits",
+                 overwrite=True, checksum=True)
+
+    res = publish_fits_to_esa(['--target_dir', str(target_dir),
+                               '--same_esa_name_dir', str(same_dir),
+                               '--include_levels', 'l0',
+                               '--waiting_period', '0s',
+                               '--db_file', str(out_dir / "test.sqlite"),
+                               '--fits_dir', str(fits_dir)])
+
+    assert res
+
+
 @patch('stixcore.products.level1.scienceL1.Spectrogram')
 def test_publish_fits_to_esa(product, out_dir):
     target_dir = out_dir / "esa"

@@ -21,6 +21,7 @@ from stixcore.idb.manager import IDBManager
 from stixcore.time import SCETime, SCETimeDelta, SCETimeRange
 from stixcore.tmtc.packet_factory import Packet
 from stixcore.tmtc.packets import PacketSequence
+from stixcore.util.util import get_incomplete_file_name
 
 __all__ = ['GenericProduct', 'ProductFactory', 'Product', 'ControlSci',
            'EnergyChannelsMixin', 'read_qtable',
@@ -128,6 +129,10 @@ class BaseProduct:
         super().__init_subclass__(**kwargs)
         if hasattr(cls, 'is_datasource_for'):
             cls._registry[cls] = cls.is_datasource_for
+
+    @property
+    def fits_daily_file(self):
+        raise NotImplementedError("SubClass of BaseProduct should implement")
 
 
 class ProductFactory(BasicRegistrationFactory):
@@ -474,6 +479,9 @@ class GenericProduct(BaseProduct):
         files = []
         for pfile in self.parent:
             files.extend(list(level_dir.rglob(pfile)))
+            # or the file is still labeled as incomplete see
+            # https://github.com/i4Ds/STIXCore/issues/350
+            files.extend(list(level_dir.rglob(get_incomplete_file_name(pfile))))
         return files
 
     def __add__(self, other):

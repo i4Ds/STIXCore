@@ -64,7 +64,7 @@ class FitsProcessor:
     # TODO abstract some general processing pattern methods
 
     @classmethod
-    def generate_filename(cls, product, *, version, date_range, status=''):
+    def generate_filename(cls, product, *, version, date_range, status='', header=True):
         """
         Generate fits file name with SOLO conventions.
         Parameters
@@ -91,8 +91,12 @@ class FitsProcessor:
         if 'tc_packet_seq_control' in product.control.colnames and user_req != '':
             tc_control = f'-{product.control["tc_packet_seq_control"][0]:05d}'
 
+        incomplete = ''
+        if not header and product.level != 'LB' and product.fits_daily_file is True:
+            incomplete = 'U'
+
         return f'solo_{product.level}_stix-{product.type}-{product.name.replace("_", "-")}' \
-               f'_{date_range}_V{version:02d}{status}{user_req}{tc_control}.fits'
+               f'_{date_range}_V{version:02d}{incomplete}{status}{user_req}{tc_control}.fits'
 
     @classmethod
     def generate_common_header(cls, filename, product, *, version=1):
@@ -470,7 +474,9 @@ class FitsL0Processor:
         """
         created_files = []
         for prod in product.split_to_files():
-            filename = self.generate_filename(product=prod, version=version)
+            filename_header = self.generate_filename(product=prod, version=version, header=True)
+            filename = self.generate_filename(product=prod, version=version, header=False)
+
             # start_day = np.floor((prod.obs_beg.as_float()
             #                       // (1 * u.day).to('s')).value * SEC_IN_DAY).astype(int)
             parts = [prod.level, prod.service_type, prod.service_subtype]
@@ -499,7 +505,7 @@ class FitsL0Processor:
                                   for version, range in prod.idb_versions.items()],
                                   names=["version", "obt_start", "obt_end"])
 
-            primary_header = self.generate_primary_header(filename, prod, version=version)
+            primary_header = self.generate_primary_header(filename_header, prod, version=version)
             primary_hdu = fits.PrimaryHDU()
             primary_hdu.header.update(primary_header)
 
@@ -587,7 +593,7 @@ class FitsL0Processor:
             hdul.append((energy_hdu))
 
     @staticmethod
-    def generate_filename(product, version=None, status=''):
+    def generate_filename(product, *, version=None, status='', header=True):
         """
         Generate fits file name with SOLO conventions.
 
@@ -613,7 +619,7 @@ class FitsL0Processor:
             end_obs = product.scet_timerange.end.coarse
             date_range = f'{start_obs:010d}-{end_obs:010d}'
         return FitsProcessor.generate_filename(product, version=version,
-                                               date_range=date_range, status=status)
+                                               date_range=date_range, status=status, header=header)
 
     @classmethod
     def generate_primary_header(cls, filename, product, *, version=1):
@@ -668,7 +674,7 @@ class FitsL1Processor(FitsL0Processor):
         self.archive_path = archive_path
 
     @classmethod
-    def generate_filename(cls, product, *, version=1, status=''):
+    def generate_filename(cls, product, *, version=1, status='', header=True):
 
         date_range = f'{product.utc_timerange.start.strftime("%Y%m%dT%H%M%S")}-' +\
                      f'{product.utc_timerange.end.strftime("%Y%m%dT%H%M%S")}'
@@ -676,7 +682,7 @@ class FitsL1Processor(FitsL0Processor):
             date_range = product.utc_timerange.center.strftime("%Y%m%d")
 
         return FitsProcessor.generate_filename(product, version=version, date_range=date_range,
-                                               status=status)
+                                               status=status, header=header)
 
     def generate_primary_header(self, filename, product, *, version=1):
         # if product.level != 'L1':
@@ -754,7 +760,8 @@ class FitsL1Processor(FitsL0Processor):
         """
         created_files = []
         for prod in product.split_to_files():
-            filename = self.generate_filename(product=prod, version=version)
+            filename_header = self.generate_filename(product=prod, version=version, header=True)
+            filename = self.generate_filename(product=prod, version=version, header=False)
             # start_day = np.floor((prod.obs_beg.as_float()
             #                       // (1 * u.day).to('s')).value * SEC_IN_DAY).astype(int)
 
@@ -787,7 +794,7 @@ class FitsL1Processor(FitsL0Processor):
                                   for version, range in prod.idb_versions.items()],
                                   names=["version", "obt_start", "obt_end"])
 
-            primary_header, header_override = self.generate_primary_header(filename, prod,
+            primary_header, header_override = self.generate_primary_header(filename_header, prod,
                                                                            version=version)
             primary_hdu = fits.PrimaryHDU()
             primary_hdu.header.update(primary_header)

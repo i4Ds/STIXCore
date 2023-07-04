@@ -53,7 +53,8 @@ class SpiceKernelType(Enum):
     suitable for a given mission period."""
 
     MK_PRED = 'mk', "solo_ANC_soc-pred-mk_*.tm"
-    """TODO"""
+    """Predicted Meta-kernel files (a.k.a "furnsh" files) that provide lists of kernels
+    suitable for a given mission period "in the future"."""
 
     PCK = 'pck', "*.*"
     """Kernels that define planetary constants."""
@@ -96,7 +97,7 @@ class SpiceKernelManager():
 
         top_n = min(len(files), top_n)
 
-        return files[0:top_n] if top_n > 1 else files[0]
+        return files[0:top_n] if top_n > 1 else [files[0]]
 
     def get_latest_sclk(self, *, top_n=1):
         return self._get_latest(SpiceKernelType.SCLK, top_n=top_n)
@@ -106,6 +107,14 @@ class SpiceKernelManager():
 
     def get_latest_mk(self, *, top_n=1):
         return self._get_latest(SpiceKernelType.MK, top_n=top_n)
+
+    def get_latest_mk_pred(self, *, top_n=1):
+        return self._get_latest(SpiceKernelType.MK_PRED, top_n=top_n)
+
+    def get_latest_mk_and_pred(self, *, top_n=1):
+        mks = self._get_latest(SpiceKernelType.MK_PRED, top_n=top_n)
+        mks.extend(self._get_latest(SpiceKernelType.MK, top_n=top_n))
+        return mks
 
     def get_latest(self, kerneltype=SpiceKernelType.MK, *, top_n=1):
         """Finds the latest version of the spice kernel.
@@ -131,26 +140,29 @@ class SpiceKernelLoader:
 
         Parameters
         ----------
-        meta_kernel_path : `str` or `pathlib.Path`
+        meta_kernel_path : list of `str` or `pathlib.Path`
             Path to the meta kernel
 
         """
+        self.meta_kernel_path = list()
+        # unload all old kernels
+        spiceypy.kclear()
 
         for meta_kernel_path in np.atleast_1d(meta_kernel_pathes):
             try:
-                self.meta_kernel_path = Path(meta_kernel_path)
-                if not self.meta_kernel_path.exists():
-                    raise ValueError(f'Meta kernel not found: {self.meta_kernel_path}')
+                meta_kernel_path = Path(meta_kernel_path)
+                if not meta_kernel_path.exists():
+                    raise ValueError(f'Meta kernel not found: {meta_kernel_path}')
 
                 # look for a twin file *.abs where the path definition is absolute
                 # if not existing create it on the fly and store it in same location for later reuse
 
-                abs_file = self.meta_kernel_path.parent / (self.meta_kernel_path.name + ".abs")
+                abs_file = meta_kernel_path.parent / (meta_kernel_path.name + ".abs")
 
                 if not abs_file.exists():
-                    with self.meta_kernel_path.open('r') as mk:
+                    with meta_kernel_path.open('r') as mk:
                         original_mk = mk.read()
-                        kernel_dir = str(self.meta_kernel_path.parent.parent.resolve())
+                        kernel_dir = str(meta_kernel_path.parent.parent.resolve())
                         kernel_dir = kernel_dir.replace('\\', '\\\\')
                         # spice meta kernel seems to have a max variable length of 80 characters
                         # https://naif.jpl.nasa.gov/pub/naif/toolkit_docs/C/req/kernel.html#Additional%20Meta-kernel%20Specifications # noqa
@@ -161,15 +173,15 @@ class SpiceKernelLoader:
 
                         with abs_file.open('w') as f:
                             f.write(new_mk)
-
-                logger.info(f"LOADING NEW META KERNEL: {self.meta_kernel_path}")
-                spiceypy.kclear()
                 # load the meta kernel
                 spiceypy.furnsh(str(abs_file))
-                return
+                logger.info(f"LOADING NEW META KERNEL: {meta_kernel_path}")
+                self.meta_kernel_path.append(meta_kernel_path)
             except Exception as e:
-                logger.warning(f"Failed LOADING NEW META KERNEL: {self.meta_kernel_path}\n{e}")
-        raise ValueError(f"Failed to load any NEW META KERNEL: {meta_kernel_pathes}")
+                logger.warning(f"Failed LOADING NEW META KERNEL: {meta_kernel_path}\n{e}")
+
+        if len(self.meta_kernel_path) == 0:
+            raise ValueError(f"Failed to load any NEW META KERNEL: {meta_kernel_pathes}")
 
     @staticmethod
     def _wrap_value_field(field):
@@ -433,7 +445,8 @@ class Spice(SpiceKernelLoader, metaclass=Singleton):
         except (SpiceBADPARTNUMBER, SpiceINVALIDSCLKSTRING):
             et = spiceypy.utc2et(average_time.isot)
 
-        headers = (('SPICE_MK', self.meta_kernel_path.name, 'SPICE meta kernel file'),)
+        headers = (('SPICE_MK', ', '.join([mk.name for mk in self.meta_kernel_path]),
+                    'SPICE meta kernel file'),)
 
         header_results = defaultdict(lambda: '')
         # HeliographicStonyhurst
@@ -559,4 +572,4 @@ class Spice(SpiceKernelLoader, metaclass=Singleton):
 if 'pytest' in sys.modules:
     # only set the global in test scenario
     _spm = SpiceKernelManager(Path(CONFIG.get("Paths", "spice_kernels")))
-    Spice.instance = Spice(_spm.get_latest_mk())
+    Spice.instance = Spice(_spm.get_latest_mk_and_pred())

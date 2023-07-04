@@ -1,4 +1,5 @@
 
+from pathlib import Path
 from unittest.mock import patch
 
 import numpy as np
@@ -16,6 +17,7 @@ from stixcore.processing.publish import (
 )
 from stixcore.time.datetime import SCETime, SCETimeRange
 from stixcore.util.logging import get_logger
+from stixcore.util.util import get_complete_file_name, get_incomplete_file_name
 
 logger = get_logger(__name__)
 
@@ -85,7 +87,8 @@ def test_publish_history_add_file(out_dir):
     assert items_a4[0] == items_a3[1]
 
 
-def test_publish_fits_to_esa_incomplete(out_dir):
+@patch('stixcore.products.level1.quicklookL1.Background')
+def test_publish_fits_to_esa_incomplete(product, out_dir):
 
     PublishHistoryStorage(out_dir / "test.sqlite")
 
@@ -96,21 +99,70 @@ def test_publish_fits_to_esa_incomplete(out_dir):
     target_dir.mkdir(parents=True, exist_ok=True)
     fits_dir.mkdir(parents=True, exist_ok=True)
 
-    hdul = fits.HDUList([fits.PrimaryHDU()])
-    hdul.writeto(fits_dir / "solo_L0_stix-ql-background_0678250000_V01U.fits",
-                 overwrite=True, checksum=True)
+    files = []
+    processor = FitsL1Processor(fits_dir)
+    for stime in [707875074, 708739079, 709739079]:
+        beg = SCETime(coarse=stime, fine=0)
+        end = SCETime(coarse=stime + 10, fine=2 ** 15)
+        product.scet_timerange = SCETimeRange(start=beg, end=end)
+        product.utc_timerange = product.scet_timerange.to_timerange()
+        product.idb_versions = {'1.2': product.scet_timerange}
+        product.control = QTable({"scet_coarse": [[beg.coarse, end.coarse]],
+                                  "scet_fine": [[beg.fine, end.fine]],
+                                  "index": [1],
+                                  })
 
-    hdul.writeto(fits_dir / "solo_L0_stix-ql-variance_0678240000_V01.fits",
-                 overwrite=True, checksum=True)
+        t = SCETime(coarse=[beg.coarse, end.coarse])
+        product.data = QTable({"time": t,
+                               "timedel": t-beg,
+                               "fcounts": np.array([1, 2]),
+                               "control_index": [1, 1]})
+        product.raw = ['packet1.xml', 'packet2.xml']
+        product.parent = ['packet1.xml', 'packet2.xml']
+        product.level = 'L1'
+        product.service_type = 21
+        product.service_subtype = 6
+        product.ssid = 31
+        product.fits_daily_file = True
+        product.type = 'ql'
+        product.name = 'background'
+        product.obt_beg = beg
+        product.obt_end = end
+        product.date_obs = beg
+        product.date_beg = beg
+        product.date_end = end
+        product.split_to_files.return_value = [product]
+        product.get_energies = False
+
+        files.extend(processor.write_fits(product))
+
+    assert len(files) == 3
+    # this was processed with predicted and flown
+    assert fits.getval(files[0], 'SPICE_MK') ==\
+        "solo_ANC_soc-pred-mk_V106_20201116_001.tm, solo_ANC_soc-flown-mk_V105_20200515_001.tm"
+    # the filename should be mared as incomplete
+    assert get_complete_file_name(files[0].name) != files[0].name
+    assert get_incomplete_file_name(files[0].name) == files[0].name
 
     res = publish_fits_to_esa(['--target_dir', str(target_dir),
                                '--same_esa_name_dir', str(same_dir),
-                               '--include_levels', 'l0',
+                               '--include_levels', 'l1',
                                '--waiting_period', '0s',
                                '--db_file', str(out_dir / "test.sqlite"),
                                '--fits_dir', str(fits_dir)])
 
     assert res
+    published_files = res[PublishResult.PUBLISHED]
+
+    assert len(published_files) == 3
+    # no conflicting esa names expected
+    assert len(published_files[0]) == 1
+    # incomplete files should be updated with just flown spice mk
+    assert fits.getval(Path(published_files[0][0]['path']) / published_files[0][0]['name'],
+                       'SPICE_MK') == "solo_ANC_soc-flown-mk_V105_20200515_001.tm"
+    # should be marked as complete afterwards
+    assert get_complete_file_name(published_files[0][0]['name']) == published_files[0][0]['name']
+    assert get_incomplete_file_name(published_files[0][0]['name']) != published_files[0][0]['name']
 
 
 @patch('stixcore.products.level1.scienceL1.Spectrogram')

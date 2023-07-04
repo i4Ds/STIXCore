@@ -26,7 +26,9 @@ from astropy.table import Table
 from astropy.table.operations import unique, vstack
 
 from stixcore.config.config import CONFIG
+from stixcore.ephemeris.manager import Spice, SpiceKernelManager
 from stixcore.processing.pipeline_status import pipeline_status
+from stixcore.products.product import Product
 from stixcore.util.logging import get_logger
 from stixcore.util.util import get_complete_file_name, is_incomplete_file_name
 
@@ -350,6 +352,116 @@ do not answer to this mail.
             logger.error(f"Error: unable to send report email: {e}")
 
 
+def update_ephemeris_headers(fits_file, spice):
+    product = Product(fits_file)
+    if product.level in ['L1', 'L2']:
+        ephemeris_headers = \
+            spice.get_fits_headers(start_time=product.utc_timerange.start,
+                                   average_time=product.utc_timerange.center)
+        with fits.open(fits_file, 'update') as f:
+            for hdu in f:
+                now = datetime.now().isoformat(timespec='milliseconds')
+                hdu.header['HISTORY'] = f'updated ephemeris header with latest kernel at {now}'
+                hdu.header.update(ephemeris_headers)
+                # just update the first prima HDU
+                break
+        logger.info(f"updated ephemeris headers of {fits_file}")
+
+
+def addBSDComment(p, rid_lut):
+    try:
+        parts = p.name.split('_')
+        if len(parts) > 5:
+            rid = parts[5].replace(".fits", "")
+            rid = int(rid.split('-')[0])
+            reqeust = rid_lut.loc[rid]
+            reason = " ".join(np.atleast_1d(reqeust['description']))
+            c_entry = f"BSD request id: '{rid}' reason: '{reason}'"
+            fits.setval(p, "COMMENT", value=c_entry)
+            return c_entry
+    except Exception as e:
+        logger.debug(e, exc_info=True)
+        logger.info(f"no BSD request comment added nothing found in LUT for rid: {rid}")
+    return ''
+
+
+def addHistory(p, name):
+    time_formated = datetime.now().isoformat(timespec='milliseconds')
+    h_entry = f"published to ESA SOAR as '{name}' on {time_formated}"
+    fits.setval(p, "HISTORY", value=h_entry)
+
+
+def copyFile(scp, p, target_dir, add_history=True):
+    if add_history:
+        addHistory(p, p.name)
+    try:
+        if scp:
+            scp.put(p, remote_path=target_dir)
+        else:
+            shutil.copy(p, target_dir)
+        return (True, None)
+    except Exception as e:
+        return (False, e)
+
+
+def read_rid_lut(file, update=False):
+    converters = {'_id': np.uint, 'unique_id': np.uint, 'start_utc': datetime,
+                  'duration': np.uint, 'type': str, 'subject': str,
+                  'purpose': str, 'comment': str}
+
+    if update or not file.exists():
+        rid_lut = Table(names=converters.keys(), dtype=converters.values())
+        last_date = date(2018, 1, 1)
+        today = date.today()
+        if file.exists():
+            rid_lut = ascii.read(file, delimiter=",", converters=converters)
+            mds = rid_lut['start_utc'].max()
+            try:
+                last_date = datetime.strptime(mds, '%Y-%m-%dT%H:%M:%S').date()
+            except ValueError:
+                last_date = datetime.strptime(mds, '%Y-%m-%dT%H:%M:%S.%f').date()
+
+        if not file.parent.exists():
+            logger.info(f'path not found to rid lut file dir: {file.parent} creating dir')
+            file.parent.mkdir(parents=True, exist_ok=True)
+        rid_lut_file_update_url = CONFIG.get('Publish', 'rid_lut_file_update_url')
+
+        try:
+            while (last_date < today):
+                last_date_1m = last_date + timedelta(days=30)
+                ldf = last_date.strftime('%Y%m%d')
+                ld1mf = last_date_1m.strftime('%Y%m%d')
+                update_url = f"{rid_lut_file_update_url}{ldf}/{ld1mf}"
+                logger.info(f'download publish lut file: {update_url}')
+                last_date = last_date_1m
+                updatefile = tempfile.NamedTemporaryFile().name
+                urllib.request.urlretrieve(update_url, updatefile)
+                update_lut = ascii.read(updatefile, delimiter=",", converters=converters)
+
+                if len(update_lut) < 1:
+                    continue
+                logger.info(f'found {len(update_lut)} entries')
+                rid_lut = vstack([rid_lut, update_lut])
+                # the stix datacenter API is throttled to 2 calls per second
+                time.sleep(0.5)
+        except Exception as e:
+            logger.error("RID API ERROR")
+            logger.error(e)
+
+        rid_lut = unique(rid_lut, silent=True)
+        ascii.write(rid_lut, file, overwrite=True, delimiter=",")
+        logger.info(f'write total {len(rid_lut)} entries to local storage')
+    else:
+        logger.info(f"read rid-lut from {file}")
+        rid_lut = ascii.read(file, delimiter=",", converters=converters)
+
+    rid_lut['description'] = [", ".join(r.values()) for r in
+                              rid_lut['subject', 'purpose', 'comment'].filled()]
+    rid_lut.add_index('unique_id')
+
+    return rid_lut
+
+
 def publish_fits_to_esa(args):
     """CLI STIX publish to ESA processing step
 
@@ -448,6 +560,10 @@ def publish_fits_to_esa(args):
                         choices=["CRITICAL", "ERROR", "WARNING", "INFO", "DEBUG", "NOTSET"],
                         dest='log_level')
 
+    parser.add_argument("-S", "--spice_file",
+                        help="path to the spice meta kernel",
+                        default=None, type=str)
+
     args = parser.parse_args(args)
 
     logging.basicConfig(format='%(asctime)s %(message)s', force=True,
@@ -457,95 +573,13 @@ def publish_fits_to_esa(args):
     if args.log_level:
         logging.getLogger().setLevel(logging.getLevelName(args.log_level))
 
-    def addBSDComment(p, rid_lut):
-        try:
-            parts = p.name.split('_')
-            if len(parts) > 5:
-                rid = parts[5].replace(".fits", "")
-                rid = int(rid.split('-')[0])
-                reqeust = rid_lut.loc[rid]
-                reason = " ".join(np.atleast_1d(reqeust['description']))
-                c_entry = f"BSD request id: '{rid}' reason: '{reason}'"
-                fits.setval(p, "COMMENT", value=c_entry)
-                return c_entry
-        except Exception as e:
-            logger.debug(e, exc_info=True)
-            logger.info(f"no BSD request comment added nothing found in LUT for rid: {rid}")
-        return ''
+    if args.spice_file:
+        spicemeta = [Path(args.spice_file)]
+    else:
+        _spm = SpiceKernelManager(Path(CONFIG.get('Paths', 'spice_kernels')))
+        spicemeta = _spm.get_latest_mk()
 
-    def addHistory(p, name):
-        time_formated = datetime.now().isoformat(timespec='milliseconds')
-        h_entry = f"published to ESA SOAR as '{name}' on {time_formated}"
-        fits.setval(p, "HISTORY", value=h_entry)
-
-    def copyFile(scp, p, target_dir, add_history=True):
-        if add_history:
-            addHistory(p, p.name)
-        try:
-            if scp:
-                scp.put(p, remote_path=target_dir)
-            else:
-                shutil.copy(p, target_dir)
-            return (True, None)
-        except Exception as e:
-            return (False, e)
-
-    def read_rid_lut(file, update=False):
-        converters = {'_id': np.uint, 'unique_id': np.uint, 'start_utc': datetime,
-                      'duration': np.uint, 'type': str, 'subject': str,
-                      'purpose': str, 'comment': str}
-
-        if update or not file.exists():
-            rid_lut = Table(names=converters.keys(), dtype=converters.values())
-            last_date = date(2018, 1, 1)
-            today = date.today()
-            if file.exists():
-                rid_lut = ascii.read(args.rid_lut_file, delimiter=",", converters=converters)
-                mds = rid_lut['start_utc'].max()
-                try:
-                    last_date = datetime.strptime(mds, '%Y-%m-%dT%H:%M:%S').date()
-                except ValueError:
-                    last_date = datetime.strptime(mds, '%Y-%m-%dT%H:%M:%S.%f').date()
-
-            if not file.parent.exists():
-                logger.info(f'path not found to rid lut file dir: {file.parent} creating dir')
-                file.parent.mkdir(parents=True, exist_ok=True)
-            rid_lut_file_update_url = CONFIG.get('Publish', 'rid_lut_file_update_url')
-
-            try:
-                while (last_date < today):
-                    last_date_1m = last_date + timedelta(days=30)
-                    ldf = last_date.strftime('%Y%m%d')
-                    ld1mf = last_date_1m.strftime('%Y%m%d')
-                    update_url = f"{rid_lut_file_update_url}{ldf}/{ld1mf}"
-                    logger.info(f'download publish lut file: {update_url}')
-                    last_date = last_date_1m
-                    updatefile = tempfile.NamedTemporaryFile().name
-                    urllib.request.urlretrieve(update_url, updatefile)
-                    update_lut = ascii.read(updatefile, delimiter=",", converters=converters)
-
-                    if len(update_lut) < 1:
-                        continue
-                    logger.info(f'found {len(update_lut)} entries')
-                    rid_lut = vstack([rid_lut, update_lut])
-                    # the stix datacenter API is throttled to 2 calls per second
-                    time.sleep(0.5)
-            except Exception as e:
-                logger.error("RID API ERROR")
-                logger.error(e)
-
-            rid_lut = unique(rid_lut, silent=True)
-            ascii.write(rid_lut, file, overwrite=True, delimiter=",")
-            logger.info(f'write total {len(rid_lut)} entries to local storage')
-        else:
-            logger.info(f"read rid-lut from {args.rid_lut_file}")
-            rid_lut = ascii.read(args.rid_lut_file, delimiter=",", converters=converters)
-
-        rid_lut['description'] = [", ".join(r.values()) for r in
-                                  rid_lut['subject', 'purpose', 'comment'].filled()]
-        rid_lut.add_index('unique_id')
-
-        return rid_lut
+    spice = Spice(spicemeta)
 
     rid_lut = read_rid_lut(Path(args.rid_lut_file), update=args.update_rid_lut)
 
@@ -654,6 +688,7 @@ def publish_fits_to_esa(args):
     logger.info(f"receivers: {CONFIG.get('Publish', 'report_mail_receivers')}")
     logger.info(f'log dir: {args.log_dir}')
     logger.info(f'log level: {args.log_level}')
+    logger.info(f'Spice: {spice.meta_kernel_path}')
 
     logger.info("\nstart publishing\n")
 
@@ -710,6 +745,7 @@ def publish_fits_to_esa(args):
 
             if is_incomplete_file_name(p.name):
                 p = p.rename(p.parent / get_complete_file_name(p.name))
+                update_ephemeris_headers(p, spice)
 
             add_res, data = hist.add(p)
 

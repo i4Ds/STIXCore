@@ -97,8 +97,7 @@ def process_type(files, *, processor, soopmanager, spice_kernel_path, config):
             complete_file_name = get_complete_file_name(file.name)
             l1 = tmp.from_level0(l0, parent=complete_file_name)
 
-            files = processor.write_fits(l1)
-            all_files.extend(files)
+            all_files.extend(processor.write_fits(l1))
         except NoMatchError:
             logger.warning('No match for product %s', l0)
         except NotCombineException as nc:

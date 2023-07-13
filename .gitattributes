@@ -1,1 +1,2 @@
 stixcore/data/test/*/** filter=lfs diff=lfs merge=binary -text
+*.mk.abs filter= diff= merge= text

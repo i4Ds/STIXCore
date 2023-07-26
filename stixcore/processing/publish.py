@@ -391,7 +391,7 @@ def add_history(p, name):
     fits.setval(p, "HISTORY", value=h_entry)
 
 
-def copyFile(scp, p, target_dir, add_history=True):
+def copy_file(scp, p, target_dir, add_history=True):
     if add_history:
         addHistory(p, p.name)
     try:

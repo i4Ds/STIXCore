@@ -385,7 +385,7 @@ def add_BSD_comment(p, rid_lut):
     return ''
 
 
-def addHistory(p, name):
+def add_history(p, name):
     time_formated = datetime.now().isoformat(timespec='milliseconds')
     h_entry = f"published to ESA SOAR as '{name}' on {time_formated}"
     fits.setval(p, "HISTORY", value=h_entry)

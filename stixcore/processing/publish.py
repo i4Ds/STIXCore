@@ -368,7 +368,7 @@ def update_ephemeris_headers(fits_file, spice):
         logger.info(f"updated ephemeris headers of {fits_file}")
 
 
-def addBSDComment(p, rid_lut):
+def add_BSD_comment(p, rid_lut):
     try:
         parts = p.name.split('_')
         if len(parts) > 5:

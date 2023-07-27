@@ -302,7 +302,7 @@ class Spice(SpiceKernelLoader, metaclass=Singleton):
 
         with spiceypy.no_found_check():
             try:
-                cmat, _ = spiceypy.ckgp(SOLAR_ORBITER_STIX_ILS_FRAME_ID, sc, 1.0, 'SOLO_SUN_RTN')
+                cmat, *_ = spiceypy.ckgp(SOLAR_ORBITER_STIX_ILS_FRAME_ID, sc, 1.0, 'SOLO_SUN_RTN')
                 vec = cmat @ np.eye(3)
                 roll, pitch, yaw = spiceypy.m2eul(vec, 1, 2, 3)
             except Exception as e:

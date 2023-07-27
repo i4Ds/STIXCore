@@ -8,7 +8,12 @@ from collections import defaultdict
 
 import numpy as np
 import spiceypy
-from spiceypy.utils.exceptions import SpiceBADPARTNUMBER, SpiceINVALIDSCLKSTRING
+from spiceypy.utils.exceptions import (
+    NotFoundError,
+    SpiceBADPARTNUMBER,
+    SpiceINVALIDSCLKSTRING,
+    SpiceyError,
+)
 
 import astropy.units as u
 from astropy.time.core import Time as ApTime
@@ -300,17 +305,20 @@ class Spice(SpiceKernelLoader, metaclass=Singleton):
         et = spiceypy.scs2e(SOLAR_ORBITER_ID, str(date))
         sc = spiceypy.sce2c(SOLAR_ORBITER_ID, et)
 
-        with spiceypy.no_found_check():
-            try:
-                cmat, *_ = spiceypy.ckgp(SOLAR_ORBITER_STIX_ILS_FRAME_ID, sc, 1.0, 'SOLO_SUN_RTN')
-                vec = cmat @ np.eye(3)
-                roll, pitch, yaw = spiceypy.m2eul(vec, 1, 2, 3)
-            except Exception as e:
-                logger.error(e)
-                roll, pitch, yaw = np.full(3, np.nan)
+        try:
+            cmat, *_ = spiceypy.ckgp(SOLAR_ORBITER_STIX_ILS_FRAME_ID, sc, 1.0, 'SOLO_SUN_RTN')
+            vec = cmat @ np.eye(3)
+            roll, pitch, yaw = spiceypy.m2eul(vec, 1, 2, 3)
+        except (SpiceyError, NotFoundError) as e:
+            logger.error('Spice error obtaining SO pointing', exc_info=e)
+            roll, pitch, yaw = np.full(3, np.nan)
 
         # HeliographicStonyhurst
-        solo_sun_hg, _ = spiceypy.spkezr('SOLO', et, 'SUN_EARTH_CEQU', 'None', 'Sun')
+        try:
+            solo_sun_hg, _ = spiceypy.spkezr('SOLO', et, 'SUN_EARTH_CEQU', 'None', 'Sun')
+        except SpiceyError as e:
+            logger.error('Spice error obtaining SO position', exc_info=e)
+            solo_sun_hg = np.full(6, np.nan)
 
         # Convert to spherical and add units
         hg_rad, hg_lon, hg_lat = spiceypy.reclat(solo_sun_hg[:3])

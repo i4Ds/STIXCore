@@ -14,7 +14,7 @@ from stixcore.products import Product
 from stixcore.products.level0.scienceL0 import NotCombineException
 from stixcore.soop.manager import SOOPManager
 from stixcore.util.logging import get_logger
-from stixcore.util.util import get_complete_file_name
+from stixcore.util.util import get_complete_file_name_and_path
 
 logger = get_logger(__name__)
 
@@ -87,10 +87,10 @@ def process_type(files, *, processor, soopmanager, spice_kernel_path, config):
                                                    ssid=l1.ssid, data=None, control=None)
 
             # see https://github.com/i4Ds/STIXCore/issues/350
-            complete_file_name = get_complete_file_name(file)
+            complete_file_name = get_complete_file_name_and_path(file)
             for l2 in tmp.from_level1(l1, parent=complete_file_name, idlprocessor=idlprocessor):
-                files = processor.write_fits(l2)
-                all_files.extend(files)
+                new_files = processor.write_fits(l2)
+                all_files.extend(new_files)
             # if a batch of X files have summed up run the IDL processing
             if idlprocessor.opentasks >= max_idlbatch:
                 all_files.extend(idlprocessor.process())

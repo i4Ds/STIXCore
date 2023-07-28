@@ -383,8 +383,11 @@ def main():
         logger.info("Skipping search for unprocessed tm files")
 
     observer.schedule(soop_handler, soop_manager.data_root,  recursive=False)
+    logger.info(f"Start observing {soop_manager.data_root} for SOOPs")
     observer.schedule(logging_handler, tmpath,  recursive=True)
+    logger.info(f"Start observing {tmpath} for logging")
     observer.schedule(tm_handler, tmpath, recursive=True)
+    logger.info(f"Start observing {tmpath} for incoming TMs")
 
     observer.start()
     try:

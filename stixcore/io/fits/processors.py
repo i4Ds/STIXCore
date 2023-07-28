@@ -80,8 +80,6 @@ class FitsProcessor:
         `str`
             The filename
         """
-        if status:
-            status = f'_{status}'
 
         user_req = ''
         if 'request_id' in product.control.colnames:
@@ -91,12 +89,12 @@ class FitsProcessor:
         if 'tc_packet_seq_control' in product.control.colnames and user_req != '':
             tc_control = f'-{product.control["tc_packet_seq_control"][0]:05d}'
 
-        incomplete = ''
-        if not header and product.level != 'LB' and product.fits_daily_file is True:
-            incomplete = 'U'
+        if (status == '' and (not header)
+                and (product.level != 'LB' and product.fits_daily_file is True)):
+            status = 'U'
 
         return f'solo_{product.level}_stix-{product.type}-{product.name.replace("_", "-")}' \
-               f'_{date_range}_V{version:02d}{incomplete}{status}{user_req}{tc_control}.fits'
+               f'_{date_range}_V{version:02d}{status}{user_req}{tc_control}.fits'
 
     @classmethod
     def generate_common_header(cls, filename, product, *, version=1):
@@ -474,7 +472,6 @@ class FitsL0Processor:
         """
         created_files = []
         for prod in product.split_to_files():
-            filename_header = self.generate_filename(product=prod, version=version, header=True)
             filename = self.generate_filename(product=prod, version=version, header=False)
 
             # start_day = np.floor((prod.obs_beg.as_float()
@@ -505,7 +502,7 @@ class FitsL0Processor:
                                   for version, range in prod.idb_versions.items()],
                                   names=["version", "obt_start", "obt_end"])
 
-            primary_header = self.generate_primary_header(filename_header, prod, version=version)
+            primary_header = self.generate_primary_header(filename, prod, version=version)
             primary_hdu = fits.PrimaryHDU()
             primary_hdu.header.update(primary_header)
 
@@ -760,7 +757,6 @@ class FitsL1Processor(FitsL0Processor):
         """
         created_files = []
         for prod in product.split_to_files():
-            filename_header = self.generate_filename(product=prod, version=version, header=True)
             filename = self.generate_filename(product=prod, version=version, header=False)
             # start_day = np.floor((prod.obs_beg.as_float()
             #                       // (1 * u.day).to('s')).value * SEC_IN_DAY).astype(int)
@@ -794,7 +790,7 @@ class FitsL1Processor(FitsL0Processor):
                                   for version, range in prod.idb_versions.items()],
                                   names=["version", "obt_start", "obt_end"])
 
-            primary_header, header_override = self.generate_primary_header(filename_header, prod,
+            primary_header, header_override = self.generate_primary_header(filename, prod,
                                                                            version=version)
             primary_hdu = fits.PrimaryHDU()
             primary_hdu.header.update(primary_header)

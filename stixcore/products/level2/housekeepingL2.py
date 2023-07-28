@@ -17,6 +17,7 @@ from stixcore.products.level0.housekeepingL0 import HKProduct
 from stixcore.products.product import L2Mixin
 from stixcore.time import SCETime, SCETimeDelta, SCETimeRange
 from stixcore.util.logging import get_logger
+from stixcore.util.util import get_complete_file_name, get_incomplete_file_name_and_path
 
 __all__ = ['MiniReport', 'MaxiReport', 'Ephemeris', 'AspectIDLProcessing']
 
@@ -69,7 +70,7 @@ class MaxiReport(HKProduct, L2Mixin):
                  data=l1product.data,
                  idb_versions=l1product.idb_versions)
 
-        l2.control.replace_column('parent', [parent.name] * len(l2.control))
+        l2.control.replace_column('parent', [Path(parent).name] * len(l2.control))
         l2.fits_header = l1product.fits_header
 
         # use the HK data to generate aux data product in a seperate task
@@ -105,7 +106,7 @@ class MaxiReport(HKProduct, L2Mixin):
             for coln in data.colnames:
                 dataobj[coln] = data[coln].value.tolist()
 
-            f = {'parentfits': str(parent),
+            f = {'parentfits': str(get_incomplete_file_name_and_path(parent)),
                  'data': dataobj}
 
             idlprocessor[AspectIDLProcessing].params['hk_files'].append(f)
@@ -293,7 +294,7 @@ class AspectIDLProcessing(SSWIDLTask):
                     data[idx]['solo_loc_heeq_zxy'] = heeq.to('km').astype(np.float32)
                     data[idx]['roll_angle_rpy'] = orient.to('deg').astype(np.float32)
 
-                control['parent'] = str(file_path.name)
+                control['parent'] = get_complete_file_name(file_path.name)
 
                 aux = Ephemeris(control=control, data=data, idb_versions=HK.idb_versions)
 

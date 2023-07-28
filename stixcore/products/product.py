@@ -671,6 +671,10 @@ class GenericProduct(BaseProduct):
     def from_levelb(cls, levelb, *, parent=''):
         pass
 
+    @property
+    def fits_daily_file(self):
+        return False
+
 
 class EnergyChannelsMixin:
     def get_energies(self):

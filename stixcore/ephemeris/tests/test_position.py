@@ -43,6 +43,13 @@ def test_aux(spice):
     assert np.allclose(heeq, heeq_ref)
 
 
+def test_aux_missing(spice):
+    d = spice.datetime_to_scet(datetime(2023, 10, 7, 12))
+    orient, dist, car, heeq = spice.get_auxiliary_positional_data(date=d)
+    orient_ref = np.full(3, np.nan) * u.deg
+    assert np.allclose(orient, orient_ref, equal_nan=True)
+
+
 def test_get_orientation(spice):
     # from idl sunspice
     # CSPICE_FURNSH, 'test_position_20201001_V01.mk'

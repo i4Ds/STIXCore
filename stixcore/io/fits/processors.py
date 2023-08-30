@@ -15,6 +15,7 @@ from stixcore.products.product import Product
 from stixcore.soop.manager import SOOPManager, SoopObservationType
 from stixcore.time.datetime import SEC_IN_DAY
 from stixcore.util.logging import get_logger
+from stixcore.util.util import get_complete_file_name_and_path
 
 __all__ = ['SEC_IN_DAY', 'FitsProcessor', 'FitsLBProcessor', 'FitsL0Processor',
            'FitsL1Processor', 'FitsL2Processor']
@@ -483,9 +484,16 @@ class FitsL0Processor:
             path.mkdir(parents=True, exist_ok=True)
 
             fitspath = path / filename
+            fitspath_complete = get_complete_file_name_and_path(fitspath)
             if fitspath.exists():
                 logger.info('Fits file %s exists appending data', fitspath.name)
                 existing = Product(fitspath)
+                logger.debug('Existing %s, Current %s', existing, prod)
+                prod = prod + existing
+                logger.debug('Combined %s', prod)
+            elif fitspath_complete.exists():
+                logger.info('Complete Fits file %s exists appending data', fitspath.name)
+                existing = Product(fitspath_complete)
                 logger.debug('Existing %s, Current %s', existing, prod)
                 prod = prod + existing
                 logger.debug('Combined %s', prod)
@@ -771,9 +779,17 @@ class FitsL1Processor(FitsL0Processor):
             path.mkdir(parents=True, exist_ok=True)
 
             fitspath = path / filename
+            fitspath_complete = get_complete_file_name_and_path(fitspath)
+
             if fitspath.exists():
                 logger.info('Fits file %s exists appending data', fitspath.name)
                 existing = Product(fitspath)
+                logger.debug('Existing %s, Current %s', existing, prod)
+                prod = prod + existing
+                logger.debug('Combined %s', prod)
+            elif fitspath_complete.exists():
+                logger.info('Complete Fits file %s exists appending data', fitspath.name)
+                existing = Product(fitspath_complete)
                 logger.debug('Existing %s, Current %s', existing, prod)
                 prod = prod + existing
                 logger.debug('Combined %s', prod)

@@ -1,4 +1,5 @@
 
+import re
 from pathlib import Path
 from unittest.mock import patch
 
@@ -15,9 +16,15 @@ from stixcore.processing.publish import (
     PublishResult,
     publish_fits_to_esa,
 )
+from stixcore.products.product import Product
 from stixcore.time.datetime import SCETime, SCETimeRange
 from stixcore.util.logging import get_logger
-from stixcore.util.util import get_complete_file_name, get_incomplete_file_name
+from stixcore.util.scripts.incomplete_twins_fits import incomplete_twins
+from stixcore.util.util import (
+    get_complete_file_name,
+    get_complete_file_name_and_path,
+    get_incomplete_file_name,
+)
 
 logger = get_logger(__name__)
 
@@ -163,6 +170,133 @@ def test_publish_fits_to_esa_incomplete(product, out_dir):
     # should be marked as complete afterwards
     assert get_complete_file_name(published_files[0][0]['name']) == published_files[0][0]['name']
     assert get_incomplete_file_name(published_files[0][0]['name']) != published_files[0][0]['name']
+
+
+def test_fits_incomplete_switch_over(out_dir):
+    with patch('stixcore.products.level1.quicklookL1.Background') as product:
+
+        PublishHistoryStorage(out_dir / "test.sqlite")
+
+        target_dir = out_dir / "esa"
+        same_dir = out_dir / "same"
+        fits_dir = out_dir / "fits"
+        same_dir.mkdir(parents=True, exist_ok=True)
+        target_dir.mkdir(parents=True, exist_ok=True)
+        fits_dir.mkdir(parents=True, exist_ok=True)
+
+        files_first = []
+        processor = FitsL1Processor(fits_dir)
+        for stime in [707875174, 708739179, 709739179]:
+            beg = SCETime(coarse=stime, fine=0)
+            end = SCETime(coarse=stime + 10, fine=2 ** 15)
+            product.scet_timerange = SCETimeRange(start=beg, end=end)
+            product.utc_timerange = product.scet_timerange.to_timerange()
+            product.idb_versions = {'1.2': product.scet_timerange}
+            product.control = QTable({"scet_coarse": [beg.coarse],
+                                      "scet_fine": [beg.fine],
+                                      "raw_file": ['test.xml'],
+                                      "parent": ['parent.fits'],
+                                      "index": [1]})
+
+            t = SCETime(coarse=[beg.coarse, end.coarse])
+            product.data = QTable({"time": t,
+                                   "timedel": t-beg,
+                                   "fcounts": np.array([1, 2]),
+                                   "control_index": [1, 1]})
+            product.raw = ['packet1.xml', 'packet2.xml']
+            product.parent = ['packet1.xml', 'packet2.xml']
+            product.level = 'L1'
+            product.service_type = 21
+            product.service_subtype = 6
+            product.ssid = 31
+            product.fits_daily_file = True
+            product.type = 'ql'
+            product.name = 'background'
+            product.obt_beg = beg
+            product.obt_end = end
+            product.date_obs = beg
+            product.date_beg = beg
+            product.date_end = end
+            product.split_to_files.return_value = [product]
+            product.get_energies = False
+
+            files_first.extend(processor.write_fits(product))
+
+        assert len(files_first) == 3
+        assert get_complete_file_name(files_first[0].name) != files_first[0].name
+        assert get_incomplete_file_name(files_first[0].name) == files_first[0].name
+
+        res = publish_fits_to_esa(['--target_dir', str(target_dir),
+                                   '--same_esa_name_dir', str(same_dir),
+                                   '--include_levels', 'l1',
+                                   '--waiting_period', '0s',
+                                   '--db_file', str(out_dir / "test.sqlite"),
+                                   '--fits_dir', str(fits_dir)])
+
+        assert res
+        published_files = res[PublishResult.PUBLISHED]
+
+        # after the publishing all files will have the complete name
+
+        assert len(published_files) == 3
+        # no conflicting esa names expected
+        assert len(published_files[0]) == 1
+
+        # should be marked as complete afterwards
+        assert get_complete_file_name(published_files[0][0]['name']) ==\
+            published_files[0][0]['name']
+        assert get_incomplete_file_name(published_files[0][0]['name']) !=\
+            published_files[0][0]['name']
+
+        files_last = []
+        for f in files_first:
+            # read all FITS files and modify the data slightly
+            p = Product(get_complete_file_name_and_path(f))
+            # old data.fcounts = [t1: 1, t2: 2]
+            p.data['fcounts'][0] = 3
+            # remove the second time stamp
+            p.data.remove_row(1)
+            # new data.fcounts = [t1: 3]
+            # write the data again
+            # the complete file(name) should be found and the data should be merged into that
+            files_last.extend(processor.write_fits(p))
+
+        for f in files_last:
+            p = Product(f)
+            assert len(p.data) == 2
+            # the combined data should contain the second time bin of the old data
+            # (complete file name)
+            # the first data point should be from the latest data
+            # resulting data.fcounts = [t1: 3, t2: 2]
+            assert (p.data['fcounts'] == [3, 2]).all()
+
+
+def test_fits_incomplete_switch_over_remove_dup_files(out_dir):
+
+    test_fits_incomplete_switch_over(out_dir)
+
+    fits_dir = out_dir / 'fits'
+    target_dir = out_dir / 'move'
+
+    ufiles = list(fits_dir.rglob('*_V*U.fits'))
+    p = re.compile(r'.*_V[0-9]+\.fits')
+    cfiles = [f for f in fits_dir.rglob('*.fits') if p.match(f.name)]
+
+    assert len(ufiles) == 3
+    assert len(cfiles) == 3
+
+    ufiles[0].unlink()
+    cfiles[1].unlink()
+
+    res = incomplete_twins(['--fits_dir', str(fits_dir),
+                            '--twin_target', str(target_dir),
+                            '--move_twin'])
+
+    assert res
+    assert len(res) == 1
+    moved = list(target_dir.rglob('*.fits'))
+    assert len(moved) == 1
+    assert moved[0].name == cfiles[2].name
 
 
 @patch('stixcore.products.level1.scienceL1.Spectrogram')

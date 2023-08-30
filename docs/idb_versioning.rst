@@ -18,7 +18,7 @@ Follow the instructions to publish a new IDB `2.26.36` version
 
 * remove the `*.mdb` file (possible licensing conflicts)
 * zip the folder structure into `v2.26.36.raw.zip`
-* upload `v2.26.36.raw.zip` to `http://pub099.cs.technik.fhnw.ch/data/idb/` (`/var/www/data/idb/v2.26.36.raw.zip`)
+* upload `v2.26.36.raw.zip` to `https://pub099.cs.technik.fhnw.ch/data/idb/` (`/var/www/data/idb/v2.26.36.raw.zip`)
 * compile the raw IDB into a sqlite file (this will also inject some raw 2 engeneering paramaters)
 
 .. code-block:: python
@@ -27,7 +27,7 @@ Follow the instructions to publish a new IDB `2.26.36` version
     idbm.compile_version("2.26.36")
 
 * zip the `stixcore/data/idb/v2.26.36` folder into `v2.26.36.zip`
-* upload `v2.26.36.zip` to `http://pub099.cs.technik.fhnw.ch/data/idb/` (`/var/www/data/idb/v2.26.36.zip`)
+* upload `v2.26.36.zip` to `https://pub099.cs.technik.fhnw.ch/data/idb/` (`/var/www/data/idb/v2.26.36.zip`)
 * add a new entry to `stixcore/data/idb/idbVersionHistory.json`
     * use https://pub023.cs.technik.fhnw.ch/request/time-conversion/scet2utc
     * or https://pub023.cs.technik.fhnw.ch/request/time-conversion/utc2scet/2021-12-09T00:00:00

@@ -49,7 +49,7 @@ END_TO_END_TEST_FILES = [
     "L1/2021/09/20/HK/solo_L1_stix-hk-mini_20210920_V01.fits",
     "L1/2021/06/28/HK/solo_L1_stix-hk-maxi_20210628_V01.fits"]
 
-remote = ["http://pub099.cs.technik.fhnw.ch/data/fits_test/" + x for x in END_TO_END_TEST_FILES]
+remote = ["https://pub099.cs.technik.fhnw.ch/data/fits_test/" + x for x in END_TO_END_TEST_FILES]
 # files = ["/home/shane/fits_test/" + x for x in files]
 files = [("/data/stix/end2end/fits/" + x, remote[i])
          for i, x in enumerate(END_TO_END_TEST_FILES)]

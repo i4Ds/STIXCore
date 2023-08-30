@@ -9,7 +9,7 @@
 # it assumes that a dedicated stixcore environment is available at /data/stix/end2end/STIXCore/
 #
 # the final data is packed into a ZIP and copied to /data/stix/end2end/data/ what will be
-# available under http://pub099.cs.technik.fhnw.ch/data/end2end/data/
+# available under https://pub099.cs.technik.fhnw.ch/data/end2end/data/
 #
 #
 ################################################

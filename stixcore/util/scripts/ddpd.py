@@ -326,7 +326,7 @@ if __name__ == '__main__':
         "L1/2023/02/13/CAL/solo_L1_stix-cal-energy_20230213_V01.fits"
         ]
 
-    remote = ["http://pub099.cs.technik.fhnw.ch/data/fits/" + x for x in files]
+    remote = ["https://pub099.cs.technik.fhnw.ch/data/fits/" + x for x in files]
     # files = ["/home/shane/fits_test/" + x for x in files]
     files = [("/data/stix/out/fits_v1.0.0/" + x, remote[i]) for i, x in enumerate(files)]
 

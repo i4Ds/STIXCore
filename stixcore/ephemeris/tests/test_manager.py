@@ -27,12 +27,15 @@ def test_manager_create(spicekernelmanager):
 
 
 def test_manager_get_latest(spicekernelmanager):
-    assert (spicekernelmanager.get_latest(SpiceKernelType.MK).name ==
+    assert (spicekernelmanager.get_latest(SpiceKernelType.MK)[0].name ==
             "solo_ANC_soc-flown-mk_V105_20200515_001.tm")
-    assert (spicekernelmanager.get_latest(SpiceKernelType.SCLK).name ==
+    assert (spicekernelmanager.get_latest(SpiceKernelType.SCLK)[0].name ==
             "solo_ANC_soc-sclk_20200904_V01.tsc")
-    assert (spicekernelmanager.get_latest(SpiceKernelType.LSK).name ==
+    assert (spicekernelmanager.get_latest(SpiceKernelType.LSK)[0].name ==
             "naif0012.tls")
+
+    assert (spicekernelmanager.get_latest(SpiceKernelType.MK_PRED)[0].name ==
+            "solo_ANC_soc-pred-mk_V106_20201116_001.tm")
 
     with pytest.raises(ValueError) as e:
         spicekernelmanager.get_latest(SpiceKernelType.FK)

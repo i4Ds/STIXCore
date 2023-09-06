@@ -53,6 +53,10 @@ class QLProduct(GenericProduct, EnergyChannelsMixin):
         super().__init__(service_type=service_type, service_subtype=service_subtype, ssid=ssid,
                          control=control, data=data, idb_versions=idb_versions, **kwargs)
 
+    @property
+    def fits_daily_file(self):
+        return True
+
     @classmethod
     def from_levelb(cls, levelb, *, parent='', NIX00405_offset=0):
         """Converts level binary packets to a L1 product.

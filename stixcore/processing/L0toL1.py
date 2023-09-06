@@ -13,6 +13,7 @@ from stixcore.products import Product
 from stixcore.products.level0.scienceL0 import NotCombineException
 from stixcore.soop.manager import SOOPManager
 from stixcore.util.logging import get_logger
+from stixcore.util.util import get_complete_file_name
 
 logger = get_logger(__name__)
 
@@ -91,9 +92,12 @@ def process_type(files, *, processor, soopmanager, spice_kernel_path, config):
             tmp = Product._check_registered_widget(level='L1', service_type=l0.service_type,
                                                    service_subtype=l0.service_subtype,
                                                    ssid=l0.ssid, data=None, control=None)
-            l1 = tmp.from_level0(l0, parent=file.name)
-            files = processor.write_fits(l1)
-            all_files.extend(files)
+
+            # see https://github.com/i4Ds/STIXCore/issues/350
+            complete_file_name = get_complete_file_name(file.name)
+            l1 = tmp.from_level0(l0, parent=complete_file_name)
+
+            all_files.extend(processor.write_fits(l1))
         except NoMatchError:
             logger.warning('No match for product %s', l0)
         except NotCombineException as nc:

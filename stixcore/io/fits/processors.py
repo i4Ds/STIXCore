@@ -15,6 +15,7 @@ from stixcore.products.product import Product
 from stixcore.soop.manager import SOOPManager, SoopObservationType
 from stixcore.time.datetime import SEC_IN_DAY
 from stixcore.util.logging import get_logger
+from stixcore.util.util import get_complete_file_name_and_path
 
 __all__ = ['SEC_IN_DAY', 'FitsProcessor', 'FitsLBProcessor', 'FitsL0Processor',
            'FitsL1Processor', 'FitsL2Processor']
@@ -64,7 +65,7 @@ class FitsProcessor:
     # TODO abstract some general processing pattern methods
 
     @classmethod
-    def generate_filename(cls, product, *, version, date_range, status=''):
+    def generate_filename(cls, product, *, version, date_range, status='', header=True):
         """
         Generate fits file name with SOLO conventions.
         Parameters
@@ -80,8 +81,6 @@ class FitsProcessor:
         `str`
             The filename
         """
-        if status:
-            status = f'_{status}'
 
         user_req = ''
         if 'request_id' in product.control.colnames:
@@ -90,6 +89,10 @@ class FitsProcessor:
         tc_control = ''
         if 'tc_packet_seq_control' in product.control.colnames and user_req != '':
             tc_control = f'-{product.control["tc_packet_seq_control"][0]:05d}'
+
+        if (status == '' and (not header)
+                and (product.level != 'LB' and product.fits_daily_file is True)):
+            status = 'U'
 
         return f'solo_{product.level}_stix-{product.type}-{product.name.replace("_", "-")}' \
                f'_{date_range}_V{version:02d}{status}{user_req}{tc_control}.fits'
@@ -470,7 +473,8 @@ class FitsL0Processor:
         """
         created_files = []
         for prod in product.split_to_files():
-            filename = self.generate_filename(product=prod, version=version)
+            filename = self.generate_filename(product=prod, version=version, header=False)
+
             # start_day = np.floor((prod.obs_beg.as_float()
             #                       // (1 * u.day).to('s')).value * SEC_IN_DAY).astype(int)
             parts = [prod.level, prod.service_type, prod.service_subtype]
@@ -480,9 +484,16 @@ class FitsL0Processor:
             path.mkdir(parents=True, exist_ok=True)
 
             fitspath = path / filename
+            fitspath_complete = get_complete_file_name_and_path(fitspath)
             if fitspath.exists():
                 logger.info('Fits file %s exists appending data', fitspath.name)
                 existing = Product(fitspath)
+                logger.debug('Existing %s, Current %s', existing, prod)
+                prod = prod + existing
+                logger.debug('Combined %s', prod)
+            elif fitspath_complete.exists():
+                logger.info('Complete Fits file %s exists appending data', fitspath.name)
+                existing = Product(fitspath_complete)
                 logger.debug('Existing %s, Current %s', existing, prod)
                 prod = prod + existing
                 logger.debug('Combined %s', prod)
@@ -587,7 +598,7 @@ class FitsL0Processor:
             hdul.append((energy_hdu))
 
     @staticmethod
-    def generate_filename(product, version=None, status=''):
+    def generate_filename(product, *, version=None, status='', header=True):
         """
         Generate fits file name with SOLO conventions.
 
@@ -613,7 +624,7 @@ class FitsL0Processor:
             end_obs = product.scet_timerange.end.coarse
             date_range = f'{start_obs:010d}-{end_obs:010d}'
         return FitsProcessor.generate_filename(product, version=version,
-                                               date_range=date_range, status=status)
+                                               date_range=date_range, status=status, header=header)
 
     @classmethod
     def generate_primary_header(cls, filename, product, *, version=1):
@@ -668,7 +679,7 @@ class FitsL1Processor(FitsL0Processor):
         self.archive_path = archive_path
 
     @classmethod
-    def generate_filename(cls, product, *, version=1, status=''):
+    def generate_filename(cls, product, *, version=1, status='', header=True):
 
         date_range = f'{product.utc_timerange.start.strftime("%Y%m%dT%H%M%S")}-' +\
                      f'{product.utc_timerange.end.strftime("%Y%m%dT%H%M%S")}'
@@ -676,7 +687,7 @@ class FitsL1Processor(FitsL0Processor):
             date_range = product.utc_timerange.center.strftime("%Y%m%d")
 
         return FitsProcessor.generate_filename(product, version=version, date_range=date_range,
-                                               status=status)
+                                               status=status, header=header)
 
     def generate_primary_header(self, filename, product, *, version=1):
         # if product.level != 'L1':
@@ -754,7 +765,7 @@ class FitsL1Processor(FitsL0Processor):
         """
         created_files = []
         for prod in product.split_to_files():
-            filename = self.generate_filename(product=prod, version=version)
+            filename = self.generate_filename(product=prod, version=version, header=False)
             # start_day = np.floor((prod.obs_beg.as_float()
             #                       // (1 * u.day).to('s')).value * SEC_IN_DAY).astype(int)
 
@@ -768,9 +779,17 @@ class FitsL1Processor(FitsL0Processor):
             path.mkdir(parents=True, exist_ok=True)
 
             fitspath = path / filename
+            fitspath_complete = get_complete_file_name_and_path(fitspath)
+
             if fitspath.exists():
                 logger.info('Fits file %s exists appending data', fitspath.name)
                 existing = Product(fitspath)
+                logger.debug('Existing %s, Current %s', existing, prod)
+                prod = prod + existing
+                logger.debug('Combined %s', prod)
+            elif fitspath_complete.exists():
+                logger.info('Complete Fits file %s exists appending data', fitspath.name)
+                existing = Product(fitspath_complete)
                 logger.debug('Existing %s, Current %s', existing, prod)
                 prod = prod + existing
                 logger.debug('Combined %s', prod)

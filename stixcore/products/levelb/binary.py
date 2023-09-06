@@ -52,6 +52,10 @@ class LevelB(BaseProduct):
         self.obt_avg = self.obt_beg + (self.obt_end - self.obt_beg)/2
 
     @property
+    def fits_daily_file(self):
+        return None
+
+    @property
     def parent(self):
         """List of all parent data files this data product is compiled from.
 

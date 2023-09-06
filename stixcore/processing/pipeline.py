@@ -198,10 +198,11 @@ do not answer to this mail.
 
 def process_tm(path, **args):
     with PipelineErrorReport(path) as error_report:
-        # set the latest spice file for each run
-        if args['spm'].get_latest_mk() != Spice.instance.meta_kernel_path:
-            Spice.instance = Spice(args['spm'].get_latest_mk())
-            logger.info("new spice kernel detected and loaded")
+        # set the latest spice kernel files for each run
+        if ((args['spm'].get_latest_mk()[0] not in Spice.instance.meta_kernel_path) or
+           (args['spm'].get_latest_mk_pred()[0] not in Spice.instance.meta_kernel_path)):
+            Spice.instance = Spice(args['spm'].get_latest_mk_and_pred())
+            logger.info("new spice kernels detected and loaded")
 
         lb_files = process_tmtc_to_levelbinary([SOCPacketFile(path)])
         logger.info(f"generated LB files: \n{pformat(lb_files)}")
@@ -360,7 +361,7 @@ def main():
     tmpath = Path(CONFIG.get('Paths', 'tm_archive'))
     soop_path = Path(CONFIG.get('Paths', 'soop_files'))
     spm = SpiceKernelManager(Path(CONFIG.get("Paths", "spice_kernels")))
-    Spice.instance = Spice(spm.get_latest_mk())
+    Spice.instance = Spice(spm.get_latest_mk_and_pred())
 
     logging_handler = LoggingEventHandler(logger=logger)
 
@@ -382,8 +383,11 @@ def main():
         logger.info("Skipping search for unprocessed tm files")
 
     observer.schedule(soop_handler, soop_manager.data_root,  recursive=False)
+    logger.info(f"Start observing {soop_manager.data_root} for SOOPs")
     observer.schedule(logging_handler, tmpath,  recursive=True)
+    logger.info(f"Start observing {tmpath} for logging")
     observer.schedule(tm_handler, tmpath, recursive=True)
+    logger.info(f"Start observing {tmpath} for incoming TMs")
 
     observer.start()
     try:

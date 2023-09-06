@@ -170,7 +170,7 @@ def main():
         spicemeta = Path(args.spice_file)
     else:
         _spm = SpiceKernelManager(Path(CONFIG.get('Paths', 'spice_kernels')))
-        spicemeta = _spm.get_latest_mk(top_n=30)
+        spicemeta = _spm.get_latest_mk(top_n=10)
 
     Spice.instance = Spice(spicemeta)
 

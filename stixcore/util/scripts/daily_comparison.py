@@ -65,7 +65,7 @@ if __name__ == '__main__2':
 if __name__ == '__main__2':
 
     _spm = SpiceKernelManager(Path("/data/stix/spice/git/solar-orbiter/kernels"))
-    spicemeta = _spm.get_latest_mk(top_n=30)
+    spicemeta = _spm.get_latest_mk(top_n=10)
 
     Spice.instance = Spice(spicemeta)
     print(f"Spice kernel @: {Spice.instance.meta_kernel_path}")

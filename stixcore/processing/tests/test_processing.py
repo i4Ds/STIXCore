@@ -200,7 +200,8 @@ def test_pipeline(socpacketfile, out_dir):
 def test_export_single(packet):
     p = packet.export(descr=True)
     assert isinstance(p, dict)
-    assert p['spice_kernel'] == Spice.instance.meta_kernel_path.name
+    # assert 'solo_ANC_soc-pred-mk_V106_20201116_001.tm' in p['spice_kernel']
+    assert 'solo_ANC_soc-flown-mk_V105_20200515_001.tm' in p['spice_kernel']
 
 
 def test_export_all():
@@ -212,7 +213,8 @@ def test_export_all():
     for packet in l0.packets.packets:
         p = packet.export(descr=True)
         assert isinstance(p, dict)
-        assert p['spice_kernel'] == Spice.instance.meta_kernel_path.name
+        # assert 'solo_ANC_soc-pred-mk_V106_20201116_001.tm' in p['spice_kernel']
+        assert 'solo_ANC_soc-flown-mk_V105_20200515_001.tm' in p['spice_kernel']
 
 
 def test_print(packet):

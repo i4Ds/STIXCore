@@ -99,8 +99,8 @@ class MaxiReport(HKProduct, L2Mixin):
             data['y_srf'] = 0.0
             data['z_srf'] = 0.0
             data['calib'] = 0.0
-            data['quality'] = 3
-            data['error'] = ""
+            data['sas_ok'] = np.byte(0)
+            data['error'] = "test"
             data['control_index'] = l2.data['control_index']
 
             dataobj = dict()
@@ -172,7 +172,7 @@ class AspectIDLProcessing(SSWIDLTask):
                                 y_srf : hk_file.DATA.y_srf[i], $
                                 z_srf : hk_file.DATA.z_srf[i], $
                                 calib : hk_file.DATA.calib[i],  $
-                                quality : hk_file.DATA.quality[i], $
+                                sas_ok : hk_file.DATA.sas_ok[i], $
                                 error : hk_file.DATA.error[i], $
                                 control_index : hk_file.DATA.control_index[i], $
                                 parentfits : file_index $
@@ -186,8 +186,9 @@ class AspectIDLProcessing(SSWIDLTask):
                 ;endif
                 ; START ASPECT PROCESSING
 
-                help, data_f
+                help, data_e, /str
                 print, n_elements(data_f)
+                data_f[n_elements(data_f)-1].error = "nickytest"
                 flush, -1
 
                 print,"Calibrating data..."
@@ -212,7 +213,7 @@ class AspectIDLProcessing(SSWIDLTask):
                 data = [data, data_f]
             ENDFOREACH
 
-            idlgswversion="tbd"
+            stx_gsw_version, version = idlgswversion
 
             undefine, hk_file, hk_files, data_e, i, di, data_f, d
 
@@ -277,10 +278,9 @@ class AspectIDLProcessing(SSWIDLTask):
                 data['spice_disc_size'] = (idldata['spice_disc_size'] * u.arcsec).astype(np.float32)
                 data['y_srf'] = (idldata['y_srf'] * u.arcsec).astype(np.float32)
                 data['z_srf'] = (idldata['z_srf'] * u.arcsec).astype(np.float32)
-                data['quality'] = (idldata['quality']).astype(np.byte)
-                # TODO fix full description to real quality enums
-                data['quality'].description = ("0: good, 1: suspicious, "
-                                               "2: very uncertain, 3: not usable")
+                data['sas_ok'] = (idldata['sas_ok']).astype(np.byte)
+                data['sas_ok'].description = "0: not usable, 1: good"
+                data['sas_error'] = [e.decode() for e in idldata['error']]
 
                 data['solo_loc_carrington_lonlat'] = np.tile(np.array([0.0, 0.0]), (n, 1)).\
                     astype(np.float32) * u.deg
@@ -304,7 +304,7 @@ class AspectIDLProcessing(SSWIDLTask):
                 aux = Ephemeris(control=control, data=data, idb_versions=HK.idb_versions)
 
                 aux.add_additional_header_keywords(
-                    ('STX_GSW', result.idlgswversion.decode(),
+                    ('STX_GSW', result.idlgswversion[0].decode(),
                      'Version of STX-GSW that provided data'))
                 aux.add_additional_header_keywords(
                     ('HISTORY', 'aspect data processed by STX-GSW', ''))
@@ -320,6 +320,7 @@ class Ephemeris(HKProduct, L2Mixin):
 
     In level 2 format.
     """
+    PRODUCT_PROCESSING_VERSION = 2
 
     def __init__(self, *, service_type=0, service_subtype=0, ssid=1, control, data,
                  idb_versions=defaultdict(SCETimeRange), **kwargs):

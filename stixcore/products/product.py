@@ -117,6 +117,8 @@ class BaseProduct:
     Base TMProduct that all other product inherit from contains the registry for the factory pattern
     """
 
+    PRODUCT_PROCESSING_VERSION = 1
+
     _registry = {}
 
     def __init_subclass__(cls, **kwargs):
@@ -133,6 +135,11 @@ class BaseProduct:
     @property
     def fits_daily_file(self):
         raise NotImplementedError("SubClass of BaseProduct should implement")
+
+    def get_processing_version(self):
+        version = self.__class__.PRODUCT_PROCESSING_VERSION\
+            if hasattr(self.__class__, 'PRODUCT_PROCESSING_VERSION') else 1
+        return max(version, BaseProduct.PRODUCT_PROCESSING_VERSION)
 
 
 class ProductFactory(BasicRegistrationFactory):

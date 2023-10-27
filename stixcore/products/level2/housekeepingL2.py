@@ -100,7 +100,7 @@ class MaxiReport(HKProduct, L2Mixin):
             data['z_srf'] = 0.0
             data['calib'] = 0.0
             data['sas_ok'] = np.byte(0)
-            data['error'] = "test"
+            data['error'] = ""
             data['control_index'] = l2.data['control_index']
 
             dataobj = dict()
@@ -149,7 +149,6 @@ class AspectIDLProcessing(SSWIDLTask):
                     data_f.error = "FATAL_IDL_ERROR"
                     data = [data, data_f]
                     catch, /cancel
-
                     continue
                 endif
 
@@ -172,7 +171,7 @@ class AspectIDLProcessing(SSWIDLTask):
                                 y_srf : hk_file.DATA.y_srf[i], $
                                 z_srf : hk_file.DATA.z_srf[i], $
                                 calib : hk_file.DATA.calib[i],  $
-                                sas_ok : hk_file.DATA.sas_ok[i], $
+                                sas_ok : fix(hk_file.DATA.sas_ok[i]), $
                                 error : hk_file.DATA.error[i], $
                                 control_index : hk_file.DATA.control_index[i], $
                                 parentfits : file_index $
@@ -188,23 +187,30 @@ class AspectIDLProcessing(SSWIDLTask):
 
                 help, data_e, /str
                 print, n_elements(data_f)
-                data_f[n_elements(data_f)-1].error = "nickytest"
                 flush, -1
 
                 print,"Calibrating data..."
                 flush, -1
                 ; First, substract dark currents and applies relative gains
-                calib_sas_data, data_f, calib_file
+                stx_calib_sas_data, data_f, calib_file
+
+                ; copy result in a new object
+                data_calib = data_f
+                ; Added 2023-09-18: remove data points with some error detected during calibration
+                stx_remove_bad_sas_data, data_calib
 
                 ; Now automatically compute global calibration correction factor and applies it
                 ; Note: this takes a bit of time
-                print, "scale"
-                flush, -1
-                auto_scale_sas_data, data_f, simu_data_file, aperfile
+                stx_auto_scale_sas_data, data_calib, simu_data_file, aperfile
+
+                cal_corr_factor = data_calib[0].calib
+                data_f.CHA_DIODE0 *= cal_corr_factor
+                data_f.CHA_DIODE1 *= cal_corr_factor
+                data_f.CHB_DIODE0 *= cal_corr_factor
+                data_f.CHB_DIODE1 *= cal_corr_factor
 
                 print,"Computing aspect solution..."
-                flush, -1
-                derive_aspect_solution, data_f, simu_data_file, interpol_r=1, interpol_xy=1
+                stx_derive_aspect_solution, data_f, simu_data_file, interpol_r=1, interpol_xy=1
 
                 print,"END Computing aspect solution..."
                 flush, -1
@@ -278,9 +284,10 @@ class AspectIDLProcessing(SSWIDLTask):
                 data['spice_disc_size'] = (idldata['spice_disc_size'] * u.arcsec).astype(np.float32)
                 data['y_srf'] = (idldata['y_srf'] * u.arcsec).astype(np.float32)
                 data['z_srf'] = (idldata['z_srf'] * u.arcsec).astype(np.float32)
-                data['sas_ok'] = (idldata['sas_ok']).astype(np.byte)
+                data['sas_ok'] = (idldata['sas_ok']).astype(np.bool_)
                 data['sas_ok'].description = "0: not usable, 1: good"
-                data['sas_error'] = [e.decode() for e in idldata['error']]
+                data['sas_error'] = [e.decode() if hasattr(e, 'decode') else e
+                                     for e in idldata['error']]
 
                 data['solo_loc_carrington_lonlat'] = np.tile(np.array([0.0, 0.0]), (n, 1)).\
                     astype(np.float32) * u.deg

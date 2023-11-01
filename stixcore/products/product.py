@@ -141,6 +141,12 @@ class BaseProduct:
             if hasattr(self.__class__, 'PRODUCT_PROCESSING_VERSION') else 1
         return max(version, BaseProduct.PRODUCT_PROCESSING_VERSION)
 
+    @classmethod
+    def get_cls_processing_version(cls):
+        version = cls.PRODUCT_PROCESSING_VERSION\
+            if hasattr(cls, 'PRODUCT_PROCESSING_VERSION') else 1
+        return max(version, BaseProduct.PRODUCT_PROCESSING_VERSION)
+
 
 class ProductFactory(BasicRegistrationFactory):
     def __call__(self, *args, **kwargs):

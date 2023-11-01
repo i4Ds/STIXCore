@@ -28,6 +28,12 @@ Y_M_D_H_M = "%Y%m%d%H%M"
 NAN = 2 ** 32 - 1
 
 
+def version_format(version):
+    # some very strange work around for direct use of format '{0:02d}'.format(version)
+    # as this is not supported by magicMoc
+    return f'{version:02d}'
+
+
 def set_bscale_unsigned(table_hdu):
     """
     Set bscale value to 1 if unsigned int.
@@ -96,10 +102,11 @@ class FitsProcessor:
             status = 'U'
 
         return f'solo_{product.level}_stix-{product.type}-{product.name.replace("_", "-")}' \
-               f'_{date_range}_V{version:02d}{status}{user_req}{tc_control}.fits'
+               f'_{date_range}_V{version_format(version)}{status}{user_req}{tc_control}.fits'
 
     @classmethod
     def generate_common_header(cls, filename, product, *, version=0):
+
         headers = (
             # Name, Value, Comment
             ('FILENAME', filename, 'FITS filename'),
@@ -115,7 +122,7 @@ class FitsProcessor:
             ('CREATOR', 'stixcore', 'FITS creation software'),
             ('VERS_SW', str(stixcore.__version__), 'Version of SW that provided FITS file'),
             # ('VERS_CAL', '', 'Version of the calibration pack'),
-            ('VERSION', f'{version:02d}', 'Version of data product'),
+            ('VERSION', version_format(version), 'Version of data product'),
             ('OBSRVTRY', 'Solar Orbiter', 'Satellite name'),
             ('TELESCOP', 'SOLO/STIX', 'Telescope/Sensor name'),
             ('INSTRUME', 'STIX', 'Instrument name'),

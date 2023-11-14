@@ -5,7 +5,7 @@ import argparse
 from stixcore.config.config import CONFIG
 from stixcore.util.logging import get_logger
 
-__all__ = ['pipeline_status']
+__all__ = ['pipeline_status', 'get_status']
 
 logger = get_logger(__name__)
 
@@ -28,7 +28,7 @@ def get_status(msg, port=12346):
             line = server.readline()
             if not line:
                 break
-            print(f"{line.decode().rstrip()}")
+            return f"{line.decode().rstrip()}"
 
     finally:
         sock.close()
@@ -69,7 +69,7 @@ def pipeline_status(args):
 
     cmd = args.cmd.encode() if args.cmd else b'last'
 
-    get_status(cmd, args.port)
+    print(get_status(cmd, args.port))
 
 
 def main():

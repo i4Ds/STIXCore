@@ -162,3 +162,4 @@ stixcore/data/test/ephemeris/spice/kernels/mk/*.abs
 stixcore/data/soop/
 stixcore/data/publish/
 stixcore/data/test/products/end2end/
+monitor_status.json

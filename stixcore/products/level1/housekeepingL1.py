@@ -16,6 +16,8 @@ class MiniReport(HKProduct, L1Mixin):
     In level 1 format.
     """
 
+    PRODUCT_PROCESSING_VERSION = 2
+
     def __init__(self, *, service_type, service_subtype, ssid, control, data,
                  idb_versions=defaultdict(SCETimeRange), **kwargs):
         super().__init__(service_type=service_type, service_subtype=service_subtype,
@@ -36,6 +38,7 @@ class MaxiReport(HKProduct, L1Mixin):
 
         In level 1 format.
     """
+    PRODUCT_PROCESSING_VERSION = 2
 
     def __init__(self, *, service_type, service_subtype, ssid, control, data,
                  idb_versions=defaultdict(SCETimeRange), **kwargs):

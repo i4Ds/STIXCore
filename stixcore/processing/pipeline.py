@@ -5,6 +5,7 @@ import sys
 import time
 import shutil
 import socket
+import inspect
 import logging
 import smtplib
 import warnings
@@ -19,6 +20,7 @@ from polling2 import poll_decorator
 from watchdog.events import FileSystemEventHandler, LoggingEventHandler
 from watchdog.observers import Observer
 
+import stixcore
 from stixcore.config.config import CONFIG
 from stixcore.ephemeris.manager import Spice, SpiceKernelManager
 from stixcore.idb.manager import IDBManager
@@ -27,6 +29,7 @@ from stixcore.processing.L0toL1 import Level1
 from stixcore.processing.L1toL2 import Level2
 from stixcore.processing.LBtoL0 import Level0
 from stixcore.processing.TMTCtoLB import process_tmtc_to_levelbinary
+from stixcore.products import Product
 from stixcore.soop.manager import SOOPManager
 from stixcore.util.logging import STX_LOGGER_DATE_FORMAT, STX_LOGGER_FORMAT, get_logger
 from stixcore.util.singleton import Singleton
@@ -267,17 +270,36 @@ class PipelineStatus(metaclass=Singleton):
         return s.read()
 
     @staticmethod
+    def get_version():
+        s = io.StringIO()
+        s.write("\nPIPELINE VERSION\n\n")
+        s.write(f"Version: {str(stixcore.__version__)}\n")
+        s.write("PROCESSING VERSIONS\n\n")
+        for p in Product.registry:
+            s.write(f"Prod: {p.__name__}\n    File: {inspect.getfile(p)}\n"
+                    f"    Vers: {p.get_cls_processing_version()}\n")
+        s.seek(0)
+        return s.read()
+
+    @staticmethod
     def log_singletons(level=logging.INFO):
         logger.log(level, PipelineStatus.get_singletons())
 
     @staticmethod
+    def log_version(level=logging.INFO):
+        logger.log(level, PipelineStatus.get_version())
+
+    @staticmethod
     def log_setup(level=logging.INFO):
+        PipelineStatus.log_version(level=level)
         PipelineStatus.log_config(level=level)
         PipelineStatus.log_singletons(level=level)
 
     @staticmethod
     def get_setup():
-        return PipelineStatus.get_config() + PipelineStatus.get_singletons()
+        return PipelineStatus.get_version() +\
+               PipelineStatus.get_config() +\
+               PipelineStatus.get_singletons()
 
     def status_next(self):
         if not self.tm_handler:

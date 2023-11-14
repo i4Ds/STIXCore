@@ -28,6 +28,12 @@ Y_M_D_H_M = "%Y%m%d%H%M"
 NAN = 2 ** 32 - 1
 
 
+def version_format(version):
+    # some very strange work around for direct use of format '{0:02d}'.format(version)
+    # as this is not supported by magicMoc
+    return f'{version:02d}'
+
+
 def set_bscale_unsigned(table_hdu):
     """
     Set bscale value to 1 if unsigned int.
@@ -73,7 +79,8 @@ class FitsProcessor:
         product : `BaseProduct`
             QLProduct
         version : `int`
-            Version of this product
+            the version modifier for the filename
+            default 0 = detect from codebase.
         status : `str`
             Status of the packets
         Returns
@@ -95,10 +102,11 @@ class FitsProcessor:
             status = 'U'
 
         return f'solo_{product.level}_stix-{product.type}-{product.name.replace("_", "-")}' \
-               f'_{date_range}_V{version:02d}{status}{user_req}{tc_control}.fits'
+               f'_{date_range}_V{version_format(version)}{status}{user_req}{tc_control}.fits'
 
     @classmethod
-    def generate_common_header(cls, filename, product, *, version=1):
+    def generate_common_header(cls, filename, product, *, version=0):
+
         headers = (
             # Name, Value, Comment
             ('FILENAME', filename, 'FITS filename'),
@@ -114,7 +122,7 @@ class FitsProcessor:
             ('CREATOR', 'stixcore', 'FITS creation software'),
             ('VERS_SW', str(stixcore.__version__), 'Version of SW that provided FITS file'),
             # ('VERS_CAL', '', 'Version of the calibration pack'),
-            ('VERSION', f'{version:02d}', 'Version of data product'),
+            ('VERSION', version_format(version), 'Version of data product'),
             ('OBSRVTRY', 'Solar Orbiter', 'Satellite name'),
             ('TELESCOP', 'SOLO/STIX', 'Telescope/Sensor name'),
             ('INSTRUME', 'STIX', 'Instrument name'),
@@ -137,6 +145,8 @@ class FitsLL01Processor(FitsProcessor):
         product : `sticore.product.Product`
 
         version : `int`
+            the version modifier for the filename
+            default 0 = detect from codebase.
 
         date_range
         status
@@ -326,7 +336,8 @@ class FitsLBProcessor(FitsProcessor):
         product : `BaseProduct`
             QLProduct
         version : `int`
-            Version of this product
+            the version modifier for the filename
+            default 0 = detect from codebase.
         status : `str`
             Status of the packets
         Returns
@@ -351,7 +362,7 @@ class FitsLBProcessor(FitsProcessor):
                f'_{scet_obs}_V{version:02d}{status}{addon}.fits'
 
     @classmethod
-    def generate_primary_header(cls, filename, product, *, version=1):
+    def generate_primary_header(cls, filename, product, *, version=0):
         """
         Generate primary header cards.
         Parameters
@@ -382,17 +393,24 @@ class FitsLBProcessor(FitsProcessor):
         )
         return headers
 
-    def write_fits(self, product, *, version=1):
+    def write_fits(self, product, *, version=0):
         """Write or merge the product data into a FITS file.
         Parameters
         ----------
         product : `LevelB`
             The data product to write.
+        version : `int`
+            the version modifier for the filename
+            default 0 = detect from codebase.
         Raises
         ------
         ValueError
             If the data length in the header and actual data length differ
         """
+
+        if version == 0:
+            version = product.get_processing_version()
+
         files = []
         for prod in product.to_files():
             filename = self.generate_filename(prod, version=version)
@@ -457,13 +475,17 @@ class FitsL0Processor:
         """
         self.archive_path = archive_path
 
-    def write_fits(self, product, path=None, *, version=1):
+    def write_fits(self, product, path=None, *, version=0):
         """
         Write level 0 products into fits files.
 
         Parameters
         ----------
         product : `stixcore.product.level0`
+
+        version : `int`
+            the version modifier for the filename
+            default 0 = detect from codebase.
 
         Returns
         -------
@@ -472,6 +494,10 @@ class FitsL0Processor:
 
         """
         created_files = []
+
+        if version == 0:
+            version = product.get_processing_version()
+
         for prod in product.split_to_files():
             filename = self.generate_filename(product=prod, version=version, header=False)
 
@@ -606,8 +632,9 @@ class FitsL0Processor:
         ----------
         product : stix_parser.product.BaseProduct
             QLProduct
-        version : int
-            Version of this product
+        version : `int`
+            the version modifier for the filename
+            default 0 = detect from codebase.
         status : str
             Status of the packets
 
@@ -627,7 +654,7 @@ class FitsL0Processor:
                                                date_range=date_range, status=status, header=header)
 
     @classmethod
-    def generate_primary_header(cls, filename, product, *, version=1):
+    def generate_primary_header(cls, filename, product, *, version=0):
         """
         Generate primary header cards.
 
@@ -679,7 +706,7 @@ class FitsL1Processor(FitsL0Processor):
         self.archive_path = archive_path
 
     @classmethod
-    def generate_filename(cls, product, *, version=1, status='', header=True):
+    def generate_filename(cls, product, *, version=0, status='', header=True):
 
         date_range = f'{product.utc_timerange.start.strftime("%Y%m%dT%H%M%S")}-' +\
                      f'{product.utc_timerange.end.strftime("%Y%m%dT%H%M%S")}'
@@ -689,7 +716,7 @@ class FitsL1Processor(FitsL0Processor):
         return FitsProcessor.generate_filename(product, version=version, date_range=date_range,
                                                status=status, header=header)
 
-    def generate_primary_header(self, filename, product, *, version=1):
+    def generate_primary_header(self, filename, product, *, version=0):
         # if product.level != 'L1':
         #    raise ValueError(f"Try to crate FITS file L1 for {product.level} data product")
 
@@ -749,13 +776,17 @@ class FitsL1Processor(FitsL0Processor):
 
         return headers + data_headers + soop_headers + time_headers, ephemeris_headers
 
-    def write_fits(self, product, *, version=1):
+    def write_fits(self, product, *, version=0):
         """
         Write level 0 products into fits files.
 
         Parameters
         ----------
         product : `stixcore.product.level0`
+
+        version : `int`
+            the version modifier for the filename
+            default 0 = detect from codebase.
 
         Returns
         -------
@@ -764,6 +795,9 @@ class FitsL1Processor(FitsL0Processor):
 
         """
         created_files = []
+        if version == 0:
+            version = product.get_processing_version()
+
         for prod in product.split_to_files():
             filename = self.generate_filename(product=prod, version=version, header=False)
             # start_day = np.floor((prod.obs_beg.as_float()
@@ -869,7 +903,27 @@ class FitsL2Processor(FitsL1Processor):
     def __init__(self, archive_path):
         super().__init__(archive_path)
 
-    def write_fits(self, product, *, version=1):
+    def write_fits(self, product, *, version=0):
+        """
+        Write level 2 products into fits files.
+
+        Parameters
+        ----------
+        product : `stixcore.product.level2`
+
+        version : `int`
+            the version modifier for the filename
+            default 0 = detect from codebase.
+
+        Returns
+        -------
+        list
+            of created file as `pathlib.Path`
+
+        """
+        if version == 0:
+            version = product.get_processing_version()
+
         # TODO remove writeout supression of all products but aux files
         if product.type == 'aux':
             return super().write_fits(product, version=version)
@@ -877,7 +931,7 @@ class FitsL2Processor(FitsL1Processor):
             logger.info(f"no writeout of L2 {product.type}-{product.name} FITS files.")
             return []
 
-    def generate_primary_header(self, filename, product, *, version=1):
+    def generate_primary_header(self, filename, product, *, version=0):
         # if product.level != 'L2':
         #    raise ValueError(f"Try to crate FITS file L2 for {product.level} data product")
 

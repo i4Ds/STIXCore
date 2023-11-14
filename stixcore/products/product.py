@@ -523,8 +523,9 @@ class GenericProduct(BaseProduct):
 
         logger.debug('len stacked %d', len(data))
 
-        # Not sure where the rounding issue is arising need to investigate
-        data['time_float'] = np.around(data['time'].as_float().value, 2)
+        # Fits write we do np.around(time - start_time).as_float().to(u.cs)).astype("uint32"))
+        # So need to do something similar here to avoid comparing un-rounded value to rounded values
+        data['time_float'] = np.around((data['time'] - data['time'].min()).as_float().to('cs'))
 
         # remove dublicate data based on time bin and sort the data
         data = unique(data, keys=['time_float'])

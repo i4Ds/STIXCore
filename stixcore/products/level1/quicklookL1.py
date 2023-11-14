@@ -147,7 +147,7 @@ class TMStatusFlareList(QLProduct, L1Mixin):
         super().__init__(service_type=service_type, service_subtype=service_subtype, ssid=ssid,
                          control=control, data=data, idb_versions=idb_versions, **kwargs)
 
-        self.name = 'ql-tmstatusflarelist'
+        self.name = 'tmstatusflarelist'
         self.level = 'L1'
 
     @classmethod

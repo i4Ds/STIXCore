@@ -107,6 +107,18 @@ class FitsProcessor:
     @classmethod
     def generate_common_header(cls, filename, product, *, version=0):
 
+        user_req = ''
+        if 'request_id' in product.control.colnames:
+            rid_entry = np.atleast_1d(product.control['request_id'][0])
+            if len(rid_entry) > 1:
+                user_req = f'{rid_entry[1]:010d}-{rid_entry[0]:05d}'
+            else:
+                user_req = f"{rid_entry[0]:010d}"
+
+        tc_control = ''
+        if 'tc_packet_seq_control' in product.control.colnames and user_req != '':
+            tc_control = f'{product.control["tc_packet_seq_control"][0]:05d}'
+
         headers = (
             # Name, Value, Comment
             ('FILENAME', filename, 'FITS filename'),
@@ -131,7 +143,11 @@ class FitsProcessor:
             ('STYPE', product.service_type, 'Service Type'),
             ('SSTYPE', product.service_subtype, 'Sub-service Type'),
             ('SSID', product.ssid if product.ssid is not None else '', 'Science Structure ID'),
+
+            ('SCI_RID', user_req, 'Science data request ID'),
+            ('SCI_TCC', tc_control, 'Science data request TC packet seq. control'),
         )
+
         return headers
 
 

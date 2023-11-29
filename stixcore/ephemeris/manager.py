@@ -14,6 +14,7 @@ from spiceypy.utils.exceptions import (
     SpiceINVALIDSCLKSTRING,
     SpiceyError,
 )
+from sunpy.coordinates import HeliographicCarrington, HeliographicStonyhurst
 
 import astropy.units as u
 from astropy.time.core import Time as ApTime
@@ -449,8 +450,8 @@ class Spice(SpiceKernelLoader, metaclass=Singleton):
                     'SPICE meta kernel file'),)
 
         header_results = defaultdict(lambda: '')
-        # HeliographicStonyhurst
         try:
+            # HeliographicStonyhurst
             solo_sun_hg, sun_solo_lt = spiceypy.spkezr('SOLO', et, 'SUN_EARTH_CEQU', 'None', 'Sun')
             # Convert to spherical and add units
             hg_rad, hg_lon, hg_lat = spiceypy.reclat(solo_sun_hg[:3])
@@ -459,6 +460,9 @@ class Spice(SpiceKernelLoader, metaclass=Singleton):
             # Calculate radial velocity add units
             rad_vel, *_ = spiceypy.reclat(solo_sun_hg[3:])
             rad_vel = rad_vel * (u.km / u.s)
+
+            hgs = HeliographicStonyhurst(hg_lon, hg_lat, hg_rad, obstime=average_time.to_datetime())
+            hgc = hgs.transform_to(HeliographicCarrington(obstime=hgs.obstime, observer='Earth'))
 
             rsun_arc = np.arcsin((1 * u.R_sun) / hg_rad).decompose().to('arcsec')
 
@@ -473,8 +477,8 @@ class Spice(SpiceKernelLoader, metaclass=Singleton):
             header_results['RSUN_ARC'] = rsun_arc.to_value('arcsec')
             header_results['HGLT_OBS'] = hg_lat.to_value('deg')
             header_results['HGLN_OBS'] = hg_lon.to_value('deg')
-            header_results['CRLT_OBS'] = hg_lat.to_value('deg')
-            header_results['CRLN_OBS'] = hg_lon.to_value('deg')
+            header_results['CRLT_OBS'] = hgc.lat.to_value('deg')
+            header_results['CRLN_OBS'] = hgc.lon.to_value('deg')
             header_results['DSUN_OBS'] = hg_rad.to_value('m')
             header_results['HEEX_OBS'] = (solo_sun_hee[0] * u.km).to_value('m')
             header_results['HEEY_OBS'] = (solo_sun_hee[1] * u.km).to_value('m')

@@ -614,8 +614,8 @@ class FitsL0Processor:
             elow, ehigh, channel = product.get_energies()
             energies = QTable()
             energies['channel'] = np.uint8(channel)
-            energies['e_low'] = np.float16(elow)
-            energies['e_high'] = np.float16(ehigh)
+            energies['e_low'] = np.float32(elow)
+            energies['e_high'] = np.float32(ehigh)
 
             energy_enc = fits.connect._encode_mixins(energies)
             energy_hdu = table_to_hdu(energy_enc)

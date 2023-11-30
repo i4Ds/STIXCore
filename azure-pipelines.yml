@@ -39,6 +39,7 @@ jobs:
     envs:
       - macos: py39
         name: py39_mac
+        coverage: false
 
       - windows: py39
         name: py39_win

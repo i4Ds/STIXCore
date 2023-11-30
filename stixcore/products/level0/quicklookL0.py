@@ -16,6 +16,7 @@ from stixcore.products.common import (
     _get_sub_spectrum_mask,
     get_min_uint,
     rebin_proportional,
+    unscale_triggers,
 )
 from stixcore.products.product import Control, Data, EnergyChannelsMixin, GenericProduct
 from stixcore.time import SCETime, SCETimeDelta, SCETimeRange
@@ -151,6 +152,11 @@ class LightCurve(QLProduct):
 
         triggers = packets.get_value('NIX00274').T
         triggers_var = packets.get_value('NIX00274', attr="error").T
+        if control['compression_scheme_triggers_skm'].tolist() == [[0, 0, 7]]:
+            logger.debug('Unscaling trigger ')
+            triggers, triggers_var = unscale_triggers(
+                triggers, integration=duration,
+                detector_masks=control['detector_mask'], ssid=levelb.ssid)
 
         data = Data()
         data['control_index'] = control_indices
@@ -237,6 +243,11 @@ class Background(QLProduct):
 
         triggers = packets.get_value('NIX00274').T
         triggers_var = packets.get_value('NIX00274', attr="error").T
+        if control['compression_scheme_triggers_skm'].tolist() == [[0, 0, 7]]:
+            logger.debug('Unscaling trigger ')
+            triggers, triggers_var = unscale_triggers(
+                triggers, integration=duration, detector_masks=control['detector_mask'],
+                ssid=levelb.ssid)
 
         data = Data()
         data['control_index'] = control_indices
@@ -321,6 +332,13 @@ class Spectra(QLProduct):
         counts_var = np.pad(counts_var, ((pad_before, pad_after), (0, 0)), constant_values=0)
         triggers = packets.get_value('NIX00484').T.reshape(-1)
         triggers_var = packets.get_value('NIX00484', attr='error').T.reshape(-1)
+
+        if control['compression_scheme_triggers_skm'].tolist == [[0, 0, 7]]:
+            logger.debug('Unscaling trigger ')
+            triggers, triggers_var = unscale_triggers(
+                triggers, integration=duration, detector_masks=control['detector_mask'],
+                ssid=levelb.ssid)
+
         triggers = np.pad(triggers, (pad_before, pad_after), mode='edge')
         triggers_var = np.pad(triggers_var, (pad_before, pad_after), mode='edge')
 

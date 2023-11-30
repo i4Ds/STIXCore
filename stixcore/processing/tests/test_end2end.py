@@ -38,11 +38,13 @@ def orig_fits(orig_data):
     return list(orig_data.rglob("*.fits"))
 
 
+@pytest.mark.end2end
 @pytest.fixture(scope="session")
 def current_fits(orig_data, out_dir):
     return end2end_pipeline(orig_data, out_dir)
 
 
+@pytest.mark.end2end
 def test_find_parents(current_fits, out_dir):
     for fits in current_fits:
         p = Product(fits)

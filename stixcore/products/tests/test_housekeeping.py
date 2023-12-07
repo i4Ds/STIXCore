@@ -26,13 +26,13 @@ testpackets = [(test_data.tmtc.TM_3_25_1, MiniReportL0, MiniReportL1, 'mini',
                 '0660258881:33104', '0660258881:33104', 1)]
 
 
-@pytest.fixture
+@pytest.fixture(scope="module")
 def soop_manager():
     SOOPManager.instance = SOOPManager(test_data.soop.DIR)
     return SOOPManager.instance
 
 
-@pytest.fixture
+@pytest.fixture(scope="module")
 def idbm():
     return IDBManager(test_data.idb.DIR)
 

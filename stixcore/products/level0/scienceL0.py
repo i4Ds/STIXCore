@@ -348,7 +348,7 @@ class CompressedPixelData(ScienceProduct):
         data['triggers'] = triggers.T.astype(get_min_uint(triggers))
         data['triggers'].meta = {'NIXS': [f'NIX00{i}' for i in range(242, 258)]}
         data['triggers_comp_err'] = np.float32(np.sqrt(triggers_var).T)
-        data.add_basic(name='num_energy_groups', nix='NIX00258', packets=packets, dtype=np.ubyte)
+        # data.add_basic(name='num_energy_groups', nix='NIX00258', packets=packets, dtype=np.ubyte)
 
         tmp = dict()
         tmp['e_low'] = np.array(packets.get_value('NIXD0016'), np.ubyte)
@@ -499,7 +499,7 @@ class CompressedPixelData(ScienceProduct):
         data['control_index'] = control['index'][0]
 
         data = data['time', 'timedel', 'rcr', 'pixel_masks', 'detector_masks', 'num_pixel_sets',
-                    'num_energy_groups', 'triggers', 'triggers_comp_err',
+                    'triggers', 'triggers_comp_err',
                     'counts', 'counts_comp_err']
         data['control_index'] = np.ubyte(0)
 
@@ -566,13 +566,6 @@ class Visibility(ScienceProduct):
         data['control_index'] = np.full(len(data['delta_time']), 0)
         unique_times = np.unique(data['delta_time'])
 
-        # time = np.array([])
-        # for dt in set(self.delta_time):
-        #     i, = np.where(self.delta_time == dt)
-        #     nt = sum(np.array(packets['NIX00258'])[i])
-        #     time = np.append(time, np.repeat(dt, nt))
-        # self.time = time
-
         data.add_basic(name='rcr', nix='NIX00401', attr='value', packets=packets)
 
         data.add_data('pixel_mask1', _get_pixel_mask(packets, 'NIXD0407'))
@@ -600,8 +593,6 @@ class Visibility(ScienceProduct):
 
         tids = np.searchsorted(data['delta_time'], unique_times)
         data = data[tids]
-
-        # sum(packets.get_value('NIX00258'))
 
         # Data
         e_low = np.array(packets.get_value('NIXD0016'))

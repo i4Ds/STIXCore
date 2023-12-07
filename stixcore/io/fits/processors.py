@@ -601,7 +601,7 @@ class FitsL0Processor:
     @staticmethod
     def add_optional_energy_table(product, hdul):
         """
-        Generate and add a energy table extension if energy data is avaialable.
+        Generate and add an energy table extension if energy data is available.
 
         Parameters
         ----------
@@ -610,12 +610,13 @@ class FitsL0Processor:
         hdul : list
             list of all extensions the energy to add to
         """
-        if getattr(product, 'get_energies', False) is not False and not product.ssid == 42:
+        # 41, 42 are QL Cal and BSD Aspect and should not have energy HDUs
+        if getattr(product, 'get_energies', False) is not False and product.ssid not in {41, 42}:
             elow, ehigh, channel = product.get_energies()
             energies = QTable()
             energies['channel'] = np.uint8(channel)
-            energies['e_low'] = np.float16(elow)
-            energies['e_high'] = np.float16(ehigh)
+            energies['e_low'] = np.float32(elow)
+            energies['e_high'] = np.float32(ehigh)
 
             energy_enc = fits.connect._encode_mixins(energies)
             energy_hdu = table_to_hdu(energy_enc)

@@ -35,9 +35,11 @@ jobs:
     toxdeps: tox-pypi-filter
     submodules: true
     coverage: codecov
+    default_python: '3.9'
     envs:
       - macos: py39
         name: py39_mac
+        coverage: false
 
       - windows: py39
         name: py39_win

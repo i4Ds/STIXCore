@@ -108,15 +108,17 @@ class FitsProcessor:
     def generate_common_header(cls, filename, product, *, version=0):
 
         user_req = ''
+        tc_control = ''
         if 'request_id' in product.control.colnames:
             rid_entry = np.atleast_1d(product.control['request_id'][0])
             if len(rid_entry) > 1:
-                user_req = f'{rid_entry[1]:010d}-{rid_entry[0]:05d}'
+                user_req = f'{rid_entry[1]:010d}'
+                tc_control = f'{rid_entry[0]:05d}'
             else:
-                user_req = f"{rid_entry[0]:010d}"
+                user_req = "" if rid_entry[0] is False else f"{rid_entry[0]:010d}"
 
-        tc_control = ''
-        if 'tc_packet_seq_control' in product.control.colnames and user_req != '':
+        if 'tc_packet_seq_control' in product.control.colnames\
+                and user_req != '' and tc_control != '':
             tc_control = f'{product.control["tc_packet_seq_control"][0]:05d}'
 
         headers = (

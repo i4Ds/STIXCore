@@ -21,9 +21,9 @@ def test_unscale(factor, n_int, ssid):
 
     norm = n_groups * n_int * factor
 
-    triggers_in = np.tile(np.arange(255*n_int*factor).reshape(-1, 1), 16, )
+    triggers_in = np.repeat(np.arange(255*n_int*factor).reshape(-1, 1), 16, axis=1)
     if ssid == 24:
-        triggers_in = triggers_in.sum(axis=1)
+        triggers_in = triggers_in.sum(axis=1, keepdims=True)
 
     triggers_scaled = np.floor(triggers_in / norm)
     trigger_unscaled_var = 0.5 * norm

@@ -321,20 +321,18 @@ def unscale_triggers(scaled_triggers, *, integration, detector_masks, ssid, fact
     active_trigger_groups = active_detectors_per_trigger_group >= 1
 
     # QL are summed to total trigger (1 trigger value)
-    if ssid in {30, 31, 32}:
+    # BSD SPEC data are summed to total trigger (1 trigger value)
+    if ssid in {30, 31, 32, 24}:
         n_group = active_trigger_groups.astype(int).sum()
+        n_int = integration.as_float().to_value(u.ds).reshape(-1, 1)  # units of 0.1s
     # BSD pixel/vis data not summed (16 trigger values)
     elif ssid in {21, 22, 23}:
         n_group = active_trigger_groups.astype(int)
-    # BSD SPEC data are summed to total trigger (1 trigger value)
-    elif ssid == 24:
-        n_group = active_trigger_groups.astype(int).sum()
+        n_int = integration.as_float().to_value(u.ds)  # units of 0.1s
     else:
         raise ValueError(f'Unscaling not support for SSID {ssid}')
 
-    n_int = integration.as_float().to_value(u.ds)  # units of 0.1s
-
-    # Scaled to ints onboard, so bins have scaled width of 1, so error is 0.5 times the total factor
+    # Scaled to ints onboard, bins have scaled width of 1, so error is 0.5 times the total factor
     scaling_error = np.full_like(scaled_triggers, 0.5, dtype=float) * n_group.T * n_int * factor
     # The FSW essential floors the value so add 0.5 so trigger is the centre of range +/- error
     unscaled_triggers = (scaled_triggers * n_group.T * n_int * factor) + scaling_error

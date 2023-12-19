@@ -2,6 +2,8 @@ from pathlib import Path
 
 import numpy as np
 
+import astropy.units as u
+
 from stixcore.config.reader import get_sci_channels, read_energy_channels
 from stixcore.util.logging import get_logger
 
@@ -278,3 +280,61 @@ def rebin_proportional(y1, x1, x2):
     y2 += np.where(different_cell, contrib, 0.)
 
     return y2
+
+
+def unscale_triggers(scaled_triggers, *, integration, detector_masks, ssid, factor=30):
+    r"""
+    Unscale scaled trigger values.
+
+    Trigger values are scaled on board in compression mode 0,0,7 via the following relation
+
+    T_s = T / (factor * n_int * n_trig_groups)
+
+    where `factor` is a configured parameter, `n_int` is the duration in units of 0.1s and
+    `n_trig_groups` number of active trigger groups being summed, which depends on the data
+    product given by the SSID.
+
+    Parameters
+    ----------
+    scaled_triggers : int
+        Scaled trigger
+    integration : `astropy.units.Quantity`
+        Number of integrations (integration time / 0.1s)
+    detector_masks : `array-like`
+        Number of trigger groups summed
+    ssid : `int`
+        Science Structure ID
+    factor : int optional
+        Scaling factor
+    Returns
+    -------
+    tuple
+        Unscaled triggers, Scaling Variance
+    """
+    # TODO extract this to a separate function and test
+    detector_to_trigger_group_map = np.array(
+        [[1,  6,  5, 12, 14, 10,  8,  3, 31, 26, 22, 20, 18, 17, 24, 29],
+         [2,  7, 11, 13, 15, 16,  9,  4, 32, 27, 28, 21, 19, 23, 25, 30]]).T
+
+    trigger_groups = detector_masks[:, [np.array(detector_to_trigger_group_map) - 1]]
+    active_detectors_per_trigger_group = trigger_groups.squeeze().sum(axis=-1)
+    active_trigger_groups = active_detectors_per_trigger_group >= 1
+
+    # QL are summed to total trigger (1 trigger value)
+    # BSD SPEC data are summed to total trigger (1 trigger value)
+    if ssid in {30, 31, 32, 24}:
+        n_group = active_trigger_groups.astype(int).sum()
+        n_int = integration.as_float().to_value(u.ds).reshape(-1, 1)  # units of 0.1s
+    # BSD pixel/vis data not summed (16 trigger values)
+    elif ssid in {21, 22, 23}:
+        n_group = active_trigger_groups.astype(int)
+        n_int = integration.as_float().to_value(u.ds)  # units of 0.1s
+    else:
+        raise ValueError(f'Unscaling not support for SSID {ssid}')
+
+    # Scaled to ints onboard, bins have scaled width of 1, so error is 0.5 times the total factor
+    scaling_error = np.full_like(scaled_triggers, 0.5, dtype=float) * n_group.T * n_int * factor
+    # The FSW essential floors the value so add 0.5 so trigger is the centre of range +/- error
+    unscaled_triggers = (scaled_triggers * n_group.T * n_int * factor) + scaling_error
+
+    return unscaled_triggers, scaling_error**2

@@ -140,7 +140,7 @@ def test_publish_fits_to_esa_incomplete(product, out_dir):
         product.date_end = end
         product.split_to_files.return_value = [product]
         product.get_energies = False
-        product.get_processing_version.return_value = 1
+        product.get_processing_version.return_value = 2
 
         files.extend(processor.write_fits(product))
 
@@ -220,7 +220,7 @@ def test_fits_incomplete_switch_over(out_dir):
             product.date_end = end
             product.split_to_files.return_value = [product]
             product.get_energies = False
-            product.get_processing_version.return_value = 1
+            product.get_processing_version.return_value = 2
 
             files_first.extend(processor.write_fits(product))
 
@@ -340,7 +340,7 @@ def test_publish_fits_to_esa(product, out_dir):
     product.date_beg = beg
     product.date_end = end
     product.split_to_files.return_value = [product]
-    product.get_processing_version.return_value = 1
+    product.get_processing_version.return_value = 2
     product.get_energies = False
 
     data = product.data[:]  # make a clone

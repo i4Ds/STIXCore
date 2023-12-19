@@ -1,7 +1,7 @@
 IDB Versioning
 ==============
 
-After a new IDB Version has been released it should be added to stixcore. All available IDB versions to stixcore are managed in the file `stixcore\data\idb\idbVersionHistory.json`
+After a new IDB Version has been released it should be added to stixcore. All available IDB versions to stixcore are managed in the file `stixcore/data/idb/idbVersionHistory.json`
 
 Follow the instructions to publish a new IDB `2.26.36` version
 
@@ -23,10 +23,10 @@ Follow the instructions to publish a new IDB `2.26.36` version
 
 .. code-block:: python
 
-    idbm = IDBManager()
-    idbm.compile_version("2.26.36")
+    from stixcore.idb.manager import IDBManager
+    IDBManager.instance.compile_version("2.26.36")
 
-* zip the `stixcore/data/idb/v2.26.36` folder into `v2.26.36.zip`
+* zip the `stixcore/data/idb/v2.26.36` folder into `v2.26.36.zip` >> `zip -r v2.26.37.zip v2.26.37`
 * upload `v2.26.36.zip` to `https://pub099.cs.technik.fhnw.ch/data/idb/` (`/var/www/data/idb/v2.26.36.zip`)
 * add a new entry to `stixcore/data/idb/idbVersionHistory.json`
     * use https://pub023.cs.technik.fhnw.ch/request/time-conversion/scet2utc

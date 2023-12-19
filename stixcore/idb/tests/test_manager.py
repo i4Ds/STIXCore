@@ -75,7 +75,7 @@ def test_find_version(idb_manager):
 
     # fall back to the default
     idb = idb_manager.get_idb(obt=SCETime(coarse=2 ** 31 - 1, fine=0))
-    assert idb.get_idb_version() == "2.26.36"
+    assert idb.get_idb_version() == "2.26.37"
 
     assert idb_manager.find_version(obt=None) == "2.26.32"
 

@@ -117,7 +117,7 @@ class BaseProduct:
     Base TMProduct that all other product inherit from contains the registry for the factory pattern
     """
 
-    PRODUCT_PROCESSING_VERSION = 1
+    PRODUCT_PROCESSING_VERSION = 2
 
     _registry = {}
 

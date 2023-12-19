@@ -11,6 +11,7 @@ from stixcore.products.common import (
     _get_detector_mask,
     _get_pixel_mask,
     get_min_uint,
+    unscale_triggers,
 )
 from stixcore.products.product import ControlSci, Data, EnergyChannelsMixin, GenericProduct
 from stixcore.time import SCETime, SCETimeRange
@@ -345,6 +346,12 @@ class CompressedPixelData(ScienceProduct):
         triggers_var = np.array([packets.get_value(f'NIX00{i}', attr='error')
                                  for i in range(242, 258)])
 
+        if control['compression_scheme_triggers_skm'].tolist() == [[0, 0, 7]]:
+            logger.debug('Unscaling trigger ')
+            triggers, triggers_var = unscale_triggers(
+                triggers, integration=data['integration_time'],
+                detector_masks=data['detector_masks'], ssid=levelb.ssid)
+
         data['triggers'] = triggers.T.astype(get_min_uint(triggers))
         data['triggers'].meta = {'NIXS': [f'NIX00{i}' for i in range(242, 258)]}
         data['triggers_comp_err'] = np.float32(np.sqrt(triggers_var).T)
@@ -584,8 +591,15 @@ class Visibility(ScienceProduct):
         for i in range(242, 258):
             triggers.extend(packets.get_value(f'NIX00{i}'))
             triggers_var.extend(packets.get_value(f'NIX00{i}', attr='error'))
+        triggers = np.array(triggers).reshape(-1, 16).T
 
-        data['triggers'] = np.array(triggers).reshape(-1, 16)
+        if control['compression_scheme_triggers_skm'].tolist() == [[0, 0, 7]]:
+            logger.debug('Unscaling trigger ')
+            triggers, triggers_var = unscale_triggers(
+                triggers, integration=SCETimeDelta(data['integration_time']),
+                detector_masks=data['detector_masks'], ssid=levelb.ssid)
+
+        data['triggers'] = triggers.T
         data['triggers'].meta = {'NIXS': [f'NIX00{i}' for i in range(242, 258)]}  # ,
         #                         'PCF_CURTX': [packets.get(f'NIX00{i}')[0].idb_info.PCF_CURTX
         #                                       for i in range(242, 258)]}
@@ -752,19 +766,31 @@ class Spectrogram(ScienceProduct):
                                 zip(pixel_masks_orig[0], num_times)]
         pixel_masks = np.hstack(pixel_masks_expanded).T
 
+        triggers = packets.get_value('NIX00267')
+        triggers_var = packets.get_value('NIX00267', attr='error')
+
+        if control['compression_scheme_triggers_skm'].tolist() == [[0, 0, 7]]:
+            logger.debug('Unscaling trigger ')
+            triggers, triggers_var = unscale_triggers(
+                triggers, integration=deltas,
+                detector_masks=control['detector_masks'], ssid=levelb.ssid)
+
         # Data
         data = Data()
         data['time'] = control['time_stamp'][0] + centers
         data['timedel'] = deltas
         data['timedel'].meta = {'NIXS': ['NIX00441', 'NIX00269']}
-        data.add_basic(name='triggers', nix='NIX00267', packets=packets)
-        data['triggers'] = data['triggers'].astype(get_min_uint(data['triggers']))
+
+        data['triggers'] = triggers.astype(get_min_uint(triggers))
+        data.add_meta(name='triggers', nix='NIX00267', packets=packets)
+        data['triggers_comp_err'] = np.float32(np.sqrt(triggers_var))
+        data.add_meta(name='triggers_comp_err', nix='NIX00267', packets=packets)
+
         data['rcr'] = rcr
         data.add_meta(name='rcr', nix='NIX00401', packets=packets)
         data['pixel_masks'] = pixel_masks
         data.add_meta(name='pixel_masks', nix='NIXD0407', packets=packets)
-        data.add_basic(name='triggers_comp_err', nix='NIX00267', attr='error', packets=packets)
-        data['triggers_comp_err'] = np.float32(np.sqrt(data['triggers_comp_err']))
+
         data['counts'] = (counts * u.ct).astype(get_min_uint(counts))
         data.add_meta(name='counts', nix='NIX00268', packets=packets)
         data['counts_comp_err'] = np.float32(np.sqrt(counts_var) * u.ct)

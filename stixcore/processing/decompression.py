@@ -51,8 +51,9 @@ def decompress(packet):
         return 0
     c = 0
     for param_name, (sn, kn, mn) in decompression_parameter.items():
-        skm = (sn if isinstance(sn, int) else packet.data.get(sn),  # option to configure exceptions
+        skm = (sn if isinstance(sn, int) else packet.data.get(sn),
                kn if isinstance(kn, int) else packet.data.get(kn),
                mn if isinstance(mn, int) else packet.data.get(mn))
+
         c += packet.data.apply(param_name, apply_decompress,  skm)
     return c

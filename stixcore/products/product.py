@@ -92,6 +92,27 @@ def read_qtable(file, hdu, hdul=None):
 
 class AddParametersMixin:
     def add_basic(self, *, name, nix, packets, attr=None, dtype=None, reshape=False):
+        r"""
+        Add parameter taken directly from the packets.
+        Parameters
+        ----------
+        name : `str`
+            Name of the column for the data
+        nix : `str`
+            Parameters id
+        packets : `
+        attr : `str`
+            The attribute e.g `raw`, or `error`
+        dtype :
+            The type to store the data as
+        reshape: `bool`
+            Reshape to a `1, X` array
+
+
+        Returns
+        -------
+        None
+        """
         value = packets.get_value(nix, attr=attr)
         if reshape is True:
             value = value.reshape(1, -1)
@@ -99,11 +120,44 @@ class AddParametersMixin:
         self.add_meta(name=name, nix=nix, packets=packets, add_curtx=(attr == "value"))
 
     def add_data(self, name, data_meta):
+        r"""
+        Add the given data and metadata to table.
+
+        Parameters
+        ----------
+        name : `str`
+            Name of the column for the data
+        data_meta : `tuple`
+            Data, meta data pair
+
+        Returns
+        -------
+        None
+
+        """
         data, meta = data_meta
         self[name] = data
         self[name].meta = meta
 
     def add_meta(self, *, name, nix, packets, add_curtx=False):
+        r"""
+        Add metadata extracted from packets.
+
+        Parameters
+        ----------
+        name : `str`
+            Name of the column for the data
+        nix : `str`
+            Parameters ID e.g. 'NIX00404'
+        packets :
+            The packets
+        add_curtx
+
+
+        Returns
+        -------
+
+        """
         param = packets.get(nix)
         idb_info = param[0].idb_info
         meta = {'NIXS': nix}

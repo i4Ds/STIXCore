@@ -56,8 +56,12 @@ def test_levelb_processor_generate_primary_header(datetime, product):
     datetime.now().isoformat.return_value = '1234-05-07T01:02:03.346'
     beg = SCETime(coarse=0, fine=0)
     end = SCETime(coarse=1, fine=2 ** 15)
-    product.control = {"scet_coarse": [beg.coarse, end.coarse],
-                       "scet_fine": [beg.fine, end.fine]}
+
+    dummy_control_data = {"scet_coarse": [beg.coarse, end.coarse],
+                          "scet_fine": [beg.fine, end.fine]}
+
+    product.control.__getitem__.side_effect = dummy_control_data.__getitem__
+    product.control.colnames = ['scet_coarse', 'scet_fine']
     product.raw = ['packet1.xml', 'packet2.xml']
     product.parent = ['packet1.xml', 'packet2.xml']
     product.level = 'LB'

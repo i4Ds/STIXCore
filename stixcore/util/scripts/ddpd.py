@@ -9,6 +9,7 @@ add all products that should be included into the doc into the main.files list
 run the script (best on pub099).
 It will generate output in stixcore/util/scripts/ddpd.html
 
+
 replace V02U.fit with V02.fits
 
 Descriptions are derived from different sources doc strings, idb, fits files

@@ -550,7 +550,7 @@ class GenericProduct(BaseProduct):
         # default for FITS HEADER
         return 0.0
 
-    def find_parent_products(self, root):
+   def find_parent_products(self, root):
         """
         Convenient way to get access to the parent products.
 

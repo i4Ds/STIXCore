@@ -75,6 +75,25 @@ Sync FITS products with Platform (stix data center)
     # sync current fits to NAS (connection to Platform)
     0 */6 * * * sudo rsync -avLo --delete /var/www/data/fits/ /mnt/nas05/stix/stixcore_fits/
 
+Sync STIX-CONF repo in all used instances
+*****************************************
+
+```
+# sync the STIX-CONF to the latest release update version number
+# in the publix www folder
+10 */4 * * * cd /var/www/data/STIX-CONF && git fetch --tags && latestTag=$(git describe --tags `git rev-list --tags --max-count=1`) && git checkout $latestTag; echo $latestTag > VERSION.TXT
+# but also in the Pipeline setup once a day
+# had to be copied into the venv folder as well to get activated
+20 22 * * * cd /home/stixcore/STIXCore/stixcore/config/data/common/  && git fetch --tags && latestTag=$(git describe --tags `git rev-list --tags --max-count=1`) && git checkout $latestTag; echo $latestTag > VERSION.TXT && cp -r /home/stixcore/STIXCore/stixcore/config/data/common /home/stixcore/STIXCore/venv/lib/python3.9/site-packages/stixcore/config/data/
+```
+
+Sync FITS products with Platform (stix data center)
+***************************************************
+
+```
+# sync current fits to NAS (connection to Platform)
+0 */6 * * * sudo rsync -avLo --delete /var/www/data/fits/ /mnt/nas05/stix/stixcore_fits/
+```
 
 Sync SPICE kernels and SOOP data
 ********************************

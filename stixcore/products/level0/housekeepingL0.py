@@ -92,7 +92,7 @@ class MiniReport(HKProduct):
 
     @classmethod
     def from_levelb(cls, levelb, parent=''):
-        packets, idb_versions, control = HKProduct.from_levelb(levelb, parent=parent)
+        packets, idb_versions, control = super().from_levelb(levelb, parent=parent)
 
         # Create array of times as dt from date_obs
         times = SCETime(control['scet_coarse'], control['scet_fine'])
@@ -141,7 +141,7 @@ class MaxiReport(HKProduct):
 
     @classmethod
     def from_levelb(cls, levelb, parent=''):
-        packets, idb_versions, control = HKProduct.from_levelb(levelb, parent=parent)
+        packets, idb_versions, control = super().from_levelb(levelb, parent=parent)
 
         # Create array of times as dt from date_obs
         times = SCETime(control['scet_coarse'], control['scet_fine'])

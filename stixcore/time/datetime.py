@@ -1,8 +1,9 @@
 """
 Array like time objects
 """
-
+import logging
 import operator
+from datetime import datetime
 
 import numpy as np
 from sunpy.time.timerange import TimeRange
@@ -12,6 +13,7 @@ from astropy.time.core import Time
 from astropy.utils import ShapedLikeNDArray
 from astropy.utils.data_info import MixinInfo
 
+from stixcore import get_logger
 from stixcore.ephemeris.manager import Spice
 
 __all__ = ['SCETBase', 'SCETime', 'SCETimeDelta', 'SCETimeRange', 'SEC_IN_DAY']
@@ -20,6 +22,10 @@ __all__ = ['SCETBase', 'SCETime', 'SCETimeDelta', 'SCETimeRange', 'SEC_IN_DAY']
 MAX_COARSE = 2**32 - 1
 MAX_FINE = 2**16 - 1
 SEC_IN_DAY = 24 * 60 * 60
+
+
+logger = get_logger(__name__)
+logger.setLevel(logging.INFO)
 
 
 class TimeInfo(MixinInfo):
@@ -431,7 +437,7 @@ class SCETime(SCETBase):
         coarse, fine = zip(*[list(map(int, ts.split(sep))) for ts in scet_str])
         return SCETime(coarse=coarse, fine=fine)
 
-    def to_datetime(self):
+    def to_datetime(self, raise_error=False):
         """
         Return a python datetime object.
 
@@ -445,6 +451,19 @@ class SCETime(SCETBase):
             utc = [Spice.instance.scet_to_datetime(t.to_string()) for t in self]
         except TypeError:
             utc = Spice.instance.scet_to_datetime(self.to_string())
+
+        flown_mks = sorted([k for k in Spice.instance.meta_kernel_path if 'flown' in k.name])
+
+        try:
+            kernel_date = datetime.strptime(flown_mks[-1].name.split('_')[4], '%Y%m%d')
+        except IndexError:
+            kernel_date = datetime.fromtimestamp(flown_mks.lstat().st_ctime)
+        bad = [t.replace(tzinfo=None) > kernel_date
+               for t in (utc if isinstance(utc, list) else [utc])]
+        if any(bad):
+            if raise_error is True:
+                raise ValueError(f'Converting OBT to UTC after kernel issue date: {kernel_date}.')
+            logger.warning(f'Converting OBT to UTC after kernel issue date: {kernel_date}.')
 
         return utc
 

@@ -130,6 +130,7 @@ if CONFIG.getboolean("IDLBridge", "enabled", fallback=False):
     !PATH=!PATH+':'+Expand_Path('+{{ gsw_path }}')
     setenv, "IDL_PROJECT_NAME=stix ppl"
     setenv, "IDL_WORKSPACE_PATH={{ gsw_path }}"
+    setenv, "SSW_STIX={{ gsw_path }}/stix"
 
     d = get_delim()
 

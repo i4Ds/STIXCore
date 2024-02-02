@@ -163,3 +163,4 @@ stixcore/data/soop/
 stixcore/data/publish/
 stixcore/data/test/products/end2end/
 monitor_status.json
+stixcore/data/test/idb/v2.26.38/idb.sqlite

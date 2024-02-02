@@ -580,21 +580,20 @@ class GenericProduct(BaseProduct):
         other_data['old_index'] = [f"o{i}" for i in other_data['control_index']]
         self_data['old_index'] = [f"s{i}" for i in self_data['control_index']]
 
-        control = vstack((self_control, other_control))
+        if (self.service_type, self.service_subtype) == (3, 25):
+            self_data['time'] = SCETime(self_control['scet_coarse'], self_control['scet_fine'])
+            other_data['time'] = SCETime(other_control['scet_coarse'], other_control['scet_fine'])
 
         logger.debug('len self: %d, len other %d', len(self_data), len(other_data))
-
-        data = (vstack((self_data, other_data))
-                if self.scet_timerange.start <= other.scet_timerange.start
-                else vstack((other_data, self_data)))
-
+        control = vstack((self_control, other_control))
+        data = vstack((self_data, other_data))
         logger.debug('len stacked %d', len(data))
 
         # Fits write we do np.around(time - start_time).as_float().to(u.cs)).astype("uint32"))
         # So need to do something similar here to avoid comparing un-rounded value to rounded values
         data['time_float'] = np.around((data['time'] - data['time'].min()).as_float().to('cs'))
 
-        # remove dublicate data based on time bin and sort the data
+        # remove duplicate data based on time bin and sort the data
         data = unique(data, keys=['time_float'])
         data.sort(['time_float'])
 

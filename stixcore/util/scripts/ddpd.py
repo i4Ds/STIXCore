@@ -9,6 +9,8 @@ add all products that should be included into the doc into the main.files list
 run the script (best on pub099).
 It will generate output in stixcore/util/scripts/ddpd.html
 
+replace V02U.fit with V02.fits
+
 Descriptions are derived from defferent sources doc strings, idb, fits files
 last override is from stixcore/data/test/ddpd.in.csv
 
@@ -285,50 +287,53 @@ if __name__ == '__main__':
         # "LL/solo_LL01_stix-ql-flareflag_0628185012-0628186272_V202203231133.fits",
         # L0
         # science
-        "L0/21/6/20/solo_L0_stix-sci-xray-rpd_0678187309-0678187429_V01_2106280011-54760.fits", # noqa
-        "L0/21/6/21/solo_L0_stix-sci-xray-cpd_0688454771-0688455372_V01_2110250007-65280.fits", # noqa
-        "L0/21/6/22/solo_L0_stix-sci-xray-scpd_0642038387-0642038407_V01_0087031810-50884.fits", # noqa
-        "L0/21/6/23/solo_L0_stix-sci-xray-vis_0678187308-0678187429_V01_2106280004-54716.fits", # noqa
-        "L0/21/6/42/solo_L0_stix-sci-aspect-burst_0687412111-0687419343_V01_2110130059.fits", # noqa
-        "L0/21/6/24/solo_L0_stix-sci-xray-spec_0689786926-0689801914_V01_2111090002-50819.fits", # noqa
+        "L0/21/6/20/solo_L0_stix-sci-xray-rpd_0678187309-0678187429_V02_2106280011-54760.fits", # noqa
+        "L0/21/6/21/solo_L0_stix-sci-xray-cpd_0688454771-0688455372_V02_2110250007-65280.fits", # noqa
+        "L0/21/6/22/solo_L0_stix-sci-xray-scpd_0642038387-0642038407_V02_0087031810-50884.fits", # noqa
+        "L0/21/6/23/solo_L0_stix-sci-xray-vis_0678187308-0678187429_V02_2106280004-54716.fits", # noqa
+        "L0/21/6/42/solo_L0_stix-sci-aspect-burst_0687412111-0687419343_V02_2110130059.fits", # noqa
+        "L0/21/6/24/solo_L0_stix-sci-xray-spec_0689786926-0689801914_V02_2111090002-50819.fits", # noqa
         # QL
-        "L0/21/6/31/solo_L0_stix-ql-background_0668822400_V01.fits",
-        "L0/21/6/34/solo_L0_stix-ql-flareflag_0684547200_V01.fits",
-        "L0/21/6/30/solo_L0_stix-ql-lightcurve_0684892800_V01.fits",
-        "L0/21/6/33/solo_L0_stix-ql-variance_0687484800_V01.fits",
-        "L0/21/6/32/solo_L0_stix-ql-spectra_0680400000_V01.fits",
-        "L0/21/6/41/solo_L0_stix-cal-energy_0683856000_V01.fits",
+        "L0/21/6/31/solo_L0_stix-ql-background_0668822400_V02U.fits",
+        "L0/21/6/34/solo_L0_stix-ql-flareflag_0684547200_V02U.fits",
+        "L0/21/6/30/solo_L0_stix-ql-lightcurve_0684892800_V02U.fits",
+        "L0/21/6/33/solo_L0_stix-ql-variance_0687484800_V02U.fits",
+        "L0/21/6/32/solo_L0_stix-ql-spectra_0680400000_V02U.fits",
+        "L0/21/6/41/solo_L0_stix-cal-energy_0683856000_V02U.fits",
         # HK
-        "L0/3/25/2/solo_L0_stix-hk-maxi_0647913600_V01.fits",
-        "L0/3/25/1/solo_L0_stix-hk-mini_0643507200_V01.fits",
+        "L0/3/25/2/solo_L0_stix-hk-maxi_0647913600_V02U.fits",
+        "L0/3/25/1/solo_L0_stix-hk-mini_0643507200_V02U.fits",
         # CAL
-        "L0/21/6/41/solo_L0_stix-cal-energy_0640137600_V01.fits",
+        "L0/21/6/41/solo_L0_stix-cal-energy_0640137600_V02U.fits",
 
         # L1
         # science
-        "L1/2021/06/28/SCI/solo_L1_stix-sci-xray-rpd_20210628T092301-20210628T092501_V01_2106280010-54759.fits", # noqa
-        "L1/2021/06/28/SCI/solo_L1_stix-sci-xray-cpd_20210628T190505-20210628T191459_V01_2106280009-54755.fits", # noqa
-        "L1/2021/06/28/SCI/solo_L1_stix-sci-xray-scpd_20210628T092301-20210628T092502_V01_2106280006-54720.fits", # noqa
-        "L1/2021/06/28/SCI/solo_L1_stix-sci-xray-vis_20210628T092301-20210628T092502_V01_2106280004-54716.fits", # noqa
-        "L1/2021/10/13/SCI/solo_L1_stix-sci-aspect-burst_20211013T034959-20211013T055031_V01_2110130059.fits", # noqa
-        "L1/2021/06/28/SCI/solo_L1_stix-sci-xray-spec_20210628T230132-20210628T234143_V01_2106280041-54988.fits", # noqa
+        "L1/2021/06/28/SCI/solo_L1_stix-sci-xray-rpd_20210628T092301-20210628T092501_V02_2106280010-54759.fits", # noqa
+        "L1/2021/06/28/SCI/solo_L1_stix-sci-xray-cpd_20210628T190505-20210628T191459_V02_2106280009-54755.fits", # noqa
+        "L1/2021/06/28/SCI/solo_L1_stix-sci-xray-scpd_20210628T092301-20210628T092502_V02_2106280006-54720.fits", # noqa
+        "L1/2021/06/28/SCI/solo_L1_stix-sci-xray-vis_20210628T092301-20210628T092502_V02_2106280004-54716.fits", # noqa
+        "L1/2021/10/13/SCI/solo_L1_stix-sci-aspect-burst_20211013T034959-20211013T055031_V02_2110130059.fits", # noqa
+        "L1/2021/06/28/SCI/solo_L1_stix-sci-xray-spec_20210628T230132-20210628T234123_V02_2106280041-54988.fits", # noqa
         # QL
-        "L1/2020/06/16/QL/solo_L1_stix-ql-background_20200616_V01.fits",
-        "L1/2020/06/16/QL/solo_L1_stix-ql-flareflag_20200616_V01.fits",
-        "L1/2020/06/16/QL/solo_L1_stix-ql-lightcurve_20200616_V01.fits",
-        "L1/2020/06/16/QL/solo_L1_stix-ql-variance_20200616_V01.fits",
-        "L1/2021/11/16/QL/solo_L1_stix-ql-spectra_20211116_V01.fits",
-        "L1/2021/11/16/CAL/solo_L1_stix-cal-energy_20211116_V01.fits",
+        "L1/2020/06/16/QL/solo_L1_stix-ql-background_20200616_V02U.fits",
+        "L1/2020/06/16/QL/solo_L1_stix-ql-flareflag_20200616_V02U.fits",
+        "L1/2020/06/16/QL/solo_L1_stix-ql-lightcurve_20200616_V02U.fits",
+        "L1/2020/06/16/QL/solo_L1_stix-ql-variance_20200616_V02U.fits",
+        "L1/2021/11/16/QL/solo_L1_stix-ql-spectra_20211116_V02U.fits",
+        "L1/2021/11/16/CAL/solo_L1_stix-cal-energy_20211116_V02U.fits",
         # HK
-        "L1/2020/06/16/HK/solo_L1_stix-hk-maxi_20200616_V01.fits",
-        "L1/2021/09/20/HK/solo_L1_stix-hk-mini_20210920_V01.fits",
+        "L1/2020/06/16/HK/solo_L1_stix-hk-maxi_20200616_V02U.fits",
+        "L1/2021/09/20/HK/solo_L1_stix-hk-mini_20210920_V02U.fits",
         # CAL
-        "L1/2023/02/13/CAL/solo_L1_stix-cal-energy_20230213_V01.fits"
+        "L1/2023/02/13/CAL/solo_L1_stix-cal-energy_20230213_V02U.fits",
+
+        # L2
+        "L2/2023/06/06/AUX/solo_L2_stix-aux-ephemeris_20230606_V02U.fits"
         ]
 
     remote = ["https://pub099.cs.technik.fhnw.ch/data/fits/" + x for x in files]
     # files = ["/home/shane/fits_test/" + x for x in files]
-    files = [("/data/stix/out/fits_v1.0.0/" + x, remote[i]) for i, x in enumerate(files)]
+    files = [("/data/stix/out/fits_v1.2.0/" + x, remote[i]) for i, x in enumerate(files)]
 
     with tempfile.TemporaryDirectory() as tempdir:
         temppath = Path(tempdir)

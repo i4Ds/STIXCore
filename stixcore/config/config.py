@@ -3,7 +3,6 @@ import sys
 from pathlib import Path
 from configparser import ConfigParser
 
-import stixcore
 from stixcore.util.logging import get_logger
 
 logger = get_logger(__name__)
@@ -22,7 +21,7 @@ def _get_config():
     -------
     The parsed configuration as nested dictionaries
     """
-    module_dir = Path(stixcore.__file__).parent
+    module_dir = Path(__file__).parent.parent
     if 'pytest' in sys.modules:
         default = module_dir / 'data' / 'test' / 'stixcore.ini'
         config_files = [default]

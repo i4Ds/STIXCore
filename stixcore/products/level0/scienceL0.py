@@ -297,11 +297,11 @@ class CompressedPixelData(ScienceProduct):
     def from_levelb(cls, levelb, parent=''):
         packets, idb_versions, control = ScienceProduct.from_levelb(levelb, parent=parent)
 
-        control.add_data('compression_scheme_counts_skm',
-                         _get_compression_scheme(packets, 'NIX00260'))
+        c_skm, c_skm_meta = _get_compression_scheme(packets, 'NIX00260')
+        control.add_data('compression_scheme_counts_skm', (c_skm[0].reshape(1, 3), c_skm_meta))
 
-        control.add_data('compression_scheme_triggers_skm',
-                         _get_compression_scheme(packets, 'NIX00242'))
+        t_skm, t_skm_meta = _get_compression_scheme(packets, 'NIX00242')
+        control.add_data('compression_scheme_triggers_skm', (t_skm[0].reshape(1, 3), t_skm_meta))
 
         data = Data()
         try:
@@ -557,11 +557,11 @@ class Visibility(ScienceProduct):
     def from_levelb(cls, levelb, parent=''):
         packets, idb_versions, control = ScienceProduct.from_levelb(levelb, parent=parent)
 
-        control.add_data('compression_scheme_counts_skm',
-                         _get_compression_scheme(packets, 'NIX00263'))
+        c_skm, c_skm_meta = _get_compression_scheme(packets, 'NIX00263')
+        control.add_data('compression_scheme_counts_skm', (c_skm[0].reshape(1, 3), c_skm_meta))
 
-        control.add_data('compression_scheme_triggers_skm',
-                         _get_compression_scheme(packets, 'NIX00242'))
+        t_skm, t_skm_meta = _get_compression_scheme(packets, 'NIX00242')
+        control.add_data('compression_scheme_triggers_skm', (t_skm[0].reshape(1, 3), t_skm_meta))
 
         data = Data()
         try:
@@ -671,11 +671,11 @@ class Spectrogram(ScienceProduct):
     def from_levelb(cls, levelb, parent=''):
         packets, idb_versions, control = ScienceProduct.from_levelb(levelb, parent=parent)
 
-        control.add_data('compression_scheme_counts_skm',
-                         _get_compression_scheme(packets, 'NIX00268'))
+        c_skm, c_skm_meta = _get_compression_scheme(packets, 'NIX00268')
+        control.add_data('compression_scheme_counts_skm', (c_skm[0].reshape(1, 3), c_skm_meta))
 
-        control.add_data('compression_scheme_triggers_skm',
-                         _get_compression_scheme(packets, 'NIX00267'))
+        t_skm, t_skm_meta = _get_compression_scheme(packets, 'NIX00267')
+        control.add_data('compression_scheme_triggers_skm', (t_skm[0].reshape(1, 3), t_skm_meta))
 
         control['detector_masks'] = np.unique(_get_detector_mask(packets)[0], axis=0)
         control['detector_masks'] = fix_detector_mask(control, control['detector_masks'])

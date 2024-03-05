@@ -24,6 +24,9 @@ from stixcore.util.logging import get_logger
 
 __all__ = ['QLProduct', 'LightCurve', 'Background', 'Spectra']
 
+# SKM for scaling
+_SKM_SCALING = [0, 0, 7]
+
 logger = get_logger(__name__)
 
 QLNIX00405_off = 0.1
@@ -156,7 +159,7 @@ class LightCurve(QLProduct):
         cur_index = 0
         for i, (num, skm) in enumerate(zip(control['num_samples'],
                                            control['compression_scheme_triggers_skm'])):
-            if skm.tolist() == [0, 0, 7]:
+            if skm.tolist() == _SKM_SCALING:
                 cur_slice = slice(cur_index, cur_index+num)
                 logger.debug('Unscaling triggers')
                 triggers[cur_slice], triggers_var[cur_slice] = unscale_triggers(
@@ -257,7 +260,7 @@ class Background(QLProduct):
         cur_index = 0
         for i, (num, skm) in enumerate(zip(control['num_samples'],
                                            control['compression_scheme_triggers_skm'])):
-            if skm.tolist() == [0, 0, 7]:
+            if skm.tolist() == _SKM_SCALING:
                 cur_slice = slice(cur_index, cur_index+num)
                 logger.debug('Unscaling triggers')
                 triggers[cur_slice], triggers_var[cur_slice] = unscale_triggers(
@@ -359,7 +362,7 @@ class Spectra(QLProduct):
         cur_index = 0
         for i, (num, skm) in enumerate(zip(control['num_samples'],
                                            control['compression_scheme_triggers_skm'])):
-            if skm.tolist() == [0, 0, 7]:
+            if skm.tolist() == _SKM_SCALING:
                 cur_slice = slice(cur_index, cur_index+num)
                 logger.debug('Unscaling triggers')
                 triggers[cur_slice], triggers_var[cur_slice] = unscale_triggers(

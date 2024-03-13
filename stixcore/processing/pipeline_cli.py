@@ -11,6 +11,7 @@ from collections import defaultdict
 
 from stixcore.config.config import CONFIG
 from stixcore.ephemeris.manager import Spice, SpiceKernelManager
+from stixcore.io.RidLutManager import RidLutManager
 from stixcore.io.soc.manager import SOCManager, SOCPacketFile
 from stixcore.processing.L0toL1 import Level1
 from stixcore.processing.L1toL2 import Level2
@@ -136,6 +137,15 @@ def main():
                         help="clean all files from <fits_dir> first",
                         default=False, type=bool, const=True, nargs="?")
 
+    parser.add_argument("-r", "--rid_lut_file",
+                        help=("Path to the rid LUT file"),
+                        default=CONFIG.get('Publish', 'rid_lut_file'), type=str)
+
+    parser.add_argument("--update_rid_lut",
+                        help="update rid lut file before publishing",
+                        default=False,
+                        action='store_true', dest='update_rid_lut')
+
     args = parser.parse_args()
 
     # pathes
@@ -171,6 +181,8 @@ def main():
     else:
         _spm = SpiceKernelManager(Path(CONFIG.get('Paths', 'spice_kernels')))
         spicemeta = _spm.get_latest_mk_and_pred()
+
+    RidLutManager.instance = RidLutManager(Path(args.rid_lut_file), update=args.update_rid_lut)
 
     Spice.instance = Spice(spicemeta)
 

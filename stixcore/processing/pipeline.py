@@ -9,6 +9,7 @@ import inspect
 import logging
 import smtplib
 import warnings
+import importlib
 import threading
 from queue import Queue
 from pprint import pformat
@@ -24,6 +25,7 @@ import stixcore
 from stixcore.config.config import CONFIG
 from stixcore.ephemeris.manager import Spice, SpiceKernelManager
 from stixcore.idb.manager import IDBManager
+from stixcore.io.RidLutManager import RidLutManager
 from stixcore.io.soc.manager import SOCPacketFile
 from stixcore.processing.L0toL1 import Level1
 from stixcore.processing.L1toL2 import Level2
@@ -33,6 +35,7 @@ from stixcore.products import Product
 from stixcore.soop.manager import SOOPManager
 from stixcore.util.logging import STX_LOGGER_DATE_FORMAT, STX_LOGGER_FORMAT, get_logger
 from stixcore.util.singleton import Singleton
+from stixcore.version_conf import get_conf_version
 
 __all__ = ['GFTSFileHandler', 'process_tm', 'PipelineErrorReport', 'PipelineStatus']
 
@@ -201,11 +204,20 @@ do not answer to this mail.
 
 def process_tm(path, **args):
     with PipelineErrorReport(path) as error_report:
+        # update the rid LUT file from the API and read in again
+        RidLutManager.instance.update_lut()
+
         # set the latest spice kernel files for each run
         if ((args['spm'].get_latest_mk()[0] not in Spice.instance.meta_kernel_path) or
            (args['spm'].get_latest_mk_pred()[0] not in Spice.instance.meta_kernel_path)):
             Spice.instance = Spice(args['spm'].get_latest_mk_and_pred())
             logger.info("new spice kernels detected and loaded")
+
+        # update version of common config it might have changed
+        if get_conf_version() != stixcore.__version_conf__:
+            importlib.reload(stixcore.version_conf)
+            importlib.reload(stixcore)
+            logger.info(f"new common conf detected new version is: {stixcore.__version_conf__}")
 
         lb_files = process_tmtc_to_levelbinary([SOCPacketFile(path)])
         logger.info(f"generated LB files: \n{pformat(lb_files)}")
@@ -261,6 +273,7 @@ class PipelineStatus(metaclass=Singleton):
         s = io.StringIO()
         s.write("\nSINGLETONS\n\n")
         s.write(f"SOOPManager: {SOOPManager.instance.data_root}\n")
+        s.write(f"RidLutManager: {RidLutManager.instance}\n")
         s.write(f"SPICE: {Spice.instance.meta_kernel_path}\n")
         s.write(f"IDBManager: {IDBManager.instance.data_root}\n"
                 f"Versions:\n{IDBManager.instance.get_versions()}\n"
@@ -274,6 +287,7 @@ class PipelineStatus(metaclass=Singleton):
         s = io.StringIO()
         s.write("\nPIPELINE VERSION\n\n")
         s.write(f"Version: {str(stixcore.__version__)}\n")
+        s.write(f"Common instrument config version: {str(stixcore.__version_conf__)}\n")
         s.write("PROCESSING VERSIONS\n\n")
         for p in Product.registry:
             s.write(f"Prod: {p.__name__}\n    File: {inspect.getfile(p)}\n"
@@ -384,6 +398,8 @@ def main():
     soop_path = Path(CONFIG.get('Paths', 'soop_files'))
     spm = SpiceKernelManager(Path(CONFIG.get("Paths", "spice_kernels")))
     Spice.instance = Spice(spm.get_latest_mk_and_pred())
+
+    RidLutManager.instance = RidLutManager(Path(CONFIG.get('Publish', 'rid_lut_file')), update=True)
 
     logging_handler = LoggingEventHandler(logger=logger)
 

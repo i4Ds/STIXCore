@@ -8,6 +8,7 @@ from stixcore.config.config import CONFIG
 from stixcore.ephemeris.manager import Spice, SpiceKernelManager
 from stixcore.idb.manager import IDBManager
 from stixcore.io.fits.processors import FitsL0Processor
+from stixcore.io.RidLutManager import RidLutManager
 from stixcore.products.level0.scienceL0 import NotCombineException
 from stixcore.products.product import Product
 from stixcore.util.logging import get_logger
@@ -72,6 +73,9 @@ def process_tm_type(files, tm_type, processor, spice_kernel_path, config, idbm):
     Spice.instance = Spice(spice_kernel_path)
     IDBManager.instance = idbm
     CONFIG = config
+
+    RidLutManager.instance = RidLutManager(Path(CONFIG.get('Publish', 'rid_lut_file')),
+                                           update=False)
 
     # Stand alone packet data
     if (tm_type[0] == 21 and tm_type[-2] not in {20, 21, 22, 23, 24, 42}) or tm_type[0] != 21:

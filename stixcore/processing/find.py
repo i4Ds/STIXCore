@@ -15,7 +15,7 @@ logger = get_logger(__name__)
 
 
 def find_fits(args):
-    """CLI STIX find fits file
+    """CLI STIX find fits file by properties
 
     Parameters
     ----------
@@ -28,7 +28,7 @@ def find_fits(args):
         list of fits files meeting the criteria
     """
 
-    parser = argparse.ArgumentParser(description='STIX find fits files',
+    parser = argparse.ArgumentParser(description='STIX find fits files by properties',
                                      formatter_class=argparse.ArgumentDefaultsHelpFormatter)
 
     parser.add_argument("-v", "--include_versions",

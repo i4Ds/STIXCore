@@ -127,6 +127,8 @@ class RidLutManager(metaclass=Singleton):
 
         if update or not file.exists():
             rid_lut = Table(names=converters.keys(), dtype=converters.values())
+            # the api is limited to batch sizes of a month. in order to get the full table we have
+            # to ready each month after the start of STIX
             last_date = date(2019, 1, 1)
             today = date.today()
             if file.exists():
@@ -162,9 +164,8 @@ class RidLutManager(metaclass=Singleton):
                     rid_lut = vstack([rid_lut, update_lut])
                     # the stix datacenter API is throttled to 2 calls per second
                     time.sleep(0.5)
-            except Exception as e:
-                logger.error("RID API ERROR")
-                logger.error(e)
+            except Exception:
+                logger.error("RID API ERROR", exc_info=True)
 
             rid_lut = unique(rid_lut, silent=True)
             ascii.write(rid_lut, file, overwrite=True, delimiter=",", quotechar='"')

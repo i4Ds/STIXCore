@@ -22,7 +22,7 @@ logger = get_logger(__name__)
 class RidLutManager(metaclass=Singleton):
     """Manages metadata for BSD requests
 
-    The rid is used for a lookup in a scv table file where additional data
+    The rid is used for a lookup in a csv table file where additional data
     connected to a BSD request is stored. Such as a description of the request
     purpose or state dependent configurations that are not part of the TM data.
     Most important the trigger scaling factor that was used if the trigger scaling

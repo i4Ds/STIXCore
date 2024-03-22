@@ -299,7 +299,6 @@ if __name__ == '__main__':
         "L0/21/6/30/solo_L0_stix-ql-lightcurve_0684892800_V02U.fits",
         "L0/21/6/33/solo_L0_stix-ql-variance_0687484800_V02U.fits",
         "L0/21/6/32/solo_L0_stix-ql-spectra_0680400000_V02U.fits",
-        "L0/21/6/41/solo_L0_stix-cal-energy_0683856000_V02U.fits",
         # HK
         "L0/3/25/2/solo_L0_stix-hk-maxi_0647913600_V02U.fits",
         "L0/3/25/1/solo_L0_stix-hk-mini_0643507200_V02U.fits",
@@ -315,12 +314,11 @@ if __name__ == '__main__':
         "L1/2021/10/13/SCI/solo_L1_stix-sci-aspect-burst_20211013T034959-20211013T055031_V02_2110130059.fits", # noqa
         "L1/2021/06/28/SCI/solo_L1_stix-sci-xray-spec_20210628T230132-20210628T234123_V02_2106280041-54988.fits", # noqa
         # QL
-        "L1/2020/06/16/QL/solo_L1_stix-ql-background_20200616_V02U.fits",
-        "L1/2020/06/16/QL/solo_L1_stix-ql-flareflag_20200616_V02U.fits",
-        "L1/2020/06/16/QL/solo_L1_stix-ql-lightcurve_20200616_V02U.fits",
-        "L1/2020/06/16/QL/solo_L1_stix-ql-variance_20200616_V02U.fits",
-        "L1/2021/11/16/QL/solo_L1_stix-ql-spectra_20211116_V02U.fits",
-        "L1/2021/11/16/CAL/solo_L1_stix-cal-energy_20211116_V02U.fits",
+        "L1/2020/06/16/QL/solo_L1_stix-ql-background_20200616_V02.fits",
+        "L1/2020/06/16/QL/solo_L1_stix-ql-flareflag_20200616_V02.fits",
+        "L1/2020/06/16/QL/solo_L1_stix-ql-lightcurve_20200616_V02.fits",
+        "L1/2020/06/16/QL/solo_L1_stix-ql-variance_20200616_V02.fits",
+        "L1/2021/11/16/QL/solo_L1_stix-ql-spectra_20211116_V02.fits",
         # HK
         "L1/2020/06/16/HK/solo_L1_stix-hk-maxi_20200616_V02U.fits",
         "L1/2021/09/20/HK/solo_L1_stix-hk-mini_20210920_V02U.fits",

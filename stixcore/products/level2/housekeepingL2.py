@@ -310,10 +310,10 @@ class AspectIDLProcessing(SSWIDLTask):
 
                 aux = Ephemeris(control=control, data=data, idb_versions=HK.idb_versions)
 
-                aux.add_additional_header_keywords(
+                aux.add_additional_header_keyword(
                     ('STX_GSW', result.idlgswversion[0].decode(),
                      'Version of STX-GSW that provided data'))
-                aux.add_additional_header_keywords(
+                aux.add_additional_header_keyword(
                     ('HISTORY', 'aspect data processed by STX-GSW', ''))
                 files.extend(fits_processor.write_fits(aux))
         else:
@@ -323,7 +323,8 @@ class AspectIDLProcessing(SSWIDLTask):
 
 
 class Ephemeris(HKProduct, L2Mixin):
-    """Aspect auxiliary data.
+    """Ephemeris data, including spacecraft attitude and coordinates as well as STIX
+       pointing with respect to Sun center as derived from the STIX aspect system.
 
     In level 2 format.
     """

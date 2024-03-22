@@ -6,6 +6,7 @@ import numpy as np
 import astropy.units as u
 
 from stixcore.config.reader import read_energy_channels
+from stixcore.io.RidLutManager import RidLutManager
 from stixcore.products.common import (
     _get_compression_scheme,
     _get_detector_mask,
@@ -13,7 +14,13 @@ from stixcore.products.common import (
     get_min_uint,
     unscale_triggers,
 )
-from stixcore.products.product import ControlSci, Data, EnergyChannelsMixin, GenericProduct
+from stixcore.products.product import (
+    ControlSci,
+    Data,
+    EnergyChannelsMixin,
+    FitsHeaderMixin,
+    GenericProduct,
+)
 from stixcore.time import SCETime, SCETimeRange
 from stixcore.time.datetime import SCETimeDelta
 from stixcore.util.logging import get_logger
@@ -64,7 +71,7 @@ class NotCombineException(Exception):
     pass
 
 
-class ScienceProduct(GenericProduct, EnergyChannelsMixin):
+class ScienceProduct(GenericProduct, EnergyChannelsMixin, FitsHeaderMixin):
     """Generic science data product class composed of control and data."""
     def __init__(self, *, service_type, service_subtype, ssid, control, data, **kwargs):
         """Create a generic science data product composed of control and data.
@@ -303,6 +310,9 @@ class CompressedPixelData(ScienceProduct):
         t_skm, t_skm_meta = _get_compression_scheme(packets, 'NIX00242')
         control.add_data('compression_scheme_triggers_skm', (t_skm[0].reshape(1, 3), t_skm_meta))
 
+        header_history = []
+        additional_header_keywords = []
+
         data = Data()
         try:
             data['delta_time'] = np.uint32(packets.get_value('NIX00441').to(u.ds))
@@ -347,10 +357,13 @@ class CompressedPixelData(ScienceProduct):
                                  for i in range(242, 258)])
 
         if control['compression_scheme_triggers_skm'].tolist() == [[0, 0, 7]]:
-            logger.debug('Unscaling trigger ')
+            factor = RidLutManager.instance.get_scaling_factor(control['request_id'][0])
+            header_history.append(f"trigger descaled with {factor}")
+            logger.debug(f'Unscaling trigger: {factor}')
+            additional_header_keywords.append(("TRIG_SCA", factor, 'used trigger descale factor'))
             triggers, triggers_var = unscale_triggers(
                 triggers, integration=data['integration_time'],
-                detector_masks=data['detector_masks'], ssid=levelb.ssid)
+                detector_masks=data['detector_masks'], ssid=levelb.ssid, factor=factor)
 
         data['triggers'] = triggers.T.astype(get_min_uint(triggers))
         data['triggers'].meta = {'NIXS': [f'NIX00{i}' for i in range(242, 258)]}
@@ -510,13 +523,17 @@ class CompressedPixelData(ScienceProduct):
                     'counts', 'counts_comp_err']
         data['control_index'] = np.ubyte(0)
 
-        return cls(service_type=packets.service_type,
+        prod = cls(service_type=packets.service_type,
                    service_subtype=packets.service_subtype,
                    ssid=packets.ssid,
                    control=control,
                    data=data,
                    idb_versions=idb_versions,
-                   packets=packets)
+                   packets=packets,
+                   history=header_history)
+
+        prod.add_additional_header_keywords(additional_header_keywords)
+        return prod
 
     @classmethod
     def is_datasource_for(cls, *, service_type, service_subtype, ssid, **kwargs):
@@ -564,6 +581,9 @@ class Visibility(ScienceProduct):
         control.add_data('compression_scheme_triggers_skm', (t_skm[0].reshape(1, 3), t_skm_meta))
 
         data = Data()
+        header_history = []
+        additional_header_keywords = []
+
         try:
             data['delta_time'] = packets.get_value('NIX00441')
             data.add_meta(name='delta_time', nix='NIX00441', packets=packets)
@@ -594,10 +614,13 @@ class Visibility(ScienceProduct):
         triggers = np.array(triggers).reshape(-1, 16).T
 
         if control['compression_scheme_triggers_skm'].tolist() == [[0, 0, 7]]:
-            logger.debug('Unscaling trigger ')
+            factor = RidLutManager.instance.get_scaling_factor(control['request_id'][0])
+            header_history.append(f"trigger descaled with {factor}")
+            logger.debug(f'Unscaling trigger: {factor}')
+            additional_header_keywords.append(("TRIG_SCA", factor, 'used trigger descale factor'))
             triggers, triggers_var = unscale_triggers(
                 triggers, integration=SCETimeDelta(data['integration_time']),
-                detector_masks=data['detector_masks'], ssid=levelb.ssid)
+                detector_masks=data['detector_masks'], ssid=levelb.ssid, factor=factor)
 
         data['triggers'] = triggers.T
         data['triggers'].meta = {'NIXS': [f'NIX00{i}' for i in range(242, 258)]}  # ,
@@ -640,13 +663,17 @@ class Visibility(ScienceProduct):
                         + data['delta_time'] + data['integration_time'] / 2)
         data['timedel'] = SCETimeDelta(data['integration_time'])
 
-        return cls(service_type=packets.service_type,
+        prod = cls(service_type=packets.service_type,
                    service_subtype=packets.service_subtype,
                    ssid=packets.ssid,
                    control=control,
                    data=data,
                    idb_versions=idb_versions,
-                   packets=packets)
+                   packets=packets,
+                   history=header_history)
+
+        prod.add_additional_header_keywords(additional_header_keywords)
+        return prod
 
     @classmethod
     def is_datasource_for(cls, *, service_type, service_subtype, ssid, **kwargs):
@@ -676,6 +703,9 @@ class Spectrogram(ScienceProduct):
 
         t_skm, t_skm_meta = _get_compression_scheme(packets, 'NIX00267')
         control.add_data('compression_scheme_triggers_skm', (t_skm[0].reshape(1, 3), t_skm_meta))
+
+        header_history = []
+        additional_header_keywords = []
 
         control['detector_masks'] = np.unique(_get_detector_mask(packets)[0], axis=0)
         control['detector_masks'] = fix_detector_mask(control, control['detector_masks'])
@@ -770,10 +800,13 @@ class Spectrogram(ScienceProduct):
         triggers_var = packets.get_value('NIX00267', attr='error')
 
         if control['compression_scheme_triggers_skm'].tolist() == [[0, 0, 7]]:
-            logger.debug('Unscaling trigger ')
+            factor = RidLutManager.instance.get_scaling_factor(control['request_id'][0])
+            header_history.append(f"trigger descaled with {factor}")
+            additional_header_keywords.append(("TRIG_SCA", factor, 'used trigger descale factor'))
+            logger.debug(f'Unscaling trigger: {factor}')
             triggers, triggers_var = unscale_triggers(
                 triggers, integration=deltas,
-                detector_masks=control['detector_masks'], ssid=levelb.ssid)
+                detector_masks=control['detector_masks'], ssid=levelb.ssid, factor=factor)
 
         # Data
         data = Data()
@@ -796,13 +829,17 @@ class Spectrogram(ScienceProduct):
         data['counts_comp_err'] = np.float32(np.sqrt(counts_var) * u.ct)
         data['control_index'] = np.ubyte(0)
 
-        return cls(service_type=packets.service_type,
+        prod = cls(service_type=packets.service_type,
                    service_subtype=packets.service_subtype,
                    ssid=packets.ssid,
                    control=control,
                    data=data,
                    idb_versions=idb_versions,
-                   packets=packets)
+                   packets=packets,
+                   history=header_history)
+
+        prod.add_additional_header_keywords(additional_header_keywords)
+        return prod
 
     @classmethod
     def is_datasource_for(cls, *, service_type, service_subtype, ssid, **kwargs):

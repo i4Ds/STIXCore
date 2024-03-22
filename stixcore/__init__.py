@@ -6,4 +6,9 @@ try:
 except ImportError:
     __version__ = "unknown"
 
+try:
+    from .version_conf import __version_conf__
+except ImportError:
+    __version_conf__ = "unknown"
+
 logger = get_logger(__name__)

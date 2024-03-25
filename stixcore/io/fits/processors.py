@@ -11,7 +11,7 @@ from astropy.table import QTable
 import stixcore
 from stixcore.ephemeris.manager import Spice
 from stixcore.products.level0.scienceL0 import Aspect
-from stixcore.products.product import Product
+from stixcore.products.product import FitsHeaderMixin, Product
 from stixcore.soop.manager import SOOPManager, SoopObservationType
 from stixcore.time.datetime import SEC_IN_DAY
 from stixcore.util.logging import get_logger
@@ -135,7 +135,8 @@ class FitsProcessor:
             ('ORIGIN', 'STIX Team, FHNW', 'FHNW'),
             ('CREATOR', 'stixcore', 'FITS creation software'),
             ('VERS_SW', str(stixcore.__version__), 'Version of SW that provided FITS file'),
-            # ('VERS_CAL', '', 'Version of the calibration pack'),
+            ('VERS_CFG', str(stixcore.__version_conf__),
+             'Version of the common instrument configuration package'),
             ('VERSION', version_format(version), 'Version of data product'),
             ('OBSRVTRY', 'Solar Orbiter', 'Satellite name'),
             ('TELESCOP', 'SOLO/STIX', 'Telescope/Sensor name'),
@@ -558,6 +559,9 @@ class FitsL0Processor:
             primary_hdu = fits.PrimaryHDU()
             primary_hdu.header.update(primary_header)
 
+            if isinstance(product, FitsHeaderMixin):
+                primary_hdu.header.update(product.get_additional_header_keywords())
+
             # Add comment and history
             [primary_hdu.header.add_comment(com) for com in prod.comment]
             [primary_hdu.header.add_history(com) for com in prod.history]
@@ -965,6 +969,8 @@ class FitsL2Processor(FitsL1Processor):
             # Name, Value, Comment
             ('LEVEL', 'L2', 'Processing level of the data'),
             ('VERS_SW', str(stixcore.__version__), 'Version of SW that provided FITS file'),
+            ('VERS_CFG', str(stixcore.__version_conf__),
+             'Version of the common instrument configuration package'),
             ('HISTORY', 'Processed by STIXCore L2'),
         )
 

@@ -9,6 +9,7 @@ from unittest.mock import patch
 import numpy as np
 import pytest
 
+from astropy.io import fits
 from astropy.io.fits.diff import FITSDiff
 
 from stixcore.config.config import CONFIG
@@ -25,7 +26,7 @@ from stixcore.processing.TMTCtoLB import process_tmtc_to_levelbinary
 from stixcore.products.level0.quicklookL0 import LightCurve
 from stixcore.products.product import Product
 from stixcore.soop.manager import SOOPManager
-from stixcore.tmtc.packets import TMTC, GenericTMPacket
+from stixcore.tmtc.packets import GenericTMPacket
 from stixcore.util.logging import get_logger
 
 logger = get_logger(__name__)
@@ -58,51 +59,18 @@ def packet():
     return packet
 
 
-@pytest.mark.skip(reason="will be replaces with end2end test soon")
-def test_level_b(soc_manager, out_dir):
-    files_to_process = list(soc_manager.get_files(TMTC.TM))
-    res = process_tmtc_to_levelbinary(files_to_process=files_to_process[0:1], archive_path=out_dir)
-    assert len(res) == 1
-    fits = res.pop()
-    diff = FITSDiff(test_data.products.DIR / fits.name, fits,
-                    ignore_keywords=['CHECKSUM', 'DATASUM', 'DATE', 'VERS_SW'])
-    if not diff.identical:
-        print(diff.report())
-    assert diff.identical
-
-
-@pytest.mark.skip(reason="will be replaces with end2end test soon")
-def test_level_0(out_dir):
-    lb = test_data.products.LB_21_6_30_fits
+def test_level_0_descaling_trigger(out_dir):
+    lb = test_data.products.LB_21_6_21_fits
     l0 = Level0(out_dir / 'LB', out_dir)
     res = l0.process_fits_files(files=[lb])
-    assert len(res) == 2
-    for fits in res:
-        diff = FITSDiff(test_data.products.DIR / fits.name, fits,
-                        ignore_keywords=['CHECKSUM', 'DATASUM', 'DATE', 'VERS_SW'])
-        if not diff.identical:
-            print(diff.report())
-        assert diff.identical
-
-
-@pytest.mark.skip(reason="will be replaces with end2end test soon")
-def test_level_1(out_dir):
-    SOOPManager.instance = SOOPManager(Path(__file__).parent.parent.parent
-                                       / 'data' / 'test' / 'soop')
-
-    l0 = test_data.products.L0_LightCurve_fits
-    l1 = Level1(out_dir / 'LB', out_dir)
-    res = l1.process_fits_files(files=l0)
     assert len(res) == 1
-    for fits in res:
-        diff = FITSDiff(test_data.products.DIR / fits.name, fits,
-                        ignore_keywords=['CHECKSUM', 'DATASUM', 'DATE', 'VERS_SW'])
-        if not diff.identical:
-            print(diff.report())
-        assert diff.identical
+    hist = fits.getval(res[0], 'HISTORY')
+    factor = fits.getval(res[0], 'TRIG_SCA')
+    assert "trigger descaled with 30" in hist
+    assert factor == 30
 
 
-@pytest.mark.skip(reason="needs proper spize pointing kernels")
+@pytest.mark.skip(reason="needs proper spice pointing kernels")
 def test_level_2(out_dir, spicekernelmanager):
     SOOPManager.instance = SOOPManager(Path(__file__).parent.parent.parent
                                        / 'data' / 'test' / 'soop')
@@ -120,7 +88,7 @@ def test_level_2(out_dir, spicekernelmanager):
         assert pl2.parent[0] in input_names
 
 
-@pytest.mark.skip(reason="needs proper spize pointing kernels")
+@pytest.mark.skip(reason="needs proper spice pointing kernels")
 def test_level_2_auxiliary(out_dir, spicekernelmanager):
     SOOPManager.instance = SOOPManager(Path(__file__).parent.parent.parent
                                        / 'data' / 'test' / 'soop')
@@ -275,7 +243,6 @@ def test_single_vs_batch(out_dir):
 
 
 def test_pipeline_logging(spicekernelmanager, out_dir):
-
     CONTINUE_ON_ERROR = CONFIG.getboolean('Logging', 'stop_on_error', fallback=False)
     FITS_ARCHIVE = CONFIG.get('Paths', 'fits_archive')
     LOG_LEVEL = CONFIG.get('Pipeline', 'log_level')

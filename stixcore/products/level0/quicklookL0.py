@@ -24,6 +24,9 @@ from stixcore.util.logging import get_logger
 
 __all__ = ['QLProduct', 'LightCurve', 'Background', 'Spectra']
 
+# SKM for scaling
+_SKM_SCALING = [0, 0, 7]
+
 logger = get_logger(__name__)
 
 QLNIX00405_off = 0.1
@@ -150,13 +153,19 @@ class LightCurve(QLProduct):
         control.add_data('compression_scheme_triggers_skm',
                          _get_compression_scheme(packets, 'NIX00274'))
 
-        triggers = packets.get_value('NIX00274').T
-        triggers_var = packets.get_value('NIX00274', attr="error").T
-        if control['compression_scheme_triggers_skm'].tolist() == [[0, 0, 7]]:
-            logger.debug('Unscaling trigger ')
-            triggers, triggers_var = unscale_triggers(
-                triggers, integration=duration,
-                detector_masks=control['detector_mask'], ssid=levelb.ssid)
+        triggers = packets.get_value('NIX00274').flatten()
+        triggers_var = packets.get_value('NIX00274', attr="error").flatten()
+
+        cur_index = 0
+        for i, (num, skm) in enumerate(zip(control['num_samples'],
+                                           control['compression_scheme_triggers_skm'])):
+            if skm.tolist() == _SKM_SCALING:
+                cur_slice = slice(cur_index, cur_index+num)
+                logger.debug('Unscaling triggers')
+                triggers[cur_slice], triggers_var[cur_slice] = unscale_triggers(
+                    triggers[cur_slice], integration=duration[cur_slice],
+                    detector_masks=control['detector_mask'][i:i+1], ssid=levelb.ssid)
+            cur_index += num
 
         data = Data()
         data['control_index'] = control_indices
@@ -241,17 +250,23 @@ class Background(QLProduct):
         control.add_data('compression_scheme_triggers_skm',
                          _get_compression_scheme(packets, 'NIX00274'))
 
-        triggers = packets.get_value('NIX00274').T
-        triggers_var = packets.get_value('NIX00274', attr="error").T
+        triggers = packets.get_value('NIX00274').flatten()
+        triggers_var = packets.get_value('NIX00274', attr="error").flatten()
 
         # As fixed not sent in TM so hard code here BKC detector is index 9
         dmask = np.zeros(shape=(1, 32), dtype=int)
         dmask[0, 9] = 1
-        if control['compression_scheme_triggers_skm'].tolist() == [[0, 0, 7]]:
-            logger.debug('Unscaling trigger ')
-            triggers, triggers_var = unscale_triggers(
-                triggers, integration=duration, detector_masks=dmask,
-                ssid=levelb.ssid)
+
+        cur_index = 0
+        for i, (num, skm) in enumerate(zip(control['num_samples'],
+                                           control['compression_scheme_triggers_skm'])):
+            if skm.tolist() == _SKM_SCALING:
+                cur_slice = slice(cur_index, cur_index+num)
+                logger.debug('Unscaling triggers')
+                triggers[cur_slice], triggers_var[cur_slice] = unscale_triggers(
+                    triggers[cur_slice], integration=duration[cur_slice],
+                    detector_masks=dmask, ssid=levelb.ssid)
+            cur_index += num
 
         data = Data()
         data['control_index'] = control_indices
@@ -334,21 +349,26 @@ class Spectra(QLProduct):
         counts_var = np.vstack(counts_var).T
         counts = np.pad(counts, ((pad_before, pad_after), (0, 0)), constant_values=0)
         counts_var = np.pad(counts_var, ((pad_before, pad_after), (0, 0)), constant_values=0)
-        triggers = packets.get_value('NIX00484').T
-        triggers_var = packets.get_value('NIX00484', attr='error').T
+        triggers = packets.get_value('NIX00484').flatten()
+        triggers_var = packets.get_value('NIX00484', attr='error').flatten()
+
+        triggers = np.pad(triggers, (pad_before, pad_after), mode='edge')
+        triggers_var = np.pad(triggers_var, (pad_before, pad_after), mode='edge')
 
         # These are per detector spectra so n_acc is 1 by design and not in TM so hard code here
         dmask = np.zeros(shape=(1, 32), dtype=int)
         dmask[0, 9] = 1
 
-        if control['compression_scheme_triggers_skm'].tolist() == [[0, 0, 7]]:
-            logger.debug('Unscaling trigger ')
-            triggers, triggers_var = unscale_triggers(
-                triggers, integration=duration, detector_masks=dmask,
-                ssid=levelb.ssid)
-
-        triggers = np.pad(triggers, ((pad_before, pad_after), (0, 0)), mode='edge')
-        triggers_var = np.pad(triggers_var, ((pad_before, pad_after), (0, 0)), mode='edge')
+        cur_index = 0
+        for i, (num, skm) in enumerate(zip(control['num_samples'],
+                                           control['compression_scheme_triggers_skm'])):
+            if skm.tolist() == _SKM_SCALING:
+                cur_slice = slice(cur_index, cur_index+num)
+                logger.debug('Unscaling triggers')
+                triggers[cur_slice], triggers_var[cur_slice] = unscale_triggers(
+                    triggers[cur_slice], integration=duration[i][0],
+                    detector_masks=dmask, ssid=levelb.ssid)
+            cur_index += num
 
         detector_index = np.pad(np.array(did, np.int16), (pad_before, pad_after), mode='edge')
         num_integrations = np.pad(np.array(packets.get_value('NIX00485'), np.uint16),

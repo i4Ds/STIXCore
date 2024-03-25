@@ -781,10 +781,16 @@ class FitsHeaderMixin:
         return self._additional_header_keywords if hasattr(self, '_additional_header_keywords')\
             else None
 
-    def add_additional_header_keywords(self, keyword):
+    def add_additional_header_keyword(self, keyword):
         if not hasattr(self, '_additional_header_keywords'):
             setattr(self, '_additional_header_keywords', list())
         self._additional_header_keywords.append(keyword)
+
+    def add_additional_header_keywords(self, keywords):
+        if not hasattr(self, '_additional_header_keywords'):
+            setattr(self, '_additional_header_keywords', list())
+        for keyword in keywords:
+            self._additional_header_keywords.append(keyword)
 
 
 class L1Mixin(FitsHeaderMixin):

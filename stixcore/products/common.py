@@ -35,11 +35,12 @@ def _get_compression_scheme(packets, nix):
         S,K,M compression scheme parameters and names
     """
     param = packets.get(nix)
-    skm = param[0].skm
-    values = np.array((skm[0].value, skm[1].value, skm[2].value), np.ubyte).reshape(1, -1)
+    skms = [p.skm for p in param]
+    comp_scheme = np.array([[skm[0].value, skm[1].value, skm[2].value] for skm in skms],
+                           dtype=np.ubyte)
 
-    return values, {'NIXS': [skm[0].name, skm[1].name, skm[2].name],
-                    'PCF_CURTX': [p.idb_info.PCF_CURTX for p in skm]}
+    return comp_scheme, {'NIXS': [skms[0][0].name, skms[0][1].name, skms[0][2].name],
+                         'PCF_CURTX': [p.idb_info.PCF_CURTX for p in skms[0]]}
 
 
 def _get_energy_bins(packets, nixlower, nixuppper):
@@ -324,7 +325,7 @@ def unscale_triggers(scaled_triggers, *, integration, detector_masks, ssid, fact
     # BSD SPEC data are summed to total trigger (1 trigger value)
     if ssid in {30, 31, 32, 24}:
         n_group = active_trigger_groups.astype(int).sum()
-        n_int = integration.as_float().to_value(u.ds).reshape(-1, 1)  # units of 0.1s
+        n_int = integration.as_float().to_value(u.ds).flatten()  # units of 0.1s
     # BSD pixel/vis data not summed (16 trigger values)
     elif ssid in {21, 22, 23}:
         n_group = active_trigger_groups.astype(int)

@@ -24,11 +24,13 @@ def get_status(msg, port=12346):
         sock.sendall(msg)
         sock.sendall(b'\n')
         server = sock.makefile("rb")
+        response = ''
         while True:
             line = server.readline()
             if not line:
                 break
-            return f"{line.decode().rstrip()}"
+            response += line.decode()
+        return f"{response.rstrip()}"
 
     finally:
         sock.close()

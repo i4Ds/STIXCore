@@ -1,21 +1,18 @@
 import os
 import sys
-import time
 import shutil
 import logging
 import smtplib
 import sqlite3
 import argparse
 import tempfile
-import urllib.request
 from io import StringIO
 from enum import Enum
 from pprint import pformat
 from pathlib import Path
-from datetime import date, datetime, timedelta
+from datetime import date, datetime
 from collections import defaultdict
 
-import numpy as np
 from paramiko import SSHClient
 from scp import SCPClient
 
@@ -23,10 +20,10 @@ import astropy.units as u
 from astropy.io import ascii, fits
 from astropy.io.fits.diff import HDUDiff
 from astropy.table import Table
-from astropy.table.operations import unique, vstack
 
 from stixcore.config.config import CONFIG
 from stixcore.ephemeris.manager import Spice, SpiceKernelManager
+from stixcore.io.RidLutManager import RidLutManager
 from stixcore.processing.pipeline_status import pipeline_status
 from stixcore.products.product import Product
 from stixcore.util.logging import get_logger
@@ -387,15 +384,13 @@ def update_ephemeris_headers(fits_file, spice):
         logger.info(f"updated ephemeris headers of {fits_file}")
 
 
-def add_BSD_comment(p, rid_lut):
+def add_BSD_comment(p):
     """Adds a comment in the FITS header in case of BSD with the request ID and reason.
 
     Parameters
     ----------
     p : Path
         Path to FITS file
-    rid_lut : Table
-        the LUT with all RIDs and reasons
 
     Returns
     -------
@@ -407,8 +402,9 @@ def add_BSD_comment(p, rid_lut):
         if len(parts) > 5:
             rid = parts[5].replace(".fits", "")
             rid = int(rid.split('-')[0])
-            reqeust = rid_lut.loc[rid]
-            reason = " ".join(np.atleast_1d(reqeust['description']))
+
+            reason = RidLutManager.instance.get_reason(rid)
+
             c_entry = f"BSD request id: '{rid}' reason: '{reason}'"
             fits.setval(p, "COMMENT", value=c_entry)
             return c_entry
@@ -465,81 +461,6 @@ def copy_file(scp, p, target_dir, add_history_entry=True):
         return (True, None)
     except Exception as e:
         return (False, e)
-
-
-def read_rid_lut(file, update=False):
-    """Reads or creates the LUT of all BSD RIDs and the request reason comment.
-
-    On creation or update an api endpoint from the STIX data center is used
-    to get the information and persists as a LUT locally.
-
-    Parameters
-    ----------
-    file : Path
-        path the to LUT file.
-    update : bool, optional
-        should the LUT be updated at start up?, by default False
-
-    Returns
-    -------
-    Table
-        the LUT od RIDs and request reasons.
-    """
-    converters = {'_id': np.uint, 'unique_id': np.uint, 'start_utc': datetime,
-                  'duration': np.uint, 'type': str, 'subject': str,
-                  'purpose': str, 'comment': str}
-
-    if update or not file.exists():
-        rid_lut = Table(names=converters.keys(), dtype=converters.values())
-        last_date = date(2018, 1, 1)
-        today = date.today()
-        if file.exists():
-            rid_lut = ascii.read(file, delimiter=",", converters=converters)
-            mds = rid_lut['start_utc'].max()
-            try:
-                last_date = datetime.strptime(mds, '%Y-%m-%dT%H:%M:%S').date()
-            except ValueError:
-                last_date = datetime.strptime(mds, '%Y-%m-%dT%H:%M:%S.%f').date()
-
-        if not file.parent.exists():
-            logger.info(f'path not found to rid lut file dir: {file.parent} creating dir')
-            file.parent.mkdir(parents=True, exist_ok=True)
-        rid_lut_file_update_url = CONFIG.get('Publish', 'rid_lut_file_update_url')
-
-        try:
-            while (last_date < today):
-                last_date_1m = last_date + timedelta(days=30)
-                ldf = last_date.strftime('%Y%m%d')
-                ld1mf = last_date_1m.strftime('%Y%m%d')
-                update_url = f"{rid_lut_file_update_url}{ldf}/{ld1mf}"
-                logger.info(f'download publish lut file: {update_url}')
-                last_date = last_date_1m
-                updatefile = tempfile.NamedTemporaryFile().name
-                urllib.request.urlretrieve(update_url, updatefile)
-                update_lut = ascii.read(updatefile, delimiter=",", converters=converters)
-
-                if len(update_lut) < 1:
-                    continue
-                logger.info(f'found {len(update_lut)} entries')
-                rid_lut = vstack([rid_lut, update_lut])
-                # the stix datacenter API is throttled to 2 calls per second
-                time.sleep(0.5)
-        except Exception as e:
-            logger.error("RID API ERROR")
-            logger.error(e)
-
-        rid_lut = unique(rid_lut, silent=True)
-        ascii.write(rid_lut, file, overwrite=True, delimiter=",")
-        logger.info(f'write total {len(rid_lut)} entries to local storage')
-    else:
-        logger.info(f"read rid-lut from {file}")
-        rid_lut = ascii.read(file, delimiter=",", converters=converters)
-
-    rid_lut['description'] = [", ".join(r.values()) for r in
-                              rid_lut['subject', 'purpose', 'comment'].filled()]
-    rid_lut.add_index('unique_id')
-
-    return rid_lut
 
 
 def publish_fits_to_esa(args):
@@ -662,7 +583,7 @@ def publish_fits_to_esa(args):
     spice = Spice(spicemeta)
     Spice.instance = spice
 
-    rid_lut = read_rid_lut(Path(args.rid_lut_file), update=args.update_rid_lut)
+    RidLutManager.instance = RidLutManager(Path(args.rid_lut_file), update=args.update_rid_lut)
 
     scp = None
     if args.target_host != 'localhost':
@@ -822,7 +743,7 @@ def publish_fits_to_esa(args):
     published = defaultdict(list)
     for p in to_publish:
         try:
-            comment = add_BSD_comment(p, rid_lut)
+            comment = add_BSD_comment(p)
 
             if is_incomplete_file_name(p.name):
                 p = p.rename(p.parent / get_complete_file_name(p.name))

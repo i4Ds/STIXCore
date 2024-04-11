@@ -10,6 +10,7 @@ from stixcore.config.config import CONFIG
 from stixcore.data.test import test_data
 from stixcore.ephemeris.manager import Spice, SpiceKernelManager
 from stixcore.idb.manager import IDBManager
+from stixcore.io.RidLutManager import RidLutManager
 from stixcore.io.soc.manager import SOCManager
 from stixcore.processing.L0toL1 import Level1
 from stixcore.processing.LBtoL0 import Level0
@@ -144,6 +145,8 @@ def end2end_pipeline(indir, fitsdir):
 
     idbpath = Path(__file__).parent.parent.parent / "data" / "idb"
     IDBManager.instance = IDBManager(idbpath)  # force_version="2.26.35")
+
+    RidLutManager.instance = RidLutManager(Path(CONFIG.get('Publish', 'rid_lut_file')), update=True)
 
     PipelineStatus.log_setup()
 

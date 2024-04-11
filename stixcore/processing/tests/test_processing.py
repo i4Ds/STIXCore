@@ -60,7 +60,7 @@ def packet():
 
 
 def test_level_0_descaling_trigger(out_dir):
-    lb = test_data.products.LB_21_6_21_fits
+    lb = test_data.products.LB_21_6_21_fits_scaled
     l0 = Level0(out_dir / 'LB', out_dir)
     res = l0.process_fits_files(files=[lb])
     assert len(res) == 1
@@ -68,6 +68,17 @@ def test_level_0_descaling_trigger(out_dir):
     factor = fits.getval(res[0], 'TRIG_SCA')
     assert "trigger descaled with 30" in hist
     assert factor == 30
+
+
+def test_level_0_descaling_warning(out_dir):
+    lb = test_data.products.LB_21_6_24_scale_change
+    l0 = Level0(out_dir / 'LB', out_dir)
+    res = l0.process_fits_files(files=[lb])
+    assert len(res) == 1
+    datawarn = fits.getval(res[0], 'DATAWARN')
+    comment = fits.getval(res[0], 'COMMENT')
+    assert datawarn == 1
+    assert "Multiple compression schemes detected, trigger values maybe incorrect." in comment
 
 
 @pytest.mark.skip(reason="needs proper spice pointing kernels")

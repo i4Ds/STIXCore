@@ -302,6 +302,10 @@ class CompressedPixelData(ScienceProduct):
 
     @classmethod
     def from_levelb(cls, levelb, parent=''):
+        header_comments = []
+        header_history = []
+        additional_header_keywords = []
+
         packets, idb_versions, control = ScienceProduct.from_levelb(levelb, parent=parent)
 
         c_skm, c_skm_meta = _get_compression_scheme(packets, 'NIX00260')
@@ -310,8 +314,10 @@ class CompressedPixelData(ScienceProduct):
         t_skm, t_skm_meta = _get_compression_scheme(packets, 'NIX00242')
         control.add_data('compression_scheme_triggers_skm', (t_skm[0].reshape(1, 3), t_skm_meta))
 
-        header_history = []
-        additional_header_keywords = []
+        if np.unique(t_skm, axis=0).shape[0] != 1:
+            additional_header_keywords.append(('DATAWARN', 1, 'See comments'))
+            header_comments.append('Multiple compression schemes detected, '
+                                   'trigger values maybe incorrect')
 
         data = Data()
         try:
@@ -530,7 +536,8 @@ class CompressedPixelData(ScienceProduct):
                    data=data,
                    idb_versions=idb_versions,
                    packets=packets,
-                   history=header_history)
+                   history=header_history,
+                   comment=header_comments)
 
         prod.add_additional_header_keywords(additional_header_keywords)
         return prod
@@ -696,6 +703,10 @@ class Spectrogram(ScienceProduct):
 
     @classmethod
     def from_levelb(cls, levelb, parent=''):
+        header_comments = []
+        header_history = []
+        additional_header_keywords = []
+
         packets, idb_versions, control = ScienceProduct.from_levelb(levelb, parent=parent)
 
         c_skm, c_skm_meta = _get_compression_scheme(packets, 'NIX00268')
@@ -704,8 +715,10 @@ class Spectrogram(ScienceProduct):
         t_skm, t_skm_meta = _get_compression_scheme(packets, 'NIX00267')
         control.add_data('compression_scheme_triggers_skm', (t_skm[0].reshape(1, 3), t_skm_meta))
 
-        header_history = []
-        additional_header_keywords = []
+        if np.unique(t_skm, axis=0).shape[0] != 1:
+            additional_header_keywords.append(('DATAWARN', 1, 'See comments'))
+            header_comments.append('Multiple compression schemes detected, '
+                                   'trigger values maybe incorrect.')
 
         control['detector_masks'] = np.unique(_get_detector_mask(packets)[0], axis=0)
         control['detector_masks'] = fix_detector_mask(control, control['detector_masks'])
@@ -836,7 +849,8 @@ class Spectrogram(ScienceProduct):
                    data=data,
                    idb_versions=idb_versions,
                    packets=packets,
-                   history=header_history)
+                   history=header_history,
+                   comment=header_comments)
 
         prod.add_additional_header_keywords(additional_header_keywords)
         return prod

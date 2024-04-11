@@ -1,11 +1,14 @@
 import sys
+import shutil
 import logging
 import argparse
 from pathlib import Path
 
+import astropy.units as u
 from astropy.io import fits
 
 from stixcore.config.config import CONFIG
+from stixcore.products.product import Product
 from stixcore.time.datetime import SCETime
 from stixcore.util.logging import get_logger
 
@@ -62,10 +65,23 @@ def find_fits(args):
                         choices=["CRITICAL", "ERROR", "WARNING", "INFO", "DEBUG", "NOTSET"],
                         dest='log_level')
 
+    parser.add_argument("-c", "--copy",
+                        help="copy the found files into that dir", type=str,
+                        default=None, dest='copy_dest')
+
+    parser.add_argument("--parents",
+                        help="return the parents and not the fits itself",
+                        default=False,
+                        action='store_true', dest='get_parents')
+
     args = parser.parse_args(args)
 
     if args.log_level:
         logger.setLevel(logging.getLevelName(args.log_level))
+
+    if args.copy_dest:
+        args.copy_dest = Path(args.copy_dest)
+        args.copy_dest.mkdir(parents=True, exist_ok=True)
 
     fits_dir = Path(args.fits_dir)
 
@@ -132,22 +148,36 @@ def find_fits(args):
                 continue
 
         # prod = Product(c)
-        obt_beg = SCETime.from_string(fits.getval(c, 'OBT_BEG'))
-        obt_end = SCETime.from_string(fits.getval(c, 'OBT_END'))
+        try:
+            f_beg = SCETime.from_string(fits.getval(c, 'OBT_BEG'))[0]
+            f_end = SCETime.from_string(fits.getval(c, 'OBT_END'))[0]
+        except Exception:
+            f_beg = SCETime.from_float(fits.getval(c, 'OBT_BEG') * u.s)
+            f_end = SCETime.from_float(fits.getval(c, 'OBT_END') * u.s)
 
-        # obt filter overlapping
-        if not ((obt_beg >= args.start_obt and obt_end <= args.end_obt) or
-                (obt_beg >= args.start_obt and args.end_obt < obt_end) or
-                (obt_beg < args.start_obt and obt_end > args.start_obt)):
+        # obt filter included
+        if not ((f_beg >= args.start_obt and f_end <= args.end_obt)):
+            # should also overlap?
+            # or (f_beg > args.start_obt and f_beg < args.end_obt) or
+            #    (f_end > args.start_obt and f_end < args.end_obt)):
             continue
+        if args.get_parents:
+            p = Product(c)
+            found.extend(p.find_parent_files(fits_dir))
 
-        found.append(c)
+        else:
+            found.append(c)
 
     logger.info(f'#candidates: {n_candidates}')
     logger.info(f'#found: {len(found)}')
 
     for f in found:
         print(str(f))
+        if args.copy_dest:
+            fits_parent_path = f.relative_to(fits_dir)
+            target = args.copy_dest / fits_parent_path
+            target.parent.mkdir(parents=True, exist_ok=True)
+            shutil.copy2(f, target)
 
     return found
 

@@ -171,7 +171,7 @@ def find_fits(args):
     logger.info(f'#candidates: {n_candidates}')
     logger.info(f'#found: {len(found)}')
 
-    for f in found:
+    for f in sorted(found):
         print(str(f))
         if args.copy_dest:
             fits_parent_path = f.relative_to(fits_dir)

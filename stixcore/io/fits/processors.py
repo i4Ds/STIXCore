@@ -695,13 +695,6 @@ class FitsL0Processor:
         #     raise ValueError(f"Try to crate FITS file L0 for {product.level} data product")
         # if not isinstance(product.obt_beg, SCETime):
         #     raise ValueError("Expected SCETime as time format")
-        dmin = 0.0
-        dmax = 0.0
-        bunit = ' '
-        if 'counts' in product.data.colnames:
-            dmax = product.data['counts'].max().value
-            dmin = product.data['counts'].min().value
-            bunit = 'counts'
 
         headers = FitsProcessor.generate_common_header(filename, product, version=version) + (
             # Name, Value, Comment
@@ -716,9 +709,9 @@ class FitsL0Processor:
             ('DATE-BEG', product.scet_timerange.start.to_string(), 'Start time of observation'),
             ('DATE-AVG', product.scet_timerange.avg.to_string(), 'Average time of observation'),
             ('DATE-END', product.scet_timerange.end.to_string(), 'End time of observation'),
-            ('DATAMIN', dmin, 'Minimum valid physical value'),
-            ('DATAMAX', dmax, 'Maximum valid physical value'),
-            ('BUNIT', bunit, 'Units of physical value, after application of BSCALE, BZERO')
+            ('DATAMIN', product.dmin, 'Minimum valid physical value'),
+            ('DATAMAX', product.dmax, 'Maximum valid physical value'),
+            ('BUNIT', product.bunit, 'Units of physical value, after application of BSCALE, BZERO')
         )
 
         return headers
@@ -745,20 +738,11 @@ class FitsL1Processor(FitsL0Processor):
 
         headers = FitsProcessor.generate_common_header(filename, product, version=version)
 
-        dmin = 0.0
-        dmax = 0.0
-        bunit = ' '
-        exposure = 0.0
-        if 'counts' in product.data.colnames:
-            dmax = product.data['counts'].max().value
-            dmin = product.data['counts'].min().value
-            bunit = 'counts'
-            exposure = product.data['timedel'].as_float().min().to_value('s')
         data_headers = (
-            ('DATAMIN', dmin, 'Minimum valid physical value'),
-            ('DATAMAX', dmax, 'Maximum valid physical value'),
-            ('BUNIT', bunit, 'Units of physical value, after application of BSCALE, BZERO'),
-            ('XPOSURE', exposure, '[s] shortest exposure time')
+            ('DATAMIN', product.dmin, 'Minimum valid physical value'),
+            ('DATAMAX', product.dmax, 'Maximum valid physical value'),
+            ('BUNIT', product.bunit, 'Units of physical value, after application of BSCALE, BZERO'),
+            ('XPOSURE', product.exposure, '[s] shortest exposure time')
         )
 
         soop_keywords = SOOPManager.instance.get_keywords(start=product.utc_timerange.start,
@@ -972,6 +956,10 @@ class FitsL2Processor(FitsL1Processor):
             ('VERS_CFG', str(stixcore.__version_conf__),
              'Version of the common instrument configuration package'),
             ('HISTORY', 'Processed by STIXCore L2'),
+            ('DATAMIN', product.dmin, 'Minimum valid physical value'),
+            ('DATAMAX', product.dmax, 'Maximum valid physical value'),
+            ('BUNIT', product.bunit, 'Units of physical value, after application of BSCALE, BZERO'),
+            ('XPOSURE', product.exposure, '[s] shortest exposure time')
         )
 
         return L1headers, L2headers

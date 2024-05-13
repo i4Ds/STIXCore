@@ -69,6 +69,14 @@ class Spectra(QLProduct, L1Mixin):
         self.name = 'spectra'
         self.level = 'L1'
 
+    @property
+    def dmin(self):
+        return self.data['spectra'].min().value
+
+    @property
+    def dmax(self):
+        return self.data['spectra'].max().value
+
     @classmethod
     def is_datasource_for(cls,  *, service_type, service_subtype, ssid, **kwargs):
         return (kwargs['level'] == 'L1' and service_type == 21
@@ -89,6 +97,19 @@ class Variance(QLProduct, L1Mixin):
         self.name = 'variance'
         self.level = 'L1'
 
+    @property
+    def dmin(self):
+        return self.data['variance'].min()
+
+    @property
+    def dmax(self):
+        return self.data['variance'].max()
+
+    @property
+    def bunit(self):
+        # TODO define
+        return ' '
+
     @classmethod
     def is_datasource_for(cls,  *, service_type, service_subtype, ssid, **kwargs):
         return (kwargs['level'] == 'L1' and service_type == 21
@@ -108,6 +129,19 @@ class FlareFlag(QLProduct, L1Mixin):
 
         self.name = 'flareflag'
         self.level = 'L1'
+
+    @property
+    def dmin(self):
+        return min([self.data['loc_y'].min(), self.data['loc_z'].min()])
+
+    @property
+    def dmax(self):
+        return max([self.data['loc_y'].max(), self.data['loc_z'].max()])
+
+    @property
+    def bunit(self):
+        # TODO define
+        return ' '
 
     @classmethod
     def is_datasource_for(cls,  *, service_type, service_subtype, ssid, **kwargs):

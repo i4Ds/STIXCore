@@ -16,6 +16,7 @@ from stixcore.products.common import (
 )
 from stixcore.products.product import (
     ControlSci,
+    CountDataMixin,
     Data,
     EnergyChannelsMixin,
     FitsHeaderMixin,
@@ -71,7 +72,7 @@ class NotCombineException(Exception):
     pass
 
 
-class ScienceProduct(GenericProduct, EnergyChannelsMixin, FitsHeaderMixin):
+class ScienceProduct(CountDataMixin, GenericProduct, EnergyChannelsMixin, FitsHeaderMixin):
     """Generic science data product class composed of control and data."""
     def __init__(self, *, service_type, service_subtype, ssid, control, data, **kwargs):
         """Create a generic science data product composed of control and data.
@@ -682,6 +683,21 @@ class Visibility(ScienceProduct):
         prod.add_additional_header_keywords(additional_header_keywords)
         return prod
 
+    @property
+    def dmin(self):
+        # TODO define columns for dmin/max
+        return 0.0
+
+    @property
+    def dmax(self):
+        # TODO define columns for dmin/max
+        return 0.0
+
+    @property
+    def bunit(self):
+        # TODO define columns for dmin/max
+        return ' '
+
     @classmethod
     def is_datasource_for(cls, *, service_type, service_subtype, ssid, **kwargs):
         return (kwargs['level'] == 'L0' and service_type == 21
@@ -937,6 +953,24 @@ class Aspect(ScienceProduct):
                    data=data,
                    idb_versions=idb_versions,
                    packets=packets)
+
+    @property
+    def dmin(self):
+        return min([self.data['cha_diode0'].min(),
+                    self.data['cha_diode1'].min(),
+                    self.data['chb_diode0'].min(),
+                    self.data['chb_diode1'].min()])
+
+    @property
+    def dmax(self):
+        return max([self.data['cha_diode0'].max(),
+                    self.data['cha_diode1'].max(),
+                    self.data['chb_diode0'].max(),
+                    self.data['chb_diode1'].max()])
+
+    @property
+    def bunit(self):
+        return ' '
 
     @classmethod
     def is_datasource_for(cls, *, service_type, service_subtype, ssid, **kwargs):

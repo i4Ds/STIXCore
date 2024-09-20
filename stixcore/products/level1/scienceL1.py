@@ -1,5 +1,7 @@
 from collections import defaultdict
 
+import numpy as np
+
 from stixcore.products.level0.scienceL0 import ScienceProduct
 from stixcore.products.product import L1Mixin
 from stixcore.time import SCETimeRange
@@ -130,17 +132,17 @@ class Aspect(ScienceProduct, L1Mixin):
 
     @property
     def dmin(self):
-        return min([self.data['cha_diode0'].min(),
-                    self.data['cha_diode1'].min(),
-                    self.data['chb_diode0'].min(),
-                    self.data['chb_diode1'].min()])
+        return np.nanmin([self.data['cha_diode0'].min(),
+                          self.data['cha_diode1'].min(),
+                          self.data['chb_diode0'].min(),
+                          self.data['chb_diode1'].min()])
 
     @property
     def dmax(self):
-        return max([self.data['cha_diode0'].max(),
-                    self.data['cha_diode1'].max(),
-                    self.data['chb_diode0'].max(),
-                    self.data['chb_diode1'].max()])
+        return np.nanmax([self.data['cha_diode0'].max(),
+                          self.data['cha_diode1'].max(),
+                          self.data['chb_diode0'].max(),
+                          self.data['chb_diode1'].max()])
 
     @property
     def bunit(self):

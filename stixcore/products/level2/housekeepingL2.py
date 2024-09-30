@@ -344,11 +344,13 @@ class Ephemeris(HKProduct, L2Mixin):
 
     @property
     def dmin(self):
-        return min([self.data['y_srf'].min().value, self.data['z_srf'].min().value])
+        return min([self.data['y_srf'].min().to_value('arcsec'),
+                    self.data['z_srf'].min().to_value('arcsec')])
 
     @property
     def dmax(self):
-        return max([self.data['y_srf'].max().value, self.data['z_srf'].max().value])
+        return max([self.data['y_srf'].max().to_value('arcsec'),
+                    self.data['z_srf'].max().to_value('arcsec')])
 
     @property
     def bunit(self):

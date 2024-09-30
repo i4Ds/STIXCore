@@ -711,7 +711,9 @@ class FitsL0Processor:
             ('DATE-END', product.scet_timerange.end.to_string(), 'End time of observation'),
             ('DATAMIN', product.dmin, 'Minimum valid physical value'),
             ('DATAMAX', product.dmax, 'Maximum valid physical value'),
-            ('BUNIT', product.bunit, 'Units of physical value, after application of BSCALE, BZERO')
+            ('BUNIT', product.bunit, 'Units of physical value, after application of BSCALE, BZERO'),
+            ('XPOSURE', product.exposure, '[s] shortest exposure time'),
+            ('XPOMAX', product.max_exposure, '[s] maximum exposure time')
         )
 
         return headers
@@ -743,6 +745,7 @@ class FitsL1Processor(FitsL0Processor):
             ('DATAMAX', product.dmax, 'Maximum valid physical value'),
             ('BUNIT', product.bunit, 'Units of physical value, after application of BSCALE, BZERO'),
             ('XPOSURE', product.exposure, '[s] shortest exposure time')
+            ('XPOMAX', product.max_exposure, '[s] maximum exposure time')
         )
 
         soop_keywords = SOOPManager.instance.get_keywords(start=product.utc_timerange.start,
@@ -960,6 +963,7 @@ class FitsL2Processor(FitsL1Processor):
             ('DATAMAX', product.dmax, 'Maximum valid physical value'),
             ('BUNIT', product.bunit, 'Units of physical value, after application of BSCALE, BZERO'),
             ('XPOSURE', product.exposure, '[s] shortest exposure time')
+            ('XPOMAX', product.max_exposure, '[s] maximum exposure time')
         )
 
         return L1headers, L2headers

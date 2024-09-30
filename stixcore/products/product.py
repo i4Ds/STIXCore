@@ -517,6 +517,11 @@ class GenericProduct(BaseProduct):
         # default for FITS HEADER
         return 0.0
 
+    @property
+    def max_exposure(self):
+        # default for FITS HEADER
+        return 0.0
+
     def find_parent_products(self, root):
         """
         Conveniant way to get access to the parent products.
@@ -779,6 +784,10 @@ class CountDataMixin:
     @property
     def exposure(self):
         return self.data['timedel'].as_float().min().to_value('s')
+
+    @property
+    def max_exposure(self):
+        return self.data['timedel'].as_float().max().to_value('s')
 
 
 class EnergyChannelsMixin:

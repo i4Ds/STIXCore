@@ -247,7 +247,8 @@ def test_single_vs_batch(out_dir):
 
         for i, f_b in enumerate(files_b):
             f_s = files_s[i]
-            diff = FITSDiff(f_b, f_s, ignore_keywords=['CHECKSUM', 'DATASUM', 'DATE', 'VERS_SW'])
+            diff = FITSDiff(f_b, f_s, ignore_keywords=['CHECKSUM', 'DATASUM', 'DATE',
+                                                       'VERS_SW', 'VERS_CFG'])
             assert diff.identical
     finally:
         CONFIG.set('Logging', 'stop_on_error', str(CONTINUE_ON_ERROR))

@@ -6,6 +6,7 @@ from unittest.mock import patch
 import numpy as np
 import pytest
 
+import astropy.units as u
 from astropy.io import fits
 from astropy.table import QTable
 
@@ -138,6 +139,11 @@ def test_publish_fits_to_esa_incomplete(product, out_dir):
         product.date_obs = beg
         product.date_beg = beg
         product.date_end = end
+        product.exposure = 2
+        product.max_exposure = 3
+        product.dmin = 2
+        product.dmax = 3
+        product.bunit = "count"
         product.split_to_files.return_value = [product]
         product.get_energies = False
         product.get_processing_version.return_value = 2
@@ -203,6 +209,7 @@ def test_fits_incomplete_switch_over(out_dir):
             product.data = QTable({"time": t,
                                    "timedel": t-beg,
                                    "fcounts": np.array([1, 2]),
+                                   "counts": np.array([1, 2]) * u.deg_C,
                                    "control_index": [1, 1]})
             product.raw = ['packet1.xml', 'packet2.xml']
             product.parent = ['packet1.xml', 'packet2.xml']
@@ -218,6 +225,11 @@ def test_fits_incomplete_switch_over(out_dir):
             product.date_obs = beg
             product.date_beg = beg
             product.date_end = end
+            product.exposure = 2
+            product.max_exposure = 3
+            product.dmin = 2
+            product.dmax = 3
+            product.bunit = "counts"
             product.split_to_files.return_value = [product]
             product.get_energies = False
             product.get_processing_version.return_value = 2
@@ -256,6 +268,7 @@ def test_fits_incomplete_switch_over(out_dir):
             p = Product(get_complete_file_name_and_path(f))
             # old data.fcounts = [t1: 1, t2: 2]
             p.data['fcounts'][0] = 3
+            p.data['counts'] = 3 * u.deg_C
             # remove the second time stamp
             p.data.remove_row(1)
             # new data.fcounts = [t1: 3]
@@ -339,6 +352,11 @@ def test_publish_fits_to_esa(product, out_dir):
     product.date_obs = beg
     product.date_beg = beg
     product.date_end = end
+    product.exposure = 2
+    product.max_exposure = 3
+    product.dmin = 2
+    product.dmax = 3
+    product.bunit = "count"
     product.split_to_files.return_value = [product]
     product.get_processing_version.return_value = 2
     product.get_energies = False

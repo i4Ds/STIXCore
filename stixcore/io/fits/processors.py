@@ -744,7 +744,7 @@ class FitsL1Processor(FitsL0Processor):
             ('DATAMIN', product.dmin, 'Minimum valid physical value'),
             ('DATAMAX', product.dmax, 'Maximum valid physical value'),
             ('BUNIT', product.bunit, 'Units of physical value, after application of BSCALE, BZERO'),
-            ('XPOSURE', product.exposure, '[s] shortest exposure time')
+            ('XPOSURE', product.exposure, '[s] shortest exposure time'),
             ('XPOMAX', product.max_exposure, '[s] maximum exposure time')
         )
 
@@ -962,7 +962,7 @@ class FitsL2Processor(FitsL1Processor):
             ('DATAMIN', product.dmin, 'Minimum valid physical value'),
             ('DATAMAX', product.dmax, 'Maximum valid physical value'),
             ('BUNIT', product.bunit, 'Units of physical value, after application of BSCALE, BZERO'),
-            ('XPOSURE', product.exposure, '[s] shortest exposure time')
+            ('XPOSURE', product.exposure, '[s] shortest exposure time'),
             ('XPOMAX', product.max_exposure, '[s] maximum exposure time')
         )
 

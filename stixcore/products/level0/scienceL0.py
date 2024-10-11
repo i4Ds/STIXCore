@@ -956,17 +956,17 @@ class Aspect(ScienceProduct):
 
     @property
     def dmin(self):
-        return min([self.data['cha_diode0'].min(),
-                    self.data['cha_diode1'].min(),
-                    self.data['chb_diode0'].min(),
-                    self.data['chb_diode1'].min()])
+        return np.nanmin([self.data['cha_diode0'].min(),
+                          self.data['cha_diode1'].min(),
+                          self.data['chb_diode0'].min(),
+                          self.data['chb_diode1'].min()])
 
     @property
     def dmax(self):
-        return max([self.data['cha_diode0'].max(),
-                    self.data['cha_diode1'].max(),
-                    self.data['chb_diode0'].max(),
-                    self.data['chb_diode1'].max()])
+        return np.nanmax([self.data['cha_diode0'].max(),
+                          self.data['cha_diode1'].max(),
+                          self.data['chb_diode0'].max(),
+                          self.data['chb_diode1'].max()])
 
     @property
     def bunit(self):

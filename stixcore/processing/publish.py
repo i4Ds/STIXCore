@@ -358,7 +358,7 @@ do not answer to this mail.
 
 
 def update_ephemeris_headers(fits_file, spice):
-    """Updates all SPICE related data in FITS header.
+    """Updates all SPICE related data in FITS header and data table.
 
     Parameters
     ----------
@@ -368,7 +368,7 @@ def update_ephemeris_headers(fits_file, spice):
         Spice kernel manager with loaded spice kernels.
     """
     product = Product(fits_file)
-    if product.level in ['L1', 'L2']:
+    if product.level in ['L1', 'L2', 'ANC']:
         ephemeris_headers = \
             spice.get_fits_headers(start_time=product.utc_timerange.start,
                                    average_time=product.utc_timerange.center)
@@ -379,7 +379,7 @@ def update_ephemeris_headers(fits_file, spice):
                 # rename the header filename to be complete
                 hdu.header['FILENAME'] = get_complete_file_name(hdu.header['FILENAME'])
                 hdu.header.update(ephemeris_headers)
-                # just update the first prima HDU
+                # just update the first primary HDU
                 break
         logger.info(f"updated ephemeris headers of {fits_file}")
 
@@ -430,7 +430,7 @@ def add_history(p, name):
 
 
 def copy_file(scp, p, target_dir, add_history_entry=True):
-    """Copies FITS file top the designated SOAR out directory. Will use remote copy if set up.
+    """Copies FITS file to the designated SOAR out directory. Will use remote copy if set up.
 
     Parameters
     ----------
@@ -539,12 +539,12 @@ def publish_fits_to_esa(args):
 
     parser.add_argument("-l", "--include_levels",
                         help="what levels should be published", type=str,
-                        default=CONFIG.get('Publish', 'include_levels', fallback="L0, L1, L2"))
+                        default=CONFIG.get('Publish', 'include_levels', fallback="L0, L1, L2, ANC"))
 
     parser.add_argument("-p", "--include_products",
                         help="what products should be published", type=str,
                         default=CONFIG.get('Publish', 'include_products',
-                                           fallback="ql,hk,sci,aux,cal"))
+                                           fallback="ql,hk,sci,asp,cal"))
 
     parser.add_argument("-f", "--fits_dir",
                         help="input FITS directory for files to publish ",

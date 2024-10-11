@@ -4,6 +4,8 @@
 
 from collections import defaultdict
 
+import numpy as np
+
 from stixcore.products.level0.quicklookL0 import QLProduct
 from stixcore.products.product import L1Mixin
 from stixcore.time import SCETimeRange
@@ -132,11 +134,11 @@ class FlareFlag(QLProduct, L1Mixin):
 
     @property
     def dmin(self):
-        return min([self.data['loc_y'].min(), self.data['loc_z'].min()])
+        return np.nanmin([self.data['loc_y'].min(), self.data['loc_z'].min()])
 
     @property
     def dmax(self):
-        return max([self.data['loc_y'].max(), self.data['loc_z'].max()])
+        return np.nanmax([self.data['loc_y'].max(), self.data['loc_z'].max()])
 
     @property
     def bunit(self):

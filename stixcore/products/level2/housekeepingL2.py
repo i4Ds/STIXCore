@@ -336,20 +336,20 @@ class Ephemeris(HKProduct, L2Mixin):
                          ssid=ssid, control=control, data=data,
                          idb_versions=idb_versions, **kwargs)
         self.name = 'ephemeris'
-        self.level = 'L2'
-        self.type = 'aux'
+        self.level = 'ANC'
+        self.type = 'asp'
         self.ssid = 1
         self.service_subtype = 0
         self.service_type = 0
 
     @property
     def dmin(self):
-        return min([self.data['y_srf'].min().to_value('arcsec'),
+        return np.nanmin([self.data['y_srf'].min().to_value('arcsec'),
                     self.data['z_srf'].min().to_value('arcsec')])
 
     @property
     def dmax(self):
-        return max([self.data['y_srf'].max().to_value('arcsec'),
+        return np.nanmax([self.data['y_srf'].max().to_value('arcsec'),
                     self.data['z_srf'].max().to_value('arcsec')])
 
     @property
@@ -358,5 +358,5 @@ class Ephemeris(HKProduct, L2Mixin):
 
     @classmethod
     def is_datasource_for(cls, *, service_type, service_subtype, ssid, **kwargs):
-        return (kwargs['level'] == 'L2' and service_type == 0
+        return (kwargs['level'] == 'ANC' and service_type == 0
                 and service_subtype == 0 and ssid == 1)

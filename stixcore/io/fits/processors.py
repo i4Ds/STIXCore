@@ -28,6 +28,10 @@ Y_M_D_H_M = "%Y%m%d%H%M"
 NAN = 2 ** 32 - 1
 
 
+def empty_if_nan(val):
+    return "" if np.isnan(val) else val
+
+
 def version_format(version):
     # some very strange work around for direct use of format '{0:02d}'.format(version)
     # as this is not supported by magicMoc
@@ -741,8 +745,8 @@ class FitsL1Processor(FitsL0Processor):
         headers = FitsProcessor.generate_common_header(filename, product, version=version)
 
         data_headers = (
-            ('DATAMIN', product.dmin, 'Minimum valid physical value'),
-            ('DATAMAX', product.dmax, 'Maximum valid physical value'),
+            ('DATAMIN', empty_if_nan(product.dmin), 'Minimum valid physical value'),
+            ('DATAMAX', empty_if_nan(product.dmax), 'Maximum valid physical value'),
             ('BUNIT', product.bunit, 'Units of physical value, after application of BSCALE, BZERO'),
             ('XPOSURE', product.exposure, '[s] shortest exposure time'),
             ('XPOMAX', product.max_exposure, '[s] maximum exposure time')
@@ -934,8 +938,8 @@ class FitsL2Processor(FitsL1Processor):
         if version == 0:
             version = product.get_processing_version()
 
-        # TODO remove writeout supression of all products but aux files
-        if product.type == 'aux':
+        # TODO remove writeout supression of all products but ANC files
+        if product.level == 'ANC':
             return super().write_fits(product, version=version)
         else:
             logger.info(f"no writeout of L2 {product.type}-{product.name} FITS files.")
@@ -954,13 +958,13 @@ class FitsL2Processor(FitsL1Processor):
         # new or override keywords
         L2headers = (
             # Name, Value, Comment
-            ('LEVEL', 'L2', 'Processing level of the data'),
+            ('LEVEL', product.level, 'Processing level of the data'),
             ('VERS_SW', str(stixcore.__version__), 'Version of SW that provided FITS file'),
             ('VERS_CFG', str(stixcore.__version_conf__),
              'Version of the common instrument configuration package'),
             ('HISTORY', 'Processed by STIXCore L2'),
-            ('DATAMIN', product.dmin, 'Minimum valid physical value'),
-            ('DATAMAX', product.dmax, 'Maximum valid physical value'),
+            ('DATAMIN', empty_if_nan(product.dmin), 'Minimum valid physical value'),
+            ('DATAMAX', empty_if_nan(product.dmax), 'Maximum valid physical value'),
             ('BUNIT', product.bunit, 'Units of physical value, after application of BSCALE, BZERO'),
             ('XPOSURE', product.exposure, '[s] shortest exposure time'),
             ('XPOMAX', product.max_exposure, '[s] maximum exposure time')

@@ -583,11 +583,11 @@ class FlareFlag(QLProduct):
 
     @property
     def dmin(self):
-        return min([self.data['loc_y'].min(), self.data['loc_z'].min()])
+        return np.nanmin([self.data['loc_y'].min(), self.data['loc_z'].min()])
 
     @property
     def dmax(self):
-        return max([self.data['loc_y'].max(), self.data['loc_z'].max()])
+        return np.nanmax([self.data['loc_y'].max(), self.data['loc_z'].max()])
 
     @property
     def bunit(self):

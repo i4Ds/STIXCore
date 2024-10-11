@@ -342,6 +342,20 @@ class Ephemeris(HKProduct, L2Mixin):
         self.service_subtype = 0
         self.service_type = 0
 
+    @property
+    def dmin(self):
+        return min([self.data['y_srf'].min().to_value('arcsec'),
+                    self.data['z_srf'].min().to_value('arcsec')])
+
+    @property
+    def dmax(self):
+        return max([self.data['y_srf'].max().to_value('arcsec'),
+                    self.data['z_srf'].max().to_value('arcsec')])
+
+    @property
+    def bunit(self):
+        return 'arcsec'
+
     @classmethod
     def is_datasource_for(cls, *, service_type, service_subtype, ssid, **kwargs):
         return (kwargs['level'] == 'L2' and service_type == 0

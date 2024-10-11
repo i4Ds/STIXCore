@@ -497,6 +497,31 @@ class GenericProduct(BaseProduct):
     def parent(self):
         return np.unique(self.control['parent']).tolist()
 
+    @property
+    def dmin(self):
+        # default for FITS HEADER
+        return 0.0
+
+    @property
+    def dmax(self):
+        # default for FITS HEADER
+        return 0.0
+
+    @property
+    def bunit(self):
+        # default for FITS HEADER
+        return ' '
+
+    @property
+    def exposure(self):
+        # default for FITS HEADER
+        return 0.0
+
+    @property
+    def max_exposure(self):
+        # default for FITS HEADER
+        return 0.0
+
     def find_parent_products(self, root):
         """
         Conveniant way to get access to the parent products.
@@ -741,6 +766,28 @@ class GenericProduct(BaseProduct):
     @property
     def fits_daily_file(self):
         return False
+
+
+class CountDataMixin:
+    @property
+    def dmin(self):
+        return self.data['counts'].min().value
+
+    @property
+    def dmax(self):
+        return self.data['counts'].max().value
+
+    @property
+    def bunit(self):
+        return 'counts'
+
+    @property
+    def exposure(self):
+        return self.data['timedel'].as_float().min().to_value('s')
+
+    @property
+    def max_exposure(self):
+        return self.data['timedel'].as_float().max().to_value('s')
 
 
 class EnergyChannelsMixin:

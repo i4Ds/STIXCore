@@ -75,6 +75,21 @@ class Visibility(ScienceProduct, L1Mixin):
         self.name = 'xray-vis'
         self.level = 'L1'
 
+    @property
+    def dmin(self):
+        # TODO define columns for dmin/max
+        return 0.0
+
+    @property
+    def dmax(self):
+        # TODO define columns for dmin/max
+        return 0.0
+
+    @property
+    def bunit(self):
+        # TODO define columns for dmin/max
+        return ' '
+
     @classmethod
     def is_datasource_for(cls, *, service_type, service_subtype, ssid, **kwargs):
         return (kwargs['level'] == 'L1' and service_type == 21
@@ -112,6 +127,24 @@ class Aspect(ScienceProduct, L1Mixin):
                          ssid=ssid, control=control, data=data, idb_versions=idb_versions, **kwargs)
         self.name = 'aspect-burst'
         self.level = 'L1'
+
+    @property
+    def dmin(self):
+        return min([self.data['cha_diode0'].min(),
+                    self.data['cha_diode1'].min(),
+                    self.data['chb_diode0'].min(),
+                    self.data['chb_diode1'].min()])
+
+    @property
+    def dmax(self):
+        return max([self.data['cha_diode0'].max(),
+                    self.data['cha_diode1'].max(),
+                    self.data['chb_diode0'].max(),
+                    self.data['chb_diode1'].max()])
+
+    @property
+    def bunit(self):
+        return ' '
 
     @classmethod
     def is_datasource_for(cls, *, service_type, service_subtype, ssid, **kwargs):

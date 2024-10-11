@@ -18,7 +18,13 @@ from stixcore.products.common import (
     rebin_proportional,
     unscale_triggers,
 )
-from stixcore.products.product import Control, Data, EnergyChannelsMixin, GenericProduct
+from stixcore.products.product import (
+    Control,
+    CountDataMixin,
+    Data,
+    EnergyChannelsMixin,
+    GenericProduct,
+)
 from stixcore.time import SCETime, SCETimeDelta, SCETimeRange
 from stixcore.util.logging import get_logger
 
@@ -32,7 +38,7 @@ logger = get_logger(__name__)
 QLNIX00405_off = 0.1
 
 
-class QLProduct(GenericProduct, EnergyChannelsMixin):
+class QLProduct(CountDataMixin, GenericProduct, EnergyChannelsMixin):
     """Generic QL product class composed of control and data."""
     def __init__(self, *, service_type, service_subtype, ssid, control, data,
                  idb_versions=defaultdict(SCETimeRange), **kwargs):
@@ -400,6 +406,14 @@ class Spectra(QLProduct):
                    idb_versions=idb_versions,
                    packets=packets)
 
+    @property
+    def dmin(self):
+        return self.data['spectra'].min().value
+
+    @property
+    def dmax(self):
+        return self.data['spectra'].max().value
+
     @classmethod
     def _get_time(cls, control, num_energies, packets, pad_before, pad_after):
         times = []
@@ -494,6 +508,19 @@ class Variance(QLProduct):
                    idb_versions=idb_versions,
                    packets=packets)
 
+    @property
+    def dmin(self):
+        return self.data['variance'].min()
+
+    @property
+    def dmax(self):
+        return self.data['variance'].max()
+
+    @property
+    def bunit(self):
+        # TODO define
+        return ' '
+
     @classmethod
     def is_datasource_for(cls, *, service_type, service_subtype, ssid, **kwargs):
         return (kwargs['level'] == 'L0' and service_type == 21
@@ -553,6 +580,19 @@ class FlareFlag(QLProduct):
                    data=data,
                    idb_versions=idb_versions,
                    packets=packets)
+
+    @property
+    def dmin(self):
+        return min([self.data['loc_y'].min(), self.data['loc_z'].min()])
+
+    @property
+    def dmax(self):
+        return max([self.data['loc_y'].max(), self.data['loc_z'].max()])
+
+    @property
+    def bunit(self):
+        # TODO define
+        return ' '
 
     @classmethod
     def is_datasource_for(cls, *, service_type, service_subtype, ssid, **kwargs):
@@ -783,6 +823,21 @@ class TMStatusFlareList(QLProduct):
                    data=data,
                    idb_versions=idb_versions,
                    packets=packets)
+
+    @property
+    def dmin(self):
+        # TODO define
+        return 0.0
+
+    @property
+    def dmax(self):
+        # TODO define
+        return 0.0
+
+    @property
+    def bunit(self):
+        # TODO define
+        return ''
 
     @classmethod
     def is_datasource_for(cls, *, service_type, service_subtype, ssid, **kwargs):

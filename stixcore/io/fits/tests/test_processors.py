@@ -7,6 +7,7 @@ from astropy.table import QTable
 
 from stixcore.data.test import test_data
 from stixcore.io.fits.processors import FitsL0Processor, FitsL1Processor, FitsLBProcessor
+from stixcore.products.product import Product
 from stixcore.soop.manager import SOOPManager
 from stixcore.time import SCETime, SCETimeRange
 
@@ -145,6 +146,7 @@ def test_level0_processor_generate_primary_header(datetime, product):
     product.obs_beg = SCETime(coarse=0, fine=0)
     product.obs_avg = SCETime(coarse=0, fine=2 ** 15)
     product.obs_end = SCETime(coarse=1, fine=2 ** 15)
+
     product.scet_timerange = SCETimeRange(start=product.obs_beg, end=product.obs_end)
     product.raw = ['packet1.xml', 'packet2.xml']
     product.parent = ['lb1.fits', 'lb2.fts']
@@ -172,6 +174,31 @@ def test_level0_processor_generate_primary_header(datetime, product):
     }
 
     header = processor.generate_primary_header('a_filename.fits', product)
+    for name, value, *comment in header:
+        if name in test_data.keys():
+            assert value == test_data[name]
+
+
+@pytest.mark.parametrize('p_file', [test_data.products.L0_LightCurve_fits[0],
+                                    test_data.products.L1_LightCurve_fits[0]],
+                         ids=["ql_l0", "ql_l1"])
+def test_count_data_mixin(p_file):
+    processor = FitsL0Processor('some/path')
+    p = Product(p_file)
+    assert p.dmin == p.data["counts"].min().value
+    assert p.dmax == p.data["counts"].max().value
+    assert p.exposure == p.data["timedel"].min().as_float().to_value()
+    assert p.max_exposure == p.data["timedel"].max().as_float().to_value()
+
+    test_data = {
+        "DATAMAX": p.dmax,
+        "DATAMIN": p.dmin,
+        "XPOSURE": p.exposure,
+        "XPOMAX": p.max_exposure,
+        "BUNIT": "counts"
+    }
+
+    header = processor.generate_primary_header('a_filename.fits', p)
     for name, value, *comment in header:
         if name in test_data.keys():
             assert value == test_data[name]

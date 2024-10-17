@@ -905,6 +905,10 @@ class L2Mixin(FitsHeaderMixin):
         return [l2]
 
 
+class L3Mixin(FitsHeaderMixin):
+    pass
+
+
 class DefaultProduct(GenericProduct, L1Mixin, L2Mixin):
     """
     Default product use when not QL or BSD.

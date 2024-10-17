@@ -3,6 +3,7 @@ import sys
 import logging
 from enum import Enum
 from pathlib import Path
+from datetime import datetime
 from textwrap import wrap
 from collections import defaultdict
 
@@ -70,6 +71,9 @@ class SpiceKernelType(Enum):
 class SpiceKernelManager():
     """A class to manage Spice kernels in the local file system."""
 
+    MK_DATE_PATTERN = re.compile(r"solo_ANC_soc.*_(\d{4})(\d{2})(\d{2})_.*.tm")
+    OLDEST_MK_DATE = datetime.fromisoformat("2019-01-01T00:00:00.000")
+
     def __init__(self, path):
         """Creates a new SpiceKernelManager
 
@@ -100,22 +104,35 @@ class SpiceKernelManager():
 
         return files[0:top_n] if top_n > 1 else [files[0]]
 
-    def get_latest_sclk(self, *, top_n=1):
-        return self._get_latest(SpiceKernelType.SCLK, top_n=top_n)
-
-    def get_latest_lsk(self, *, top_n=1):
-        return self._get_latest(SpiceKernelType.LSK, top_n=top_n)
-
     def get_latest_mk(self, *, top_n=1):
-        return self._get_latest(SpiceKernelType.MK, top_n=top_n)
+        return [SpiceKernelManager.get_mk_meta(mkp)
+                for mkp in self._get_latest(SpiceKernelType.MK, top_n=top_n)]
 
     def get_latest_mk_pred(self, *, top_n=1):
-        return self._get_latest(SpiceKernelType.MK_PRED, top_n=top_n)
+        return [SpiceKernelManager.get_mk_meta(mkp)
+                for mkp in self._get_latest(SpiceKernelType.MK_PRED, top_n=top_n)]
 
     def get_latest_mk_and_pred(self, *, top_n=1):
-        mks = self._get_latest(SpiceKernelType.MK_PRED, top_n=top_n)
-        mks.extend(self._get_latest(SpiceKernelType.MK, top_n=top_n))
+        mks = self.get_latest_mk_pred(top_n=top_n)
+        mks.extend(self.get_latest_mk(top_n=top_n))
         return mks
+
+    @classmethod
+    def get_mk_date(cls, path: Path):
+        try:
+            ds = SpiceKernelManager.MK_DATE_PATTERN.findall(path.name)[0]
+            return datetime.fromisoformat(f"{ds[0]}-{ds[1]}-{ds[2]}T00:00:00.000")
+        except Exception:
+            # return a date before the start so that comparisons will fail
+            # TODO check if this is OK
+            return SpiceKernelManager.OLDEST_MK_DATE
+        return None
+
+    @classmethod
+    def get_mk_meta(cls, path: Path):
+        date = cls.get_mk_date(path)
+        type = "flown" if "-flown-" in path.name else "pred"
+        return (path, type, date)
 
     def get_latest(self, kerneltype=SpiceKernelType.MK, *, top_n=1):
         """Finds the latest version of the spice kernel.
@@ -149,7 +166,9 @@ class SpiceKernelLoader:
         # unload all old kernels
         spiceypy.kclear()
 
-        for meta_kernel_path in np.atleast_1d(meta_kernel_pathes):
+        self.mk_dates = defaultdict(lambda: SpiceKernelManager.OLDEST_MK_DATE)
+
+        for meta_kernel_path, mk_type, mk_date in np.atleast_1d(meta_kernel_pathes):
             try:
                 meta_kernel_path = Path(meta_kernel_path)
                 if not meta_kernel_path.exists():
@@ -177,12 +196,16 @@ class SpiceKernelLoader:
                 # load the meta kernel
                 spiceypy.furnsh(str(abs_file))
                 logger.info(f"LOADING NEW META KERNEL: {meta_kernel_path}")
-                self.meta_kernel_path.append(meta_kernel_path)
+                self.meta_kernel_path.append((meta_kernel_path, mk_type, mk_date))
+                self.mk_dates[mk_type] = max(self.mk_dates[mk_type], mk_date)
             except Exception as e:
                 logger.warning(f"Failed LOADING NEW META KERNEL: {meta_kernel_path}\n{e}")
 
         if len(self.meta_kernel_path) == 0:
             raise ValueError(f"Failed to load any NEW META KERNEL: {meta_kernel_pathes}")
+
+    def get_mk_date(self, meta_kernel_type="flown"):
+        return self.mk_dates[meta_kernel_type]
 
     @staticmethod
     def _wrap_value_field(field):
@@ -446,7 +469,7 @@ class Spice(SpiceKernelLoader, metaclass=Singleton):
         except (SpiceBADPARTNUMBER, SpiceINVALIDSCLKSTRING):
             et = spiceypy.utc2et(average_time.isot)
 
-        headers = (('SPICE_MK', ', '.join([mk.name for mk in self.meta_kernel_path]),
+        headers = (('SPICE_MK', ', '.join([mkp.name for mkp, mkt, mkd in self.meta_kernel_path]),
                     'SPICE meta kernel file'),)
 
         header_results = defaultdict(lambda: '')

@@ -1,15 +1,54 @@
+from enum import Enum
 from pathlib import Path
+from datetime import datetime
 from collections import defaultdict
 from concurrent.futures import ProcessPoolExecutor
 
 from stixcore.config.config import CONFIG
 from stixcore.ephemeris.manager import Spice
 from stixcore.io.fits.processors import FitsL1Processor, FitsL3Processor
+from stixcore.products.product import GenericProduct
 from stixcore.soop.manager import SOOPManager
 from stixcore.util.logging import get_logger
 from stixcore.util.util import get_complete_file_name
 
+__all__ = ['TestForProcessingResult', 'SingleProductProcessingStepMixin']
+
 logger = get_logger(__name__)
+
+
+class TestForProcessingResult(Enum):
+    NotSuitable = 0
+    ToIgnore = 1
+    Suitable = 2
+
+
+class SingleProcessingStepResult():
+    def __init__(self, name, level, type, version, out_path: Path, in_path: Path, date: datetime):
+        self.name = name
+        self.level = level
+        self.type = type
+        self.version = version
+        self.out_path = out_path
+        self.in_path = in_path
+        self.date = date
+
+
+class SingleProductProcessingStepMixin():
+    INPUT_PATTERN = "*.fits"
+
+    @property
+    def ProductInputPattern(cls):
+        return cls.INPUT_PATTERN
+
+    def test_for_processing(self, path: Path) -> TestForProcessingResult:
+        pass
+
+    def process(self, product: GenericProduct) -> GenericProduct:
+        pass
+
+    def write_fits(self, product: GenericProduct, folder: Path) -> Path:
+        pass
 
 
 class FLLevel3:

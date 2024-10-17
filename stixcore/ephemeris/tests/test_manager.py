@@ -1,3 +1,5 @@
+from datetime import datetime
+
 import pytest
 
 from stixcore.config.config import CONFIG
@@ -12,7 +14,7 @@ def spicekernelmanager():
 
 def test_loader_nokernel():
     with pytest.raises(ValueError) as e:
-        Spice(meta_kernel_pathes='notreal.mk')
+        Spice(meta_kernel_pathes=[('notreal.mk', "flown", datetime.now())])
     assert str(e.value).startswith("Failed to load any NEW META KERNEL")
 
 

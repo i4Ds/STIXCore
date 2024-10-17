@@ -1,57 +1,83 @@
 import sys
+import shutil
 import logging
 import smtplib
 import argparse
-from pprint import pformat
 from pathlib import Path
 from datetime import date
+from concurrent.futures import ProcessPoolExecutor
 
 from stixcore.config.config import CONFIG
 from stixcore.ephemeris.manager import Spice, SpiceKernelManager
-from stixcore.processing.FLtoL3 import FLLevel3
+from stixcore.io.fits.processors import FitsL2Processor
+from stixcore.io.FlareListProductsStorage import ProcessingHistoryStorage
+from stixcore.io.RidLutManager import RidLutManager
+from stixcore.processing.AspectANC import AspectANC
+from stixcore.processing.pipeline import PipelineStatus
+from stixcore.processing.SingleStep import SingleProcessingStepResult, TestForProcessingResult
 from stixcore.soop.manager import SOOPManager
-from stixcore.util.logging import get_logger
+from stixcore.util.logging import STX_LOGGER_DATE_FORMAT, STX_LOGGER_FORMAT, get_logger
 
 logger = get_logger(__name__)
 
 
-def send_mail_report(timeranges):
-    """Sends a report mail to configured receivers after each run.
+class DailyPipelineErrorReport(logging.StreamHandler):
+    """Adds file and mail report Handler to a processing step."""
+    def __init__(self, log_file: Path, log_level):
+        """Create a PipelineErrorReport
+        """
+        logging.StreamHandler.__init__(self)
 
-    Parameters
-    ----------
-    files : dict
-        all handled files grouped by the success/error state
-    """
-    if CONFIG.getboolean('Pipeline', 'report_mail_send', fallback=False):
-        try:
-            sender = CONFIG.get('Pipeline', 'error_mail_sender', fallback='')
-            receivers = CONFIG.get('Pipeline', 'error_mail_receivers').split(",")
-            host = CONFIG.get('Pipeline', 'error_mail_smpt_host', fallback='localhost')
-            port = CONFIG.getint('Pipeline', 'error_mail_smpt_port', fallback=25)
-            smtp_server = smtplib.SMTP(host=host, port=port)
-            su = "subject"
-            error = "" if len(timeranges["errors"]) <= 0 else "ERROR-"
-            message = f"""Subject: StixCore Daily Pipeline {error}Report {su}
+        self.log_file = log_file
+        self.err_file = log_file.with_suffix(".err")
 
-ERRORS
-******
-{pformat(timeranges["errors"])}
+        self.fh = logging.FileHandler(filename=self.log_file, mode="a+")
+        self.fh.setFormatter(logging.Formatter(STX_LOGGER_FORMAT, datefmt=STX_LOGGER_DATE_FORMAT))
+        self.fh.setLevel(logging.getLevelName(log_level))
 
-PROCESSED
-*********
-{pformat(timeranges["processed"])}
+        self.setLevel(logging.ERROR)
+        self.allright = True
+        self.error = None
+        logging.getLogger().addHandler(self)
+        logging.getLogger().addHandler(self.fh)
 
+    def emit(self, record):
+        """Called in case of a logging event."""
+        self.allright = False
+        self.error = record
+
+    def __enter__(self):
+        return self
+
+    def __exit__(self, type, value, traceback):
+        logging.getLogger().removeHandler(self)
+        self.fh.flush()
+        logging.getLogger().removeHandler(self.fh)
+
+        if not self.allright:
+            shutil.copyfile(self.log_file, self.err_file)
+            if CONFIG.getboolean('Pipeline', 'error_mail_send', fallback=False):
+                try:
+                    sender = CONFIG.get('Pipeline', 'error_mail_sender', fallback='')
+                    receivers = CONFIG.get('Pipeline', 'error_mail_receivers').split(",")
+                    host = CONFIG.get('Pipeline', 'error_mail_smpt_host', fallback='localhost')
+                    port = CONFIG.getint('Pipeline', 'error_mail_smpt_port', fallback=25)
+                    smtp_server = smtplib.SMTP(host=host, port=port)
+                    message = f"""Subject: StixCore Daily Processing Error
+
+Error while processing
+
+login to pub099.cs.technik.fhnw.ch and check:
+
+{self.err_file}
 
 StixCore
-
 ==========================
-
 do not answer to this mail.
 """
-            smtp_server.sendmail(sender, receivers, message)
-        except Exception as e:
-            logger.error(f"Error: unable to send report email: {e}")
+                    smtp_server.sendmail(sender, receivers, message)
+                except Exception as e:
+                    logger.error(f"Error: unable to send error email: {e}")
 
 
 def run_daily_pipeline(args):
@@ -74,11 +100,15 @@ def run_daily_pipeline(args):
     # pathes
     parser.add_argument("-d", "--db_file",
                         help="Path to the history publishing database", type=str,
-                        default=CONFIG.get('Publish', 'db_file',
-                                           fallback=str(Path.home() / "published.sqlite")))
+                        default=CONFIG.get('Pipeline', 'history_db_file',
+                                           fallback=str(Path.home() / "processed.sqlite")))
 
-    parser.add_argument("-f", "--fits_dir",
-                        help="output directory for the ",
+    parser.add_argument("-i", "--fits_in_dir",
+                        help="input fits directory",
+                        default=CONFIG.get('Paths', 'fits_archive'), type=str)
+
+    parser.add_argument("-o", "--fits_out_dir",
+                        help="output fits directory",
                         default=CONFIG.get('Paths', 'fits_archive'), type=str)
 
     parser.add_argument("-s", "--spice_dir",
@@ -93,7 +123,7 @@ def run_daily_pipeline(args):
                         help="directory to the SOOP files",
                         default=CONFIG.get('Paths', 'soop_files'), type=str)
 
-    parser.add_argument("-o", "--log_dir",
+    parser.add_argument("-O", "--log_dir",
                         help="output directory for daily logging ",
                         default=CONFIG.get('Publish', 'log_dir', fallback=str(Path.home())),
                         type=str, dest='log_dir')
@@ -105,63 +135,118 @@ def run_daily_pipeline(args):
 
     parser.add_argument("--log_level",
                         help="the level of logging",
-                        default=None, type=str,
+                        default="INFO", type=str,
                         choices=["CRITICAL", "ERROR", "WARNING", "INFO", "DEBUG", "NOTSET"],
                         dest='log_level')
 
+    parser.add_argument("-r", "--rid_lut_file",
+                        help=("Path to the rid LUT file"),
+                        default=CONFIG.get('Publish', 'rid_lut_file'), type=str)
+
+    parser.add_argument("--update_rid_lut",
+                        help="update rid lut file before publishing",
+                        default=False,
+                        action='store_true', dest='update_rid_lut')
+
     args = parser.parse_args(args)
 
-    logging.basicConfig(format='%(asctime)s %(message)s', force=True,
-                        filename=(Path(args.log_dir) /
-                                  f"dailypipeline_{date.today().strftime('%Y%m%d')}.log"),
-                        filemode="a+")
-
-    if args.log_level:
-        logging.getLogger().setLevel(logging.getLevelName(args.log_level))
-
     # pathes
-    CONFIG.set('Paths', 'fits_archive', args.fits_dir)
+    CONFIG.set('Paths', 'fits_archive', args.fits_in_dir)
     CONFIG.set('Paths', 'spice_kernels', args.spice_dir)
     CONFIG.set('Paths', 'soop_files', args.soop_dir)
 
     # logging
     CONFIG.set('Logging', 'stop_on_error', str(args.stop_on_error))
 
-    if args.spice_file:
-        spicemeta = Path(args.spice_file)
-    else:
-        _spm = SpiceKernelManager(Path(CONFIG.get('Paths', 'spice_kernels')))
-        spicemeta = _spm.get_latest_mk_and_pred()
+    with DailyPipelineErrorReport(Path(args.log_dir) /
+                                  f"dailypipeline_{date.today().strftime('%Y%m%d')}.log",
+                                  args.log_level):
 
-    Spice.instance = Spice(spicemeta)
+        if args.spice_file:
+            spicemeta = [SpiceKernelManager.get_mk_meta(Path(args.spice_file))]
+        else:
+            _spm = SpiceKernelManager(Path(CONFIG.get('Paths', 'spice_kernels')))
+            spicemeta = _spm.get_latest_mk_and_pred()
 
-    SOOPManager.instance = SOOPManager(Path(CONFIG.get('Paths', 'soop_files')))
+        Spice.instance = Spice(spicemeta)
 
-    fitsdir = Path(CONFIG.get('Paths', 'fits_archive'))
+        SOOPManager.instance = SOOPManager(Path(CONFIG.get('Paths', 'soop_files')))
 
-    db_file = Path(args.db_file)
-    fits_dir = Path(args.fits_dir)
-    if not fits_dir.exists():
-        logger.error(f'path not found to input files: {fits_dir}')
-        return
+        RidLutManager.instance = RidLutManager(Path(args.rid_lut_file), update=args.update_rid_lut)
 
-    logger.info(f'db_file: {db_file}')
-    logger.info(f'fits_dir: {fits_dir}')
-    logger.info(f"send Mail report: {CONFIG.getboolean('Pipeline', 'error_mail_send')}")
-    logger.info(f"receivers: {CONFIG.get('Pipeline', 'error_mail_receivers')}")
-    logger.info(f'log dir: {args.log_dir}')
-    logger.info(f'log level: {args.log_level}')
-    logger.info(f'Spice: {Spice.instance.meta_kernel_path}')
+        Path(CONFIG.get('Paths', 'fits_archive'))
 
-    logger.info("\nstart daily pipeline\n")
+        db_file = Path(args.db_file)
+        fits_in_dir = Path(args.fits_in_dir)
+        if not fits_in_dir.exists():
+            logger.error(f'path not found to input files: {fits_in_dir}')
+            return
 
-    processed_timeranges = {}
+        fits_out_dir = Path(args.fits_out_dir)
+        if not fits_out_dir.exists():
+            logger.error(f'path not found to input files: {fits_out_dir}')
+            return
 
-    l3_proc = FLLevel3(fitsdir, fitsdir, db_file)
-    processed_timeranges = l3_proc.process_fits_files()
+        PipelineStatus.log_setup()
 
-    send_mail_report(processed_timeranges)
-    return processed_timeranges
+        logger.info("PARAMETER:")
+        logger.info(f'db_file: {db_file}')
+        logger.info(f'fits_in_dir: {fits_in_dir}')
+        logger.info(f'fits_out_dir: {fits_out_dir}')
+        logger.info(f"send Mail report: {CONFIG.getboolean('Pipeline', 'error_mail_send')}")
+        logger.info(f"receivers: {CONFIG.get('Pipeline', 'error_mail_receivers')}")
+        logger.info(f'log dir: {args.log_dir}')
+        logger.info(f'log level: {args.log_level}')
+
+        logger.info("\nstart daily pipeline\n")
+
+        phs = ProcessingHistoryStorage(db_file)
+
+        aspect_anc_processor = AspectANC(fits_in_dir, fits_out_dir)
+
+        l2_fits_writer = FitsL2Processor(fits_out_dir)
+
+        hk_in_files_candidates = list(fits_in_dir.rglob(aspect_anc_processor.ProductInputPattern))
+        hk_in_files = []
+        for fc in hk_in_files_candidates:
+            tr = aspect_anc_processor.test_for_processing(fc, phs)
+            if tr == TestForProcessingResult.Suitable:
+                hk_in_files.append(fc)
+
+        # let each processing "task" run in its own process
+        jobs = []
+        with ProcessPoolExecutor() as executor:
+            jobs.append(executor.submit(aspect_anc_processor.process_fits_files, hk_in_files,
+                                        soopmanager=SOOPManager.instance,
+                                        spice_kernel_path=Spice.instance.meta_kernel_path,
+                                        processor=l2_fits_writer,
+                                        config=CONFIG))
+
+        all_files = []
+        for job in jobs:
+            try:
+                new_files = job.result()
+                all_files.extend(new_files)
+            except Exception:
+                logger.error('error', exc_info=True)
+
+        for pr in all_files:
+            if isinstance(pr, SingleProcessingStepResult):
+                phs.add_processed_fits_products(pr.name, pr.level, pr.type, pr.version,
+                                                pr.in_path, pr.out_path, pr.date)
+
+        phs.close()
+
+        all_files = list(set(all_files))
+
+        logger.error("test")
+
+        out_file = Path(args.log_dir) / f"dailypipeline_{date.today().strftime('%Y%m%d')}.out"
+        with open(out_file, 'a+') as res_f:
+            for f in all_files:
+                res_f.write(f"{str(f)}\n")
+
+    return all_files
 
 
 def main():

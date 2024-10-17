@@ -6,8 +6,8 @@ from stixcore.util.logging import get_logger
 logger = get_logger(__name__)
 
 
-class FlareListProductsStorage:
-    """Persistent handler for meta data on already processed flares (timeranges) from flare lists"""
+class ProcessingHistoryStorage:
+    """Persistent handler for meta data on already processed Products"""
 
     def __init__(self, filename):
         """Create a new persistent handler. Will open or create the given sqlite DB file.
@@ -27,9 +27,9 @@ class FlareListProductsStorage:
         try:
             self.conn = sqlite3.connect(self.filename)
             self.cur = self.conn.cursor()
-            logger.info('FlareListProductsStorage DB loaded from {}'.format(self.filename))
+            logger.info('ProcessingHistoryStorage DB loaded from {}'.format(self.filename))
 
-            sql = '''CREATE TABLE if not exists processed_products (
+            self.cur.execute('''CREATE TABLE if not exists processed_flare_products (
                         id INTEGER PRIMARY KEY AUTOINCREMENT,
                         flareid TEXT NOT NULL,
                         flarelist TEXT NOT NULL,
@@ -38,10 +38,25 @@ class FlareListProductsStorage:
                         fitspath TEXT NOT NULL,
                         p_date FLOAT NOT NULL
                     )
-            '''
-            self.cur.execute(sql)
-            self.cur.execute('''CREATE INDEX if not exists esaname ON
-                                processed_products (flareid, flarelist, version, ssid)''')
+            ''')
+            self.cur.execute('''CREATE INDEX if not exists processed_flare_products_idx ON
+                                processed_flare_products (flareid, flarelist, version, ssid)''')
+
+            self.cur.execute('''CREATE TABLE if not exists processed_fits_products (
+                        id INTEGER PRIMARY KEY AUTOINCREMENT,
+                        name TEXT NOT NULL,
+                        level TEXT NOT NULL,
+                        type TEXT NOT NULL,
+                        version INTEGER NOT NULL,
+                        fits_in_path TEXT NOT NULL,
+                        fits_out_path TEXT NOT NULL,
+                        p_date TEXT NOT NULL
+                    )
+            ''')
+
+            self.cur.execute('''CREATE INDEX if not exists processed_fits_products_idx ON
+                                processed_fits_products
+                                (name, level, type, version, fits_in_path)''')
 
             self.conn.commit()
         except sqlite3.Error:
@@ -69,7 +84,17 @@ class FlareListProductsStorage:
             return True
         return False
 
-    def count(self):
+    def count_processed_flare_products(self):
+        """Counts the number of already processed flares in the DB
+
+        Returns
+        -------
+        int
+            number of processed flares
+        """
+        return self.cur.execute("select count(1) from processed_flare_products").fetchone()[0]
+
+    def count_processed_fits_products(self):
         """Counts the number of entries in the DB
 
         Returns
@@ -77,9 +102,48 @@ class FlareListProductsStorage:
         int
             number of tracked files
         """
-        return self.cur.execute("select count(1) from processed_products").fetchone()[0]
+        return self.cur.execute("select count(1) from processed_fits_products").fetchone()[0]
 
-    def add(self, product, path, flarelistid, flarelistname):
+    def add_processed_fits_products(self, name, level, type, version,
+                                    fits_in_path, fits_out_path, p_date):
+        """Adds a new file to the history of processed fits files.
+
+        Parameters
+        ----------
+        product : stix data product
+        TODO
+
+        """
+        df = p_date.isoformat()
+        in_path = str(fits_in_path)
+        out_path = str(fits_out_path)
+
+        self.cur.execute("""insert into processed_fits_products
+                            (name, level, type, version, fits_in_path, fits_out_path, p_date)
+                            values(?, ?, ?, ?, ?, ?, ?)""",
+                         (name, level, type, version, in_path, out_path, df))
+        logger.info(f"""insert into processed_fits_products
+                            (name: '{name}', level: '{level}', type: '{type}',
+                             version: '{version}', fits_in_path: '{in_path}',
+                             fits_out_path: '{out_path}', p_date: '{df}')""")
+
+    def has_processed_fits_products(self, name, level, type, version,
+                                    fits_in_path, fits_in_create_time):
+        """
+        TODO
+
+        """
+        return self.cur.execute("""select count(1) from processed_fits_products where
+                            fits_in_path = ? and
+                            name = ? and
+                            level = ? and
+                            type = ? and
+                            version = ? and
+                            p_date > ?
+                         """, (str(fits_in_path), name, level, type, version,
+                               fits_in_create_time.isoformat())).fetchone()[0] > 0
+
+    def add_processed_flare_products(self, product, path, flarelistid, flarelistname):
         """Adds a new file to the history of processed flares.
 
         Parameters
@@ -93,7 +157,7 @@ class FlareListProductsStorage:
         ssid = product.ssid
         version = product.version
 
-        self.cur.execute("""insert into processed_products
+        self.cur.execute("""insert into processed_flare_products
                             (flareid, flarelist, version, ssid, fitspath, p_date)
                             values(?, ?, ?, ?, ?, ?)""",
                          (flarelistid, flarelistname, version, ssid, fitspath, p_date))

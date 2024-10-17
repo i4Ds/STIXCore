@@ -1,4 +1,3 @@
-from enum import Enum
 from pathlib import Path
 from datetime import datetime
 from itertools import chain
@@ -908,32 +907,6 @@ class L2Mixin(FitsHeaderMixin):
 
 class L3Mixin(FitsHeaderMixin):
     pass
-
-
-class TestForProcessingResult(Enum):
-    NotSuitable = 0
-    ToIgnore = 1
-    Suitable = 2
-
-
-class SingleProductProcessingStepMixin():
-    INPUT_PATTERN = "*.fits"
-
-    @property
-    def ProductInputPattern(cls):
-        return SingleProductProcessingStepMixin.INPUT_PATTERN
-
-    @classmethod
-    def test_for_processing(cls, path: Path) -> TestForProcessingResult:
-        pass
-
-    @classmethod
-    def process(cls, product: GenericProduct) -> GenericProduct:
-        pass
-
-    @classmethod
-    def write_fits(cls, product: GenericProduct, folder: Path) -> Path:
-        pass
 
 
 class DefaultProduct(GenericProduct, L1Mixin, L2Mixin):

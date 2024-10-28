@@ -7,14 +7,14 @@ from astropy.io import fits
 from astropy.table import QTable
 
 from stixcore.ephemeris.manager import Spice
-from stixcore.io.FlareListProductsStorage import ProcessingHistoryStorage
+from stixcore.io.ProcessingHistoryStorage import ProcessingHistoryStorage
 from stixcore.processing.SingleStep import SingleProductProcessingStepMixin, TestForProcessingResult
 from stixcore.processing.sswidl import SSWIDLProcessor
 from stixcore.products.ANC.aspect import AspectIDLProcessing, Ephemeris
 from stixcore.products.product import Product
 from stixcore.soop.manager import SOOPManager
 from stixcore.util.logging import get_logger
-from stixcore.util.util import get_incomplete_file_name_and_path
+from stixcore.util.util import get_complete_file_name_and_path, get_incomplete_file_name_and_path
 
 __all__ = ['AspectANC']
 
@@ -22,26 +22,60 @@ logger = get_logger(__name__)
 
 
 class AspectANC(SingleProductProcessingStepMixin):
-    """Processing step from a flare list entry to L3.
+    """Processing step from a HK L1 fits file to a solo_ANC_stix-asp-ephemeris*.fits file.
     """
     INPUT_PATTERN = "solo_L1_stix-hk-maxi_*.fits"
 
-    def __init__(self, source_dir, output_dir):
+    def __init__(self, source_dir: Path, output_dir: Path):
+        """Crates a new Processor.
+
+        Parameters
+        ----------
+        source_dir : Path or pathlike
+            where to search for input fits files
+        output_dir : Path or pathlike
+            where to write out the generated fits files
+        """
         self.source_dir = Path(source_dir)
         self.output_dir = Path(output_dir)
 
+    def find_processing_candidates(self) -> list[Path]:
+        """Performs file pattern search in the source directory
+
+        Returns
+        -------
+        list[Path]
+            a list of fits files candidates
+        """
+        return list(self.source_dir.rglob(self.ProductInputPattern))
+
     def test_for_processing(self, candidate: Path,
                             phm: ProcessingHistoryStorage) -> TestForProcessingResult:
+        """_summary_
 
+        Parameters
+        ----------
+        candidate : Path
+            a fits file candidate
+        phm : ProcessingHistoryStorage
+            the processing history persistent handler
+
+        Returns
+        -------
+        TestForProcessingResult
+         what should happen with the candidate in the next processing step
+        """
         try:
             c_header = fits.getheader(candidate)
             f_data_end = datetime.fromisoformat(c_header['DATE-END'])
             f_create_date = datetime.fromisoformat(c_header['DATE'])
             f_version = int(c_header['VERSION'])
 
+            cfn = get_complete_file_name_and_path(candidate)
+
             was_processed = phm.has_processed_fits_products('ephemeris', 'ANC', 'asp',
                                                             Ephemeris.get_cls_processing_version(),
-                                                            str(candidate), f_create_date)
+                                                            str(cfn), f_create_date)
 
             # found already in the processing history
             if was_processed:
@@ -49,6 +83,7 @@ class AspectANC(SingleProductProcessingStepMixin):
 
             # test if the version of the input fits files is older as the target version
             # TODO check if this is not a to restrictive check
+            # search danamic for the latest version
             if f_version < Ephemeris.get_cls_processing_version():
                 return TestForProcessingResult.NotSuitable
 
@@ -64,8 +99,29 @@ class AspectANC(SingleProductProcessingStepMixin):
             logger.error(e)
         return TestForProcessingResult.NotSuitable
 
-    def process_fits_files(self, files, *, soopmanager: SOOPManager,
-                           spice_kernel_path: Path, processor, config):
+    def process_fits_files(self, files: list[Path], *, soopmanager: SOOPManager,
+                           spice_kernel_path: Path, processor, config) -> list[Path]:
+        """Performs the processing (expected to run in a dedicated python process) from a
+        list of solo_L1_stix-hk-maxi_*.fits into solo_ANC_stix-asp-ephemeris*.fits files.
+
+        Parameters
+        ----------
+        files : list[Path]
+             list of HK level 1  fits files
+        soopmanager : SOOPManager
+            the SOOPManager from the main process
+        spice_kernel_path : Path
+            the used spice kernel paths from the main process
+        processor : _type_
+            the processor from the main process
+        config :
+            the config from the main process
+
+        Returns
+        -------
+        list[Path]
+            list of all generated fits files
+        """
         CONFIG = config
         max_idlbatch = CONFIG.getint("IDLBridge", "batchsize", fallback=20)
         SOOPManager.instance = soopmanager

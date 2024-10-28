@@ -193,7 +193,7 @@ def test_fits_incomplete_switch_over(out_dir):
 
         files_first = []
         processor = FitsL1Processor(fits_dir)
-        for stime in [707875174, 708739179, 709739179]:
+        for stime in [707875174, 708739179, 709739179, 1999999999]:
             beg = SCETime(coarse=stime, fine=0)
             end = SCETime(coarse=stime + 10, fine=2 ** 15)
             product.scet_timerange = SCETimeRange(start=beg, end=end)
@@ -236,7 +236,7 @@ def test_fits_incomplete_switch_over(out_dir):
 
             files_first.extend(processor.write_fits(product))
 
-        assert len(files_first) == 3
+        assert len(files_first) == 4
         assert get_complete_file_name(files_first[0].name) != files_first[0].name
         assert get_incomplete_file_name(files_first[0].name) == files_first[0].name
 
@@ -250,8 +250,10 @@ def test_fits_incomplete_switch_over(out_dir):
         assert res
         published_files = res[PublishResult.PUBLISHED]
 
-        # after the publishing all files will have the complete name
+        # the one file from the future should be ignored
+        assert len(res[PublishResult.IGNORED]) == 1
 
+        # after the publishing all files will have the complete name
         assert len(published_files) == 3
         # no conflicting esa names expected
         assert len(published_files[0]) == 1
@@ -263,7 +265,7 @@ def test_fits_incomplete_switch_over(out_dir):
             published_files[0][0]['name']
 
         files_last = []
-        for f in files_first:
+        for f in files_first[:-1]:  # not the last one from future
             # read all FITS files and modify the data slightly
             p = Product(get_complete_file_name_and_path(f))
             # old data.fcounts = [t1: 1, t2: 2]
@@ -298,9 +300,10 @@ def test_fits_incomplete_switch_over_remove_dup_files(out_dir):
     cfiles = [f for f in fits_dir.rglob('*.fits') if p.match(f.name)]
 
     assert len(ufiles) == 3
-    assert len(cfiles) == 3
+    assert len(cfiles) == 4
 
     ufiles[0].unlink()
+    ufiles[1].unlink()
     cfiles[1].unlink()
 
     res = incomplete_twins(['--fits_dir', str(fits_dir),
@@ -311,7 +314,7 @@ def test_fits_incomplete_switch_over_remove_dup_files(out_dir):
     assert len(res) == 1
     moved = list(target_dir.rglob('*.fits'))
     assert len(moved) == 1
-    assert moved[0].name == cfiles[2].name
+    assert moved[0].name == cfiles[3].name
 
 
 @patch('stixcore.products.level1.scienceL1.Spectrogram')

@@ -10,13 +10,14 @@ from concurrent.futures import ProcessPoolExecutor
 from stixcore.config.config import CONFIG
 from stixcore.ephemeris.manager import Spice, SpiceKernelManager
 from stixcore.io.fits.processors import FitsL2Processor
-from stixcore.io.FlareListProductsStorage import ProcessingHistoryStorage
+from stixcore.io.ProcessingHistoryStorage import ProcessingHistoryStorage
 from stixcore.io.RidLutManager import RidLutManager
 from stixcore.processing.AspectANC import AspectANC
 from stixcore.processing.pipeline import PipelineStatus
 from stixcore.processing.SingleStep import SingleProcessingStepResult, TestForProcessingResult
 from stixcore.soop.manager import SOOPManager
 from stixcore.util.logging import STX_LOGGER_DATE_FORMAT, STX_LOGGER_FORMAT, get_logger
+from stixcore.util.util import get_complete_file_name_and_path
 
 logger = get_logger(__name__)
 
@@ -81,7 +82,7 @@ do not answer to this mail.
 
 
 def run_daily_pipeline(args):
-    """CLI STIX publish to ESA processing step
+    """CLI STIX daily processing step to generate fits products
 
     Parameters
     ----------
@@ -91,7 +92,7 @@ def run_daily_pipeline(args):
     Returns
     -------
     list
-        list of published files
+        list of generated fits files paths
     """
 
     parser = argparse.ArgumentParser(description='STIX publish to ESA processing step',
@@ -158,10 +159,12 @@ def run_daily_pipeline(args):
     # logging
     CONFIG.set('Logging', 'stop_on_error', str(args.stop_on_error))
 
+    # generate a log file for each run and an error file in case of any errors
     with DailyPipelineErrorReport(Path(args.log_dir) /
                                   f"dailypipeline_{date.today().strftime('%Y%m%d')}.log",
                                   args.log_level):
 
+        # set up the singletons
         if args.spice_file:
             spicemeta = [SpiceKernelManager.get_mk_meta(Path(args.spice_file))]
         else:
@@ -206,9 +209,11 @@ def run_daily_pipeline(args):
 
         l2_fits_writer = FitsL2Processor(fits_out_dir)
 
-        hk_in_files_candidates = list(fits_in_dir.rglob(aspect_anc_processor.ProductInputPattern))
+        # should be done later: internally
         hk_in_files = []
-        for fc in hk_in_files_candidates:
+        candidates = aspect_anc_processor.find_processing_candidates()
+        v_candidates = aspect_anc_processor.get_version(candidates, version="latest")
+        for fc in v_candidates:
             tr = aspect_anc_processor.test_for_processing(fc, phs)
             if tr == TestForProcessingResult.Suitable:
                 hk_in_files.append(fc)
@@ -222,25 +227,28 @@ def run_daily_pipeline(args):
                                         processor=l2_fits_writer,
                                         config=CONFIG))
 
+        # wait for all processes to end
         all_files = []
         for job in jobs:
             try:
+                # collect all generated fits files form each process
                 new_files = job.result()
                 all_files.extend(new_files)
             except Exception:
                 logger.error('error', exc_info=True)
 
+        # create an entry for each generated file in the ProcessingHistoryStorage
         for pr in all_files:
             if isinstance(pr, SingleProcessingStepResult):
                 phs.add_processed_fits_products(pr.name, pr.level, pr.type, pr.version,
-                                                pr.in_path, pr.out_path, pr.date)
+                                                get_complete_file_name_and_path(pr.in_path),
+                                                pr.out_path, pr.date)
 
         phs.close()
 
         all_files = list(set(all_files))
 
-        logger.error("test")
-
+        # write out all generated fits file in a dedicated log file
         out_file = Path(args.log_dir) / f"dailypipeline_{date.today().strftime('%Y%m%d')}.out"
         with open(out_file, 'a+') as res_f:
             for f in all_files:

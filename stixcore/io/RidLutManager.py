@@ -165,7 +165,7 @@ class RidLutManager(metaclass=Singleton):
                     # the stix datacenter API is throttled to 2 calls per second
                     time.sleep(0.5)
             except Exception:
-                logger.error("RID API ERROR", exc_info=True)
+                logger.warning("RID API ERROR", exc_info=True)
 
             rid_lut = unique(rid_lut, silent=True)
             ascii.write(rid_lut, file, overwrite=True, delimiter=",", quotechar='"')

@@ -70,9 +70,13 @@ class RidLutManager(metaclass=Singleton):
         str
             verbal description of the request purpose
         """
-        request = self.rid_lut.loc[rid]
-        reason = " ".join(np.atleast_1d(request['description']))
-        return reason
+        try:
+            request = self.rid_lut.loc[rid]
+            reason = " ".join(np.atleast_1d(request['description']))
+            return reason
+        except IndexError:
+            logger.warning("can't get request purpose: no request founds for rid: {rid}")
+            return ""
 
     def get_scaling_factor(self, rid):
         """Gets the trigger descaling factor connected to the BSD request.

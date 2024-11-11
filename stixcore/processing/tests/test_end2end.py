@@ -8,7 +8,15 @@ import pytest
 
 from astropy.io.fits.diff import FITSDiff
 
+from stixcore.config.config import CONFIG
+from stixcore.data.test import test_data
+from stixcore.ephemeris.manager import Spice, SpiceKernelManager
+from stixcore.idb.manager import IDBManager
+from stixcore.io.RidLutManager import RidLutManager
+from stixcore.processing.LBtoL0 import Level0
+from stixcore.processing.pipeline import PipelineStatus
 from stixcore.products.product import Product
+from stixcore.soop.manager import SOOPManager
 from stixcore.util.logging import get_logger
 from stixcore.util.scripts.end2end_testing import end2end_pipeline
 
@@ -90,3 +98,46 @@ def test_identical(orig_fits, current_fits):
     if error_c > 0:
         raise ValueError(f"{error_c} errors out of {len(current_fits)}\n"
                          f"there are differences in FITS files\n {pformat(error_files)}")
+
+
+def test_e2e_21_6_32(out_dir):
+    _spm = SpiceKernelManager(test_data.ephemeris.KERNELS_DIR)
+    Spice.instance = Spice(_spm.get_latest_mk())
+
+    # pinpoint the api files location
+    CONFIG.set('SOOP', 'soop_files_download', str(test_data.soop.DIR))
+
+    SOOPManager.instance = SOOPManager(test_data.soop.DIR, mock_api=True)
+
+    idbpath = Path(__file__).parent.parent.parent / "data" / "idb"
+    IDBManager.instance = IDBManager(idbpath)  # force_version="2.26.35")
+
+    RidLutManager.instance = RidLutManager(Path(CONFIG.get('Publish', 'rid_lut_file')), update=True)
+
+    PipelineStatus.log_setup()
+
+    f1 = Path("/data/stix/out/test/e2e_21_6_32/solo_LB_stix-21-6-32_0678153600_V02.fits")
+    f2 = Path("/data/stix/out/test/e2e_21_6_32/solo_LB_stix-21-6-32_0678240000_V02.fits")
+
+    out_dir_o1 = out_dir / "o1"
+    out_dir_o2 = out_dir / "o2"
+
+    l0_proc_o1 = Level0(out_dir_o1, out_dir_o1)
+    l0_files_o1 = l0_proc_o1.process_fits_files(files=[f2, f1])
+
+    l0_proc_o2 = Level0(out_dir_o2, out_dir_o2)
+    l0_files_o2 = l0_proc_o2.process_fits_files(files=[f1, f2])
+
+    n_errors = 0
+
+    for fits_1 in l0_files_o1:
+        # find corresponding original file
+        fits_2 = next(ofits for ofits in l0_files_o2 if ofits.name == fits_1.name)
+        diff = FITSDiff(fits_1, fits_2, atol=0.00001, rtol=0.00001,
+                        ignore_keywords=['CHECKSUM', 'DATASUM', 'DATE',
+                                         'VERS_SW', 'VERS_CFG', 'HISTORY'])
+        if not diff.identical:
+            print(diff.report())
+            n_errors += 1
+
+    assert n_errors == 0

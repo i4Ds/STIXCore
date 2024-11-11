@@ -152,10 +152,15 @@ def end2end_pipeline(indir, fitsdir):
 
     soc = SOCManager(indir)
     lb_files = process_tmtc_to_levelbinary(soc.get_files(TMTC.TM), archive_path=fitsdir)
+    lb_files = sorted(lb_files)
+
     l0_proc = Level0(indir, fitsdir)
     l0_files = l0_proc.process_fits_files(files=lb_files)
+    l0_files = sorted(l0_files)
+
     l1_proc = Level1(indir, fitsdir)
     l1_files = l1_proc.process_fits_files(files=l0_files)
+    l1_files = sorted(l1_files)
 
     allfiles = list(lb_files)
     allfiles.extend(l0_files)

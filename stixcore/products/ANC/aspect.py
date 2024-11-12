@@ -228,7 +228,7 @@ class Ephemeris(GenericProduct, L2Mixin):
     """Ephemeris data, including spacecraft attitude and coordinates as well as STIX
        pointing with respect to Sun center as derived from the STIX aspect system.
 
-    In level 2 format.
+    In ANC product format.
     """
     PRODUCT_PROCESSING_VERSION = 2
 

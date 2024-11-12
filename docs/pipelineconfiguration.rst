@@ -265,3 +265,87 @@ You might toggle the parameter only for manually restarting the service after yo
 start_with_unprocessed = False
 
 ```
+
+
+Manually reprocess data
+-----------------------
+
+When necessary to reprocess certain data products due to fixed errors or enhanced products the following steps might guide you.
+
+If files already have been delivered to SOAR but a reprocessing is necessary a new version number for the same products fits file has to be issued. The version number can be set global in the BaseProduct.PRODUCT_PROCESSING_VERSION or override fine granulated for each product in the class definition. Always the higher value of PRODUCT_PROCESSING_VERSION will be used in the fits file.
+
+Make sure manual (re)processing scripts and automated pipeline (event based or daily) are not running in parallel especially if they write out to the same directory folder.
+
+To stop daily pipeline edit the stixcore user crontab and remove/uncomment the daily pipeline hook.
+
+To stop the event based TM pipeline first check if no precesses are running right now (open files: should be 0) and stop the service.
+
+```
+stixcore@pub099:~/STIXCore$
+stixcore@pub099:~/STIXCore$ source venv/bin/activate
+(venv) stixcore@pub099:~/STIXCore$ stix-pipeline-status -n
+2024-11-12T15:50:21Z INFO stixcore.processing.pipeline_status 19: connecting to localhost:12388
+2024-11-12T15:50:21Z INFO stixcore.processing.pipeline_status 19: connecting to localhost:12388
+open files: 0
+(venv) stixcore@pub099:~/STIXCore$
+(venv) stixcore@pub099:~/STIXCore$ sudo systemctl stop stix-pipeline.service
+
+```
+Also consider to stop the publish to SOAR service in the crontab.
+
+stix-pipline CLI
+****************
+
+For manually (re)processing of data products use the stix-pipline CLI:
+
+```(bash)
+
+usage: stix-pipeline-cli [-h] [-t TM_DIR] [-f FITS_DIR] [-s SPICE_DIR] [-S SPICE_FILE] [-p SOOP_DIR] [--idl_enabled] [--idl_disabled] [--idl_gsw_path IDL_GSW_PATH] [--idl_batchsize IDL_BATCHSIZE] [--stop_on_error]
+                         [--continue_on_error] [-o OUT_FILE] [-l LOG_FILE] [--log_level {CRITICAL,ERROR,WARNING,INFO,DEBUG,NOTSET}] [-b {TM,LB,L0,L1,L2,ALL}] [-e {TM,LB,L0,L1,L2,ALL}] [--filter FILTER]
+                         [--input_files INPUT_FILES] [-c [CLEAN]] [-r RID_LUT_FILE] [--update_rid_lut]
+
+stix pipeline processing
+
+optional arguments:
+  -h, --help            show this help message and exit
+  -t TM_DIR, --tm_dir TM_DIR
+                        input directory to the (tm xml) files
+  -f FITS_DIR, --fits_dir FITS_DIR
+                        output directory for the
+  -s SPICE_DIR, --spice_dir SPICE_DIR
+                        directory to the spice kernels files
+  -S SPICE_FILE, --spice_file SPICE_FILE
+                        path to the spice meta kernel
+  -p SOOP_DIR, --soop_dir SOOP_DIR
+                        directory to the SOOP files
+  --idl_enabled         IDL is setup to interact with the pipeline
+  --idl_disabled        IDL is setup to interact with the pipeline
+  --idl_gsw_path IDL_GSW_PATH
+                        directory where the IDL gsw is installed
+  --idl_batchsize IDL_BATCHSIZE
+                        batch size how many TM prodcts batched by the IDL bridge
+  --stop_on_error       the pipeline stops on any error
+  --continue_on_error   the pipeline reports any error and continouse processing
+  -o OUT_FILE, --out_file OUT_FILE
+                        file all processed files will be logged into
+  -l LOG_FILE, --log_file LOG_FILE
+                        a optional file all logging is appended
+  --log_level {CRITICAL,ERROR,WARNING,INFO,DEBUG,NOTSET}
+                        the level of logging
+  -b {TM,LB,L0,L1,L2,ALL}, --start_level {TM,LB,L0,L1,L2,ALL}
+                        the processing level where to start
+  -e {TM,LB,L0,L1,L2,ALL}, --end_level {TM,LB,L0,L1,L2,ALL}
+                        the processing level where to stop the pipeline
+  --filter FILTER, -F FILTER
+                        filter expression applied to all input files example '*sci*.fits'
+  --input_files INPUT_FILES, -i INPUT_FILES
+                        input txt file with list af absolute paths of files to process
+  -c [CLEAN], --clean [CLEAN]
+                        clean all files from <fits_dir> first
+  -r RID_LUT_FILE, --rid_lut_file RID_LUT_FILE
+                        Path to the rid LUT file
+  --update_rid_lut      update rid lut file before publishing
+
+```
+
+Make sure that you use a proper output directory (-f). If you write into a directory structure with existing FITS files it is not for sure that existing files gets override as the FITS writers will merge data into existing (same) files. Ovoid this with a other version number or a new output directory or use the --clean option with care.

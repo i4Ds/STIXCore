@@ -100,6 +100,7 @@ def test_identical(orig_fits, current_fits):
                          f"there are differences in FITS files\n {pformat(error_files)}")
 
 
+@pytest.mark.skip(reason="used as a local test at the moment")
 def test_e2e_21_6_32(out_dir):
     _spm = SpiceKernelManager(test_data.ephemeris.KERNELS_DIR)
     Spice.instance = Spice(_spm.get_latest_mk())

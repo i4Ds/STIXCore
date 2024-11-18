@@ -1,5 +1,5 @@
 from stixcore.products.product import Product # noqa
-from stixcore.products.ANC.aspect import *
+from stixcore.products.ANC.aspect import Ephemeris
 from stixcore.products.level0.housekeepingL0 import *
 from stixcore.products.level0.quicklookL0 import *
 from stixcore.products.level0.scienceL0 import *

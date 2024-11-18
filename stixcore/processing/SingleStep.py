@@ -5,9 +5,9 @@ from datetime import datetime
 from collections import defaultdict
 from concurrent.futures import ProcessPoolExecutor
 
+import stixcore.io.fits.processors as fitsp
 from stixcore.config.config import CONFIG
 from stixcore.ephemeris.manager import Spice
-from stixcore.io.fits.processors import FitsL1Processor, FitsL3Processor
 from stixcore.products.product import GenericProduct
 from stixcore.soop.manager import SOOPManager
 from stixcore.util.logging import get_logger
@@ -115,7 +115,7 @@ class FLLevel3:
         self.source_dir = Path(source_dir)
         self.output_dir = Path(output_dir)
         self.dbfile = dbfile
-        self.processor = FitsL3Processor(self.output_dir)
+        self.processor = fitsp.FitsL3Processor(self.output_dir)
 
     def process_fits_files(self, files):
         all_files = list()
@@ -147,7 +147,7 @@ class FLLevel3:
             # simple heuristic that the daily QL data takes longest so we start early
             for pt, files in sorted(product_types.items()):
                 jobs.append(executor.submit(process_type, files,
-                                            processor=FitsL1Processor(self.output_dir),
+                                            processor=fitsp.FitsL1Processor(self.output_dir),
                                             soopmanager=SOOPManager.instance,
                                             spice_kernel_path=Spice.instance.meta_kernel_path,
                                             config=CONFIG))

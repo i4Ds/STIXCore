@@ -54,7 +54,14 @@ markers = [
 
 [project]
 name = "stixcore"
-dynamic = ["version", "optional-dependencies", "scripts", "authors"]
+dynamic = ["version",
+           "optional-dependencies",
+           "scripts",
+           "authors",
+           "readme",
+           "requires-python",
+           "license"
+          ]
 dependencies = [
     'stixdcpy @ git+ssh://git@github.com/i4ds/stixdcpy.git',
 ]

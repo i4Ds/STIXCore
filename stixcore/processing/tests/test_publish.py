@@ -290,7 +290,7 @@ def test_fits_incomplete_switch_over(out_dir):
 
 
 @pytest.mark.skipif(sys.platform.startswith('win'), reason="does not run on windows")
-@pytest.mark.skipif(sys.platform.system() != "Darwin", reason="does not run on mac")
+@pytest.mark.skipif(sys.platform != "Darwin", reason="does not run on mac")
 def test_fits_incomplete_switch_over_remove_dup_files(out_dir):
 
     test_fits_incomplete_switch_over(out_dir)

@@ -53,6 +53,7 @@ markers = [
       showcontent = true
 
 [project]
+name = "stixcore"
 dependencies = [
     'stixdcpy @ git+ssh://git@github.com/i4ds/stixdcpy.git',
 ]

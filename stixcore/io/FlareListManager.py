@@ -1,6 +1,5 @@
 import sys
 import time
-from pathlib import Path
 from datetime import datetime, timedelta
 
 import pandas as pd
@@ -131,5 +130,3 @@ if 'pytest' in sys.modules:
     # only set the global in test scenario
     from stixcore.data.test import test_data
     SDCFlareListManager.instance = SDCFlareListManager(test_data.rid_lut.RID_LUT, update=False)
-
-

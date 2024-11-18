@@ -133,7 +133,3 @@ if 'pytest' in sys.modules:
     SDCFlareListManager.instance = SDCFlareListManager(test_data.rid_lut.RID_LUT, update=False)
 
 
-if __name__ == '__main__':
-    flm = SDCFlareListManager(Path("./flarelist.scv"), update=False)
-    print(flm)
-    print(flm.flarelist)

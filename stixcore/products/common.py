@@ -62,7 +62,7 @@ def _get_energy_bins(packets, nixlower, nixuppper):
         Full energy mask of len 33
     """
     energy_bin_mask = np.array(packets.get_value(nixlower), np.uint32)
-    energy_bin_mask_upper = np.array(packets.get_value(nixuppper), np.bool8)
+    energy_bin_mask_upper = np.array(packets.get_value(nixuppper), np.bool_)
     full_energy_mask = [format(mask, 'b').zfill(32)[::-1] + format(upper, 'b') for mask, upper in
                         zip(energy_bin_mask, energy_bin_mask_upper)]
     full_energy_mask = [list(map(int, m)) for m in full_energy_mask]

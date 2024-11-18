@@ -130,3 +130,33 @@ Documentation is built using `Sphinx <https://www.sphinx-doc.org/en/master/>`_ s
 tests above this can be run manually or through tox. To run manually cd to the docs directory and
 run `'make html'` to run via tox `'tox -e build_docs'`. There is a known dependency on Graphviz.
 If you have any problems (on Windows) follow `this <https://bobswift.atlassian.net/wiki/spaces/GVIZ/pages/20971549/How+to+install+Graphviz+software>`_ instructions.
+
+End to End Testing
+------------------
+
+Changing the code base might result in a change of the generated FITS data products the processing pipelines are generating. This might happen on purpose or unintentionally while enhancing data definitions (structural changes in the FITS extensions and header keyword) but also in the data itself due to changed number crunching methods. To avoid unnoticed changes in the generated fits files there is the end 2 end testing hook in place. If many of the number crunching methods are covered by unit test this additional test is to ensure the data integrity. If a change of a FITS product was on purpose a new version for that product has to be released, reprocessed and delivered to SOAR
+
+This additional test step can be triggered locally but is also integrated into the CI get actions. In order to merge new PRs the test have to pass or the failure manually approved.
+
+Provide test data to compare to
+*******************************
+A predefined set of FITS products together with the original TM data that was used to create them are public available on the processing server as zip file: https://pub099.cs.technik.fhnw.ch/data/end2end/data/head.zip . This TM data is used to generate new FITS products with th elates code base and afterwards compared for completeness and identical data.
+
+Running the tests
+*****************
+
+The end to end tests are defines as normal unit tests here stixcore/processing/tests/test_end2end.py but marked with @pytest.mark.end2end. In the CI runs on two separate test runs one for the end to end test and one for all others unit tests.
+
+run it with `pytest -v  -m end2end`
+
+Manually approve failed end to end tests
+****************************************
+
+Before a PR can be merged a set of test have to pass in the CI including the end to end testing. If you have changed the code base that way that your generated test fits product are not identical with the original test files you will be noted by a failed test result.
+
+If your changes where intended and your are happy with the reported differences of the original and current test fits products a repo admin can merge the PR by bypassing the test in the GitHub UI. If you are not happy that changes where happen att all rework your code until you can explain the reported matching errors.
+
+Update the original test data
+*****************************
+
+On each merge to the git master brunch a web hook (https://pub099.cs.technik.fhnw.ch/end2end/rebuild_hook.cgi - credentials stored as git secrets) is triggered to regenerate the original test data and TM source data and the https://pub099.cs.technik.fhnw.ch/data/end2end/data/head.zip gets replaced with the latest data. For that regenerating of the data a dedicated STIXCore environment is running on pub099 (/data/stix/end2en). That STIXCore environment always pulls the latest code updates from the master branch and reprocess the data. That way each new PR has to generated identical data as the last approved merged PR or the needs manual approval for the detected changes.

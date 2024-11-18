@@ -51,3 +51,8 @@ markers = [
       directory = "trivial"
       name = "Trivial/Internal Changes"
       showcontent = true
+
+[project]
+dependencies = [
+    'stixdcpy @ git+ssh://git@github.com/i4ds/stixdcpy.git',
+]

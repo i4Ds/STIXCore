@@ -10,7 +10,7 @@ from io import StringIO
 from enum import Enum
 from pprint import pformat
 from pathlib import Path
-from datetime import date, datetime
+from datetime import date, datetime, timezone, timedelta
 from collections import defaultdict
 
 from paramiko import SSHClient
@@ -26,6 +26,7 @@ from stixcore.ephemeris.manager import Spice, SpiceKernelManager
 from stixcore.io.RidLutManager import RidLutManager
 from stixcore.processing.pipeline_status import pipeline_status
 from stixcore.products.product import Product
+from stixcore.time.datetime import SCETime
 from stixcore.util.logging import get_logger
 from stixcore.util.util import get_complete_file_name, is_incomplete_file_name
 
@@ -175,7 +176,7 @@ class PublishHistoryStorage:
         dir = str(path.parent)
         date = datetime.now().timestamp()
         parts = name[:-5].split('_')
-        version = int(parts[4].lower().replace("v", ""))
+        version = int(parts[4].lower().replace("v", "").replace("u", ""))
         esa_name = '_'.join(parts[0:5])
         m_date = path.stat().st_ctime
         try:
@@ -634,6 +635,7 @@ def publish_fits_to_esa(args):
     candidates = fits_dir.rglob("solo_*.fits")
     to_publish = list()
     now = datetime.now().timestamp()
+    next_week = datetime.now(timezone.utc) + timedelta(hours=24*7)
     hist = PublishHistoryStorage(db_file)
     n_candidates = 0
 
@@ -693,6 +695,7 @@ def publish_fits_to_esa(args):
     logger.info(f'Spice: {spice.meta_kernel_path}')
 
     logger.info("\nstart publishing\n")
+    published = defaultdict(list)
 
     for c in candidates:
         n_candidates += 1
@@ -740,7 +743,6 @@ def publish_fits_to_esa(args):
     if args.sort_files:
         to_publish = sorted(to_publish)
 
-    published = defaultdict(list)
     for p in to_publish:
         try:
             comment = add_BSD_comment(p)
@@ -750,6 +752,20 @@ def publish_fits_to_esa(args):
                 update_ephemeris_headers(p, spice)
 
             add_res, data = hist.add(p)
+
+            try:
+                # do not publish products from the future
+                p_header = fits.getheader(p)
+                if 'DATE-BEG' in p_header and ":" not in p_header['DATE-BEG']:
+                    p_data_beg = datetime.fromisoformat(p_header['DATE-BEG'])
+                else:
+                    p_data_beg = SCETime.from_float(p_header['OBT_BEG'] * u.s).to_datetime()
+                if p_data_beg > next_week:
+                    hist.set_result(PublishResult.IGNORED, data[0]["id"])
+                    published[PublishResult.IGNORED].append(data)
+                    continue
+            except Exception:
+                pass
 
             if p.name in blacklist_files:
                 hist.set_result(PublishResult.BLACKLISTED, data[0]["id"])

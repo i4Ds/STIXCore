@@ -149,6 +149,7 @@ class PipelineErrorReport(logging.StreamHandler):
         """Called in case of a logging event."""
         self.allright = False
         self.error = record
+        self.err_file.touch()
 
     def __enter__(self):
         return self
@@ -159,7 +160,7 @@ class PipelineErrorReport(logging.StreamHandler):
         logging.getLogger().removeHandler(self.fh)
         PipelineStatus.instance.last_tm = (self.tm_file,  datetime.now())
         PipelineStatus.instance.current_tm = (None,  datetime.now())
-        if not self.allright:
+        if not self.allright or self.err_file.exists():
             shutil.copyfile(self.log_file, self.err_file)
             PipelineStatus.instance.last_error = (self.tm_file,  datetime.now(),
                                                   self.error, self.err_file)

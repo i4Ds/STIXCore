@@ -70,9 +70,13 @@ class RidLutManager(metaclass=Singleton):
         str
             verbal description of the request purpose
         """
-        request = self.rid_lut.loc[rid]
-        reason = " ".join(np.atleast_1d(request['description']))
-        return reason
+        try:
+            request = self.rid_lut.loc[rid]
+            reason = " ".join(np.atleast_1d(request['description']))
+            return reason
+        except IndexError:
+            logger.warning("can't get request purpose: no request founds for rid: {rid}")
+            return ""
 
     def get_scaling_factor(self, rid):
         """Gets the trigger descaling factor connected to the BSD request.
@@ -165,7 +169,7 @@ class RidLutManager(metaclass=Singleton):
                     # the stix datacenter API is throttled to 2 calls per second
                     time.sleep(0.5)
             except Exception:
-                logger.error("RID API ERROR", exc_info=True)
+                logger.warning("RID API ERROR", exc_info=True)
 
             rid_lut = unique(rid_lut, silent=True)
             ascii.write(rid_lut, file, overwrite=True, delimiter=",", quotechar='"')

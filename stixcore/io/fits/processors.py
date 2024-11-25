@@ -971,3 +971,51 @@ class FitsL2Processor(FitsL1Processor):
         )
 
         return L1headers, L2headers
+
+
+class FitsL3Processor(FitsL2Processor):
+    def __init__(self, archive_path):
+        super().__init__(archive_path)
+
+    def write_fits(self, product, *, version=0):
+        """
+        Write level 3 products into fits files.
+
+        Parameters
+        ----------
+        product : `stixcore.product.level3`
+
+        version : `int`
+            the version modifier for the filename
+            default 0 = detect from codebase.
+
+        Returns
+        -------
+        list
+            of created file as `pathlib.Path`
+
+        """
+        if version == 0:
+            version = product.get_processing_version()
+
+        return super().write_fits(product, version=version)
+
+    def generate_primary_header(self, filename, product, *, version=0):
+
+        if product.fits_header is None:
+            L2, o = super().generate_primary_header(filename, product, version=version)
+            L2headers = L2 + o
+        else:
+            L2headers = product.fits_header.items()
+
+        # new or override keywords
+        L3headers = (
+            # Name, Value, Comment
+            ('LEVEL', 'L3', 'Processing level of the data'),
+            ('VERS_SW', str(stixcore.__version__), 'Version of SW that provided FITS file'),
+            ('VERS_CFG', str(stixcore.__version_conf__),
+             'Version of the common instrument configuration package'),
+            ('HISTORY', 'Processed by STIXCore L3'),
+        )
+
+        return L2headers, L3headers

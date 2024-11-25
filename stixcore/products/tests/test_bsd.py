@@ -7,6 +7,7 @@ import pytest
 from stixcore.data.test import test_data
 from stixcore.products.level0 import scienceL0 as sl0
 from stixcore.products.level1 import scienceL1 as sl1
+from stixcore.time import SCETime
 
 
 @pytest.fixture
@@ -15,17 +16,17 @@ def out_dir(tmp_path):
 
 
 testpackets = [(test_data.tmtc.TM_21_6_20_complete, sl0.RawPixelData, sl1.RawPixelData,
-                'xray-rpd', '0640971848f00000', '0640971950f00000', 6),
+                'xray-rpd', '640971848:0', '640971968:0', 6),
                (test_data.tmtc.TM_21_6_21, sl0.CompressedPixelData, sl1.CompressedPixelData,
-                'xray-cpd', '0658880585f52427', '0658880585f58981', 1),
+                'xray-cpd', '658880585:52428', '658880586:52428', 1),
                (test_data.tmtc.TM_21_6_21_complete, sl0.CompressedPixelData,
-                sl1.CompressedPixelData, 'xray-cpd', '0640274394f06553', '0640274476f06553', 5),
+                sl1.CompressedPixelData, 'xray-cpd', '640274394:6554', '640274494:6554', 5),
                (test_data.tmtc.TM_21_6_24, sl0.Spectrogram, sl1.Spectrogram,
-                'xray-spec', '0659402043f39320', '0659402958f32767', 54),
+                'xray-spec', '659402043:39322', '659402958:32768', 54),
                (test_data.tmtc.TM_21_6_23_complete, sl0.Visibility, sl1.Visibility,
-                'xray-vis', '0642038387f06553', '0642038403f32767', 5),
+                'xray-vis', '642038387:6554', '642038407:6554', 5),
                (test_data.tmtc.TM_21_6_42_complete, sl0.Aspect, sl1.Aspect,
-                'aspect-burst', '0645932472f05485', '0645933132f52624', 2105)]
+                'aspect-burst', '645932471:62633', '645933124:48429', 2105)]
 
 
 @patch('stixcore.products.levelb.binary.LevelB')
@@ -41,9 +42,8 @@ def test_xray(levelb, out_dir, packets):
 
     assert xray_L0.level == 'L0'
     assert xray_L0.name == name
-    # TODO enable time tests again
-    # assert str(xray_L0.obs_beg) == beg
-    # assert str(xray_L0.obs_end) == end
+    assert xray_L0.scet_timerange.start == SCETime.from_string(beg)
+    assert xray_L0.scet_timerange.end == SCETime.from_string(end)
     assert len(xray_L0.data) == size
 
     xray_L1 = cl_l1.from_level0(xray_L0, parent='parent.l0.fits')

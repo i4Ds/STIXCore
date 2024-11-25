@@ -3,7 +3,6 @@ Array like time objects
 """
 import logging
 import operator
-from datetime import datetime
 
 import numpy as np
 from sunpy.time.timerange import TimeRange
@@ -452,12 +451,8 @@ class SCETime(SCETBase):
         except TypeError:
             utc = Spice.instance.scet_to_datetime(self.to_string())
 
-        flown_mks = sorted([k for k in Spice.instance.meta_kernel_path if 'flown' in k.name])
+        kernel_date = Spice.instance.get_mk_date(meta_kernel_type="flown")
 
-        try:
-            kernel_date = datetime.strptime(flown_mks[-1].name.split('_')[4], '%Y%m%d')
-        except IndexError:
-            kernel_date = datetime.fromtimestamp(flown_mks.lstat().st_ctime)
         bad = [t.replace(tzinfo=None) > kernel_date
                for t in (utc if isinstance(utc, list) else [utc])]
         if any(bad):

@@ -275,7 +275,7 @@ if __name__ == '__main__':
     typenames = {"sci": "Science Data",
                  "hk": "Housekeeping Data",
                  "ql": "Quicklook Data",
-                 "aux": "Auxilary Data",
+                 "asp": "Ancillary Aspect Data",
                  "cal": "Calibration"}
 
     collector = defaultdict(lambda: defaultdict(list))
@@ -294,16 +294,16 @@ if __name__ == '__main__':
         "L0/21/6/42/solo_L0_stix-sci-aspect-burst_0687412111-0687419343_V02_2110130059.fits", # noqa
         "L0/21/6/24/solo_L0_stix-sci-xray-spec_0689786926-0689801914_V02_2111090002-50819.fits", # noqa
         # QL
-        "L0/21/6/31/solo_L0_stix-ql-background_0668822400_V02U.fits",
-        "L0/21/6/34/solo_L0_stix-ql-flareflag_0684547200_V02U.fits",
-        "L0/21/6/30/solo_L0_stix-ql-lightcurve_0684892800_V02U.fits",
-        "L0/21/6/33/solo_L0_stix-ql-variance_0687484800_V02U.fits",
-        "L0/21/6/32/solo_L0_stix-ql-spectra_0680400000_V02U.fits",
+        "L0/21/6/31/solo_L0_stix-ql-background_0668822400_V02.fits",
+        "L0/21/6/34/solo_L0_stix-ql-flareflag_0684547200_V02.fits",
+        "L0/21/6/30/solo_L0_stix-ql-lightcurve_0684892800_V02.fits",
+        "L0/21/6/33/solo_L0_stix-ql-variance_0687484800_V02.fits",
+        "L0/21/6/32/solo_L0_stix-ql-spectra_0680400000_V02.fits",
         # HK
-        "L0/3/25/2/solo_L0_stix-hk-maxi_0647913600_V02U.fits",
-        "L0/3/25/1/solo_L0_stix-hk-mini_0643507200_V02U.fits",
+        "L0/3/25/2/solo_L0_stix-hk-maxi_0647913600_V02.fits",
+        "L0/3/25/1/solo_L0_stix-hk-mini_0643507200_V02.fits",
         # CAL
-        "L0/21/6/41/solo_L0_stix-cal-energy_0640137600_V02U.fits",
+        "L0/21/6/41/solo_L0_stix-cal-energy_0640137600_V02.fits",
 
         # L1
         # science
@@ -320,18 +320,21 @@ if __name__ == '__main__':
         "L1/2020/06/16/QL/solo_L1_stix-ql-variance_20200616_V02.fits",
         "L1/2021/11/16/QL/solo_L1_stix-ql-spectra_20211116_V02.fits",
         # HK
-        "L1/2020/06/16/HK/solo_L1_stix-hk-maxi_20200616_V02U.fits",
-        "L1/2021/09/20/HK/solo_L1_stix-hk-mini_20210920_V02U.fits",
+        "L1/2020/06/16/HK/solo_L1_stix-hk-maxi_20200616_V02.fits",
+        "L1/2021/09/20/HK/solo_L1_stix-hk-mini_20210920_V02.fits",
         # CAL
-        "L1/2023/02/13/CAL/solo_L1_stix-cal-energy_20230213_V02U.fits",
+        "L1/2023/02/13/CAL/solo_L1_stix-cal-energy_20230213_V02.fits",
 
-        # L2
-        "L2/2023/06/06/AUX/solo_L2_stix-aux-ephemeris_20230606_V02U.fits"
+        # ANC
+        # "ANC/2023/06/06/AUX/solo_L2_stix-aux-ephemeris_20230606_V02U.fits"
         ]
 
     remote = ["https://pub099.cs.technik.fhnw.ch/data/fits/" + x for x in files]
     # files = ["/home/shane/fits_test/" + x for x in files]
     files = [("/data/stix/out/fits_v1.2.0/" + x, remote[i]) for i, x in enumerate(files)]
+
+    files.append(("/data/stix/out/test/fits_ANC/ANC/2024/04/11/ASP/solo_ANC_stix-asp-ephemeris_20240411_V02U.fits",  # noqa
+                 "https://pub099.cs.technik.fhnw.ch/data/fits/ANC/2024/04/11/ASP/solo_ANC_stix-asp-ephemeris_20240411_V02U.fits"))  # noqa
 
     with tempfile.TemporaryDirectory() as tempdir:
         temppath = Path(tempdir)

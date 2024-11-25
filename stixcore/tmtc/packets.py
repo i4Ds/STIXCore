@@ -679,7 +679,7 @@ class GenericTMPacket:
         p['header'] = h
         p['parameters'] = d
         p['idb_version'] = self.get_idb().version
-        p['spice_kernel'] = [p.name for p in Spice.instance.meta_kernel_path]
+        p['spice_kernel'] = [mkp.name for mkp, mkt, mkd in Spice.instance.meta_kernel_path]
         p['run_id'] = 0
 
         return p

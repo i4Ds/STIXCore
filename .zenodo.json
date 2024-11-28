@@ -1,0 +1,25 @@
+{
+    "description": "STIXCore is the software pipeline for STIX data, turning raw telemetry into standards compliant FITS files for anaysis",
+    "license": "bsd-3-clause",
+    "title": "STIXCore",
+    "upload_type": "software",
+    "creators": [
+        {
+            "name": "Shane Maloney",
+            "orcid": "0000-0002-4715-1805",
+            "affiliation": "Dublin Institute for Advanced Studies"
+        },
+        {
+            "name": "Nicky Hochmuth",
+            "orcid": "",
+            "affiliation": ""
+        },
+        {
+            "name": "",
+            "orcid": "",
+            "affiliation": ""
+        }
+
+    ],
+    "access_right": "open"
+}

@@ -186,6 +186,21 @@ class TMStatusFlareList(QLProduct, L1Mixin):
         self.name = 'tmstatusflarelist'
         self.level = 'L1'
 
+    @property
+    def dmin(self):
+        # TODO define
+        return 0.0
+
+    @property
+    def dmax(self):
+        # TODO define
+        return 0.0
+
+    @property
+    def bunit(self):
+        # TODO define
+        return ''
+
     @classmethod
     def is_datasource_for(cls,  *, service_type, service_subtype, ssid, **kwargs):
         return (kwargs['level'] == 'L1' and service_type == 21

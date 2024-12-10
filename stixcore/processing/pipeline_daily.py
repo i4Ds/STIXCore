@@ -160,8 +160,9 @@ def run_daily_pipeline(args):
     CONFIG.set('Logging', 'stop_on_error', str(args.stop_on_error))
 
     # generate a log file for each run and an error file in case of any errors
+    processing_day = date.today().strftime('%Y%m%d')
     with DailyPipelineErrorReport(Path(args.log_dir) /
-                                  f"dailypipeline_{date.today().strftime('%Y%m%d')}.log",
+                                  f"dailypipeline_{processing_day}.log",
                                   args.log_level):
 
         # set up the singletons
@@ -249,10 +250,10 @@ def run_daily_pipeline(args):
         all_files = list(set(all_files))
 
         # write out all generated fits file in a dedicated log file
-        out_file = Path(args.log_dir) / f"dailypipeline_{date.today().strftime('%Y%m%d')}.out"
+        out_file = Path(args.log_dir) / f"dailypipeline_{processing_day}.out"
         with open(out_file, 'a+') as res_f:
             for f in all_files:
-                res_f.write(f"{str(f)}\n")
+                res_f.write(f"{str(f.in_path)}\n")
 
     return all_files
 

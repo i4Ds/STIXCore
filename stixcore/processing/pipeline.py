@@ -1,5 +1,4 @@
 import io
-import os
 import re
 import sys
 import time
@@ -375,18 +374,23 @@ class PipelineStatus(metaclass=Singleton):
                 connection.close()
 
 
-def search_unprocessed_tm_files(logging_dir, tm_dir):
+def search_unprocessed_tm_files(logging_dir, tm_dir, last_processed):
 
     unprocessed_tm_files = list()
-    list_of_log_files = logging_dir.glob('*.out')
-    latest_log_file = max(list_of_log_files, key=os.path.getmtime)
-    print(f"{latest_log_file}: {latest_log_file.stat().st_mtime}")
+    latest_log_file = logging_dir / last_processed
     tm_file = Path(tm_dir / str(latest_log_file.name)[0:-4])
-    if tm_file.exists():
-        ftime = tm_file.stat().st_mtime
-        for tmf in tm_dir.glob("*.xml"):
-            if TM_REGEX.match(tmf.name) and tmf.stat().st_mtime > ftime:
-                unprocessed_tm_files.append(tmf)
+    ftime = tm_file.stat().st_mtime
+
+    for tmf in tm_dir.glob("*.xml"):
+        log_out_file = logging_dir / (tmf.name + ".out")
+        log_file = logging_dir / (tmf.name + ".log")
+        logger.info(f"test: {tmf.name}")
+        if TM_REGEX.match(tmf.name) and tmf.stat().st_mtime > ftime and (not log_out_file.exists()
+                                                                         or not log_file.exists()):
+            unprocessed_tm_files.append(tmf)
+            logger.info(f"NOT FOUND: {log_out_file.name}")
+        else:
+            logger.info(f"found: {log_out_file.name}")
     return unprocessed_tm_files
 
 
@@ -413,7 +417,8 @@ def main():
     PipelineStatus.instance = PipelineStatus(tm_handler)
     if CONFIG.getboolean('Pipeline', 'start_with_unprocessed', fallback=True):
         logger.info("Searching for unprocessed tm files")
-        unprocessed_tm_files = search_unprocessed_tm_files(log_dir, tmpath)
+        last_processed = CONFIG.get('Pipeline', 'last_processed', fallback="")
+        unprocessed_tm_files = search_unprocessed_tm_files(log_dir, tmpath, last_processed)
         if unprocessed_tm_files:
             fl = '\n    '.join([f.name for f in unprocessed_tm_files])
             logger.info(f"Found unprocessed tm files: \n    {fl}\nadding to queue.")

@@ -1,9 +1,11 @@
 """Module for the different processing levels."""
 
 from math import isnan
+from pathlib import Path
 from datetime import datetime
 
 import numpy as np
+from matplotlib import pyplot as plt
 
 import astropy.units as u
 from astropy.io import fits
@@ -19,7 +21,8 @@ from stixcore.time.datetime import SEC_IN_DAY
 from stixcore.util.logging import get_logger
 from stixcore.util.util import get_complete_file_name_and_path
 
-__all__ = ["SEC_IN_DAY", "FitsProcessor", "FitsLBProcessor", "FitsL0Processor", "FitsL1Processor", "FitsL2Processor"]
+__all__ = ['SEC_IN_DAY', 'FitsProcessor', 'FitsLBProcessor', 'FitsL0Processor',
+           'FitsL1Processor', 'FitsL2Processor', 'PlotProcessor']
 
 
 logger = get_logger(__name__)
@@ -95,13 +98,14 @@ class FitsProcessor:
             The filename
         """
 
-        user_req = ""
-        if "request_id" in product.control.colnames:
+        user_req = ''
+        if product.control and 'request_id' in product.control.colnames:
             user_req = f"_{product.control['request_id'][0]:010d}"
 
-        tc_control = ""
-        if "tc_packet_seq_control" in product.control.colnames and user_req != "":
-            tc_control = f"-{product.control['tc_packet_seq_control'][0]:05d}"
+        tc_control = ''
+        if product.control and 'tc_packet_seq_control' in product.control.colnames \
+           and user_req != '':
+            tc_control = f'-{product.control["tc_packet_seq_control"][0]:05d}'
 
         if status == "" and (not header) and (product.level != "LB" and product.fits_daily_file is True):
             status = "U"
@@ -744,12 +748,11 @@ class FitsL1Processor(FitsL0Processor):
         self.archive_path = archive_path
 
     @classmethod
-    def generate_filename(cls, product, *, version=0, status="", header=True):
-        date_range = (
-            f"{product.utc_timerange.start.strftime('%Y%m%dT%H%M%S')}-"
-            + f"{product.utc_timerange.end.strftime('%Y%m%dT%H%M%S')}"
-        )
-        if product.type != "sci" or product.name == "burst-aspect":
+    def generate_filename(cls, product, *, version=0, status='', header=True):
+
+        date_range = f'{product.utc_timerange.start.strftime("%Y%m%dT%H%M%S")}-' +\
+                     f'{product.utc_timerange.end.strftime("%Y%m%dT%H%M%S")}'
+        if product.type not in ['sci', 'flarelist'] or product.name == 'burst-aspect':
             date_range = product.utc_timerange.center.strftime("%Y%m%d")
 
         return FitsProcessor.generate_filename(
@@ -766,8 +769,8 @@ class FitsL1Processor(FitsL0Processor):
             ("DATAMIN", empty_if_nan(product.dmin), "Minimum valid physical value"),
             ("DATAMAX", empty_if_nan(product.dmax), "Maximum valid physical value"),
             ("BUNIT", product.bunit, "Units of physical value, after application of BSCALE, BZERO"),
-            ("XPOSURE", product.exposure, "[s] shortest exposure time"),
-            ("XPOMAX", product.max_exposure, "[s] maximum exposure time"),
+            ("XPOSURE", empty_if_nan(product.exposure), "[s] shortest exposure time"),
+            ("XPOMAX", empty_if_nan(product.max_exposure), "[s] maximum exposure time"),
         )
 
         soop_keywords = SOOPManager.instance.get_keywords(
@@ -837,7 +840,7 @@ class FitsL1Processor(FitsL0Processor):
             # day boundary
             parts = [prod.level, prod.utc_timerange.center.strftime("%Y/%m/%d"), prod.type.upper()]
             # for science data use start date
-            if prod.type == "sci":
+            if prod.type in ["sci", 'flarelist']:
                 parts[1] = prod.utc_timerange.start.strftime("%Y/%m/%d")
             path = self.archive_path.joinpath(*[str(x) for x in parts])
             path.mkdir(parents=True, exist_ok=True)
@@ -866,15 +869,8 @@ class FitsL1Processor(FitsL0Processor):
                 if col.endswith("_comp_err"):
                     data[col].description = "Error due only to integer compression"
 
-            idb_versions = QTable(
-                rows=[
-                    (version, range.start.as_float(), range.end.as_float())
-                    for version, range in prod.idb_versions.items()
-                ],
-                names=["version", "obt_start", "obt_end"],
-            )
-
-            primary_header, header_override = self.generate_primary_header(filename, prod, version=version)
+            primary_header, header_override = self.generate_primary_header(filename, prod,
+                                                                           version=version)
             primary_hdu = fits.PrimaryHDU()
             primary_hdu.header.update(primary_header)
             primary_hdu.header.update(header_override)
@@ -914,12 +910,16 @@ class FitsL1Processor(FitsL0Processor):
             data_hdu = add_default_tuint(data_hdu)
             data_hdu.name = "DATA"
 
+            hdul = [primary_hdu, control_hdu, data_hdu]
+
+            idb_versions = QTable(rows=[(version, range.start.as_float(), range.end.as_float())
+                                        for version, range in prod.idb_versions.items()],
+                                  names=["version", "obt_start", "obt_end"])
             idb_enc = fits.connect._encode_mixins(idb_versions)
             idb_hdu = table_to_hdu(idb_enc)
             idb_hdu = add_default_tuint(idb_hdu)
             idb_hdu.name = "IDB_VERSIONS"
-
-            hdul = [primary_hdu, control_hdu, data_hdu, idb_hdu]
+            hdul.append(idb_hdu)
 
             FitsL0Processor.add_optional_energy_table(prod, hdul)
 
@@ -984,24 +984,156 @@ class FitsL2Processor(FitsL1Processor):
             ("DATAMIN", empty_if_nan(product.dmin), "Minimum valid physical value"),
             ("DATAMAX", empty_if_nan(product.dmax), "Maximum valid physical value"),
             ("BUNIT", product.bunit, "Units of physical value, after application of BSCALE, BZERO"),
-            ("XPOSURE", product.exposure, "[s] shortest exposure time"),
-            ("XPOMAX", product.max_exposure, "[s] maximum exposure time"),
+            ("XPOSURE", empty_if_nan(product.exposure), "[s] shortest exposure time"),
+            ("XPOMAX", empty_if_nan(product.max_exposure), "[s] maximum exposure time"),
         )
 
         return L1headers, L2headers
 
 
-class FitsL3Processor(FitsL2Processor):
+class FitsANCProcessor(FitsL2Processor):
     def __init__(self, archive_path):
         super().__init__(archive_path)
 
-    def write_fits(self, product, *, version=0):
-        """
-        Write level 3 products into fits files.
+    def write_fits(self, prod, *, version=0):
+        """Writes ANC products into fits files.
 
         Parameters
         ----------
-        product : `stixcore.product.level3`
+        product : `stixcore.product.ANC`
+
+        version : `int`
+            the version modifier for the filename
+            default 0 = detect from codebase.
+
+        Returns
+        -------
+        list
+            of created file as `pathlib.Path`
+
+        """
+        if version == 0:
+            version = prod.get_processing_version()
+
+        filename = self.generate_filename(product=prod, version=version, header=False)
+
+        parts = [prod.level, prod.utc_timerange.center.strftime('%Y/%m/%d'), prod.type.upper()]
+        # for science data use start date
+        if prod.type in ['flarelist']:
+            parts[1] = prod.utc_timerange.start.strftime('%Y/%m/%d')
+        path = self.archive_path.joinpath(*[str(x) for x in parts])
+        path.mkdir(parents=True, exist_ok=True)
+
+        fitspath = path / filename
+        fitspath_complete = get_complete_file_name_and_path(fitspath)
+
+        if fitspath.exists():
+            logger.warning('Fits file %s exists data will be overriden', fitspath.name)
+        elif fitspath_complete.exists():
+            logger.warning('Complete Fits file %s exists will be overriden', fitspath.name)
+
+        data = prod.data
+
+        primary_header, header_override = self.generate_primary_header(filename, prod,
+                                                                       version=version)
+        primary_hdu = fits.PrimaryHDU()
+        primary_hdu.header.update(primary_header)
+        primary_hdu.header.update(header_override)
+        primary_hdu.header.update(prod.get_additional_header_keywords())
+
+        # Add comment and history
+        [primary_hdu.header.add_comment(com) for com in prod.comment]
+        [primary_hdu.header.add_history(com) for com in prod.history]
+        primary_hdu.header.update({'HISTORY': 'Processed by STIXCore ANC'})
+
+        data_enc = fits.connect._encode_mixins(data)
+        data_hdu = table_to_hdu(data_enc)
+        data_hdu = set_bscale_unsigned(data_hdu)
+        data_hdu = add_default_tuint(data_hdu)
+        data_hdu.name = "DATA"
+
+        hdul = [primary_hdu, data_hdu]
+
+        if prod.energy and len(prod.energy) > 0:
+            energy_enc = fits.connect._encode_mixins(prod.energy)
+            energy_hdu = table_to_hdu(energy_enc)
+            energy_hdu = add_default_tuint(energy_hdu)
+            energy_hdu.name = "ENERGIES"
+            hdul.append((energy_hdu))
+
+        hdul = fits.HDUList(hdul)
+
+        filetowrite = path / filename
+        logger.info(f"Writing fits file to {filetowrite}")
+        hdul.writeto(filetowrite, overwrite=True, checksum=True)
+        return [filetowrite]
+
+
+class PlotProcessor(FitsL2Processor):
+    """A file product processor for plot images"""
+    def __init__(self, archive_path):
+        """Creates a new PlotProcessor object.
+
+        Parameters
+        ----------
+        archive_path : Path
+            the output root path where the files should be created
+        """
+        super().__init__(archive_path)
+
+    def generate_filename(self, product, *, version=0, suffix='.svg'):
+        """Generates a SOAR conform filename based on product characteristics.
+
+        Parameters
+        ----------
+        product : Product
+            The data product the file name should be generated for
+        version : int, optional
+            The file version, by default 0 = detect from codebase
+        suffix : str, optional
+            file name suffix like svg, png, ..., by default '.svg'
+
+        Returns
+        -------
+        Path
+            a Path object with full name and path
+        """
+        p = Path(super().generate_filename(product=product, version=version, header=True))
+        return p.with_suffix(suffix).name
+
+    def generate_primary_header(self, filename, product, *, version=0):
+        """Transforms the fits header into a more generic header dict
+        that might be used in other output file formats
+
+        Parameters
+        ----------
+        filename : Path
+            The envisoned file name and path for the product
+        product : Product
+            The products holding the data
+        version : int, optional
+            teh processing version, by default 0 = detect from codebase
+
+        Returns
+        -------
+        dict
+            a dict of header keywords and values
+        """
+        l1, l2 = super().generate_primary_header(filename, product, version=version)
+        header = dict()
+        for k, v in l1:
+            header[k] = v
+        for kv in l2:
+            header[kv[0]] = kv[1]
+        return header
+
+    def write_plot(self, product, *, version=0):
+        """
+        Write products into a plot image file.
+
+        Parameters
+        ----------
+        product : `stixcore.product.level2`
 
         version : `int`
             the version modifier for the filename
@@ -1016,9 +1148,133 @@ class FitsL3Processor(FitsL2Processor):
         if version == 0:
             version = product.get_processing_version()
 
-        return super().write_fits(product, version=version)
+        filename = self.generate_filename(product=product, version=version)
+
+        # headers = self.generate_primary_header(filename, product, version=version)
+        # headers['parent'] = get_complete_file_name(product.parent_file_path.name)
+
+        parts = [product.level, product.utc_timerange.center.strftime("%Y/%m/%d"),
+                 product.type.upper()]
+        # for science data use start date
+        if product.type in ["sci", "flarelist"]:
+            parts[1] = product.utc_timerange.start.strftime("%Y/%m/%d")
+        path = self.archive_path.joinpath(*[str(x) for x in parts])
+        path.mkdir(parents=True, exist_ok=True)
+
+        plot_path = path / filename
+
+        fig = product.get_plot()
+        fig.savefig(plot_path, format="svg")
+        plt.close(fig)
+        return plot_path
+
+
+class FitsL3Processor(FitsL2Processor):
+    def __init__(self, archive_path):
+        super().__init__(archive_path)
+
+    def write_fits(self, prod, *, version=0):
+        """Writes ANC products into fits files.
+
+        Parameters
+        ----------
+        product : `stixcore.product.ANC`
+
+        version : `int`
+            the version modifier for the filename
+            default 0 = detect from codebase.
+
+        Returns
+        -------
+        list
+            of created file as `pathlib.Path`
+
+        """
+        if version == 0:
+            version = prod.get_processing_version()
+
+        filename = self.generate_filename(product=prod, version=version, header=False)
+
+        parts = [prod.level, prod.utc_timerange.center.strftime("%Y/%m/%d"), prod.type.upper()]
+        # for science data use start date
+        if prod.type in ["flarelist"]:
+            parts[1] = prod.utc_timerange.start.strftime("%Y/%m/%d")
+        path = self.archive_path.joinpath(*[str(x) for x in parts])
+        path.mkdir(parents=True, exist_ok=True)
+
+        fitspath = path / filename
+        fitspath_complete = get_complete_file_name_and_path(fitspath)
+
+        if fitspath.exists():
+            logger.warning('Fits file %s exists data will be overriden', fitspath.name)
+        elif fitspath_complete.exists():
+            logger.warning('Complete Fits file %s exists will be overriden', fitspath.name)
+
+        data = prod.data
+
+        primary_header, header_override = self.generate_primary_header(filename, prod,
+                                                                       version=version)
+
+        primary_hdu = fits.PrimaryHDU()
+        primary_hdu.header.update(primary_header)
+        primary_hdu.header.update(header_override)
+        primary_hdu.header.update(prod.get_additional_header_keywords())
+        hdul = [primary_hdu]
+
+        # Add comment and history
+        [primary_hdu.header.add_comment(com) for com in prod.comment]
+        [primary_hdu.header.add_history(com) for com in prod.history]
+        primary_hdu.header.update({'HISTORY': 'Processed by STIXCore ANC'})
+
+        if hasattr(prod, "maps") and len(prod.maps) > 0:
+            # fig = plt.figure(figsize=(12, 6))
+            # map_t = Map(prod.maps[0][0], prod.maps[0][1])
+            # map_nt = Map(prod.maps[1][0], prod.maps[1][1])
+
+            # ax = fig.subplot_mosaic(
+            #     [
+            #         ["t", "nt"]
+            #     ],
+            #     subplot_kw={"projection": map_t.wcs},
+            # )
+
+            # mt = map_t.plot(axes=ax["t"])
+            # ax["t"].set_title("thermal")
+            # map_nt.plot(axes=ax["nt"])
+            # ax["nt"].set_title("non thermal")
+            # fig.colorbar(mt, ax=ax.values())
+            # fig.savefig(fitspath.with_suffix(".svg"), format="svg")
+            # plt.close(fig)
+            for idx, map in enumerate(prod.maps):
+                map_data, header = map
+                image_hdu = fits.ImageHDU(map_data, header=header)
+                image_hdu.name = f'MAP_{idx}'
+                hdul.append(image_hdu)
+
+        data_enc = fits.connect._encode_mixins(data)
+        data_hdu = table_to_hdu(data_enc)
+        data_hdu = set_bscale_unsigned(data_hdu)
+        data_hdu = add_default_tuint(data_hdu)
+        data_hdu.name = "DATA"
+
+        hdul.append(data_hdu)
+
+        if prod.energy and len(prod.energy) > 0:
+            energy_enc = fits.connect._encode_mixins(prod.energy)
+            energy_hdu = table_to_hdu(energy_enc)
+            energy_hdu = add_default_tuint(energy_hdu)
+            energy_hdu.name = "ENERGIES"
+            hdul.append(energy_hdu)
+
+        hdul = fits.HDUList(hdul)
+
+        filetowrite = path / filename
+        logger.info(f'Writing fits file to {filetowrite}')
+        hdul.writeto(filetowrite, overwrite=True, checksum=True)
+        return [filetowrite]
 
     def generate_primary_header(self, filename, product, *, version=0):
+
         if product.fits_header is None:
             L2, o = super().generate_primary_header(filename, product, version=version)
             L2headers = L2 + o

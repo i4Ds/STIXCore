@@ -71,12 +71,12 @@ def read_qtable(file, hdu, hdul=None):
     `astropy.table.QTable`
         The corrected QTable with correct data types
     """
-    qtable = QTable.read(file, hdu)
+    qtable = QTable.read(file, hdu, astropy_native=True)
     if hdul is None:
         hdul = fits.open(file)
 
     for col in hdul[hdu].data.columns:
-        if col.unit:
+        if col.unit and col.name in qtable.colnames:
             logger.debug(f"Unit present dtype correction needed for {col}")
             dtype = col.dtype
 
@@ -89,7 +89,10 @@ def read_qtable(file, hdu, hdul=None):
             if hasattr(dtype, "subdtype"):
                 dtype = dtype.base
 
-            qtable[col.name] = qtable[col.name].astype(dtype)
+            if col.coord_type != 'UTC':
+                qtable[col.name] = qtable[col.name].astype(dtype)
+            else:
+                qtable[col.name].format = "isot"
 
     return qtable
 
@@ -228,13 +231,17 @@ class ProductFactory(BasicRegistrationFactory):
                 pri_header.get("TIMESYS")
 
                 hdul = fits.open(file_path)
-                control = read_qtable(file_path, hdu="CONTROL", hdul=hdul)
 
-                # Weird issue where time_stamp wasn't a proper table column?
-                if "time_stamp" in control.colnames:
-                    ts = control["time_stamp"].value
-                    control.remove_column("time_stamp")
-                    control["time_stamp"] = ts * u.s
+                if "CONTROL" in hdul:
+                    control = read_qtable(file_path, hdu="CONTROL", hdul=hdul)
+
+                    # Weird issue where time_stamp wasn't a proper table column?
+                    if "time_stamp" in control.colnames:
+                        ts = control["time_stamp"].value
+                        control.remove_column("time_stamp")
+                        control["time_stamp"] = ts * u.s
+                else:
+                    control = QTable()
 
                 data = read_qtable(file_path, hdu="DATA", hdul=hdul)
 
@@ -250,7 +257,8 @@ class ProductFactory(BasicRegistrationFactory):
                         service_subtype = 6
                         ssid = 34
 
-                if level not in ["LB", "LL01"]:
+                if level not in ["LB", "LL01"] and 'timedel' in data.colnames \
+                   and 'time' in data.colnames:
                     data["timedel"] = SCETimeDelta(data["timedel"])
                     offset = SCETime.from_float(pri_header["OBT_BEG"] * u.s)
 
@@ -262,7 +270,7 @@ class ProductFactory(BasicRegistrationFactory):
                     data["time"] = offset + data["time"]
 
                 energies = None
-                if level == "L1":
+                if level in ["L1", "ANC"] and "ENERGIES" in hdul:
                     try:
                         energies = read_qtable(file_path, hdu="ENERGIES")
                     except KeyError:
@@ -276,7 +284,7 @@ class ProductFactory(BasicRegistrationFactory):
                                 start=SCETime.from_float(row[1]), end=SCETime.from_float(row[2])
                             )
                     except KeyError:
-                        logger.warn(f"no IDB data found in FITS: {file_path}")
+                        logger.warning(f"no IDB data found in FITS: {file_path}")
 
                 Product = self._check_registered_widget(
                     level=level,
@@ -288,20 +296,15 @@ class ProductFactory(BasicRegistrationFactory):
                     energies=energies,
                 )
 
-                p = Product(
-                    level=level,
-                    service_type=service_type,
-                    service_subtype=service_subtype,
-                    ssid=ssid,
-                    control=control,
-                    data=data,
-                    energies=energies,
-                    idb_versions=idb_versions,
-                    raw=raw,
-                    parent=parent,
-                    comment=comment,
-                    history=history,
-                )
+                month = None
+                if hasattr(Product, "TYPE") and Product.TYPE == "flarelist":
+                    month = datetime.fromisoformat(pri_header["DATE-BEG"]).date()
+
+                p = Product(level=level, service_type=service_type,
+                            service_subtype=service_subtype,
+                            ssid=ssid, control=control,
+                            data=data, energies=energies, idb_versions=idb_versions,
+                            raw=raw, parent=parent, comment=comment, history=history, month=month)
 
                 # store the old fits header for later reuse
                 if isinstance(p, (L1Mixin, L2Mixin)):
@@ -519,11 +522,13 @@ class GenericProduct(BaseProduct):
 
     @property
     def raw(self):
-        return np.unique(self.control["raw_file"]).tolist()
+        return np.unique(self.control["raw_file"]).tolist() \
+            if "raw_file" in self.control.colnames else []
 
     @property
     def parent(self):
-        return np.unique(self.control["parent"]).tolist()
+        return np.unique(self.control["parent"]).tolist() \
+            if "parent" in self.control.colnames else []
 
     @property
     def dmin(self):

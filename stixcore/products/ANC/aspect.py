@@ -208,17 +208,15 @@ class AspectIDLProcessing(SSWIDLTask):
                 aux = Ephemeris(control=control, data=data, idb_versions=HK.idb_versions)
 
                 aux.add_additional_header_keyword(
-                    ("STX_GSW", result.idlgswversion[0].decode(), "Version of STX-GSW that provided data")
-                )
-                aux.add_additional_header_keyword(("HISTORY", "aspect data processed by STX-GSW", ""))
-                files.extend(
-                    [
-                        SingleProcessingStepResult(
-                            aux.name, aux.level, aux.type, aux.get_processing_version(), fop, file_path, datetime.now()
-                        )
-                        for fop in fits_processor.write_fits(aux)
-                    ]
-                )
+                    ("STX_GSW", result.idlgswversion[0].decode(),
+                     "Version of STX-GSW that provided data"))
+                aux.add_additional_header_keyword(
+                    ("HISTORY", "aspect data processed by STX-GSW", ""))
+                files.extend([SingleProcessingStepResult(aux.name, aux.level, aux.type,
+                                                         aux.get_processing_version(), fop,
+                                                         get_complete_file_name_and_path(file_path),
+                                                         datetime.now())
+                              for fop in fits_processor.write_fits(aux)])
         else:
             logger.error("IDL ERROR")
 

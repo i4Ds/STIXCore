@@ -86,6 +86,7 @@ def test_identical(orig_fits, current_fits):
         except StopIteration:
             error_c += 1
             warnings.warn(f"no corresponding file found for {cfits} in the original fits files")
+            error_files.append((cfits, ofits))
             continue
         diff = FITSDiff(ofits, cfits, atol=0.00001, rtol=0.00001,
                         ignore_keywords=['CHECKSUM', 'DATASUM', 'DATE',

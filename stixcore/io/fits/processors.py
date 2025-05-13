@@ -476,10 +476,11 @@ class FitsLBProcessor(FitsProcessor):
             data_hdu.name = 'DATA'
             hdul = fits.HDUList([primary_hdu, control_hdu, data_hdu])
 
-            logger.info(f'Writing fits file to {path / filename}')
             fullpath = path / filename
+            logger.info(f'start writing fits file to {fullpath}')
             hdul.writeto(fullpath, overwrite=True, checksum=True)
             files.append(fullpath)
+            logger.info(f'done writing fits file to {fullpath}')
 
         return files
 

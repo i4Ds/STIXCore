@@ -15,7 +15,7 @@ from stixcore.products import Product
 from stixcore.products.product import GenericProduct, L2Mixin
 from stixcore.time import SCETime, SCETimeDelta, SCETimeRange
 from stixcore.util.logging import get_logger
-from stixcore.util.util import get_complete_file_name
+from stixcore.util.util import get_complete_file_name, get_complete_file_name_and_path
 
 __all__ = ['Ephemeris', 'AspectIDLProcessing']
 
@@ -165,7 +165,10 @@ class AspectIDLProcessing(SSWIDLTask):
             for file_idx, resfile in enumerate(result.processed_files):
                 file_path = Path(resfile.decode())
                 logger.info(f"IDL postprocessing HK file: {resfile}")
-                HK = Product(file_path)
+                if file_path.exists():
+                    HK = Product(file_path)
+                else:
+                    HK = Product(get_complete_file_name_and_path(file_path))
 
                 control = HK.control
                 data = QTable()
@@ -257,6 +260,10 @@ class Ephemeris(GenericProduct, L2Mixin):
     @property
     def bunit(self):
         return 'arcsec'
+
+    @property
+    def fits_daily_file(self):
+        return True
 
     @classmethod
     def is_datasource_for(cls, *, service_type, service_subtype, ssid, **kwargs):

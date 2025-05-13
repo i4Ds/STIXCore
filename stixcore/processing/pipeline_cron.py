@@ -10,14 +10,10 @@ import warnings
 import importlib
 import threading
 import subprocess
-from queue import Queue
 from pprint import pformat
 from pathlib import Path
 from datetime import datetime
 from configparser import ConfigParser
-
-from polling2 import poll_decorator
-from watchdog.events import FileSystemEventHandler
 
 import stixcore
 from stixcore.config.config import CONFIG
@@ -34,7 +30,7 @@ from stixcore.util.logging import STX_LOGGER_DATE_FORMAT, STX_LOGGER_FORMAT, get
 from stixcore.util.singleton import Singleton
 from stixcore.version_conf import get_conf_version
 
-__all__ = ['GFTSFileHandler', 'process_tm', 'PipelineErrorReport', 'PipelineStatus']
+__all__ = ['process_tm', 'PipelineErrorReport', 'PipelineStatus']
 
 logger = get_logger(__name__)
 warnings.filterwarnings('ignore', module='astropy.io.fits.card')
@@ -42,72 +38,6 @@ warnings.filterwarnings('ignore', module='astropy.utils.metadata')
 warnings.filterwarnings('ignore', module='watchdog.events')
 
 TM_REGEX = re.compile(r'.*PktTmRaw.*.xml$')
-
-
-class GFTSFileHandler(FileSystemEventHandler):
-    """
-    Handler to detect and process new files send from GFTS
-
-    As rsync is used to transfer the files to process need to take into account how rsync works.
-    Rsync works by first creating a temporary file of the same with name as the file being
-    transferred `myfile.xml` with an random extra extension `myfile.xml.NmRJ4x` it then
-    transfers the data to the temporary file and once the transfer is complete it them move/renames
-    the file back to the original name `myfile.xml`. Can detect file move event that match the TM
-    filename pattern.
-    """
-    def __init__(self, func, regex, *, name="name", **args):
-        """
-
-        Parameters
-        ----------
-        func : `callable`
-            The method to call when new TM is received with the path to the file as the argument
-        regex : `Pattern`
-            a filter filename pattern that have to match in order to invoke the 'func'
-        """
-        if not callable(func):
-            raise TypeError('func must be a callable')
-        self.func = func
-
-        # TODO should be Pattern but not compatible with py 3.6
-        if not isinstance(regex, type(re.compile('.'))):
-            raise TypeError('regex must be a regex Pattern')
-        self.regex = regex
-        self.args = args
-        self.queue = Queue(maxsize=0)
-        self.name = name
-        self.lp = threading.Thread(target=self.process)
-        self.lp.start()
-
-    def add_to_queue(self, initlist):
-        if initlist:
-            for p in initlist:
-                self.queue.put(p)
-
-    @poll_decorator(step=1, poll_forever=True)
-    def process(self):
-        """Worker function to process the queue of detected files."""
-        logger.info(f"GFTSFileHandler:{self.name} start working")
-        path = self.queue.get()  # this will wait until the next
-        logger.info(f"GFTSFileHandler:{self.name} found: {path}")
-        try:
-            self.func(path, **self.args)
-        except Exception as e:
-            logger.error(e)
-            if CONFIG.getboolean('Logging', 'stop_on_error', fallback=False):
-                raise e
-        logger.info(f"GFTSFileHandler:{self.name} end working")
-
-    def on_moved(self, event):
-        """Callback if a file was moved
-
-        Parameters
-        ----------
-        event : Event
-            The event object with access to the file
-        """
-        if self.regex.match(event.dest_path):
-            self.queue.put(Path(event.dest_path))
 
 
 class PipelineErrorReport(logging.StreamHandler):

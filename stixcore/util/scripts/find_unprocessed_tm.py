@@ -11,7 +11,6 @@ from stixcore.config.config import CONFIG
 unprocessed_tm_files = list()
 TM_REGEX = re.compile(r'.*PktTmRaw.*.xml$')
 logging_dir = Path(CONFIG.get('Pipeline', 'log_dir'))
-logging_dir = Path("/data/stix/out/fits_v1.2.0/logging/")
 tm_dir = Path(CONFIG.get('Paths', 'tm_archive'))
 tm_dir = Path("/data/stix/SOLSOC/from_edds/tm/incomming")
 list_of_log_files = logging_dir.glob('*.xml.out')

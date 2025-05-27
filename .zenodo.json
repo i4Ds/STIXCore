@@ -1,5 +1,5 @@
 {
-    "description": "STIXCore is the software pipeline for STIX data, turning raw telemetry into standards compliant FITS files for anaysis",
+    "description": "STIXCore is the software pipeline for STIX data, turning raw telemetry into standards compliant FITS files for analysis",
     "license": "bsd-3-clause",
     "title": "STIXCore",
     "upload_type": "software",
@@ -14,12 +14,6 @@
             "orcid": "0009-0005-3785-7643",
             "affiliation": "Ateleris GmbH Switzerland"
         },
-        {
-            "name": "",
-            "orcid": "",
-            "affiliation": ""
-        }
-
     ],
     "access_right": "open"
 }

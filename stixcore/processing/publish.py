@@ -587,7 +587,7 @@ def publish_fits_to_esa(args):
         "--include_levels",
         help="what levels should be published",
         type=str,
-        default=CONFIG.get("Publish", "include_levels", fallback="L0, L1, L2, ANC"),
+        default=CONFIG.get("Publish", "include_levels", fallback="L0, L1, L2, ANC, LL03"),
     )
 
     parser.add_argument(

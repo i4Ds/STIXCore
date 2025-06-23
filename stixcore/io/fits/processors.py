@@ -1098,7 +1098,8 @@ class PlotProcessor(FitsL2Processor):
         Path
             a Path object with full name and path
         """
-        p = Path(super().generate_filename(product=product, version=version, header=True))
+        p = Path(super().generate_filename(product=product, version=version,
+                                           header=True, status='C'))
         return p.with_suffix(suffix).name
 
     def generate_primary_header(self, filename, product, *, version=0):

@@ -12,17 +12,17 @@ from stixcore.processing.SingleStep import (
     SingleProductProcessingStepMixin,
     TestForProcessingResult,
 )
-from stixcore.products.ANC.flarelist import FlarePositionMixin, FlareSOOPMixin
+from stixcore.products.level3.flarelist import FlarePositionMixin, FlareSOOPMixin
 from stixcore.soop.manager import SOOPManager
 from stixcore.util.logging import get_logger
 
-__all__ = ['FlareListANC', 'FlarePositionMixin']
+__all__ = ['FlareListL3']
 
 logger = get_logger(__name__)
 
 
-class FlareListANC(SingleProductProcessingStepMixin):
-    """Processing step from a FlareListManager to monthly solo_ANC_stix-flarelist-*.fits file.
+class FlareListL3(SingleProductProcessingStepMixin):
+    """Processing step from a FlareListManager to monthly solo_L3_stix-flarelist-*.fits file.
     """
 
     STARTDATE = date(2024, 1, 1)
@@ -49,7 +49,7 @@ class FlareListANC(SingleProductProcessingStepMixin):
             a list of fits files candidates
         """
         fl_months = list()
-        for month in pd.date_range(FlareListANC.STARTDATE, date.today(), freq='MS').date:
+        for month in pd.date_range(FlareListL3.STARTDATE, date.today(), freq='MS').date:
             if self.test_for_processing(month, phs) == TestForProcessingResult.Suitable:
                 fl_months.append(month)
         return fl_months
@@ -75,7 +75,7 @@ class FlareListANC(SingleProductProcessingStepMixin):
                                                  self.flm.productCls.LEVEL,
                                                  self.flm.productCls.TYPE,
                                                  self.flm.productCls.get_cls_processing_version(),
-                                                 str(month), FlareListANC.STARTDATE)
+                                                 str(month), FlareListL3.STARTDATE)
 
             # found already in the processing history
             if wp:
@@ -93,7 +93,7 @@ class FlareListANC(SingleProductProcessingStepMixin):
     def process_fits_files(self, months: list[date], *, soopmanager: SOOPManager,
                            spice_kernel_path: Path, processor, config) -> list[Path]:
         """Performs the processing (expected to run in a dedicated python process) from a
-        list of solo_L1_stix-hk-maxi_*.fits into solo_ANC_stix-asp-ephemeris*.fits files.
+        list of time periods (months) and creates a FITS file for each one.
 
         Parameters
         ----------

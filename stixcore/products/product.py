@@ -270,7 +270,7 @@ class ProductFactory(BasicRegistrationFactory):
                     data["time"] = offset + data["time"]
 
                 energies = None
-                if level in ["L1", "ANC"] and "ENERGIES" in hdul:
+                if level in ["L1", "L2", "L3", "ANC"] and "ENERGIES" in hdul:
                     try:
                         energies = read_qtable(file_path, hdu="ENERGIES")
                     except KeyError:

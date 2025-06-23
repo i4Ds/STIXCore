@@ -13,8 +13,8 @@ from stixcore.processing.SingleStep import (
     SingleProductProcessingStepMixin,
     TestForProcessingResult,
 )
-from stixcore.products.ANC.flarelist import (
-    FlareListProduct,
+from stixcore.products.level3.flarelist import (
+    FlareList,
     FlarePeekPreviewMixin,
     FlarePositionMixin,
     FlareSOOPMixin,
@@ -30,7 +30,7 @@ logger = get_logger(__name__)
 
 
 class FLtoFL(SingleProductProcessingStepMixin):
-    """Processing step from a HK L1 fits file to a solo_ANC_stix-asp-ephemeris*.fits file.
+    """Processing step from enhance monthly flare list files to next processing steep
     """
     INPUT_PATTERN = "solo_ANC_stix-flarelist-sdc*.fits"
 
@@ -84,8 +84,8 @@ class FLtoFL(SingleProductProcessingStepMixin):
         return fl_to_process
 
     def test_for_processing(self, candidate: Path,
-                            product_in: FlareListProduct,
-                            product_out: FlareListProduct,
+                            product_in: FlareList,
+                            product_out: FlareList,
                             phm: ProcessingHistoryStorage) -> TestForProcessingResult:
         """_summary_
 

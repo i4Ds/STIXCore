@@ -34,7 +34,8 @@ from stixcore.util.util import url_to_path
 from stixpy.map.stix import STIXMap  # noqa
 
 __all__ = ['FlarelistSDC', 'FlarePositionMixin', 'FlareSOOPMixin',
-           'FlareListProduct', 'FlarelistSDCLocImg', 'FlarePeekPreviewMixin']
+           'FlareList', 'FlarelistSDCLocImg', 'FlarePeekPreviewMixin',
+           'FlarelistSC', 'FlarelistSCLoc', 'FlarelistSCLocImg']
 
 logger = get_logger(__name__)
 
@@ -80,7 +81,7 @@ class FlarePositionMixin:
         data['flare_position'] = [SkyCoord(0, 0, frame="icrs", unit="deg")
                                   for i in range(0, len(data))]
 
-        data['aux_ephemeris_path'] = Column(" " * 500, dtype=str,
+        data['anc_ephemeris_path'] = Column(" " * 500, dtype=str,
                                             description='TDB')
         data['cpd_path'] = Column(" " * 500, dtype=str,
                                   description='TDB')
@@ -124,7 +125,7 @@ class FlarePositionMixin:
                     data[i]['_position_message'] = "no ephemeris data found"
                     no_ephemeris += 1
                     continue
-                data[i]['aux_ephemeris_path'] = anc_res["path"][0]
+                data[i]['anc_ephemeris_path'] = anc_res["path"][0]
 
                 if start_time.datetime.hour < 2:
                     start_time = start_time - 2 * u.hour
@@ -227,14 +228,23 @@ class FlareSOOPMixin:
 
 
 class FlarePeekPreviewMixin:
-    """_summary_
+    """ Mixin class to add peek preview images to flare list products.
+    This class provides a method to generate and add peek preview images
+    to the flare list data. The images are generated based on the
+    flare's peak time, start time, and end time, using the STIXPy library
+    for visibility calculations and image reconstruction.
+    The generated images are stored in the 'peek_preview_path' column of the data.
+    The method also updates the status and message columns to indicate
+    the success or failure of the image generation process.
+
+    Currently the images are created for two energy ranges: 4-20 keV and 20-120 keV.
     """
     @classmethod
     def add_peek_preview(cls, data, energies, parent, fido_client: STIXClient, img_processor, *,
                          peek_time_colname='peak_UTC',
                          start_time_colname='start_UTC',
                          end_time_colname='end_UTC',
-                         aux_ephemeris_path_colname='aux_ephemeris_path',
+                         anc_ephemeris_path_colname='anc_ephemeris_path',
                          cpd_path_colname='cpd_path',
                          product_name_suffix='fl',
                          keep_all_flares=True,
@@ -255,19 +265,21 @@ class FlarePeekPreviewMixin:
         images = 0
 
         for i, row in enumerate(data):
+
             peak_time = row[peek_time_colname]
             row[start_time_colname]
             row[end_time_colname]
 
-            aux_ephemeris_path = Path(row[aux_ephemeris_path_colname])
+            anc_ephemeris_path = Path(row[anc_ephemeris_path_colname])
             cpd_path = Path(row[cpd_path_colname])
 
             status = False
+            message = ""
 
             peek_preview_start = row[peek_time_colname]
             peek_preview_end = row[peek_time_colname]
 
-            if aux_ephemeris_path.exists() and cpd_path.exists():
+            if anc_ephemeris_path.exists() and cpd_path.exists():
                 try:
                     status = True
                     # do the imaging with stixpy
@@ -286,7 +298,7 @@ class FlarePeekPreviewMixin:
                     cpd_sci = STIXPYProduct(cpd_path)
                     time_range_sci = [peek_preview_start, peek_preview_end]
                     maps = []
-                    for energy_range in [[4, 18], [18, 120]] * u.keV:
+                    for energy_range in [[4, 20], [20, 120]] * u.keV:
                         # flare_position = preview_data['flare_position'][0]
                         # flare_position = [0, 0] * u.arcsec
                         comments = []
@@ -345,7 +357,7 @@ class FlarePeekPreviewMixin:
                     ppi = PeekPreviewImage(control=QTable(), data=preview_data, month=month,
                                            energy=energies, maps=maps,
                                            product_name_suffix=product_name_suffix,
-                                           parents=[parent, aux_ephemeris_path.name, cpd_path.name])
+                                           parents=[parent, anc_ephemeris_path.name, cpd_path.name])
 
                     for f in img_processor.write_fits(ppi):
                         products.append(f)
@@ -371,36 +383,61 @@ class FlarePeekPreviewMixin:
         return products
 
 
-class FlareListProduct(CountDataMixin, GenericProduct, L2Mixin):
+class FlareList(CountDataMixin, GenericProduct, L2Mixin):
+    """FlareList product class.
+    This class represents a flare list product in the STIX data processing pipeline.
+    It inherits from GenericProduct and L2Mixin, and provides methods to handle flare data.
+    It is used to store flare data, and can be enhanced
+    with flare positions and SOOP information."""
 
-    LEVEL = 'ANC'
+    LEVEL = 'L3'
     TYPE = 'flarelist'
 
     def __init__(self, *, service_type=0, service_subtype=0, ssid, data, **kwargs):
         super().__init__(service_type=0, service_subtype=0,
                          ssid=ssid, data=data, **kwargs)
-        self.level = FlareListProduct.LEVEL
-        self.type = FlareListProduct.TYPE
+        self.level = FlareList.LEVEL
+        self.type = FlareList.TYPE
         self.service_subtype = 0
         self.service_type = 0
         self._parent = set()
 
     @property
     def parent(self):
+        """ Returns the parent(s) of the flare list product.
+
+        Returns
+        -------
+        list
+            A list of parent product names.
+        """
         return list(self._parent)
 
     @parent.setter
     def parent(self, value):
+        """ Sets the parent of the flare list product.
+
+        Parameters
+        ----------
+        value : str
+            The name of the parent product to be added.
+        """
         self._parent.add(value)
 
     def enhance_from_product(self, in_prod: GenericProduct):
-        pass
+        """ Enhances the flare list product by adding more data.
+
+        Parameters
+        ----------
+        in_prod : GenericProduct
+            The input product from which to enhance the flare list product.
+        """
 
 
-class FlarelistSDC(FlareListProduct, FlareSOOPMixin):
+class FlarelistSDC(FlareList, FlareSOOPMixin):
     """Flarelist product class for StixDataCenter flares.
 
-    In ANC product format.
+    In L3 product format.
     """
     PRODUCT_PROCESSING_VERSION = 2
     NAME = 'sdc'
@@ -448,7 +485,7 @@ class FlarelistSDC(FlareListProduct, FlareSOOPMixin):
 
     @classmethod
     def is_datasource_for(cls, *, service_type, service_subtype, ssid, **kwargs):
-        return (kwargs['level'] == 'ANC' and service_type == 0
+        return (kwargs['level'] == 'L3' and service_type == 0
                 and service_subtype == 0 and ssid == 2)
 
 
@@ -487,7 +524,7 @@ class FlarelistSDCLoc(FlarelistSDC, FlarePositionMixin):
 
     @classmethod
     def is_datasource_for(cls, *, service_type, service_subtype, ssid, **kwargs):
-        return (kwargs['level'] == 'ANC' and service_type == 0
+        return (kwargs['level'] == 'L3' and service_type == 0
                 and service_subtype == 0 and ssid == 3)
 
 
@@ -517,12 +554,143 @@ class FlarelistSDCLocImg(FlarelistSDCLoc, FlarePeekPreviewMixin):
                                  peek_time_colname='peak_UTC',
                                  start_time_colname='start_UTC',
                                  end_time_colname='end_UTC',
-                                 aux_ephemeris_path_colname='aux_ephemeris_path',
+                                 anc_ephemeris_path_colname='anc_ephemeris_path',
                                  cpd_path_colname='cpd_path',
                                  product_name_suffix=FlarelistSDC.NAME,
                                  keep_all_flares=False, month=month)
 
     @classmethod
     def is_datasource_for(cls, *, service_type, service_subtype, ssid, **kwargs):
-        return (kwargs['level'] == 'ANC' and service_type == 0
+        return (kwargs['level'] == 'L3' and service_type == 0
                 and service_subtype == 0 and ssid == 4)
+
+
+class FlarelistSC(FlareList, FlareSOOPMixin):
+    """Flarelist product class for STIXCore flares.
+
+    In L3 product format.
+    """
+    PRODUCT_PROCESSING_VERSION = 2
+    NAME = 'sc'
+
+    def __init__(self, *, service_type=0, service_subtype=0, ssid=6, data, month, **kwargs):
+
+        super().__init__(service_type=0, service_subtype=0, ssid=6, data=data, **kwargs)
+
+        self.name = FlarelistSC.NAME
+        self.ssid = 6
+
+        self._start_datetime = datetime.combine(month, datetime.min.time())
+        self._end_datetime = self.data['end_UTC'].max() if len(self.data) > 0 \
+            else self._start_datetime
+
+    @property
+    def utc_timerange(self):
+        return TimeRange(self._start_datetime, self._end_datetime)
+
+    @property
+    def scet_timerange(self):
+        tr = self.utc_timerange
+        start = SCETime.from_string(Spice.instance.datetime_to_scet(tr.start)[2:])
+        end = SCETime.from_string(Spice.instance.datetime_to_scet(tr.end)[2:])
+        return SCETimeRange(start=start, end=end)
+
+    def split_to_files(self):
+        return [self]
+
+    @property
+    def dmin(self):
+        return (self.data['lc_peak'].sum(axis=1)).min().value if len(self.data) > 0 else np.nan
+
+    @property
+    def dmax(self):
+        return (self.data['lc_peak'].sum(axis=1)).max().value if len(self.data) > 0 else np.nan
+
+    @property
+    def exposure(self):
+        return self.data['duration'].min().to_value('s') if len(self.data) > 0 else np.nan
+
+    @property
+    def max_exposure(self):
+        return self.data['duration'].max().to_value('s') if len(self.data) > 0 else np.nan
+
+    @classmethod
+    def is_datasource_for(cls, *, service_type, service_subtype, ssid, **kwargs):
+        return (kwargs['level'] == 'L3' and service_type == 0
+                and service_subtype == 0 and ssid == 6)
+
+
+class FlarelistSCLoc(FlarelistSC, FlarePositionMixin):
+    """Flarelist product class for STIXCore flares.
+
+    In L3 product format.
+    """
+    PRODUCT_PROCESSING_VERSION = 2
+    NAME = 'scloc'
+
+    def __init__(self, *, service_type=0, service_subtype=0, ssid=7, data, month, **kwargs):
+
+        super().__init__(service_type=0, service_subtype=0, ssid=7,
+                         data=data, month=month, **kwargs)
+
+        self.name = FlarelistSCLoc.NAME
+        self.ssid = 7
+
+    def enhance_from_product(self, in_prod: GenericProduct):
+        pass
+
+    @classmethod
+    def filter_flare_function(cls, col):
+        return col['lc_peak'][0].value > CONFIG.getint('Processing', 'flarelist_sdc_min_count',
+                                                       fallback=1000)
+
+    @classmethod
+    def add_flare_position(cls, data, fido_client: STIXClient, *, month=None):
+        super().add_flare_position(data, fido_client,
+                                   filter_function=cls.filter_flare_function,
+                                   peek_time_colname='peak_UTC',
+                                   start_time_colname='start_UTC',
+                                   end_time_colname='end_UTC',
+                                   keep_all_flares=False, month=month)
+
+    @classmethod
+    def is_datasource_for(cls, *, service_type, service_subtype, ssid, **kwargs):
+        return (kwargs['level'] == 'L3' and service_type == 0
+                and service_subtype == 0 and ssid == 7)
+
+
+class FlarelistSCLocImg(FlarelistSCLoc, FlarePeekPreviewMixin):
+    """Flarelist product class for StixCore flares.
+
+    In ANC product format.
+    """
+    PRODUCT_PROCESSING_VERSION = 2
+    NAME = 'sclocimg'
+
+    def __init__(self, *, service_type=0, service_subtype=0, ssid=8, data, month, **kwargs):
+
+        super().__init__(service_type=0, service_subtype=0, ssid=8,
+                         data=data, month=month, **kwargs)
+
+        self.name = FlarelistSCLocImg.NAME
+        self.ssid = 8
+
+    def enhance_from_product(self, in_prod: GenericProduct):
+        pass
+
+    @classmethod
+    def add_peek_preview(cls, data, energies, parent, fido_client: STIXClient, img_processor,
+                         *, month=None):
+        super().add_peek_preview(data, energies, parent, fido_client, img_processor,
+                                 peek_time_colname='peak_UTC',
+                                 start_time_colname='start_UTC',
+                                 end_time_colname='end_UTC',
+                                 anc_ephemeris_path_colname='anc_ephemeris_path',
+                                 cpd_path_colname='cpd_path',
+                                 product_name_suffix=FlarelistSC.NAME,
+                                 keep_all_flares=False, month=month)
+
+    @classmethod
+    def is_datasource_for(cls, *, service_type, service_subtype, ssid, **kwargs):
+        return (kwargs['level'] == 'L3' and service_type == 0
+                and service_subtype == 0 and ssid == 8)

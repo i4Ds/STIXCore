@@ -26,7 +26,7 @@ class PeekPreviewImage(FlareListProduct):
     Name = "peekpreviewimg"
 
     def __init__(self, control, data, energy, maps, parents, *, product_name_suffix="", **kwargs):
-        super().__init__(service_type=0, service_subtype=0, ssid=4, control=control,
+        super().__init__(service_type=0, service_subtype=0, ssid=5, control=control,
                          data=data, energy=energy, **kwargs)
         self.name = f"{PeekPreviewImage.Name}-{product_name_suffix}"
         self.level = PeekPreviewImage.Level
@@ -59,4 +59,4 @@ class PeekPreviewImage(FlareListProduct):
     @classmethod
     def is_datasource_for(cls, *, service_type, service_subtype, ssid, **kwargs):
         return (kwargs['level'] == PeekPreviewImage.Level and service_type == 0
-                and service_subtype == 0 and ssid == 4)
+                and service_subtype == 0 and ssid == 5)

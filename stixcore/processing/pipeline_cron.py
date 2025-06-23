@@ -1,7 +1,6 @@
 import io
 import re
 import sys
-import time
 import shutil
 import socket
 import inspect
@@ -10,15 +9,11 @@ import smtplib
 import warnings
 import importlib
 import threading
-from queue import Queue
+import subprocess
 from pprint import pformat
 from pathlib import Path
 from datetime import datetime
 from configparser import ConfigParser
-
-from polling2 import poll_decorator
-from watchdog.events import FileSystemEventHandler, LoggingEventHandler
-from watchdog.observers import Observer
 
 import stixcore
 from stixcore.config.config import CONFIG
@@ -27,7 +22,6 @@ from stixcore.idb.manager import IDBManager
 from stixcore.io.RidLutManager import RidLutManager
 from stixcore.io.soc.manager import SOCPacketFile
 from stixcore.processing.L0toL1 import Level1
-from stixcore.processing.L1toL2 import Level2
 from stixcore.processing.LBtoL0 import Level0
 from stixcore.processing.TMTCtoLB import process_tmtc_to_levelbinary
 from stixcore.products import Product
@@ -36,7 +30,7 @@ from stixcore.util.logging import STX_LOGGER_DATE_FORMAT, STX_LOGGER_FORMAT, get
 from stixcore.util.singleton import Singleton
 from stixcore.version_conf import get_conf_version
 
-__all__ = ['GFTSFileHandler', 'process_tm', 'PipelineErrorReport', 'PipelineStatus']
+__all__ = ['process_tm', 'PipelineErrorReport', 'PipelineStatus']
 
 logger = get_logger(__name__)
 warnings.filterwarnings('ignore', module='astropy.io.fits.card')
@@ -44,72 +38,6 @@ warnings.filterwarnings('ignore', module='astropy.utils.metadata')
 warnings.filterwarnings('ignore', module='watchdog.events')
 
 TM_REGEX = re.compile(r'.*PktTmRaw.*.xml$')
-
-
-class GFTSFileHandler(FileSystemEventHandler):
-    """
-    Handler to detect and process new files send from GFTS
-
-    As rsync is used to transfer the files to process need to take into account how rsync works.
-    Rsync works by first creating a temporary file of the same with name as the file being
-    transferred `myfile.xml` with an random extra extension `myfile.xml.NmRJ4x` it then
-    transfers the data to the temporary file and once the transfer is complete it them move/renames
-    the file back to the original name `myfile.xml`. Can detect file move event that match the TM
-    filename pattern.
-    """
-    def __init__(self, func, regex, *, name="name", **args):
-        """
-
-        Parameters
-        ----------
-        func : `callable`
-            The method to call when new TM is received with the path to the file as the argument
-        regex : `Pattern`
-            a filter filename pattern that have to match in order to invoke the 'func'
-        """
-        if not callable(func):
-            raise TypeError('func must be a callable')
-        self.func = func
-
-        # TODO should be Pattern but not compatible with py 3.6
-        if not isinstance(regex, type(re.compile('.'))):
-            raise TypeError('regex must be a regex Pattern')
-        self.regex = regex
-        self.args = args
-        self.queue = Queue(maxsize=0)
-        self.name = name
-        self.lp = threading.Thread(target=self.process)
-        self.lp.start()
-
-    def add_to_queue(self, initlist):
-        if initlist:
-            for p in initlist:
-                self.queue.put(p)
-
-    @poll_decorator(step=1, poll_forever=True)
-    def process(self):
-        """Worker function to process the queue of detected files."""
-        logger.info(f"GFTSFileHandler:{self.name} start working")
-        path = self.queue.get()  # this will wait until the next
-        logger.info(f"GFTSFileHandler:{self.name} found: {path}")
-        try:
-            self.func(path, **self.args)
-        except Exception as e:
-            logger.error(e)
-            if CONFIG.getboolean('Logging', 'stop_on_error', fallback=False):
-                raise e
-        logger.info(f"GFTSFileHandler:{self.name} end working")
-
-    def on_moved(self, event):
-        """Callback if a file was moved
-
-        Parameters
-        ----------
-        event : Event
-            The event object with access to the file
-        """
-        if self.regex.match(event.dest_path):
-            self.queue.put(Path(event.dest_path))
 
 
 class PipelineErrorReport(logging.StreamHandler):
@@ -125,8 +53,6 @@ class PipelineErrorReport(logging.StreamHandler):
         logging.StreamHandler.__init__(self)
 
         self.tm_file = tm_file
-
-        PipelineStatus.instance.current_tm = (tm_file, datetime.now())
 
         self.log_dir = Path(CONFIG.get('Pipeline', 'log_dir'))
         self.log_file = self.log_dir / (tm_file.name + ".log")
@@ -157,12 +83,8 @@ class PipelineErrorReport(logging.StreamHandler):
         logging.getLogger().removeHandler(self)
         self.fh.flush()
         logging.getLogger().removeHandler(self.fh)
-        PipelineStatus.instance.last_tm = (self.tm_file,  datetime.now())
-        PipelineStatus.instance.current_tm = (None,  datetime.now())
         if not self.allright or self.err_file.exists():
             shutil.copyfile(self.log_file, self.err_file)
-            PipelineStatus.instance.last_error = (self.tm_file,  datetime.now(),
-                                                  self.error, self.err_file)
             if CONFIG.getboolean('Pipeline', 'error_mail_send', fallback=False):
                 try:
                     sender = CONFIG.get('Pipeline', 'error_mail_sender', fallback='')
@@ -230,20 +152,21 @@ def process_tm(path, **args):
         l1_files = l1_proc.process_fits_files(files=l0_files)
         logger.info(f"generated L1 files: \n{pformat(l1_files)}")
 
-        l2_proc = Level2(CONFIG.get('Paths', 'tm_archive'), CONFIG.get('Paths', 'fits_archive'))
-        l2_files = l2_proc.process_fits_files(files=l1_files)
-        logger.info(f"generated L2 files: \n{pformat(l2_files)}")
+        # l2_proc = Level2(CONFIG.get('Paths', 'tm_archive'), CONFIG.get('Paths', 'fits_archive'))
+        # l2_files = l2_proc.process_fits_files(files=l1_files)
+        # logger.info(f"generated L2 files: \n{pformat(l2_files)}")
+        l2_files = []
 
         error_report.log_result([list(lb_files), l0_files, l1_files, l2_files])
 
 
 class PipelineStatus(metaclass=Singleton):
 
-    def __init__(self, tm_handler):
+    def __init__(self, tm_list):
         self.last_error = (None,  datetime.now())
         self.last_tm = (None,  datetime.now())
         self.current_tm = (None,  datetime.now())
-        self.tm_handler = tm_handler
+        self.tm_list = tm_list
 
         self.status_server_thread = threading.Thread(target=self.status_server)
         self.status_server_thread.daemon = True
@@ -316,9 +239,9 @@ class PipelineStatus(metaclass=Singleton):
                PipelineStatus.get_singletons()
 
     def status_next(self):
-        if not self.tm_handler:
+        if not self.tm_list:
             return "File observer not initialized"
-        return f"open files: {self.tm_handler.queue.qsize()}"
+        return f"open files: {len(self.tm_list)}"
 
     def status_last(self):
         return "\n".join([str(p) for p in self.last_tm])
@@ -398,49 +321,46 @@ def main():
     log_dir = Path(CONFIG.get('Pipeline', 'log_dir'))
     log_dir.mkdir(parents=True, exist_ok=True)
 
-    observer = Observer()
     tmpath = Path(CONFIG.get('Paths', 'tm_archive'))
+
+    if CONFIG.getboolean('Pipeline', 'sync_tm_at_start', fallback=False):
+        logger.info("start sync_tm_at_start")
+        res = subprocess.run(f"rsync -av /data/stix/SOLSOC/from_edds/tm/incomming/*PktTmRaw*.xml {str(tmpath)}", shell=True)  # noqa
+        logger.info(f"done sync_tm_at_start: {str(res)}")
+
     soop_path = Path(CONFIG.get('Paths', 'soop_files'))
     spm = SpiceKernelManager(Path(CONFIG.get("Paths", "spice_kernels")))
     Spice.instance = Spice(spm.get_latest_mk_and_pred())
 
     RidLutManager.instance = RidLutManager(Path(CONFIG.get('Publish', 'rid_lut_file')), update=True)
 
-    logging_handler = LoggingEventHandler(logger=logger)
-
     soop_manager = SOOPManager(soop_path)
-    soop_handler = GFTSFileHandler(soop_manager.add_soop_file_to_index,
-                                   SOOPManager.SOOP_FILE_REGEX, name="soop")
     SOOPManager.instance = soop_manager
 
-    tm_handler = GFTSFileHandler(process_tm, TM_REGEX, name="tm_xml", spm=spm)
-    PipelineStatus.instance = PipelineStatus(tm_handler)
-    if CONFIG.getboolean('Pipeline', 'start_with_unprocessed', fallback=True):
-        logger.info("Searching for unprocessed tm files")
-        last_processed = CONFIG.get('Pipeline', 'last_processed', fallback="")
-        unprocessed_tm_files = search_unprocessed_tm_files(log_dir, tmpath, last_processed)
-        if unprocessed_tm_files:
-            fl = '\n    '.join([f.name for f in unprocessed_tm_files])
-            logger.info(f"Found unprocessed tm files: \n    {fl}\nadding to queue.")
-            tm_handler.add_to_queue(unprocessed_tm_files)
-    else:
-        logger.info("Skipping search for unprocessed tm files")
+    tm_files = []
 
-    observer.schedule(soop_handler, soop_manager.data_root,  recursive=False)
-    logger.info(f"Start observing {soop_manager.data_root} for SOOPs")
-    observer.schedule(logging_handler, tmpath,  recursive=True)
-    logger.info(f"Start observing {tmpath} for logging")
-    observer.schedule(tm_handler, tmpath, recursive=True)
-    logger.info(f"Start observing {tmpath} for incoming TMs")
+    logger.info("Searching for unprocessed tm files")
+    last_processed = CONFIG.get('Pipeline', 'last_processed', fallback="")
+    unprocessed_tm_files = search_unprocessed_tm_files(log_dir, tmpath, last_processed)
+    if unprocessed_tm_files:
+        fl = '\n    '.join([f.name for f in unprocessed_tm_files])
+        logger.info(f"Found unprocessed tm files: \n    {fl}\nadding to queue.")
+        tm_files.extend(unprocessed_tm_files)
 
-    observer.start()
-    try:
-        while True:
-            time.sleep(100)
-    except KeyboardInterrupt:
-        observer.stop()
-    observer.join()
+    logger.info("start processing once")
+
+    PipelineStatus.instance = PipelineStatus(tm_files)
+    while tm_files:
+        tm_file = tm_files.pop(0)
+        logger.info(f"start processing tm file: {tm_file}")
+        PipelineStatus.instance.current_tm = (tm_file, datetime.now())
+        process_tm(tm_file, **{"spm":  spm})
+        PipelineStatus.instance.last_tm = (tm_file,  datetime.now())
+        PipelineStatus.instance.current_tm = (None,  datetime.now())
+    logger.info("stop processing once")
+    return 1
 
 
 if __name__ == '__main__':
     main()
+    logger.info("all done")

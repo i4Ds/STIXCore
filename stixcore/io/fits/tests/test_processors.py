@@ -3,13 +3,16 @@ from unittest.mock import patch
 import numpy as np
 import pytest
 
+import astropy.units as u
+from astropy.io import fits
 from astropy.table import QTable
 
 from stixcore.data.test import test_data
 from stixcore.io.fits.processors import FitsL0Processor, FitsL1Processor, FitsLBProcessor
-from stixcore.products.product import Product
+from stixcore.products.product import Product, read_qtable
 from stixcore.soop.manager import SOOPManager
 from stixcore.time import SCETime, SCETimeRange
+from stixcore.time.datetime import SCETimeDelta
 
 
 @pytest.fixture
@@ -285,3 +288,34 @@ def test_level1_processor_generate_primary_header(product, soop_manager):
                 assert np.allclose(test_data[name], value)
             else:
                 assert value == test_data[name]
+
+
+def test_write_data_with_rel_time(tmp_path):
+    processor = FitsL1Processor(tmp_path)
+    p = Product(test_data.products.L1_LightCurve_fits[0])
+
+    assert p.data['time'][0] == SCETime(coarse=664156752, fine=58990)
+    assert p.data['timedel'][0] == SCETimeDelta(coarse=4, fine=0)
+    assert p.scet_timerange.start == SCETime(coarse=664156750, fine=58990)
+
+    f = processor.write_fits(p)
+
+    p2 = Product(f[0])
+    assert p2.data['time'][0] == SCETime(coarse=664156752, fine=58990)
+    assert p2.data['timedel'][0] == SCETimeDelta(coarse=4, fine=0)
+    assert p2.data['time'][-1] == SCETime(coarse=664227380, fine=58990)
+    assert p2.data['timedel'][-1] == SCETimeDelta(coarse=4, fine=0)
+    assert p2.scet_timerange.start == SCETime(coarse=664156750, fine=58990)
+
+    hdul = fits.open(f[0])
+    data = read_qtable(f[0], hdu="DATA", hdul=hdul)
+
+    assert hdul["PRIMARY"].header['OBT_BEG'] == 664156750.9001297
+    assert data['time'][0] == 200 * u.cs
+    assert data['timedel'][0] == 400 * u.cs
+
+    assert data['timedel'][-1] == 400 * u.cs
+    assert len(data) == 17658
+    assert data['time'][-1] == (17658 * 400 - 200) * u.cs
+    assert hdul["PRIMARY"].header['OBT_END'] == (hdul["PRIMARY"].header['OBT_BEG']
+                                                 + (17658 * 400 * u.cs).to_value(u.s))

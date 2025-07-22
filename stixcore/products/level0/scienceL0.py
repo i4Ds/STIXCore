@@ -147,10 +147,17 @@ class ScienceProduct(CountDataMixin, GenericProduct, EnergyChannelsMixin, FitsHe
         for control in self.control.group_by(key_cols).groups:
             data = self.data[np.in1d(self.data['control_index'], control['index'])]
 
-            yield type(self)(service_type=self.service_type, service_subtype=self.service_subtype,
-                             ssid=self.ssid, control=control, data=data,
-                             idb_versions=self.idb_versions, comment=self.comment,
-                             history=self.history)
+            file_chunk = type(self)(service_type=self.service_type,
+                                    service_subtype=self.service_subtype,
+                                    ssid=self.ssid, control=control, data=data,
+                                    idb_versions=self.idb_versions, comment=self.comment,
+                                    history=self.history)
+            if hasattr(self, 'get_additional_extensions'):
+                for ext, name in self.get_additional_extensions():
+                    # Copy all extension data tables to the new product
+                    if ext is not None:
+                        setattr(file_chunk, name, getattr(self, name)[:])
+            yield file_chunk
 
     @classmethod
     def from_levelb(cls, levelb, *, parent=''):

@@ -22,6 +22,7 @@ from stixcore.idb.manager import IDBManager
 from stixcore.io.RidLutManager import RidLutManager
 from stixcore.io.soc.manager import SOCPacketFile
 from stixcore.processing.L0toL1 import Level1
+from stixcore.processing.L1toL2 import Level2
 from stixcore.processing.LBtoL0 import Level0
 from stixcore.processing.TMTCtoLB import process_tmtc_to_levelbinary
 from stixcore.products import Product
@@ -152,9 +153,9 @@ def process_tm(path, **args):
         l1_files = l1_proc.process_fits_files(files=l0_files)
         logger.info(f"generated L1 files: \n{pformat(l1_files)}")
 
-        # l2_proc = Level2(CONFIG.get('Paths', 'tm_archive'), CONFIG.get('Paths', 'fits_archive'))
-        # l2_files = l2_proc.process_fits_files(files=l1_files)
-        # logger.info(f"generated L2 files: \n{pformat(l2_files)}")
+        l2_proc = Level2(CONFIG.get('Paths', 'tm_archive'), CONFIG.get('Paths', 'fits_archive'))
+        l2_files = l2_proc.process_fits_files(files=l1_files)
+        logger.info(f"generated L2 files: \n{pformat(l2_files)}")
         l2_files = []
 
         error_report.log_result([list(lb_files), l0_files, l1_files, l2_files])

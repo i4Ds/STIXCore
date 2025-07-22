@@ -791,6 +791,34 @@ class FitsL1Processor(FitsL0Processor):
 
         return headers + data_headers + soop_headers + time_headers, ephemeris_headers
 
+    @classmethod
+    def abs_to_rel_time(cls, data, start):
+        """
+        Convert absolute time to relative time in centiseconds.
+
+        Parameters
+        ----------
+        data : `astropy.table.Table`
+            The data table containing the 'time' column.
+        start : `SCETime`
+            The start time to which the 'time' values are relative.
+
+        Returns
+        -------
+        `astropy.table.Table`
+            The modified data table with 'time' in centiseconds relative to start.
+        """
+        if 'time' not in data.colnames and 'timedel' not in data.colnames:
+            return data
+
+        # In TM sent as uint in units of 0.1 so convert to cs as the time center
+        # can be on 0.5ds points
+        data['time'] = np.atleast_1d(np.around((data['time'] - start)
+                                     .as_float().to(u.cs)).astype('uint32'))
+        data['timedel'] = np.atleast_1d(np.uint32(np.around(data['timedel'].as_float()
+                                        .to(u.cs))))
+        return data
+
     def write_fits(self, product, *, version=0):
         """
         Write level 0 products into fits files.
@@ -870,13 +898,8 @@ class FitsL1Processor(FitsL0Processor):
             # Convert time to be relative to start date
             # it is important that the change to the relative time is done after the header is
             # generated as this will use the original SCET time data
-
-            # In TM sent as uint in units of 0.1 so convert to cs as the time center
-            # can be on 0.5ds points
-            data['time'] = np.atleast_1d(np.around((data['time'] - prod.scet_timerange.start)
-                                         .as_float().to(u.cs)).astype('uint32'))
-            data['timedel'] = np.atleast_1d(np.uint32(np.around(data['timedel'].as_float()
-                                            .to(u.cs))))
+            absolute_ref_time = prod.scet_timerange.start
+            data = FitsL1Processor.abs_to_rel_time(data, absolute_ref_time)
 
             try:
                 control['time_stamp'] = control['time_stamp'].as_float()
@@ -905,10 +928,22 @@ class FitsL1Processor(FitsL0Processor):
 
             FitsL0Processor.add_optional_energy_table(prod, hdul)
 
+            if hasattr(prod, "get_additional_extensions"):
+                for table, name in prod.get_additional_extensions():
+                    logger.info(f'Adding additional extension {name} to FITS file')
+                    table = table[:]  # Ensure we have a copy of the table
+                    table = FitsL1Processor.abs_to_rel_time(table, absolute_ref_time)
+                    table_enc = fits.connect._encode_mixins(table)
+                    table_hdu = table_to_hdu(table_enc)
+                    table_hdu = set_bscale_unsigned(table_hdu)
+                    table_hdu = add_default_tuint(table_hdu)
+                    table_hdu.name = name.upper()
+                    hdul.append(table_hdu)
+
             hdul = fits.HDUList(hdul)
 
             filetowrite = path / filename
-            logger.debug(f'Writing fits file to {filetowrite}')
+            logger.info(f'Writing fits file to {filetowrite}')
             hdul.writeto(filetowrite, overwrite=True, checksum=True)
             created_files.append(filetowrite)
         return created_files
@@ -941,6 +976,8 @@ class FitsL2Processor(FitsL1Processor):
 
         # TODO remove writeout supression of all products but ANC files
         if product.level == 'ANC':
+            return super().write_fits(product, version=version)
+        elif product.name in ['xray-spec', 'energy']:
             return super().write_fits(product, version=version)
         else:
             logger.info(f"no writeout of L2 {product.type}-{product.name} FITS files.")

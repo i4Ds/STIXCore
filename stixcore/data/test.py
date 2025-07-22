@@ -77,6 +77,7 @@ class TestData:
         self.io = IOTestData(data_dir)
         self.soop = SOOPTestData(data_dir)
         self.rid_lut = RidLutTestData(data_dir)
+        self.ecc = data_dir / "ecc"
 
         self.__doc__ = "\n".join([f"{k}\n******************\n\n{v.__doc__}\n\n\n"
                                   for k, v in self.__dict__.items()])

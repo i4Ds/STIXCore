@@ -284,6 +284,17 @@ class ProductFactory(BasicRegistrationFactory):
                             data=data, energies=energies, idb_versions=idb_versions,
                             raw=raw, parent=parent, comment=comment, history=history)
 
+                if hasattr(p, 'get_additional_extensions') and data is not None:
+                    for _, name in p.get_additional_extensions():
+                        # read the additional extension data
+                        if name.upper() in hdul:
+                            data_ext = read_qtable(file_path, hdu=name.upper(), hdul=hdul)
+                            if 'timedel' in data_ext.colnames:
+                                data_ext['timedel'] = SCETimeDelta(data_ext['timedel'])
+                            if 'time' in data_ext.colnames:
+                                data_ext['time'] = offset + data_ext['time']
+                            setattr(p, name, data_ext)
+
                 # store the old fits header for later reuse
                 if isinstance(p, (L1Mixin, L2Mixin)):
                     p.fits_header = pri_header
@@ -887,6 +898,18 @@ class L2Mixin(FitsHeaderMixin):
     @property
     def utc_timerange(self):
         return self.scet_timerange.to_timerange()
+
+    @classmethod
+    def get_additional_extensions(cls):
+        """
+        Get the additional extensions that should be added to the L2 fits file product.
+
+        Returns
+        -------
+        list
+            List of additional extensions to add to the L2 product.
+        """
+        return []
 
     @classmethod
     def from_level1(cls, l1product, parent='', idlprocessor=None):

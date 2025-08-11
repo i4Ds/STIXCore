@@ -3,7 +3,7 @@ variables:
   CI_NAME: Azure Pipelines
   CI_BUILD_ID: $(Build.BuildId)
   CI_BUILD_URL: "https://dev.azure.com/https://github.com/i4Ds/STIXCore.git/_build/results?buildId=$(Build.BuildId)"
-  CIBW_BUILD: cp39-* cp310-* cp311-*
+  CIBW_BUILD: cp311-* cp312-* cp313-*
   CIBW_SKIP: "*-win32 *-manylinux1_i686"
 
 resources:
@@ -35,17 +35,17 @@ jobs:
     toxdeps: tox-pypi-filter
     submodules: true
     coverage: codecov
-    default_python: '3.9'
+    default_python: '3.11'
     envs:
-      - macos: py39
-        name: py39_mac
+      - macos: py311
+        name: py311_mac
         coverage: false
 
-      - windows: py39
-        name: py39_win
+      - windows: py311
+        name: py311_win
 
-      - linux: py39
-        name: py39_linux
+      - linux: py311
+        name: py311_linux
 
       - linux: codestyle
         name: codestyle
@@ -67,6 +67,6 @@ jobs:
         # - wheels_macos
         - sdist
       dependsOn:
-        - py39_test
-        - py310_test
-        - py311_test
+        - py311_mac
+        - py311_win
+        - py311_linux

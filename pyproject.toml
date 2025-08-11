@@ -1,15 +1,100 @@
 [build-system]
-
-requires = ["setuptools",
-            "setuptools_scm",
-            "wheel"]
-
+requires = [
+    "setuptools>=62.0.0",
+    "setuptools_scm[toml]>=8.0.1",
+    "wheel"
+]
 build-backend = 'setuptools.build_meta'
 
-[tool.pytest.ini_options]
-markers = [
-    "end2end: marks tests to run in the optional end2end testing (deselect with '-m \"not end2end\"')",
+[project]
+name = "STIXCore"
+description = "An open-source Python pipline for Spectrometer Telescope for Imaging X-rays (STIX) instrument on Solar Obriter."
+requires-python = ">=3.11"
+readme = {file = "README.rst", content-type="text/x-rst"}
+license = "BSD-3-Clause"
+license-files = ["LICENSE.rst"]
+authors = [
+    {name="Shane Maloney", email = "shane.maloney@dias.ie"},
+    {name="Nicky Maloney", email = "shane.maloney@dias.ie"}
 ]
+dependencies = [
+    "bitstring~=4.2",
+    "hissw~=2.3",
+    "intervaltree",
+    "numpy",
+    "matplotlib",
+    "paramiko",
+    "polling2",
+    "python-dateutil",
+    "pyyaml",
+    "roentgen~=2.1",
+    "scp",
+    "spiceypy~=6.0",
+    "sunpy~=5.1",
+    "watchdog~=6.0",
+    "stixdcpy==3.0"
+]
+dynamic = ["version"]
+keywords = ["solar physics", "solar", "sun", "x-rays"]
+classifiers = [
+  "Development Status :: 3 - Alpha",
+  "Intended Audience :: Science/Research",
+  "Natural Language :: English",
+  "Operating System :: OS Independent",
+  "Programming Language :: Python",
+  "Programming Language :: Python :: 3",
+  "Programming Language :: Python :: 3.9",
+  "Programming Language :: Python :: 3.10",
+  "Programming Language :: Python :: 3.11",
+  "Programming Language :: Python :: 3.12",
+  "Topic :: Scientific/Engineering :: Physics"
+]
+
+[project.optional-dependencies]
+tests = [
+    "pytest-astropy",
+    "pytest-mpl",
+    "pytest-xdist",
+    "pytest>=7.1.0"
+]
+docs = [
+    "sphinx",
+    "sphinx-automodapi",
+    "packaging>=23.0",
+    "sunpy-sphinx-theme"
+]
+dev = ["stixcore[tests,docs]"]
+
+[project.urls]
+Homepage = "https://stixcore.readthedocs.io"
+"Source Code" = "https://github.com/i4ds/STIXCore"
+Documentation = "https://stixcore.readthedocs.io"
+Changelog = "https://stixcore.readthedocs.io/en/latest/whatsnew/changelog.html"
+"Issue Tracker" = "https://github.com/TCDSolar/i4ds/STIXCore"
+
+
+[project.scripts]
+stix-pipeline-status = "stixcore.processing.pipeline_status:main"
+stix-pipeline-monitor = "stixcore.processing.pipeline_monitor:main"
+stix-pipeline = "stixcore.processing.pipeline:main"
+stix-pipeline-cli = "stixcore.processing.pipeline_cli:main"
+stix-publish = "stixcore.processing.publish:main"
+
+[tool.setuptools]
+zip-safe = false
+include-package-data = true
+platforms = ["any"]
+provides = ["STIXCore"]
+
+[tool.setuptools.packages.find]
+include = ["stixcore*"]
+exclude = ["stixcore._dev*"]
+
+[tool.setuptools.package-data]
+xrayvisim = ["data/*"]
+
+[tool.setuptools_scm]
+version_file = "stixcore/_version.py"
 
 [tool.towncrier]
     package = "stixcore"

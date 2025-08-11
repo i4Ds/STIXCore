@@ -1,19 +1,19 @@
-include README.rst
-include CHANGES.rst
-include setup.cfg
-include LICENSE.rst
-include pyproject.toml
+# Exclude specific files
+# All files which are tracked by git and not explicitly excluded here are included by setuptools_scm
+exclude .codecov.yaml
+exclude .editorconfig
+exclude .gitattributes
+exclude .gitignore
+exclude .mailmap
+exclude .pre-commit-config.yaml
+exclude .readthedocs.yaml
+exclude .rtd-environment.yml
+exclude .zenodo.json
+exclude tox.ini
 
-recursive-include stixcore *.pyx *.c *.pxd
-recursive-include docs *
-recursive-include licenses *
-recursive-include cextern *
-recursive-include scripts *
-recursive-include stixcore/config/data *
-recursive-include stixcore/data *
+# Prune folders
+prune .circleci
+prune .github
+prune changelog
 
-prune build
-prune docs/_build
-prune docs/api
-
-global-exclude *.pyc *.o
+prune sunpy/_dev

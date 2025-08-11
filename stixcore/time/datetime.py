@@ -4,13 +4,12 @@ Array like time objects
 import logging
 import operator
 
-import numpy as np
-from sunpy.time.timerange import TimeRange
-
 import astropy.units as u
+import numpy as np
 from astropy.time.core import Time
 from astropy.utils import ShapedLikeNDArray
 from astropy.utils.data_info import MixinInfo
+from sunpy.time.timerange import TimeRange
 
 from stixcore import get_logger
 from stixcore.ephemeris.manager import Spice
@@ -563,12 +562,9 @@ class SCETimeDelta(SCETBase):
     Examples
     --------
     SCETimeDeltas can be created from directly
-
     >>> SCETimeDelta(1, 2)
     SCETimeDelta(coarse=1, fine=2)
-
-    or as as result of subtracting two times
-
+    or as result of subtracting two times
     >>> SCETime(9, 8) - SCETime(5, 10)
     SCETimeDelta(coarse=4, fine=-2)
 

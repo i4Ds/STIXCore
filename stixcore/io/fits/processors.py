@@ -1,9 +1,9 @@
 """Module for the different processing levels."""
 from datetime import datetime
-
-import numpy as np
+from math import isnan
 
 import astropy.units as u
+import numpy as np
 from astropy.io import fits
 from astropy.io.fits import table_to_hdu
 from astropy.table import QTable
@@ -29,7 +29,7 @@ NAN = 2 ** 32 - 1
 
 
 def empty_if_nan(val):
-    return "" if np.isnan(val) else val
+    return "" if isnan(val) else val
 
 
 def version_format(version):

@@ -1,10 +1,9 @@
 import re
-from io import StringIO
 from asyncio.log import logger
+from io import StringIO
 from unittest.mock import patch
 
 import pytest
-
 from astropy.table import Table
 from astropy.utils.diff import report_diff_values
 
@@ -89,7 +88,7 @@ def test_quicklook_add(levelb, packets):
 
     t_shift = (ql_l0_c.scet_timerange.duration() / 2.0).astype("int")
     ql_l0_c.data['time'] += t_shift
-    ql_l0_c.control['scet_coarse'] += t_shift.value
+    ql_l0_c.control['scet_coarse'] = ql_l0_c.control['scet_coarse'] + t_shift.value
 
     a1 = ql_l0_o + ql_l0_c
     a2 = ql_l0_c + ql_l0_o
@@ -98,12 +97,12 @@ def test_quicklook_add(levelb, packets):
     equal_data = report_diff_values(a1.data, a2.data, fileobj=report)
     if not equal_data:
         report.seek(0)
-        logger.warn("Diff in DATA table\n\n" + report.read())
+        logger.warning("Diff in DATA table\n\n" + report.read())
 
     report = StringIO()
     equal_control = report_diff_values(a1.control, a2.control, fileobj=report)
     if not equal_control:
         report.seek(0)
-        logger.warn("Diff in CONTROL table\n\n" + report.read())
+        logger.warning("Diff in CONTROL table\n\n" + report.read())
 
     assert equal_data & equal_control

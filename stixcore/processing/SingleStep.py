@@ -13,7 +13,7 @@ from stixcore.soop.manager import SOOPManager
 from stixcore.util.logging import get_logger
 from stixcore.util.util import get_complete_file_name
 
-__all__ = ["TestForProcessingResult", "SingleProductProcessingStepMixin"]
+__all__ = ["TestForProcessingResult", "SingleProductProcessingStepMixin", "SingleProcessingStepResult"]
 
 logger = get_logger(__name__)
 

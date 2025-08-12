@@ -76,7 +76,7 @@ class HeaderKeyword:
         return hash(self.name)
 
     def __add__(self, other):
-        """Combine two HeaderKeyword by concanating value and comment if the name is the same.
+        """Combine two HeaderKeyword by concatenating value and comment if the name is the same.
 
         Parameters
         ----------
@@ -123,7 +123,7 @@ class KeywordSet:
     def add(self, element):
         """Add a new `HeaderKeyword` to the collection.
 
-        If a same `HeaderKeyword` is allready present than the new keywords
+        If a same `HeaderKeyword` is already present than the new keywords
         gets combined into the old.
 
         Parameters
@@ -152,21 +152,21 @@ class KeywordSet:
         return self.dic[element]
 
     def append(self, elements):
-        """Add a a list of `HeaderKeyword` to the collection.
+        """Add a list of `HeaderKeyword` to the collection.
 
-        If a same `HeaderKeyword` is allready present than the new keywords
+        If a same `HeaderKeyword` is already present than the new keywords
         gets combined into the old.
 
         Parameters
         ----------
-        element : Iterable<`HeaderKeyword`>
+        elements : Iterable<`HeaderKeyword`>
             the new keywords to add
         """
         if isinstance(elements, Iterable):
             for e in elements:
                 self.add(e)
         else:
-            self.add(e)
+            self.add(elements)
 
     def to_list(self):
         """Get all keywords.
@@ -212,7 +212,7 @@ class SOOP:
         Parameters
         ----------
         jsonobj : `Object`
-            the allready parsed generic object.
+            the already parsed generic object.
         """
         self.encodedSoopType = jsonobj["encodedSoopType"]
         self.soopInstanceId = jsonobj["soopInstanceId"]
@@ -248,7 +248,7 @@ class SOOP:
 
 
 class SoopObservation:
-    """A observation entry from the LTP plans."""
+    """An observation entry from the LTP plans."""
 
     def __init__(self, jsonobj):
         """Create a new SoopObservation object based on the generic json data.
@@ -258,7 +258,7 @@ class SoopObservation:
         Parameters
         ----------
         jsonobj : `Object`
-            the allready parsed generic object.
+            the already parsed generic object.
         """
         self.comment = jsonobj["comment"]
         self.compositeId = jsonobj["compositeId"]
@@ -356,7 +356,7 @@ class SOOPManager(metaclass=Singleton):
         return {"soops": self.soops, "observations": self.observations}
 
     def __setstate__(self, data):
-        # we get unpickled also we are in a parallel process we restore just the index for reading
+        # we get un-pickled also we are in a parallel process we restore just the index for reading
         self._data_root = None
         self.soops = data["soops"]
         self.observations = data["observations"]
@@ -376,7 +376,6 @@ class SOOPManager(metaclass=Singleton):
         `list`
             list of found `SOOP` in all indexed LTP overlapping the given timeperiod/point
         """
-        intervals = set()
         if end is None:
             intervals = self.soops.at(start)
         else:

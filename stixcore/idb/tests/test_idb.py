@@ -34,10 +34,9 @@ def test_idb_setup(idb):
 
 
 def test_idb_setup_fails():
-    _idb = IDB(Path(os.path.abspath(__file__)).parent / "data")
-    assert _idb.is_connected() is False
     with pytest.raises(sqlite3.Error) as e:
-        _idb.get_idb_version()
+        _idb = IDB(Path(os.path.abspath(__file__)).parent / "data")
+
     assert len(str(e.value)) > 0
 
 

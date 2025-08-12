@@ -648,7 +648,7 @@ class GenericProduct(BaseProduct):
 
         # remove duplicate data based on time bin and sort the data
         data = unique(data, keys=["time_float"])
-        data.sort(["time_float"])
+        # data.sort(["time_float"])
 
         logger.debug("len unique %d", len(data))
 

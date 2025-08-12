@@ -28,7 +28,6 @@ def out_dir(tmpdir_factory):
     return Path(str(tmpdir_factory.getbasetemp()))
 
 
-@pytest.mark.remote_data
 @pytest.fixture(scope="session")
 def orig_data(out_dir):
     orig_dir = out_dir / "origdata"
@@ -45,12 +44,12 @@ def orig_fits(orig_data):
     return list(orig_data.rglob("*.fits"))
 
 
-@pytest.mark.end2end
 @pytest.fixture(scope="session")
 def current_fits(orig_data, out_dir):
     return end2end_pipeline(orig_data, out_dir)
 
 
+@pytest.mark.remote_data
 @pytest.mark.end2end
 def test_find_parents(current_fits, out_dir):
     for fits in current_fits:
@@ -60,6 +59,7 @@ def test_find_parents(current_fits, out_dir):
             assert len(parents) > 0
 
 
+@pytest.mark.remote_data
 @pytest.mark.end2end
 def test_complete(orig_fits, current_fits):
     error_c = 0
@@ -73,6 +73,7 @@ def test_complete(orig_fits, current_fits):
         raise ValueError(f"{error_c} errors out of {len(orig_fits)}\nnumber of fits files differ")
 
 
+@pytest.mark.remote_data
 @pytest.mark.end2end
 def test_identical(orig_fits, current_fits):
     error_c = 0

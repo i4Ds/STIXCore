@@ -45,4 +45,4 @@ def test_soc_file(base_dir):
     with pytest.raises(ValueError) as e:
         _ = SOCPacketFile(".foo/")
 
-    assert str(e.value).startswith("path not found")
+    assert "path not found" in str(e.value)

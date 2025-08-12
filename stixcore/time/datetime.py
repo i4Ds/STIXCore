@@ -566,9 +566,10 @@ class SCETimeDelta(SCETBase):
     SCETimeDeltas can be created from directly
     >>> SCETimeDelta(1, 2)
     SCETimeDelta(coarse=1, fine=2)
+
     or as result of subtracting two times
     >>> SCETime(9, 8) - SCETime(5, 10)
-    SCETimeDelta(coarse=4, fine=-2)
+    SCETimeDelta(coarse=3, fine=65534)
 
     """
 

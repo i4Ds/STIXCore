@@ -3,6 +3,8 @@ from collections import defaultdict
 from stixcore.products.product import GenericProduct
 from stixcore.time.datetime import SCETimeRange
 
+__all__ = ["LightCurve", "FlareFlag"]
+
 
 class LightCurve(GenericProduct):
     """ "Low Latency Quick Look Light Curve data product.

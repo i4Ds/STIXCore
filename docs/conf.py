@@ -81,7 +81,9 @@ intersphinx_mapping = {
 # a list of builtin themes.
 
 try:
-    from sunpy_sphinx_theme.conf import *  # noqa: F403
+    import sunpy_sphinx_theme  # noqa: F401
+
+    html_theme = "sunpy"
 except ImportError:
     html_theme = "default"
 

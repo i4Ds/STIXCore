@@ -1,6 +1,8 @@
 from stixcore.products.product import GenericProduct, L3Mixin
 from stixcore.time.datetime import SCETimeRange
 
+__all__ = ["FlareListProduct", "FlareOverviewImage"]
+
 
 class FlareListProduct(GenericProduct, L3Mixin):
     """Product not based on direct TM data but on time ranges defined in flare lists.

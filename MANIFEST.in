@@ -15,5 +15,7 @@ exclude tox.ini
 prune .circleci
 prune .github
 prune changelog
-
 prune sunpy/_dev
+
+# Add back in submodule data
+recursive-include stixcore/config/data *

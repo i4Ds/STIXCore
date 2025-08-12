@@ -79,6 +79,7 @@ class FitsProcessor:
     def generate_filename(cls, product, *, version, date_range, status="", header=True):
         """
         Generate fits file name with SOLO conventions.
+
         Parameters
         ----------
         product : `BaseProduct`
@@ -354,6 +355,7 @@ class FitsLBProcessor(FitsProcessor):
     def generate_filename(cls, product, *, version, status=""):
         """
         Generate fits file name with SOLO conventions.
+
         Parameters
         ----------
         product : `BaseProduct`
@@ -387,6 +389,7 @@ class FitsLBProcessor(FitsProcessor):
     def generate_primary_header(cls, filename, product, *, version=0):
         """
         Generate primary header cards.
+
         Parameters
         ----------
         filename : `str`
@@ -417,6 +420,7 @@ class FitsLBProcessor(FitsProcessor):
 
     def write_fits(self, product, *, version=0):
         """Write or merge the product data into a FITS file.
+
         Parameters
         ----------
         product : `LevelB`

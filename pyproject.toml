@@ -1,14 +1,14 @@
 [build-system]
 requires = [
-    "setuptools>=62.0.0",
-    "setuptools_scm[toml]>=8.0.1",
+    "setuptools>=80.1.0",
+    "setuptools_scm[toml]>=8.1",
     "wheel"
 ]
 build-backend = 'setuptools.build_meta'
 
 [project]
 name = "STIXCore"
-description = "An open-source Python pipeline for Spectrometer Telescope for Imaging X-rays (STIX) instrument on Solar Obriter."
+description = "An open-source Python data pipeline for the Spectrometer Telescope/Imaging X-rays (STIX) instrument on Solar Obriter."
 requires-python = ">=3.11"
 readme = {file = "README.rst", content-type="text/x-rst"}
 license = "BSD-3-Clause"
@@ -35,7 +35,7 @@ dependencies = [
     "stixdcpy==3.0"
 ]
 dynamic = ["version"]
-keywords = ["solar physics", "solar", "sun", "x-rays"]
+keywords = ["solar physics", "solar", "sun", "solarorbiter", "stix"]
 classifiers = [
   "Development Status :: 3 - Alpha",
   "Intended Audience :: Science/Research",
@@ -84,14 +84,17 @@ stix-publish = "stixcore.processing.publish:main"
 zip-safe = false
 include-package-data = true
 platforms = ["any"]
-provides = ["STIXCore"]
+provides = ["stixcore"]
 
 [tool.setuptools.packages.find]
 include = ["stixcore*"]
 exclude = ["stixcore._dev*"]
 
+[tool.setuptools_scm.scm.git]
+pre_parse = "fail_on_missing_submodules"  # Fail if submodules are not initialized
+
 [tool.setuptools.package-data]
-xrayvisim = ["data/*"]
+stixcore = ["data/*"]
 
 [tool.setuptools_scm]
 version_file = "stixcore/_version.py"

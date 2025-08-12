@@ -57,24 +57,26 @@ class LevelB(BaseProduct):
 
     @property
     def parent(self):
-        """List of all parent data files this data product is compiled from.
+        """
+        List of all parent data files this data product is compiled from.
 
         For level binary this will be always the parent raw TM file.
 
         Returns
         -------
-        `list(str)
+        list[str]
             the TM file that this data product contains.
         """
         return np.unique(self.control["raw_file"]).tolist()
 
     @property
     def raw(self):
-        """List of all TM raw files this product is compiled from.
+        """
+        List of all TM raw files this product is compiled from.
 
         Returns
         -------
-        `list(str)
+        list[str]
             the TM file that this data product contains.
         """
         return np.unique(self.control["raw_file"]).tolist()

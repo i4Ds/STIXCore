@@ -16,7 +16,7 @@ Locations
 * Data
     - `/data/stix` : data root dir
     - `/data/stix/SOC/` : exchange dir with SOC
-    - `/data/stix/SOC/incoming` : incoming TM data - entry point of the processing pipline
+    - `/data/stix/SOC/incoming` : incoming TM data - entry point of the processing pipeline
     - `/data/stix/SOLSOC/` : exchange dir with SOLSOC
     - `/data/stix/SOLSOC/from_soc` : incoming sync folder from soc
     - `/data/stix/spice` : spice kernel dir synced from GFTS
@@ -43,7 +43,7 @@ SOLMOC TM data is synced from pub026 via rsync by cron every 15min.
 
 ```
 # sync TM data from GFTS to local "wait for processing" folder
-*/15 * * * * rsync -av stixcore@147.86.8.26:'/home/solmoc/from_edds/tm/*PktTmRaw*.xml' /data/stix/SOLSOC/from_edds/tm/incomming > /dev/null
+*/15 * * * * rsync -av stixcore@147.86.8.26:'/home/solmoc/from_edds/tm/*PktTmRaw*.xml' /data/stix/SOLSOC/from_edds/tm/incoming > /dev/null
 ```
 
 The very latest SPICE kernels are required for accurate pointing information of the satellite.
@@ -52,7 +52,7 @@ Therefore, a stage and delay step is added via cron (every 30 min) that only pub
 
 ```
 # move the TM data from the wait into the processing folder - that will trigger the pipeline to "get started": the wait period is meanwhile short
-*/30 * * * * find /data/stix/SOLSOC/from_edds/tm/incomming/ -type f -mmin +2 -exec rsync -a {} /data/stix/SOLSOC/from_edds/tm/processing/ \;
+*/30 * * * * find /data/stix/SOLSOC/from_edds/tm/incoming/ -type f -mmin +2 -exec rsync -a {} /data/stix/SOLSOC/from_edds/tm/processing/ \;
 ```
 
 Sync STIX-CONF repo in all used instances
@@ -90,7 +90,7 @@ afterwards unprocessed kernel zip files will be extracted to `/data/stix/spice`
 find /data/stix/SOLSOC/from_soc/ -name "solo_ANC*20*zip" | grep -vFf  processed_files.txt  | xargs -i /usr/bin/unzip -o {} -d /data/stix/spice/
 ```
 
-finaly append the latest unziped files to the processed_files.txt files
+finally append the latest unzipped files to the processed_files.txt files
 
 ```
 find /data/stix/SOLSOC/from_soc/ -name "solo_ANC*20*zip" | grep -vFf  processed_files.txt >> processed_files.txt
@@ -188,7 +188,7 @@ start_with_unprocessed = True
 Run the 'daily' pipeline
 ************************
 
-Some data products are not generated event based on incoming new TM data but once each day. This dayli pipline reads and writes (also log data) into the same directories as the event base pipeline. Also the generated FITS files might get picked up for publishing to to SOAR later on.
+Some data products are not generated event based on incoming new TM data but once each day. This dayli pipeline reads and writes (also log data) into the same directories as the event base pipeline. Also the generated FITS files might get picked up for publishing to to SOAR later on.
 
 ```
 # run the daily pipeline
@@ -198,9 +198,9 @@ Some data products are not generated event based on incoming new TM data but onc
 IDL - Interactive Data Language
 -------------------------------
 
-needs to be installed and licensed avaialable for all users.
+needs to be installed and licensed available for all users.
 
-In case of probles like: 'CLLFloatingLicenseInitialize failed to start the license thread':
+In case of problems like: 'CLLFloatingLicenseInitialize failed to start the license thread':
 
 On start, the IDL binary uses the licence library to create some files in /tmp, specifically one called /tmp/fne.[long string of apparently random characters] - this is a zero byte file, owned by the person running IDL. It's not deleted on exit. The next person who tries to run IDL will try to write to the same file name, and fail, despite the file being configured with 0777 permissions. Ubuntu defaults to a non-zero (2) value of fs.protected_regular. If one resets it to zero:
 
@@ -208,7 +208,7 @@ On start, the IDL binary uses the licence library to create some files in /tmp, 
 sudo sysctl fs.protected_regular=0
 ```
 
-https://github.com/i4Ds/STIX-GSW should be local avaialable (gsw_path) and always use 'master'
+https://github.com/i4Ds/STIX-GSW should be local available (gsw_path) and always use 'master'
 
 enable IDB bridge with entry in stixcore.ini:
 
@@ -278,7 +278,7 @@ Make sure manual (re)processing scripts and automated pipeline (event based or d
 
 To stop daily pipeline edit the stixcore user crontab and remove/uncomment the daily pipeline hook.
 
-To stop the event based TM pipeline first check if no precesses are running right now (open files: should be 0) and stop the service.
+To stop the event based TM pipeline first check if no processes are running right now (open files: should be 0) and stop the service.
 
 ```
 stixcore@pub099:~/STIXCore$
@@ -323,7 +323,7 @@ optional arguments:
   --idl_gsw_path IDL_GSW_PATH
                         directory where the IDL gsw is installed
   --idl_batchsize IDL_BATCHSIZE
-                        batch size how many TM prodcts batched by the IDL bridge
+                        batch size how many TM products batched by the IDL bridge
   --stop_on_error       the pipeline stops on any error
   --continue_on_error   the pipeline reports any error and continouse processing
   -o OUT_FILE, --out_file OUT_FILE

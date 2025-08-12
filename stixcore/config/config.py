@@ -22,27 +22,28 @@ def _get_config():
     The parsed configuration as nested dictionaries
     """
     module_dir = Path(__file__).parent.parent
-    if 'pytest' in sys.modules:
-        default = module_dir / 'data' / 'test' / 'stixcore.ini'
+    if "pytest" in sys.modules:
+        default = module_dir / "data" / "test" / "stixcore.ini"
         config_files = [default]
     else:
-        default = module_dir / 'data' / 'stixcore.ini'
+        default = module_dir / "data" / "stixcore.ini"
         # merge with local user ini
-        user_file = Path(os.path.expanduser('~')) / 'stixcore.ini'
+        user_file = Path(os.path.expanduser("~")) / "stixcore.ini"
         config_files = [default, user_file]
 
     config = ConfigParser()
     for file in config_files:
         try:
-            with file.open('r') as buffer:
+            with file.open("r") as buffer:
                 config.read_file(buffer)
         except FileNotFoundError:
-            logger.info('Config file %s not found', file)
+            logger.info("Config file %s not found", file)
 
     # override the spice kernel dir in case of testing
-    if 'pytest' in sys.modules:
+    if "pytest" in sys.modules:
         from stixcore.data.test import test_data
-        config.set('Paths', 'spice_kernels', str(test_data.ephemeris.KERNELS_DIR))
+
+        config.set("Paths", "spice_kernels", str(test_data.ephemeris.KERNELS_DIR))
 
     return config
 

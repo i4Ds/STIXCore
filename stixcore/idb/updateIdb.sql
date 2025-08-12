@@ -58,7 +58,7 @@ INSERT INTO tblConfigS2KParameterTypes VALUES(6,1,32,'U','Unsigned Integer','PFC
 INSERT INTO tblConfigS2KParameterTypes VALUES(7,0,0,'O','Octet String','Variable','1','1','Variable-Length Octet String');
 INSERT INTO tblConfigS2KParameterTypes VALUES(7,1,99999,'O','Octet String','PFC octets','1','1','Fixed-Length Octet String');
 INSERT INTO tblConfigS2KParameterTypes VALUES(9,17,17,'T','Absolute Time CUC format (4 bytes coarse time, 2 bytes fine time)','48','1','1','Absolute time CUC format');
-INSERT INTO tblConfigS2KParameterTypes VALUES(9,0,0,'T','Absolute Time (CUC or CDS format) with p-field','Variable','0','0','Full definition of an absolute time based on ist p-field');
+INSERT INTO tblConfigS2KParameterTypes VALUES(9,0,0,'T','Absolute Time (CUC or CDS format) with p-field','Variable','0','0','Full definition of an absolute time based on its p-field');
 INSERT INTO tblConfigS2KParameterTypes VALUES(9,1,1,'T','Absolute Time CDS format without microseconds (6 bytes without p-field)','48','0','0','Absolute time CDS format without microseconds');
 INSERT INTO tblConfigS2KParameterTypes VALUES(9,2,2,'T','Absolute Time CDS format with microseconds (8 bytes without p-field)','64','1','1','Absolute time CDS format with microseconds (TC params only)');
 INSERT INTO tblConfigS2KParameterTypes VALUES(9,3,3,'T','Absolute Time CUC format (1 byte coarse time)','8','1','1','Absolute time CUC format');

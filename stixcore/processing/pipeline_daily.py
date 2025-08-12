@@ -24,9 +24,9 @@ logger = get_logger(__name__)
 
 class DailyPipelineErrorReport(logging.StreamHandler):
     """Adds file and mail report Handler to a processing step."""
+
     def __init__(self, log_file: Path, log_level):
-        """Create a PipelineErrorReport
-        """
+        """Create a PipelineErrorReport"""
         logging.StreamHandler.__init__(self)
 
         self.log_file = log_file
@@ -57,12 +57,12 @@ class DailyPipelineErrorReport(logging.StreamHandler):
 
         if not self.allright:
             shutil.copyfile(self.log_file, self.err_file)
-            if CONFIG.getboolean('Pipeline', 'error_mail_send', fallback=False):
+            if CONFIG.getboolean("Pipeline", "error_mail_send", fallback=False):
                 try:
-                    sender = CONFIG.get('Pipeline', 'error_mail_sender', fallback='')
-                    receivers = CONFIG.get('Pipeline', 'error_mail_receivers').split(",")
-                    host = CONFIG.get('Pipeline', 'error_mail_smpt_host', fallback='localhost')
-                    port = CONFIG.getint('Pipeline', 'error_mail_smpt_port', fallback=25)
+                    sender = CONFIG.get("Pipeline", "error_mail_sender", fallback="")
+                    receivers = CONFIG.get("Pipeline", "error_mail_receivers").split(",")
+                    host = CONFIG.get("Pipeline", "error_mail_smpt_host", fallback="localhost")
+                    port = CONFIG.getint("Pipeline", "error_mail_smpt_port", fallback=25)
                     smtp_server = smtplib.SMTP(host=host, port=port)
                     message = f"""Subject: StixCore Daily Processing Error
 
@@ -95,112 +95,132 @@ def run_daily_pipeline(args):
         list of generated fits files paths
     """
 
-    parser = argparse.ArgumentParser(description='STIX publish to ESA processing step',
-                                     formatter_class=argparse.ArgumentDefaultsHelpFormatter)
+    parser = argparse.ArgumentParser(
+        description="STIX publish to ESA processing step", formatter_class=argparse.ArgumentDefaultsHelpFormatter
+    )
 
-    # pathes
-    parser.add_argument("-d", "--db_file",
-                        help="Path to the history publishing database", type=str,
-                        default=CONFIG.get('Pipeline', 'history_db_file',
-                                           fallback=str(Path.home() / "processed.sqlite")))
+    # paths
+    parser.add_argument(
+        "-d",
+        "--db_file",
+        help="Path to the history publishing database",
+        type=str,
+        default=CONFIG.get("Pipeline", "history_db_file", fallback=str(Path.home() / "processed.sqlite")),
+    )
 
-    parser.add_argument("-i", "--fits_in_dir",
-                        help="input fits directory",
-                        default=CONFIG.get('Paths', 'fits_archive'), type=str)
+    parser.add_argument(
+        "-i", "--fits_in_dir", help="input fits directory", default=CONFIG.get("Paths", "fits_archive"), type=str
+    )
 
-    parser.add_argument("-o", "--fits_out_dir",
-                        help="output fits directory",
-                        default=CONFIG.get('Paths', 'fits_archive'), type=str)
+    parser.add_argument(
+        "-o", "--fits_out_dir", help="output fits directory", default=CONFIG.get("Paths", "fits_archive"), type=str
+    )
 
-    parser.add_argument("-s", "--spice_dir",
-                        help="directory to the spice kernels files",
-                        default=CONFIG.get('Paths', 'spice_kernels'), type=str)
+    parser.add_argument(
+        "-s",
+        "--spice_dir",
+        help="directory to the spice kernels files",
+        default=CONFIG.get("Paths", "spice_kernels"),
+        type=str,
+    )
 
-    parser.add_argument("-S", "--spice_file",
-                        help="path to the spice meta kernel",
-                        default=None, type=str)
+    parser.add_argument("-S", "--spice_file", help="path to the spice meta kernel", default=None, type=str)
 
-    parser.add_argument("-p", "--soop_dir",
-                        help="directory to the SOOP files",
-                        default=CONFIG.get('Paths', 'soop_files'), type=str)
+    parser.add_argument(
+        "-p", "--soop_dir", help="directory to the SOOP files", default=CONFIG.get("Paths", "soop_files"), type=str
+    )
 
-    parser.add_argument("-O", "--log_dir",
-                        help="output directory for daily logging ",
-                        default=CONFIG.get('Publish', 'log_dir', fallback=str(Path.home())),
-                        type=str, dest='log_dir')
+    parser.add_argument(
+        "-O",
+        "--log_dir",
+        help="output directory for daily logging ",
+        default=CONFIG.get("Publish", "log_dir", fallback=str(Path.home())),
+        type=str,
+        dest="log_dir",
+    )
 
-    parser.add_argument("--continue_on_error",
-                        help="the pipeline reports any error and continues processing",
-                        default=not CONFIG.getboolean('Logging', 'stop_on_error', fallback=False),
-                        action='store_false', dest='stop_on_error')
+    parser.add_argument(
+        "--continue_on_error",
+        help="the pipeline reports any error and continues processing",
+        default=not CONFIG.getboolean("Logging", "stop_on_error", fallback=False),
+        action="store_false",
+        dest="stop_on_error",
+    )
 
-    parser.add_argument("--log_level",
-                        help="the level of logging",
-                        default="INFO", type=str,
-                        choices=["CRITICAL", "ERROR", "WARNING", "INFO", "DEBUG", "NOTSET"],
-                        dest='log_level')
+    parser.add_argument(
+        "--log_level",
+        help="the level of logging",
+        default="INFO",
+        type=str,
+        choices=["CRITICAL", "ERROR", "WARNING", "INFO", "DEBUG", "NOTSET"],
+        dest="log_level",
+    )
 
-    parser.add_argument("-r", "--rid_lut_file",
-                        help=("Path to the rid LUT file"),
-                        default=CONFIG.get('Publish', 'rid_lut_file'), type=str)
+    parser.add_argument(
+        "-r",
+        "--rid_lut_file",
+        help=("Path to the rid LUT file"),
+        default=CONFIG.get("Publish", "rid_lut_file"),
+        type=str,
+    )
 
-    parser.add_argument("--update_rid_lut",
-                        help="update rid lut file before publishing",
-                        default=False,
-                        action='store_true', dest='update_rid_lut')
+    parser.add_argument(
+        "--update_rid_lut",
+        help="update rid lut file before publishing",
+        default=False,
+        action="store_true",
+        dest="update_rid_lut",
+    )
 
     args = parser.parse_args(args)
 
-    # pathes
-    CONFIG.set('Paths', 'fits_archive', args.fits_in_dir)
-    CONFIG.set('Paths', 'spice_kernels', args.spice_dir)
-    CONFIG.set('Paths', 'soop_files', args.soop_dir)
+    # paths
+    CONFIG.set("Paths", "fits_archive", args.fits_in_dir)
+    CONFIG.set("Paths", "spice_kernels", args.spice_dir)
+    CONFIG.set("Paths", "soop_files", args.soop_dir)
 
     # logging
-    CONFIG.set('Logging', 'stop_on_error', str(args.stop_on_error))
+    CONFIG.set("Logging", "stop_on_error", str(args.stop_on_error))
 
     # generate a log file for each run and an error file in case of any errors
-    processing_day = date.today().strftime('%Y%m%d')
-    with DailyPipelineErrorReport(Path(args.log_dir) /
-                                  f"dailypipeline_{processing_day}.log",
-                                  args.log_level):
-
+    processing_day = date.today().strftime("%Y%m%d")
+    with DailyPipelineErrorReport(Path(args.log_dir) / f"dailypipeline_{processing_day}.log", args.log_level):
         # set up the singletons
         if args.spice_file:
             spicemeta = [SpiceKernelManager.get_mk_meta(Path(args.spice_file))]
         else:
-            _spm = SpiceKernelManager(Path(CONFIG.get('Paths', 'spice_kernels')))
+            _spm = SpiceKernelManager(Path(CONFIG.get("Paths", "spice_kernels")))
             spicemeta = _spm.get_latest_mk_and_pred()
 
         Spice.instance = Spice(spicemeta)
 
-        SOOPManager.instance = SOOPManager(Path(CONFIG.get('Paths', 'soop_files')))
+        SOOPManager.instance = SOOPManager(Path(CONFIG.get("Paths", "soop_files")))
 
         RidLutManager.instance = RidLutManager(Path(args.rid_lut_file), update=args.update_rid_lut)
 
-        Path(CONFIG.get('Paths', 'fits_archive'))
+        Path(CONFIG.get("Paths", "fits_archive"))
 
         db_file = Path(args.db_file)
         fits_in_dir = Path(args.fits_in_dir)
         if not fits_in_dir.exists():
-            logger.error(f'path not found to input files: {fits_in_dir}')
+            logger.error(f"path not found to input files: {fits_in_dir}")
             return
 
         fits_out_dir = Path(args.fits_out_dir)
         if not fits_out_dir.exists():
-            logger.error(f'path not found to input files: {fits_out_dir}')
+            logger.error(f"path not found to input files: {fits_out_dir}")
             return
 
         PipelineStatus.log_setup()
 
         logger.info("PARAMETER:")
-        logger.info(f'db_file: {db_file}')
-        logger.info(f'fits_in_dir: {fits_in_dir}')
-        logger.info(f'fits_out_dir: {fits_out_dir}')
+        logger.info(f"db_file: {db_file}")
+        logger.info(f"fits_in_dir: {fits_in_dir}")
+        logger.info(f"fits_out_dir: {fits_out_dir}")
         logger.info(f"send Mail report: {CONFIG.getboolean('Pipeline', 'error_mail_send')}")
         logger.info(f"receivers: {CONFIG.get('Pipeline', 'error_mail_receivers')}")
-        logger.info(f'log dir: {args.log_dir}')
-        logger.info(f'log level: {args.log_level}')
+        logger.info(f"log dir: {args.log_dir}")
+        logger.info(f"log level: {args.log_level}")
 
         logger.info("\nstart daily pipeline\n")
 
@@ -222,11 +242,16 @@ def run_daily_pipeline(args):
         # let each processing "task" run in its own process
         jobs = []
         with ProcessPoolExecutor() as executor:
-            jobs.append(executor.submit(aspect_anc_processor.process_fits_files, hk_in_files,
-                                        soopmanager=SOOPManager.instance,
-                                        spice_kernel_path=Spice.instance.meta_kernel_path,
-                                        processor=l2_fits_writer,
-                                        config=CONFIG))
+            jobs.append(
+                executor.submit(
+                    aspect_anc_processor.process_fits_files,
+                    hk_in_files,
+                    soopmanager=SOOPManager.instance,
+                    spice_kernel_path=Spice.instance.meta_kernel_path,
+                    processor=l2_fits_writer,
+                    config=CONFIG,
+                )
+            )
 
         # wait for all processes to end
         all_files = []
@@ -236,14 +261,20 @@ def run_daily_pipeline(args):
                 new_files = job.result()
                 all_files.extend(new_files)
             except Exception:
-                logger.error('error', exc_info=True)
+                logger.error("error", exc_info=True)
 
         # create an entry for each generated file in the ProcessingHistoryStorage
         for pr in all_files:
             if isinstance(pr, SingleProcessingStepResult):
-                phs.add_processed_fits_products(pr.name, pr.level, pr.type, pr.version,
-                                                get_complete_file_name_and_path(pr.in_path),
-                                                pr.out_path, pr.date)
+                phs.add_processed_fits_products(
+                    pr.name,
+                    pr.level,
+                    pr.type,
+                    pr.version,
+                    get_complete_file_name_and_path(pr.in_path),
+                    pr.out_path,
+                    pr.date,
+                )
 
         phs.close()
 
@@ -251,7 +282,7 @@ def run_daily_pipeline(args):
 
         # write out all generated fits file in a dedicated log file
         out_file = Path(args.log_dir) / f"dailypipeline_{processing_day}.out"
-        with open(out_file, 'a+') as res_f:
+        with open(out_file, "a+") as res_f:
             for f in all_files:
                 res_f.write(f"{str(f.in_path)}\n")
 
@@ -262,5 +293,5 @@ def main():
     run_daily_pipeline(sys.argv[1:])
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     main()

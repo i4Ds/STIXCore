@@ -32,12 +32,12 @@ import pytest  # noqa
 END_TO_END_TEST_FILES = [
     # L1
     # science
-    "L1/2021/06/28/SCI/solo_L1_stix-sci-xray-rpd_20210628T092300-20210628T092500_V01_2106280010-54759.fits", # noqa
-    "L1/2021/06/28/SCI/solo_L1_stix-sci-xray-cpd_20210628T231111-20210628T233142_V01_2106280103-60638.fits", # noqa
-    "L1/2021/06/28/SCI/solo_L1_stix-sci-xray-scpd_20210628T092300-20210628T092501_V01_2106280005-54719.fits", # noqa
-    "L1/2021/06/28/SCI/solo_L1_stix-sci-xray-vis_20210628T092300-20210628T092501_V01_2106280004-54716.fits", # noqa
-    "L1/2021/09/13/SCI/solo_L1_stix-sci-aspect-burst_20210913T055758-20210914T095357_V01_0.fits", # noqa
-    "L1/2021/06/28/SCI/solo_L1_stix-sci-xray-spec_20210628T230111-20210628T234142_V01_2106280041-54988.fits", # noqa
+    "L1/2021/06/28/SCI/solo_L1_stix-sci-xray-rpd_20210628T092300-20210628T092500_V01_2106280010-54759.fits",  # noqa
+    "L1/2021/06/28/SCI/solo_L1_stix-sci-xray-cpd_20210628T231111-20210628T233142_V01_2106280103-60638.fits",  # noqa
+    "L1/2021/06/28/SCI/solo_L1_stix-sci-xray-scpd_20210628T092300-20210628T092501_V01_2106280005-54719.fits",  # noqa
+    "L1/2021/06/28/SCI/solo_L1_stix-sci-xray-vis_20210628T092300-20210628T092501_V01_2106280004-54716.fits",  # noqa
+    "L1/2021/09/13/SCI/solo_L1_stix-sci-aspect-burst_20210913T055758-20210914T095357_V01_0.fits",  # noqa
+    "L1/2021/06/28/SCI/solo_L1_stix-sci-xray-spec_20210628T230111-20210628T234142_V01_2106280041-54988.fits",  # noqa
     # QL
     "L1/2021/06/28/QL/solo_L1_stix-ql-background_20210628_V01.fits",
     "L1/2021/06/28/QL/solo_L1_stix-ql-flareflag_20210628_V01.fits",
@@ -48,12 +48,12 @@ END_TO_END_TEST_FILES = [
     "L1/2021/06/28/CAL/solo_L1_stix-cal-energy_20210628_V01.fits",
     # HK
     "L1/2021/09/20/HK/solo_L1_stix-hk-mini_20210920_V01.fits",
-    "L1/2021/06/28/HK/solo_L1_stix-hk-maxi_20210628_V01.fits"]
+    "L1/2021/06/28/HK/solo_L1_stix-hk-maxi_20210628_V01.fits",
+]
 
 remote = ["https://pub099.cs.technik.fhnw.ch/data/fits_test/" + x for x in END_TO_END_TEST_FILES]
 # files = ["/home/shane/fits_test/" + x for x in files]
-files = [("/data/stix/end2end/fits/" + x, remote[i])
-         for i, x in enumerate(END_TO_END_TEST_FILES)]
+files = [("/data/stix/end2end/fits/" + x, remote[i]) for i, x in enumerate(END_TO_END_TEST_FILES)]
 
 
 def _pretty_xml_print(current, parent=None, index=-1, depth=0):
@@ -61,16 +61,16 @@ def _pretty_xml_print(current, parent=None, index=-1, depth=0):
         _pretty_xml_print(node, current, i, depth + 1)
     if parent is not None:
         if index == 0:
-            parent.text = '\n' + ('\t' * depth)
+            parent.text = "\n" + ("\t" * depth)
         else:
-            parent[index - 1].tail = '\n' + ('\t' * depth)
+            parent[index - 1].tail = "\n" + ("\t" * depth)
         if index == len(parent) - 1:
-            current.tail = '\n' + ('\t' * (depth - 1))
+            current.tail = "\n" + ("\t" * (depth - 1))
 
 
-def rebuild_end2end(files, *, splits=3,
-                    socdir=Path(CONFIG.get("Paths", "tm_archive")),
-                    outdir=test_data.products.DIREND2END):
+def rebuild_end2end(
+    files, *, splits=3, socdir=Path(CONFIG.get("Paths", "tm_archive")), outdir=test_data.products.DIREND2END
+):
     splitfiles = list(range(0, splits))
     packetid = 0
     rootxml = None
@@ -79,8 +79,8 @@ def rebuild_end2end(files, *, splits=3,
 
     outdir.mkdir(parents=True, exist_ok=True)
 
-    newroot = [Et.Element('Response') for i in splitfiles]
-    newresponse = [Et.SubElement(newroot[i], 'PktRawResponse') for i in splitfiles]
+    newroot = [Et.Element("Response") for i in splitfiles]
+    newresponse = [Et.SubElement(newroot[i], "PktRawResponse") for i in splitfiles]
 
     xmlfiles = defaultdict(set)
 
@@ -93,20 +93,20 @@ def rebuild_end2end(files, *, splits=3,
         for l0_p in l1_p.find_parent_products(rootdir):
             if isinstance(l0_p, ScienceProduct):
                 for prow in l0_p.control:
-                    xmlfiles[str(prow['raw_file'][0].decode())].update(prow['packet'])
+                    xmlfiles[str(prow["raw_file"][0].decode())].update(prow["packet"])
             else:
                 parents = l0_p.find_parent_products(rootdir)
                 for row in l0_p.control:
                     for p in parents:
-                        packet = p.control[p.control['packet'] == row["packet"]]
+                        packet = p.control[p.control["packet"] == row["packet"]]
                         for prow in packet:
-                            xmlfiles[prow['raw_file']].add(row["packet"])
+                            xmlfiles[prow["raw_file"]].add(row["packet"])
 
     print(f"{xmlfiles.keys()} TM files detected")
 
     for xmlfile, packet_ids in xmlfiles.items():
         rootxml = Et.parse(socdir / xmlfile).getroot()
-        for packet in rootxml.iter('PktRawResponseElement'):
+        for packet in rootxml.iter("PktRawResponseElement"):
             orig_pid = int(packet.get("packetID"))
             if orig_pid in packet_ids:
                 packetid += 1
@@ -118,10 +118,10 @@ def rebuild_end2end(files, *, splits=3,
     print(f"{packetid} packets recompiled")
 
     for i, root in enumerate(newroot):
-        with open(outdir / f'Test{i}.PktTmRaw.xml', 'wb') as xmlf:
+        with open(outdir / f"Test{i}.PktTmRaw.xml", "wb") as xmlf:
             _pretty_xml_print(root)
             tree = Et.ElementTree(root)
-            tree.write(xmlf, encoding='utf-8')
+            tree.write(xmlf, encoding="utf-8")
 
     fitsdir = outdir / "fits"
     if fitsdir.exists():
@@ -139,14 +139,14 @@ def end2end_pipeline(indir, fitsdir):
     Spice.instance = Spice(_spm.get_latest_mk())
 
     # pinpoint the api files location
-    CONFIG.set('SOOP', 'soop_files_download', str(test_data.soop.DIR))
+    CONFIG.set("SOOP", "soop_files_download", str(test_data.soop.DIR))
 
     SOOPManager.instance = SOOPManager(test_data.soop.DIR, mock_api=True)
 
     idbpath = Path(__file__).parent.parent.parent / "data" / "idb"
     IDBManager.instance = IDBManager(idbpath)  # force_version="2.26.35")
 
-    RidLutManager.instance = RidLutManager(Path(CONFIG.get('Publish', 'rid_lut_file')), update=True)
+    RidLutManager.instance = RidLutManager(Path(CONFIG.get("Publish", "rid_lut_file")), update=True)
 
     PipelineStatus.log_setup()
 
@@ -168,19 +168,29 @@ def end2end_pipeline(indir, fitsdir):
     return allfiles
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     if len(sys.argv) > 2:
         zippath = Path(sys.argv[1])
         datapath = Path(sys.argv[2])
 
         datapath.mkdir(parents=True, exist_ok=True)
 
-        logging.basicConfig(format='%(asctime)s %(message)s', force=True,
-                            filename=str(datapath / "processing.log"), filemode="a+",
-                            level=logging.INFO)
+        logging.basicConfig(
+            format="%(asctime)s %(message)s",
+            force=True,
+            filename=str(datapath / "processing.log"),
+            filemode="a+",
+            level=logging.INFO,
+        )
 
-        rebuild_end2end(files, splits=1, outdir=datapath,
-                        socdir=Path("/data/stix/SOLSOC/from_edds/tm/incomming/", ))
+        rebuild_end2end(
+            files,
+            splits=1,
+            outdir=datapath,
+            socdir=Path(
+                "/data/stix/SOLSOC/from_edds/tm/incoming/",
+            ),
+        )
 
         if zippath.parent.exists() and datapath.exists():
             zipcmd = f"zip -r -j - {str(datapath)} > {str(zippath)}"

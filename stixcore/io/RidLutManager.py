@@ -14,7 +14,7 @@ from stixcore.config.config import CONFIG
 from stixcore.util.logging import get_logger
 from stixcore.util.singleton import Singleton
 
-__all__ = ['RidLutManager']
+__all__ = ["RidLutManager"]
 
 logger = get_logger(__name__)
 
@@ -72,7 +72,7 @@ class RidLutManager(metaclass=Singleton):
         """
         try:
             request = self.rid_lut.loc[rid]
-            reason = " ".join(np.atleast_1d(request['description']))
+            reason = " ".join(np.atleast_1d(request["description"]))
             return reason
         except IndexError:
             logger.warning("can't get request purpose: no request founds for rid: {rid}")
@@ -100,11 +100,11 @@ class RidLutManager(metaclass=Singleton):
             request = self.rid_lut.loc[rid]
         except KeyError:
             raise ValueError("can't get scaling factor: no request founds for rid: {rid}")
-        scaling_factor = np.atleast_1d(request['scaling_factor'])
+        scaling_factor = np.atleast_1d(request["scaling_factor"])
         if len(scaling_factor) > 1:
             raise ValueError("can't get scaling factor: to many request founds for rid: {rid}")
         scf = scaling_factor[0].strip()
-        return 30 if scf == '' else int(float(scf))
+        return 30 if scf == "" else int(float(scf))
 
     @classmethod
     def read_rid_lut(cls, file, update=False):
@@ -125,9 +125,18 @@ class RidLutManager(metaclass=Singleton):
         Table
             the LUT od RIDs and request reasons.
         """
-        converters = {'_id': np.uint, 'unique_id': np.uint, 'start_utc': datetime,
-                      'duration': np.uint, 'type': str, 'subject': str,
-                      'purpose': str, 'scaling_factor': str, 'ior_id':  str, 'comment': str}
+        converters = {
+            "_id": np.uint,
+            "unique_id": np.uint,
+            "start_utc": datetime,
+            "duration": np.uint,
+            "type": str,
+            "subject": str,
+            "purpose": str,
+            "scaling_factor": str,
+            "ior_id": str,
+            "comment": str,
+        }
 
         if update or not file.exists():
             rid_lut = Table(names=converters.keys(), dtype=converters.values())
@@ -136,35 +145,35 @@ class RidLutManager(metaclass=Singleton):
             last_date = date(2019, 1, 1)
             today = date.today()
             if file.exists():
-                rid_lut = ascii.read(file, delimiter=",", converters=converters,
-                                     guess=False, quotechar='"')
-                mds = rid_lut['start_utc'].max()
+                rid_lut = ascii.read(file, delimiter=",", converters=converters, guess=False, quotechar='"')
+                mds = rid_lut["start_utc"].max()
                 try:
-                    last_date = datetime.strptime(mds, '%Y-%m-%dT%H:%M:%S').date()
+                    last_date = datetime.strptime(mds, "%Y-%m-%dT%H:%M:%S").date()
                 except ValueError:
-                    last_date = datetime.strptime(mds, '%Y-%m-%dT%H:%M:%S.%f').date()
+                    last_date = datetime.strptime(mds, "%Y-%m-%dT%H:%M:%S.%f").date()
 
             if not file.parent.exists():
-                logger.info(f'path not found to rid lut file dir: {file.parent} creating dir')
+                logger.info(f"path not found to rid lut file dir: {file.parent} creating dir")
                 file.parent.mkdir(parents=True, exist_ok=True)
-            rid_lut_file_update_url = CONFIG.get('Publish', 'rid_lut_file_update_url')
+            rid_lut_file_update_url = CONFIG.get("Publish", "rid_lut_file_update_url")
 
             try:
-                while (last_date < today):
+                while last_date < today:
                     last_date_1m = last_date + timedelta(days=30)
-                    ldf = last_date.strftime('%Y%m%d')
-                    ld1mf = last_date_1m.strftime('%Y%m%d')
+                    ldf = last_date.strftime("%Y%m%d")
+                    ld1mf = last_date_1m.strftime("%Y%m%d")
                     update_url = f"{rid_lut_file_update_url}{ldf}/{ld1mf}"
-                    logger.info(f'download publish lut file: {update_url}')
+                    logger.info(f"download publish lut file: {update_url}")
                     last_date = last_date_1m
                     updatefile = tempfile.NamedTemporaryFile().name
                     urllib.request.urlretrieve(update_url, updatefile)
-                    update_lut = ascii.read(updatefile, delimiter=",", converters=converters,
-                                            guess=False, quotechar='"')
+                    update_lut = ascii.read(
+                        updatefile, delimiter=",", converters=converters, guess=False, quotechar='"'
+                    )
 
                     if len(update_lut) < 1:
                         continue
-                    logger.info(f'found {len(update_lut)} entries')
+                    logger.info(f"found {len(update_lut)} entries")
                     rid_lut = vstack([rid_lut, update_lut])
                     # the stix datacenter API is throttled to 2 calls per second
                     time.sleep(0.5)
@@ -173,19 +182,19 @@ class RidLutManager(metaclass=Singleton):
 
             rid_lut = unique(rid_lut, silent=True)
             ascii.write(rid_lut, file, overwrite=True, delimiter=",", quotechar='"')
-            logger.info(f'write total {len(rid_lut)} entries to local storage')
+            logger.info(f"write total {len(rid_lut)} entries to local storage")
         else:
             logger.info(f"read rid-lut from {file}")
             rid_lut = ascii.read(file, delimiter=",", converters=converters)
 
-        rid_lut['description'] = [", ".join(r.values()) for r in
-                                  rid_lut['subject', 'purpose', 'comment'].filled()]
-        rid_lut.add_index('unique_id')
+        rid_lut["description"] = [", ".join(r.values()) for r in rid_lut["subject", "purpose", "comment"].filled()]
+        rid_lut.add_index("unique_id")
 
         return rid_lut
 
 
-if 'pytest' in sys.modules:
+if "pytest" in sys.modules:
     # only set the global in test scenario
     from stixcore.data.test import test_data
+
     RidLutManager.instance = RidLutManager(test_data.rid_lut.RID_LUT, update=False)

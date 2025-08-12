@@ -1,7 +1,8 @@
 """Service 17 – Connection Test."""
+
 from stixcore.tmtc.packets import GenericTMPacket
 
-__all__ = ['TM_17_2']
+__all__ = ["TM_17_2"]
 
 
 class TM_17_2(GenericTMPacket):

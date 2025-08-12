@@ -19,7 +19,7 @@ def spice():
 
 
 def test_get_position(spice):
-    res = spice.get_position(date=datetime(2020, 10, 7, 12), frame='SOLO_HEEQ')
+    res = spice.get_position(date=datetime(2020, 10, 7, 12), frame="SOLO_HEEQ")
     # from idl sunspice
     # CSPICE_FURNSH, 'test_position_20201001_V01.mk'
     # GET_SUNSPICE_COORD( '2020-10-7T12:00:00', 'SOLO', system='HEEQ')
@@ -54,10 +54,8 @@ def test_get_orientation(spice):
     # from idl sunspice
     # CSPICE_FURNSH, 'test_position_20201001_V01.mk'
     # GET_SUNSPICE_ROLL( '2020-10-7T12:00:00', 'SOLO', system='HEEQ', yaw, pitch ) SOLO_HEEQ
-    res_roll, res_pitch, res_yaw = spice.get_orientation(date=datetime(2020, 10, 7, 12),
-                                                         frame='SOLO_HEEQ')
-    ref_roll, ref_pitch, ref_yaw = [1.1023372100542925, 6.5917480592073163,
-                                    -52.536339712903256] * u.deg
+    res_roll, res_pitch, res_yaw = spice.get_orientation(date=datetime(2020, 10, 7, 12), frame="SOLO_HEEQ")
+    ref_roll, ref_pitch, ref_yaw = [1.1023372100542925, 6.5917480592073163, -52.536339712903256] * u.deg
     assert np.allclose(ref_roll, res_roll)
     # IDL implementation switches sign of pitch?
     assert np.allclose(-ref_pitch, res_pitch)
@@ -77,13 +75,13 @@ def test_get_orientation(spice):
 #         x, y = spice.convert_to_inst(coord)
 #         assert False
 
+
 def test_get_fits_headers(spice):
     start_scet = SCETime(683769519, 58289)
-    avg_scet = start_scet + 12*u.h
+    avg_scet = start_scet + 12 * u.h
 
     r1 = spice.get_fits_headers(start_time=start_scet, average_time=avg_scet)
-    r2 = spice.get_fits_headers(start_time=start_scet.to_time(),
-                                average_time=avg_scet.to_time())
+    r2 = spice.get_fits_headers(start_time=start_scet.to_time(), average_time=avg_scet.to_time())
 
     arr = np.array([(r1[i][1], r2[i][1]) for i in range(1, len(r1) - 2)])
     assert np.allclose(arr[1:, 0], arr[1:, 1])
@@ -91,9 +89,9 @@ def test_get_fits_headers(spice):
 
 def test_get_fits_headers_in_off_times(spice):
     start_scet = SCETime(983769519, 58289)
-    avg_scet = start_scet + 12*u.h
+    avg_scet = start_scet + 12 * u.h
 
     h = spice.get_fits_headers(start_time=start_scet, average_time=avg_scet)
 
-    assert h[1][0] == 'SPICE_ER'
-    assert h[2][1] == ''
+    assert h[1][0] == "SPICE_ER"
+    assert h[2][1] == ""

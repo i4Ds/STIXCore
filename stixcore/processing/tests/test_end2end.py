@@ -33,10 +33,9 @@ def out_dir(tmpdir_factory):
 def orig_data(out_dir):
     orig_dir = out_dir / "origdata"
     orig_dir.mkdir(parents=True, exist_ok=True)
-    urllib.request.urlretrieve("https://pub099.cs.technik.fhnw.ch/data/end2end/data/head.zip",
-                               orig_dir / "orig.zip")
+    urllib.request.urlretrieve("https://pub099.cs.technik.fhnw.ch/data/end2end/data/head.zip", orig_dir / "orig.zip")
 
-    with zipfile.ZipFile(orig_dir / "orig.zip", 'r') as zip_ref:
+    with zipfile.ZipFile(orig_dir / "orig.zip", "r") as zip_ref:
         zip_ref.extractall(orig_dir)
     return orig_dir
 
@@ -56,7 +55,7 @@ def current_fits(orig_data, out_dir):
 def test_find_parents(current_fits, out_dir):
     for fits in current_fits:
         p = Product(fits)
-        if hasattr(p, 'find_parent_files'):
+        if hasattr(p, "find_parent_files"):
             parents = p.find_parent_files(out_dir)
             assert len(parents) > 0
 
@@ -88,17 +87,22 @@ def test_identical(orig_fits, current_fits):
             warnings.warn(f"no corresponding file found for {cfits} in the original fits files")
             error_files.append((cfits, ofits))
             continue
-        diff = FITSDiff(ofits, cfits, atol=0.00001, rtol=0.00001,
-                        ignore_keywords=['CHECKSUM', 'DATASUM', 'DATE',
-                                         'VERS_SW', 'VERS_CFG', 'HISTORY'])
+        diff = FITSDiff(
+            ofits,
+            cfits,
+            atol=0.00001,
+            rtol=0.00001,
+            ignore_keywords=["CHECKSUM", "DATASUM", "DATE", "VERS_SW", "VERS_CFG", "HISTORY"],
+        )
         if not diff.identical:
             error_c += 1
             warnings.warn(diff.report())
             error_files.append((cfits, ofits))
 
     if error_c > 0:
-        raise ValueError(f"{error_c} errors out of {len(current_fits)}\n"
-                         f"there are differences in FITS files\n {pformat(error_files)}")
+        raise ValueError(
+            f"{error_c} errors out of {len(current_fits)}\nthere are differences in FITS files\n {pformat(error_files)}"
+        )
 
 
 @pytest.mark.skip(reason="used as a local test at the moment")
@@ -107,14 +111,14 @@ def test_e2e_21_6_32(out_dir):
     Spice.instance = Spice(_spm.get_latest_mk())
 
     # pinpoint the api files location
-    CONFIG.set('SOOP', 'soop_files_download', str(test_data.soop.DIR))
+    CONFIG.set("SOOP", "soop_files_download", str(test_data.soop.DIR))
 
     SOOPManager.instance = SOOPManager(test_data.soop.DIR, mock_api=True)
 
     idbpath = Path(__file__).parent.parent.parent / "data" / "idb"
     IDBManager.instance = IDBManager(idbpath)  # force_version="2.26.35")
 
-    RidLutManager.instance = RidLutManager(Path(CONFIG.get('Publish', 'rid_lut_file')), update=True)
+    RidLutManager.instance = RidLutManager(Path(CONFIG.get("Publish", "rid_lut_file")), update=True)
 
     PipelineStatus.log_setup()
 
@@ -135,9 +139,13 @@ def test_e2e_21_6_32(out_dir):
     for fits_1 in l0_files_o1:
         # find corresponding original file
         fits_2 = next(ofits for ofits in l0_files_o2 if ofits.name == fits_1.name)
-        diff = FITSDiff(fits_1, fits_2, atol=0.00001, rtol=0.00001,
-                        ignore_keywords=['CHECKSUM', 'DATASUM', 'DATE',
-                                         'VERS_SW', 'VERS_CFG', 'HISTORY'])
+        diff = FITSDiff(
+            fits_1,
+            fits_2,
+            atol=0.00001,
+            rtol=0.00001,
+            ignore_keywords=["CHECKSUM", "DATASUM", "DATE", "VERS_SW", "VERS_CFG", "HISTORY"],
+        )
         if not diff.identical:
             print(diff.report())
             n_errors += 1

@@ -28,10 +28,11 @@ class Level2:
     Groups all files into parallel processes by product type if daily products. For by request
     products it is also grouped by type but additional into batches of a given size.
     """
+
     def __init__(self, source_dir, output_dir):
         self.source_dir = Path(source_dir)
         self.output_dir = Path(output_dir)
-        self.level1_files = sorted(list(self.source_dir.rglob('*.fits')))
+        self.level1_files = sorted(list(self.source_dir.rglob("*.fits")))
         self.processor = FitsL2Processor(self.output_dir)
 
     def process_fits_files(self, files=None):
@@ -41,32 +42,37 @@ class Level2:
 
         product_types = defaultdict(list)
         product_types_batch = defaultdict(int)
-        batch_size = CONFIG.getint('Pipeline', 'parallel_batchsize_L2', fallback=100)
+        batch_size = CONFIG.getint("Pipeline", "parallel_batchsize_L2", fallback=100)
 
         for file in files:
             # group by product: '(HK,maxi)'
-            mission, level, identifier, *_ = file.name.split('_')
-            tm_type = tuple(identifier.split('-')[1:])
-            if tm_type[0] == 'sci':
+            mission, level, identifier, *_ = file.name.split("_")
+            tm_type = tuple(identifier.split("-")[1:])
+            if tm_type[0] == "sci":
                 product_types_batch[tm_type] += 1
             batch = product_types_batch[tm_type] // batch_size
-            product_types[tm_type + (batch, )].append(file)
+            product_types[tm_type + (batch,)].append(file)
 
         jobs = []
         with ProcessPoolExecutor() as executor:
             for pt, files in product_types.items():
-                jobs.append(executor.submit(process_type, files,
-                                            processor=FitsL2Processor(self.output_dir),
-                                            soopmanager=SOOPManager.instance,
-                                            spice_kernel_path=Spice.instance.meta_kernel_path,
-                                            config=CONFIG))
+                jobs.append(
+                    executor.submit(
+                        process_type,
+                        files,
+                        processor=FitsL2Processor(self.output_dir),
+                        soopmanager=SOOPManager.instance,
+                        spice_kernel_path=Spice.instance.meta_kernel_path,
+                        config=CONFIG,
+                    )
+                )
 
         for job in jobs:
             try:
                 new_files = job.result()
                 all_files.extend(new_files)
             except Exception:
-                logger.error('error', exc_info=True)
+                logger.error("error", exc_info=True)
 
         return list(set(all_files))
 
@@ -82,9 +88,14 @@ def process_type(files, *, processor, soopmanager, spice_kernel_path, config):
     for file in files:
         try:
             l1 = Product(file)
-            tmp = Product._check_registered_widget(level='L2', service_type=l1.service_type,
-                                                   service_subtype=l1.service_subtype,
-                                                   ssid=l1.ssid, data=None, control=None)
+            tmp = Product._check_registered_widget(
+                level="L2",
+                service_type=l1.service_type,
+                service_subtype=l1.service_subtype,
+                ssid=l1.ssid,
+                data=None,
+                control=None,
+            )
 
             # see https://github.com/i4Ds/STIXCore/issues/350
             complete_file_name = get_complete_file_name_and_path(file)
@@ -96,13 +107,13 @@ def process_type(files, *, processor, soopmanager, spice_kernel_path, config):
                 all_files.extend(idlprocessor.process())
                 idlprocessor = SSWIDLProcessor(processor)
         except (NoMatchError, KeyError):
-            logger.warning('No L2 product match for product %s', l1)
+            logger.warning("No L2 product match for product %s", l1)
         except NotCombineException as nc:
             logger.info(nc)
         except Exception as e:
-            logger.error('Error processing file %s', file, exc_info=True)
-            logger.error('%s', e)
-            if CONFIG.getboolean('Logging', 'stop_on_error', fallback=False):
+            logger.error("Error processing file %s", file, exc_info=True)
+            logger.error("%s", e)
+            if CONFIG.getboolean("Logging", "stop_on_error", fallback=False):
                 raise e
 
     # if some more file batches left for IDL processing do it
@@ -112,17 +123,17 @@ def process_type(files, *, processor, soopmanager, spice_kernel_path, config):
     return all_files
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     tstart = perf_counter()
-    warnings.filterwarnings('ignore', module='astropy.io.fits.card')
-    warnings.filterwarnings('ignore', module='stixcore.soop.manager')
-    warnings.filterwarnings('ignore', module='astropy.utils.metadata')
+    warnings.filterwarnings("ignore", module="astropy.io.fits.card")
+    warnings.filterwarnings("ignore", module="stixcore.soop.manager")
+    warnings.filterwarnings("ignore", module="astropy.utils.metadata")
 
-    fits_path = Path('/home/shane/fits_test/L0')
-    bd = Path('/home/shane/fits_test/')
+    fits_path = Path("/home/shane/fits_test/L0")
+    bd = Path("/home/shane/fits_test/")
 
     l2processor = Level2(fits_path, bd)
     all_files = l2processor.process_fits_files()
     logger.info(all_files)
     tend = perf_counter()
-    logger.info('Time taken %f', tend-tstart)
+    logger.info("Time taken %f", tend - tstart)

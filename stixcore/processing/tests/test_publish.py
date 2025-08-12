@@ -1,4 +1,3 @@
-
 import re
 import sys
 from pathlib import Path
@@ -69,11 +68,10 @@ def test_publish_history_add_file(out_dir):
     status, items_a1 = h.add(f1)
     assert h.count() == 1
     assert status == PublishConflicts.ADDED
-    assert items_a1[0]['name'] ==\
-        'solo_L1_stix-sci-xray-spec_20220223T1-20220223T2_V01_2202230003-59362.fits'
-    assert items_a1[0]['path'] == str(out_dir)
-    assert items_a1[0]['version'] == 1
-    assert items_a1[0]['esaname'] == 'solo_L1_stix-sci-xray-spec_20220223T1-20220223T2_V01'
+    assert items_a1[0]["name"] == "solo_L1_stix-sci-xray-spec_20220223T1-20220223T2_V01_2202230003-59362.fits"
+    assert items_a1[0]["path"] == str(out_dir)
+    assert items_a1[0]["version"] == 1
+    assert items_a1[0]["esaname"] == "solo_L1_stix-sci-xray-spec_20220223T1-20220223T2_V01"
 
     status, items_a2 = h.add(f1)
     assert h.count() == 1
@@ -84,11 +82,10 @@ def test_publish_history_add_file(out_dir):
     assert h.count() == 2
     assert status == PublishConflicts.SAME_ESA_NAME
     assert items_a3[0] == items_a1[0]
-    assert items_a3[1]['name'] ==\
-        'solo_L1_stix-sci-xray-spec_20220223T1-20220223T2_V01_2202230003-60000.fits'
-    assert items_a3[1]['path'] == str(out_dir)
-    assert items_a3[1]['version'] == 1
-    assert items_a3[1]['esaname'] == 'solo_L1_stix-sci-xray-spec_20220223T1-20220223T2_V01'
+    assert items_a3[1]["name"] == "solo_L1_stix-sci-xray-spec_20220223T1-20220223T2_V01_2202230003-60000.fits"
+    assert items_a3[1]["path"] == str(out_dir)
+    assert items_a3[1]["version"] == 1
+    assert items_a3[1]["esaname"] == "solo_L1_stix-sci-xray-spec_20220223T1-20220223T2_V01"
 
     status, items_a4 = h.add(f2)
     assert h.count() == 2
@@ -96,9 +93,8 @@ def test_publish_history_add_file(out_dir):
     assert items_a4[0] == items_a3[1]
 
 
-@patch('stixcore.products.level1.quicklookL1.Background')
+@patch("stixcore.products.level1.quicklookL1.Background")
 def test_publish_fits_to_esa_incomplete(product, out_dir):
-
     PublishHistoryStorage(out_dir / "test.sqlite")
 
     target_dir = out_dir / "esa"
@@ -112,29 +108,29 @@ def test_publish_fits_to_esa_incomplete(product, out_dir):
     processor = FitsL1Processor(fits_dir)
     for stime in [707875074, 708739079, 709739079]:
         beg = SCETime(coarse=stime, fine=0)
-        end = SCETime(coarse=stime + 10, fine=2 ** 15)
+        end = SCETime(coarse=stime + 10, fine=2**15)
         product.scet_timerange = SCETimeRange(start=beg, end=end)
         product.utc_timerange = product.scet_timerange.to_timerange()
-        product.idb_versions = {'1.2': product.scet_timerange}
-        product.control = QTable({"scet_coarse": [[beg.coarse, end.coarse]],
-                                  "scet_fine": [[beg.fine, end.fine]],
-                                  "index": [1],
-                                  })
+        product.idb_versions = {"1.2": product.scet_timerange}
+        product.control = QTable(
+            {
+                "scet_coarse": [[beg.coarse, end.coarse]],
+                "scet_fine": [[beg.fine, end.fine]],
+                "index": [1],
+            }
+        )
 
         t = SCETime(coarse=[beg.coarse, end.coarse])
-        product.data = QTable({"time": t,
-                               "timedel": t-beg,
-                               "fcounts": np.array([1, 2]),
-                               "control_index": [1, 1]})
-        product.raw = ['packet1.xml', 'packet2.xml']
-        product.parent = ['packet1.xml', 'packet2.xml']
-        product.level = 'L1'
+        product.data = QTable({"time": t, "timedel": t - beg, "fcounts": np.array([1, 2]), "control_index": [1, 1]})
+        product.raw = ["packet1.xml", "packet2.xml"]
+        product.parent = ["packet1.xml", "packet2.xml"]
+        product.level = "L1"
         product.service_type = 21
         product.service_subtype = 6
         product.ssid = 31
         product.fits_daily_file = True
-        product.type = 'ql'
-        product.name = 'background'
+        product.type = "ql"
+        product.name = "background"
         product.obt_beg = beg
         product.obt_end = end
         product.date_obs = beg
@@ -153,18 +149,30 @@ def test_publish_fits_to_esa_incomplete(product, out_dir):
 
     assert len(files) == 3
     # this was processed with predicted and flown
-    assert fits.getval(files[0], 'SPICE_MK') ==\
-        "solo_ANC_soc-pred-mk_V106_20201116_001.tm, solo_ANC_soc-flown-mk_V105_20200515_001.tm"
+    assert (
+        fits.getval(files[0], "SPICE_MK")
+        == "solo_ANC_soc-pred-mk_V106_20201116_001.tm, solo_ANC_soc-flown-mk_V105_20200515_001.tm"
+    )
     # the filename should be marked as incomplete
     assert get_complete_file_name(files[0].name) != files[0].name
     assert get_incomplete_file_name(files[0].name) == files[0].name
 
-    res = publish_fits_to_esa(['--target_dir', str(target_dir),
-                               '--same_esa_name_dir', str(same_dir),
-                               '--include_levels', 'l1',
-                               '--waiting_period', '0s',
-                               '--db_file', str(out_dir / "test.sqlite"),
-                               '--fits_dir', str(fits_dir)])
+    res = publish_fits_to_esa(
+        [
+            "--target_dir",
+            str(target_dir),
+            "--same_esa_name_dir",
+            str(same_dir),
+            "--include_levels",
+            "l1",
+            "--waiting_period",
+            "0s",
+            "--db_file",
+            str(out_dir / "test.sqlite"),
+            "--fits_dir",
+            str(fits_dir),
+        ]
+    )
 
     assert res
     published_files = res[PublishResult.PUBLISHED]
@@ -173,16 +181,17 @@ def test_publish_fits_to_esa_incomplete(product, out_dir):
     # no conflicting esa names expected
     assert len(published_files[0]) == 1
     # incomplete files should be updated with just flown spice mk
-    assert fits.getval(Path(published_files[0][0]['path']) / published_files[0][0]['name'],
-                       'SPICE_MK') == "solo_ANC_soc-flown-mk_V105_20200515_001.tm"
+    assert (
+        fits.getval(Path(published_files[0][0]["path"]) / published_files[0][0]["name"], "SPICE_MK")
+        == "solo_ANC_soc-flown-mk_V105_20200515_001.tm"
+    )
     # should be marked as complete afterwards
-    assert get_complete_file_name(published_files[0][0]['name']) == published_files[0][0]['name']
-    assert get_incomplete_file_name(published_files[0][0]['name']) != published_files[0][0]['name']
+    assert get_complete_file_name(published_files[0][0]["name"]) == published_files[0][0]["name"]
+    assert get_incomplete_file_name(published_files[0][0]["name"]) != published_files[0][0]["name"]
 
 
 def test_fits_incomplete_switch_over(out_dir):
-    with patch('stixcore.products.level1.quicklookL1.Background') as product:
-
+    with patch("stixcore.products.level1.quicklookL1.Background") as product:
         PublishHistoryStorage(out_dir / "test.sqlite")
 
         target_dir = out_dir / "esa"
@@ -196,31 +205,39 @@ def test_fits_incomplete_switch_over(out_dir):
         processor = FitsL1Processor(fits_dir)
         for stime in [707875174, 708739179, 709739179, 1999999999]:
             beg = SCETime(coarse=stime, fine=0)
-            end = SCETime(coarse=stime + 10, fine=2 ** 15)
+            end = SCETime(coarse=stime + 10, fine=2**15)
             product.scet_timerange = SCETimeRange(start=beg, end=end)
             product.utc_timerange = product.scet_timerange.to_timerange()
-            product.idb_versions = {'1.2': product.scet_timerange}
-            product.control = QTable({"scet_coarse": [beg.coarse],
-                                      "scet_fine": [beg.fine],
-                                      "raw_file": ['test.xml'],
-                                      "parent": ['parent.fits'],
-                                      "index": [1]})
+            product.idb_versions = {"1.2": product.scet_timerange}
+            product.control = QTable(
+                {
+                    "scet_coarse": [beg.coarse],
+                    "scet_fine": [beg.fine],
+                    "raw_file": ["test.xml"],
+                    "parent": ["parent.fits"],
+                    "index": [1],
+                }
+            )
 
             t = SCETime(coarse=[beg.coarse, end.coarse])
-            product.data = QTable({"time": t,
-                                   "timedel": t-beg,
-                                   "fcounts": np.array([1, 2]),
-                                   "counts": np.array([1, 2]) * u.deg_C,
-                                   "control_index": [1, 1]})
-            product.raw = ['packet1.xml', 'packet2.xml']
-            product.parent = ['packet1.xml', 'packet2.xml']
-            product.level = 'L1'
+            product.data = QTable(
+                {
+                    "time": t,
+                    "timedel": t - beg,
+                    "fcounts": np.array([1, 2]),
+                    "counts": np.array([1, 2]) * u.deg_C,
+                    "control_index": [1, 1],
+                }
+            )
+            product.raw = ["packet1.xml", "packet2.xml"]
+            product.parent = ["packet1.xml", "packet2.xml"]
+            product.level = "L1"
             product.service_type = 21
             product.service_subtype = 6
             product.ssid = 31
             product.fits_daily_file = True
-            product.type = 'ql'
-            product.name = 'background'
+            product.type = "ql"
+            product.name = "background"
             product.obt_beg = beg
             product.obt_end = end
             product.date_obs = beg
@@ -241,12 +258,22 @@ def test_fits_incomplete_switch_over(out_dir):
         assert get_complete_file_name(files_first[0].name) != files_first[0].name
         assert get_incomplete_file_name(files_first[0].name) == files_first[0].name
 
-        res = publish_fits_to_esa(['--target_dir', str(target_dir),
-                                   '--same_esa_name_dir', str(same_dir),
-                                   '--include_levels', 'l1',
-                                   '--waiting_period', '0s',
-                                   '--db_file', str(out_dir / "test.sqlite"),
-                                   '--fits_dir', str(fits_dir)])
+        res = publish_fits_to_esa(
+            [
+                "--target_dir",
+                str(target_dir),
+                "--same_esa_name_dir",
+                str(same_dir),
+                "--include_levels",
+                "l1",
+                "--waiting_period",
+                "0s",
+                "--db_file",
+                str(out_dir / "test.sqlite"),
+                "--fits_dir",
+                str(fits_dir),
+            ]
+        )
 
         assert res
         published_files = res[PublishResult.PUBLISHED]
@@ -260,18 +287,16 @@ def test_fits_incomplete_switch_over(out_dir):
         assert len(published_files[0]) == 1
 
         # should be marked as complete afterwards
-        assert get_complete_file_name(published_files[0][0]['name']) ==\
-            published_files[0][0]['name']
-        assert get_incomplete_file_name(published_files[0][0]['name']) !=\
-            published_files[0][0]['name']
+        assert get_complete_file_name(published_files[0][0]["name"]) == published_files[0][0]["name"]
+        assert get_incomplete_file_name(published_files[0][0]["name"]) != published_files[0][0]["name"]
 
         files_last = []
         for f in files_first[:-1]:  # not the last one from future
             # read all FITS files and modify the data slightly
             p = Product(get_complete_file_name_and_path(f))
             # old data.fcounts = [t1: 1, t2: 2]
-            p.data['fcounts'][0] = 3
-            p.data['counts'] = 3 * u.deg_C
+            p.data["fcounts"][0] = 3
+            p.data["counts"] = 3 * u.deg_C
             # remove the second time stamp
             p.data.remove_row(1)
             # new data.fcounts = [t1: 3]
@@ -286,21 +311,20 @@ def test_fits_incomplete_switch_over(out_dir):
             # (complete file name)
             # the first data point should be from the latest data
             # resulting data.fcounts = [t1: 3, t2: 2]
-            assert (p.data['fcounts'] == [3, 2]).all()
+            assert (p.data["fcounts"] == [3, 2]).all()
 
 
-@pytest.mark.skipif(sys.platform.startswith('win'), reason="does not run on windows")
+@pytest.mark.skipif(sys.platform.startswith("win"), reason="does not run on windows")
 @pytest.mark.skipif(sys.platform != "Darwin", reason="does not run on mac")
 def test_fits_incomplete_switch_over_remove_dup_files(out_dir):
-
     test_fits_incomplete_switch_over(out_dir)
 
-    fits_dir = out_dir / 'fits'
-    target_dir = out_dir / 'move'
+    fits_dir = out_dir / "fits"
+    target_dir = out_dir / "move"
 
-    ufiles = list(fits_dir.rglob('*_V*U.fits'))
-    p = re.compile(r'.*_V[0-9]+\.fits')
-    cfiles = [f for f in fits_dir.rglob('*.fits') if p.match(f.name)]
+    ufiles = list(fits_dir.rglob("*_V*U.fits"))
+    p = re.compile(r".*_V[0-9]+\.fits")
+    cfiles = [f for f in fits_dir.rglob("*.fits") if p.match(f.name)]
 
     assert len(ufiles) == 3
     assert len(cfiles) == 4
@@ -309,18 +333,16 @@ def test_fits_incomplete_switch_over_remove_dup_files(out_dir):
     ufiles[1].unlink()
     cfiles[1].unlink()
 
-    res = incomplete_twins(['--fits_dir', str(fits_dir),
-                            '--twin_target', str(target_dir),
-                            '--move_twin'])
+    res = incomplete_twins(["--fits_dir", str(fits_dir), "--twin_target", str(target_dir), "--move_twin"])
 
     assert res
     assert len(res) == 1
-    moved = list(target_dir.rglob('*.fits'))
+    moved = list(target_dir.rglob("*.fits"))
     assert len(moved) == 1
     assert moved[0].name == cfiles[3].name
 
 
-@patch('stixcore.products.level1.scienceL1.Spectrogram')
+@patch("stixcore.products.level1.scienceL1.Spectrogram")
 def test_publish_fits_to_esa(product, out_dir):
     target_dir = out_dir / "esa"
     same_dir = out_dir / "same"
@@ -331,28 +353,29 @@ def test_publish_fits_to_esa(product, out_dir):
 
     processor = FitsL1Processor(fits_dir)
     beg = SCETime(coarse=0, fine=0)
-    end = SCETime(coarse=1, fine=2 ** 15)
+    end = SCETime(coarse=1, fine=2**15)
     product.scet_timerange = SCETimeRange(start=beg, end=end)
     product.utc_timerange = product.scet_timerange.to_timerange()
-    product.idb_versions = {'1.2': product.scet_timerange}
-    product.control = QTable({"scet_coarse": [[beg.coarse, end.coarse]],
-                              "scet_fine": [[beg.fine, end.fine]],
-                              "index": [1],
-                              "request_id": [123]})
+    product.idb_versions = {"1.2": product.scet_timerange}
+    product.control = QTable(
+        {
+            "scet_coarse": [[beg.coarse, end.coarse]],
+            "scet_fine": [[beg.fine, end.fine]],
+            "index": [1],
+            "request_id": [123],
+        }
+    )
 
     t = SCETime(coarse=[beg.coarse, end.coarse])
-    product.data = QTable({"time": t,
-                           "timedel": t-beg,
-                           "fcounts": np.array([1, 2]),
-                           "control_index": [1, 1]})
-    product.raw = ['packet1.xml', 'packet2.xml']
-    product.parent = ['packet1.xml', 'packet2.xml']
-    product.level = 'L1'
+    product.data = QTable({"time": t, "timedel": t - beg, "fcounts": np.array([1, 2]), "control_index": [1, 1]})
+    product.raw = ["packet1.xml", "packet2.xml"]
+    product.parent = ["packet1.xml", "packet2.xml"]
+    product.level = "L1"
     product.service_type = 21
     product.service_subtype = 6
     product.ssid = 24
-    product.type = 'sci'
-    product.name = 'xray-spec'
+    product.type = "sci"
+    product.name = "xray-spec"
     product.obt_beg = beg
     product.obt_end = end
     product.date_obs = beg
@@ -369,60 +392,72 @@ def test_publish_fits_to_esa(product, out_dir):
 
     data = product.data[:]  # make a clone
     files = []
-    product.control['request_id'] = 123
+    product.control["request_id"] = 123
     files.extend(processor.write_fits(product))  # orig
 
-    product.control['request_id'] = 124
+    product.control["request_id"] = 124
     product.data = data[:]
     files.extend(processor.write_fits(product))  # same ignore
 
-    product.control['request_id'] = 125
+    product.control["request_id"] = 125
     product.data = data[:]
     files.extend(processor.write_fits(product))  # same ignore
 
-    product.control['request_id'] = 126
+    product.control["request_id"] = 126
     product.data = data[:]
-    product.data['fcounts'][0] = 100
+    product.data["fcounts"][0] = 100
     files.extend(processor.write_fits(product))  # sub1
 
-    product.control['request_id'] = 127
+    product.control["request_id"] = 127
     product.data = data[:]
-    product.data['fcounts'][0] = 200
+    product.data["fcounts"][0] = 200
     files.extend(processor.write_fits(product))  # sub2
 
-    product.control['request_id'] = 128
+    product.control["request_id"] = 128
     product.data = data[:]
-    product.data['fcounts'][0] = 300
+    product.data["fcounts"][0] = 300
     files.extend(processor.write_fits(product))  # sub3 -> ERROR
 
-    product.control['request_id'] = 129
+    product.control["request_id"] = 129
     product.data = data[:]
-    product.data['fcounts'][0] = 400
+    product.data["fcounts"][0] = 400
     files.extend(processor.write_fits(product))  # sub4 -> ERROR
 
-    product.control['request_id'] = 130
+    product.control["request_id"] = 130
     product.data = data[:]
-    product.data['fcounts'][0] = 400
+    product.data["fcounts"][0] = 400
     product.ssid = 23
-    product.type = 'sci'
-    product.name = 'xray-vis'
+    product.type = "sci"
+    product.name = "xray-vis"
     files.extend(processor.write_fits(product))  # blacklist
 
     with open(out_dir / "blacklist.txt", "w") as blacklist:
-        blacklist.write(files[-1].name+"\n")
+        blacklist.write(files[-1].name + "\n")
 
     supplement_report = out_dir / "supplement_report.csv"
 
-    res = publish_fits_to_esa(['--target_dir', str(target_dir),
-                               '--same_esa_name_dir', str(same_dir),
-                               '--include_levels', 'l1',
-                               '--sort_files',
-                               # '--update_rid_lut',
-                               '--supplement_report', str(supplement_report),
-                               '--blacklist_files', str(out_dir / "blacklist.txt"),
-                               '--waiting_period', '0s',
-                               '--db_file', str(out_dir / "test.sqlite"),
-                               '--fits_dir', str(fits_dir)])
+    res = publish_fits_to_esa(
+        [
+            "--target_dir",
+            str(target_dir),
+            "--same_esa_name_dir",
+            str(same_dir),
+            "--include_levels",
+            "l1",
+            "--sort_files",
+            # '--update_rid_lut',
+            "--supplement_report",
+            str(supplement_report),
+            "--blacklist_files",
+            str(out_dir / "blacklist.txt"),
+            "--waiting_period",
+            "0s",
+            "--db_file",
+            str(out_dir / "test.sqlite"),
+            "--fits_dir",
+            str(fits_dir),
+        ]
+    )
 
     assert res
     # the first one was added
@@ -435,11 +470,11 @@ def test_publish_fits_to_esa(product, out_dir):
     assert len(res[PublishResult.BLACKLISTED]) == 1
     # 2 errors as it would be a third/more supplement
     assert len(res[PublishResult.ERROR]) == 2
-    assert res[PublishResult.ERROR][0][1] == 'max supplement error'
+    assert res[PublishResult.ERROR][0][1] == "max supplement error"
 
     # check if the FILENAME keyword was replaced
     for f in target_dir.glob("*.fits"):
-        fncw = fits.getval(f, 'FILENAME')
+        fncw = fits.getval(f, "FILENAME")
         assert fncw == f.name
 
     assert supplement_report.exists()

@@ -19,7 +19,7 @@ Follow the instructions to publish a new IDB `2.26.36` version
 * remove the `*.mdb` file (possible licensing conflicts)
 * zip the folder structure into `v2.26.36.raw.zip`
 * upload `v2.26.36.raw.zip` to `https://pub099.cs.technik.fhnw.ch/data/idb/` (`/var/www/data/idb/v2.26.36.raw.zip`)
-* compile the raw IDB into a sqlite file (this will also inject some raw 2 engeneering paramaters)
+* compile the raw IDB into a sqlite file (this will also inject some raw 2 engineering parameters)
 
 .. code-block:: python
 
@@ -44,4 +44,4 @@ Follow the instructions to publish a new IDB `2.26.36` version
     ...]
 
 * push the latest updates of the `idbVersionHistory.json`
-* after pull stixcore and run the published version `2.26.36` will be automaticaly downlaoded and installed.
+* after pull stixcore and run the published version `2.26.36` will be automatically downloaded and installed.

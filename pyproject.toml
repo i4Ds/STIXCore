@@ -8,7 +8,7 @@ build-backend = 'setuptools.build_meta'
 
 [project]
 name = "STIXCore"
-description = "An open-source Python pipline for Spectrometer Telescope for Imaging X-rays (STIX) instrument on Solar Obriter."
+description = "An open-source Python pipeline for Spectrometer Telescope for Imaging X-rays (STIX) instrument on Solar Obriter."
 requires-python = ">=3.11"
 readme = {file = "README.rst", content-type="text/x-rst"}
 license = "BSD-3-Clause"

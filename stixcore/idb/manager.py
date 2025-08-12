@@ -16,14 +16,14 @@ from stixcore.time import SCETime
 from stixcore.util.logging import get_logger
 from stixcore.util.singleton import Singleton
 
-__all__ = ['IDBManager']
+__all__ = ["IDBManager"]
 
 IDB_FILENAME = "idb.sqlite"
 IDB_VERSION_PREFIX = "v"
 IDB_VERSION_DELIM = "."
 IDB_VERSION_HISTORY_FILE = Path(__file__).parent.parent / "data" / "idb" / "idbVersionHistory.json"
 
-IDB_FORCE_VERSION_KEY = '__FORCE_VERSION__'
+IDB_FORCE_VERSION_KEY = "__FORCE_VERSION__"
 
 logger = get_logger(__name__)
 
@@ -107,7 +107,7 @@ class IDBManager(metaclass=Singleton):
         """
         path = Path(value)
         if not path.exists():
-            logger.info(f'path not found: {value} creating dir')
+            logger.info(f"path not found: {value} creating dir")
             path.mkdir(parents=True, exist_ok=True)
 
         self._data_root = path
@@ -116,28 +116,30 @@ class IDBManager(metaclass=Singleton):
                 self.history = IntervalTree()
 
                 for item in json.load(f):
-                    item['validityPeriodOBT'][0] = SCETime(
-                                                    coarse=item['validityPeriodOBT'][0]['coarse'],
-                                                    fine=item['validityPeriodOBT'][0]['fine'])
-                    item['validityPeriodOBT'][1] = SCETime(
-                                                    coarse=item['validityPeriodOBT'][1]['coarse'],
-                                                    fine=item['validityPeriodOBT'][1]['fine'])
-                    self.history.addi(item['validityPeriodOBT'][0].as_float().value,
-                                      item['validityPeriodOBT'][1].as_float().value,
-                                      item['version'])
+                    item["validityPeriodOBT"][0] = SCETime(
+                        coarse=item["validityPeriodOBT"][0]["coarse"], fine=item["validityPeriodOBT"][0]["fine"]
+                    )
+                    item["validityPeriodOBT"][1] = SCETime(
+                        coarse=item["validityPeriodOBT"][1]["coarse"], fine=item["validityPeriodOBT"][1]["fine"]
+                    )
+                    self.history.addi(
+                        item["validityPeriodOBT"][0].as_float().value,
+                        item["validityPeriodOBT"][1].as_float().value,
+                        item["version"],
+                    )
                     try:
-                        if not self.has_version(item['version']):
-                            available = self.download_version(item['version'], force=False)
+                        if not self.has_version(item["version"]):
+                            available = self.download_version(item["version"], force=False)
                             if not available:
-                                raise ValueError('was not able to download IDB version '
-                                                 f'{item["version"]} into {self._data_root}')
+                                raise ValueError(
+                                    f"was not able to download IDB version {item['version']} into {self._data_root}"
+                                )
 
-                    except EnvironmentError:
+                    except OSError:
                         pass
 
-        except EnvironmentError:
-            raise ValueError(f'No IDB version history found at: '
-                             f'{IDB_VERSION_HISTORY_FILE}')
+        except OSError:
+            raise ValueError(f"No IDB version history found at: {IDB_VERSION_HISTORY_FILE}")
 
     def find_version(self, obt=None):
         """Find IDB version operational at a given time.
@@ -158,10 +160,9 @@ class IDBManager(metaclass=Singleton):
             return next(iter(self.history.at(obt.as_float().value))).data
         except IndexError as e:
             logger.error(f"No IDB version found for Time: {obt}\n{e}")
-        return ''
+        return ""
 
-    def compile_version(self, version_label, force=False,
-                        url="https://pub099.cs.technik.fhnw.ch/data/idb/"):
+    def compile_version(self, version_label, force=False, url="https://pub099.cs.technik.fhnw.ch/data/idb/"):
         """Download compiles and installs an IDB version of a public available URL.
            Some IDB parameters will be injected to support the raw tw engineering framework.
 
@@ -185,8 +186,9 @@ class IDBManager(metaclass=Singleton):
         ValueError
         """
         if force is False and self.has_version(version_label):
-            raise ValueError(f'IDB version {version_label} already available locally. '
-                             f'Use force=True if you would like to override')
+            raise ValueError(
+                f"IDB version {version_label} already available locally. Use force=True if you would like to override"
+            )
 
         if force:
             try:
@@ -194,23 +196,25 @@ class IDBManager(metaclass=Singleton):
             except Exception as e:
                 logger.warning(e)
 
-        vlabel = (IDB_VERSION_PREFIX + IDBManager.convert_version_label(version_label))
+        vlabel = IDB_VERSION_PREFIX + IDBManager.convert_version_label(version_label)
         vdir = self.data_root / vlabel
 
         try:
             vdir.mkdir(parents=True, exist_ok=True)
             urllib.request.urlretrieve(url + vlabel + ".raw.zip", vdir / "idb.zip")
 
-            with zipfile.ZipFile(vdir / "idb.zip", 'r') as zip_ref:
+            with zipfile.ZipFile(vdir / "idb.zip", "r") as zip_ref:
                 zip_ref.extractall(vdir / "raw")
 
             IDBManager.convert_mib_2_sqlite(
-                in_folder=vdir / "raw" / ("v" +
-                                          IDBManager.convert_version_label(version_label)) /
-                                         ("STIX-IDB-" +
-                                          IDBManager.convert_version_label(version_label)) / "idb",
+                in_folder=vdir
+                / "raw"
+                / ("v" + IDBManager.convert_version_label(version_label))
+                / ("STIX-IDB-" + IDBManager.convert_version_label(version_label))
+                / "idb",
                 out_file=self._get_filename_for_version(version_label),
-                version_label=IDBManager.convert_version_label(version_label))
+                version_label=IDBManager.convert_version_label(version_label),
+            )
 
         except Exception as e:
             logger.error(e)
@@ -221,8 +225,7 @@ class IDBManager(metaclass=Singleton):
 
         return self.has_version(version_label)
 
-    def download_version(self, version_label, force=False,
-                         url="https://pub099.cs.technik.fhnw.ch/data/idb/"):
+    def download_version(self, version_label, force=False, url="https://pub099.cs.technik.fhnw.ch/data/idb/"):
         """Download and installs an IDB version of a public available URL.
 
         Parameters
@@ -245,8 +248,9 @@ class IDBManager(metaclass=Singleton):
         ValueError
         """
         if force is False and self.has_version(version_label):
-            logger.warning(f'IDB version {version_label} already available locally. '
-                           f'Use force=True if you would like to override')
+            logger.warning(
+                f"IDB version {version_label} already available locally. Use force=True if you would like to override"
+            )
             return True
 
         if force:
@@ -255,13 +259,13 @@ class IDBManager(metaclass=Singleton):
             except Exception as e:
                 logger.warning(e)
 
-        vlabel = (IDB_VERSION_PREFIX + IDBManager.convert_version_label(version_label))
+        vlabel = IDB_VERSION_PREFIX + IDBManager.convert_version_label(version_label)
         vdir = self.data_root / vlabel
         try:
             vdir.mkdir(parents=True, exist_ok=True)
             urllib.request.urlretrieve(url + vlabel + ".zip", vdir / "idb.zip")
 
-            with zipfile.ZipFile(vdir / "idb.zip", 'r') as zip_ref:
+            with zipfile.ZipFile(vdir / "idb.zip", "r") as zip_ref:
                 zip_ref.extractall(vdir)
 
             shutil.move(vdir / vlabel / "idb.sqlite", vdir / "idb.sqlite")
@@ -278,33 +282,32 @@ class IDBManager(metaclass=Singleton):
 
     @staticmethod
     def convert_mib_2_sqlite(*, in_folder, out_file, version_label):
-        """Convert a raw IDB version (set of .dat files) into a SqlLite DB.
+        """Convert a raw IDB version (set of .dat files) into a sqlite DB.
 
         Parameters
         ----------
         in_folder : `Path`
             path to the folder with the IDB raw data files
         out_file : `Path`
-            path and filename of the SqlLite DB file to generate
+            path and filename of the sqlite DB file to generate
         version_label : `str`
             the version label to be included into the DB
         """
         try:
-            file_list = in_folder.glob('*.dat')
+            file_list = in_folder.glob("*.dat")
             with sqlite3.connect(str(out_file)) as conn:
                 cur = conn.cursor()
 
                 # thread_lock.acquire(True)
 
-                create_table = open(Path(os.path.abspath(__file__)).parent
-                                    / 'createIdb.sql', 'r').read()
-                logger.info('creating database')
+                create_table = open(Path(os.path.abspath(__file__)).parent / "createIdb.sql").read()
+                logger.info("creating database")
                 cur.executescript(create_table)
 
                 for fname in file_list:
                     name = fname.stem
 
-                    with open(fname, 'r') as datafile:
+                    with open(fname) as datafile:
                         try:
                             cursor = cur.execute(f"select * from {name} limit 1;")
                         except sqlite3.Error:
@@ -315,34 +318,33 @@ class IDBManager(metaclass=Singleton):
                         num = len(names)
                         for line in datafile:
                             cols = [e.strip() for e in line.split("\t")]
-                            cols = [None if c == '' else c for c in cols]
+                            cols = [None if c == "" else c for c in cols]
                             # fill tailing NULL values as they might not part of the dat file
                             if num > len(cols):
-                                cols.extend(['NULL'] * (num - len(cols)))
+                                cols.extend(["NULL"] * (num - len(cols)))
 
                             qmark = ", ".join(["?"] * len(cols))
 
                             sql = f"insert into {name} values ({qmark})"
                             if num != len(cols):
-                                logger.warning(f"Found inconsistent data in idb files: "
-                                               f"{names} : {cols}")
+                                logger.warning(f"Found inconsistent data in idb files: {names} : {cols}")
                             else:
                                 cur.execute(sql, cols)
 
-                update_db = open(Path(os.path.abspath(__file__)).parent
-                                 / 'updateIdb.sql', 'r').read()
-                logger.info('updating database')
+                update_db = open(Path(os.path.abspath(__file__)).parent / "updateIdb.sql").read()
+                logger.info("updating database")
                 cur.executescript(update_db)
-                cur.execute("insert into IDB (creation_datetime, version) "
-                            "values (current_timestamp, ?);", (version_label,))
+                cur.execute(
+                    "insert into IDB (creation_datetime, version) values (current_timestamp, ?);", (version_label,)
+                )
 
                 # inject custom calibrations
 
                 nextID = 0
-                for calibN, in cur.execute("select distinct PCF_CURTX from PCF " +
-                                           "where PCF_CURTX not NULL")\
-                                  .fetchall():
-                    nr = int(re.match(r'([a-z]+)([0-9]+)([a-z]+)', calibN, re.IGNORECASE).group(2))
+                for (calibN,) in cur.execute(
+                    "select distinct PCF_CURTX from PCF " + "where PCF_CURTX not NULL"
+                ).fetchall():
+                    nr = int(re.match(r"([a-z]+)([0-9]+)([a-z]+)", calibN, re.IGNORECASE).group(2))
                     if nr > nextID:
                         nextID = nr
                 nextID += 1
@@ -356,33 +358,41 @@ class IDBManager(metaclass=Singleton):
                 cpu_load = ("cpu load", 0, 4, 0, 0, 0)
 
                 # TODO take IDB version into account
-                for nix, config, unit in [('NIX00269', duration, "s"),
-                                          ('NIX00441', duration, "s"),
-                                          ('NIX00122', duration, "s"),
-                                          ('NIX00405', duration, "s"),
-                                          ('NIX00124', duration_ms, "ms"),
-                                          ('NIX00404', duration_p1, "s"),
-                                          ('NIX00123', binary_seconds, "s"),
-                                          ('NIXD0002', cpu_load, "%")]:
-
-                    count,  = cur.execute("select count(*) from PCF where PCF_NAME = ? " +
-                                          "AND PCF_CURTX not NULL", (nix,)).fetchone()
+                for nix, config, unit in [
+                    ("NIX00269", duration, "s"),
+                    ("NIX00441", duration, "s"),
+                    ("NIX00122", duration, "s"),
+                    ("NIX00405", duration, "s"),
+                    ("NIX00124", duration_ms, "ms"),
+                    ("NIX00404", duration_p1, "s"),
+                    ("NIX00123", binary_seconds, "s"),
+                    ("NIXD0002", cpu_load, "%"),
+                ]:
+                    (count,) = cur.execute(
+                        "select count(*) from PCF where PCF_NAME = ? " + "AND PCF_CURTX not NULL", (nix,)
+                    ).fetchone()
                     if count == 0:
                         pname, nextID = IDB.generate_calibration_name("CIX", nextID)
-                        cur.execute('''update PCF set
+                        cur.execute(
+                            """update PCF set
                                         PCF_CURTX = ?,
                                         PCF_CATEG = 'N',
                                         PCF_UNIT = ?
-                                    where PCF_NAME = ?''', (pname, unit, nix))
+                                    where PCF_NAME = ?""",
+                            (pname, unit, nix),
+                        )
 
-                        cur.execute('''insert into MCF (MCF_IDENT, MCF_DESCR, MCF_POL1,
+                        cur.execute(
+                            """insert into MCF (MCF_IDENT, MCF_DESCR, MCF_POL1,
                                         MCF_POL2, MCF_POL3, MCF_POL4, MCF_POL5, SDB_IMPORTED)
                                     values
-                                        (?,?,?,?,?,?,?, 0)''', ((pname, ) + config))
-                        logger.info(f"calibration injection for {nix}: {((pname, ) + config)}")
+                                        (?,?,?,?,?,?,?, 0)""",
+                            ((pname,) + config),
+                        )
+                        logger.info(f"calibration injection for {nix}: {((pname,) + config)}")
 
                     else:
-                        logger.info(f"Skip calibration injection for {nix}: allready present")
+                        logger.info(f"Skip calibration injection for {nix}: already present")
 
         finally:
             conn.commit()
@@ -404,8 +414,7 @@ class IDBManager(metaclass=Singleton):
             for file in files:
                 if file == IDB_FILENAME:
                     label = root.split(os.sep)[-1].replace(IDB_VERSION_PREFIX, "")
-                    versions.append({'label': label, 'path': root,
-                                     'version': label.split(IDB_VERSION_DELIM)})
+                    versions.append({"label": label, "path": root, "version": label.split(IDB_VERSION_DELIM)})
 
         return versions
 
@@ -470,10 +479,10 @@ class IDBManager(metaclass=Singleton):
         ver = idb.version
         idb.close()
         if ver != IDBManager.convert_version_label(version_label):
-            logger.debug("IDB version missmatch")
+            logger.debug("IDB version mismatch")
         return ver == IDBManager.convert_version_label(version_label)
 
-    def get_idb(self, version_label='2.26.34', obt=None):
+    def get_idb(self, version_label="2.26.34", obt=None):
         """Get the IDB for the specified version (or the latest available).
 
         Parameters
@@ -499,23 +508,20 @@ class IDBManager(metaclass=Singleton):
             if self.has_version(obt_version):
                 version_label = obt_version
             else:
-                logger.warning(f"No valid IDB version found for time {obt}"
-                               f"Falling back to version {version_label}")
+                logger.warning(f"No valid IDB version found for time {obt}Falling back to version {version_label}")
 
         if self.has_version(version_label):
             if version_label not in self.idb_cache:
-                self.idb_cache[version_label] = \
-                    IDB(Path(self._get_filename_for_version(version_label)))
+                self.idb_cache[version_label] = IDB(Path(self._get_filename_for_version(version_label)))
 
             idb = self.idb_cache[version_label]
             if not idb.is_connected():
                 idb._connect_database()
             return idb
-        raise ValueError(f'Version "{version_label}" not found in: '
-                         f'"{self._get_filename_for_version(version_label)}"')
+        raise ValueError(f'Version "{version_label}" not found in: "{self._get_filename_for_version(version_label)}"')
 
 
-if 'pytest' in sys.modules:
+if "pytest" in sys.modules:
     IDBManager.instance = IDBManager(test_data.idb.DIR)
 else:
     IDBManager.instance = IDBManager(Path(__file__).parent.parent / "data" / "idb")

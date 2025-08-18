@@ -268,6 +268,16 @@ def test_timedelta_mixed_neg_reverse():
     assert (td.fine == [0, 0, 0, 0]).all()
 
 
+@pytest.mark.skip(
+    "It would be nice if both the direct instantiation and computation resulted in an object with the same values"
+)
+def test_timedelta_rollover():
+    res = SCETime(9, 8) - SCETime(5, 10)
+    assert res == SCETimeDelta(3, -2)
+    assert res.coars == 3
+    assert res.fine == -2
+
+
 def test_timedelta_scalar_neg():
     td = SCETimeDelta(3, 0)
     td1 = td - 4 * u.s

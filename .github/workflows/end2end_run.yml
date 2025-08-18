@@ -41,4 +41,4 @@ jobs:
         if [ -f requirements.txt ]; then pip install -r requirements.txt; fi
     - name: end2end test with pytest
       run: |
-        pytest -p no:warnings --doctest-rst -m "end2end" --pyargs stixcore
+        pytest -p no:warnings --doctest-rst -m "end2end" --pyargs stixcore --remote-data=any

@@ -1,4 +1,4 @@
-__all__ = ['EnergyChannel']
+__all__ = ["EnergyChannel"]
 
 
 class EnergyChannel:
@@ -7,7 +7,7 @@ class EnergyChannel:
     Attributes
     ----------
     channel_edge : ´int´
-        chanel idx
+        channel idx
     energy_edge : ´int´
         edge on energy axis
     e_lower : ´float´
@@ -29,6 +29,8 @@ class EnergyChannel:
         self.dE_E = dE_E
 
     def __repr__(self):
-        return f'{self.__class__.__name__}(channel_edge={self.channel_edge}, ' +\
-               f'energy_edge={self.energy_edge}, e_lower={self.e_lower}, e_upper={self.e_upper},' +\
-               f' bin_width={self.bin_width}, dE_E={self.dE_E})'
+        return (
+            f"{self.__class__.__name__}(channel_edge={self.channel_edge}, "
+            + f"energy_edge={self.energy_edge}, e_lower={self.e_lower}, e_upper={self.e_upper},"
+            + f" bin_width={self.bin_width}, dE_E={self.dE_E})"
+        )

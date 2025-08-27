@@ -35,9 +35,8 @@ def test_idb_setup(idb):
 
 def test_idb_setup_fails():
     with pytest.raises(sqlite3.Error) as e:
-        _idb = IDB(Path(os.path.abspath(__file__)).parent / 'data')
-        assert _idb.is_connected() is False
-        _ = _idb.get_idb_version()
+        _idb = IDB(Path(os.path.abspath(__file__)).parent / "data")
+
     assert len(str(e.value)) > 0
 
 
@@ -56,13 +55,13 @@ def test_get_spit(idb):
 
 @pytest.mark.remote_data
 def test_get_scos_description(idb):
-    info = idb.get_scos_description('NIX00354')
+    info = idb.get_scos_description("NIX00354")
     assert info == "Quadrant identification (1..4)"
     # test twice for caching
-    info = idb.get_scos_description('NIX00354')
+    info = idb.get_scos_description("NIX00354")
     assert info != ""
 
-    info = idb.get_scos_description('foobar')
+    info = idb.get_scos_description("foobar")
     assert info == ""
 
 
@@ -72,13 +71,14 @@ def test_get_packet_pi1_val_position(idb):
     assert info.PIC_PI1_OFF == 16
     assert info.PIC_PI1_WID == 8
 
-    info = idb.get_packet_pi1_val_position('foo', 'bar')
+    info = idb.get_packet_pi1_val_position("foo", "bar")
     assert info is None
 
 
 @pytest.mark.remote_data
 def test_pickle(idb):
     import pickle
+
     clone = pickle.loads(pickle.dumps(idb))
     assert idb is not clone
     assert idb.filename == clone.filename
@@ -89,17 +89,17 @@ def test_pickle(idb):
 @pytest.mark.remote_data
 def test_get_parameter_description(idb):
     # a PCF param
-    info = idb.get_parameter_description('NIX00354')
+    info = idb.get_parameter_description("NIX00354")
     assert info != ""
     # test twice for caching
-    info = idb.get_parameter_description('NIX00354')
+    info = idb.get_parameter_description("NIX00354")
     assert info != ""
 
     # a CPC param
-    info = idb.get_parameter_description('PIX00005')
+    info = idb.get_parameter_description("PIX00005")
     assert info != ""
 
-    info = idb.get_parameter_description('foobar')
+    info = idb.get_parameter_description("foobar")
     assert info == ""
 
 
@@ -165,18 +165,29 @@ def test_is_variable_length_telecommand(idb):
 
 @pytest.mark.remote_data
 def test_tcparam_interpret(idb):
-    info = idb.tcparam_interpret('CAAT0005TC', 0)
-    assert info != ''
+    info = idb.tcparam_interpret("CAAT0005TC", 0)
+    assert info != ""
 
-    info = idb.tcparam_interpret('foobar', 0)
-    assert info == ''
+    info = idb.tcparam_interpret("foobar", 0)
+    assert info == ""
 
 
 @pytest.mark.remote_data
 def test_get_calibration_curve(idb):
-    dummy = {'PID_SPID': 'a', 'PID_DESCR': 'a', 'PID_TPSD': 'a', 'PCF_NAME': 'a', 'PCF_DESCR': 'a',
-             'PCF_WIDTH': 'a', 'PCF_PFC': 'a', 'PCF_PTC': 'a', 'S2K_TYPE': 'a', 'PCF_CATEG': '',
-             'PCF_UNIT': '', 'PCF_CURTX': 'CIXP0024TM'}
+    dummy = {
+        "PID_SPID": "a",
+        "PID_DESCR": "a",
+        "PID_TPSD": "a",
+        "PCF_NAME": "a",
+        "PCF_DESCR": "a",
+        "PCF_WIDTH": "a",
+        "PCF_PFC": "a",
+        "PCF_PTC": "a",
+        "S2K_TYPE": "a",
+        "PCF_CATEG": "",
+        "PCF_UNIT": "",
+        "PCF_CURTX": "CIXP0024TM",
+    }
 
     p = IDBCalibrationParameter(**dummy)
 
@@ -189,8 +200,8 @@ def test_get_calibration_curve(idb):
     curve = idb.get_calibration_curve(p)
     assert isinstance(curve, IDBCalibrationCurve)
 
-    dummy['PCF_CURTX'] = 'f'
-    dummy['PCF_CURTX'] = 'b'
+    dummy["PCF_CURTX"] = "f"
+    dummy["PCF_CURTX"] = "b"
 
     curve = idb.get_calibration_curve(IDBCalibrationParameter(**dummy))
     assert isinstance(curve, IDBCalibrationCurve)
@@ -199,29 +210,29 @@ def test_get_calibration_curve(idb):
 
 @pytest.mark.remote_data
 def test_textual_interpret(idb):
-    info = idb.textual_interpret('CAAT0005TM', 0)
-    assert info == 'Disconnected'
+    info = idb.textual_interpret("CAAT0005TM", 0)
+    assert info == "Disconnected"
 
     # test twice for caching
-    info = idb.textual_interpret('CAAT0005TM', 0)
-    assert info == 'Disconnected'
+    info = idb.textual_interpret("CAAT0005TM", 0)
+    assert info == "Disconnected"
 
-    info = idb.textual_interpret('foobar', 1)
+    info = idb.textual_interpret("foobar", 1)
     assert (info is None) or (info == 1)
 
 
 @pytest.mark.remote_data
 def test_get_calibration_polynomial(idb):
-    poly = idb.get_calibration_polynomial('CIX00036TM')
+    poly = idb.get_calibration_polynomial("CIX00036TM")
     assert isinstance(poly, IDBPolynomialCalibration)
     assert poly(1) == poly.A[1]
     assert poly.valid is True
 
     # test twice for caching
-    poly = idb.get_calibration_polynomial('CIX00036TM')
+    poly = idb.get_calibration_polynomial("CIX00036TM")
     assert isinstance(poly, IDBPolynomialCalibration)
     assert poly.valid is True
 
-    poly = idb.get_calibration_polynomial('foobar')
+    poly = idb.get_calibration_polynomial("foobar")
     assert isinstance(poly, IDBPolynomialCalibration)
     assert poly.valid is False

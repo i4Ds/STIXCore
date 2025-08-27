@@ -1,13 +1,26 @@
 """Service 21 – Science Data Transfer"""
+
 from copy import copy
 
 import numpy as np
 
 from stixcore.tmtc.packets import GenericTMPacket
 
-__all__ = ['TM_21_6_20', 'TM_21_6_21', 'TM_21_6_22', 'TM_21_6_23', 'TM_21_6_24', 'TM_21_6_30',
-           'TM_21_6_31', 'TM_21_6_32', 'TM_21_6_33', 'TM_21_6_34', 'TM_21_6_41', 'TM_21_6_42',
-           'TM_21_6_43']
+__all__ = [
+    "TM_21_6_20",
+    "TM_21_6_21",
+    "TM_21_6_22",
+    "TM_21_6_23",
+    "TM_21_6_24",
+    "TM_21_6_30",
+    "TM_21_6_31",
+    "TM_21_6_32",
+    "TM_21_6_33",
+    "TM_21_6_34",
+    "TM_21_6_41",
+    "TM_21_6_42",
+    "TM_21_6_43",
+]
 
 
 class TM_21_6_20(GenericTMPacket):
@@ -36,18 +49,17 @@ class TM_21_6_21(GenericTMPacket):
             subpacket.NIX00260 = param
 
     def get_decompression_parameter(self):
-
         params = super().get_decompression_parameter()
 
         # https://github.com/i4Ds/STIX-FSW/issues/953
         # In older version of the FSW the trigger were incorrectly compressed with the count
         # compression scheme so need to modify default parameters
         idb = self.idb.get_idb(obt=self.data_header.datetime)
-        idb_version = tuple(map(int, idb.version.split('.')))
+        idb_version = tuple(map(int, idb.version.split(".")))
         if idb_version < (2, 26, 35):
-            count_skm = params['NIX00260']
+            count_skm = params["NIX00260"]
             nixs = list(params.keys())
-            nixs.remove('NIX00260')
+            nixs.remove("NIX00260")
             params.update({nix: count_skm for nix in nixs})
 
         return params
@@ -78,7 +90,7 @@ class TM_21_6_23(GenericTMPacket):
 
     def group_repeaters(self):
         for subpacket in self.data.get_subpackets():
-            for nix in ['NIX00100', 'NIX00263', 'NIX00264']:
+            for nix in ["NIX00100", "NIX00263", "NIX00264"]:
                 p = getattr(subpacket, nix)[0]
                 p.value = np.hstack([p.value for p in getattr(subpacket, nix)]).squeeze()
                 setattr(subpacket, nix, p)
@@ -88,10 +100,10 @@ class TM_21_6_23(GenericTMPacket):
         # compression parameters but this is not idea as flux can be considerably larger so it was
         # decided to change this onboard
         # TODO should only be active after FSW v180
-        params = copy(super(TM_21_6_23, self).get_decompression_parameter())
-        skm_nixs = params['NIX00261']
+        params = copy(super().get_decompression_parameter())
+        skm_nixs = params["NIX00261"]
         s, k, m = [self.data.get(nix).value for nix in skm_nixs]
-        params['NIX00261'] = (s-1, k+1, m)
+        params["NIX00261"] = (s - 1, k + 1, m)
         return params
 
 

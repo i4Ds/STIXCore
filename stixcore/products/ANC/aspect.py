@@ -17,15 +17,16 @@ from stixcore.time import SCETime, SCETimeDelta, SCETimeRange
 from stixcore.util.logging import get_logger
 from stixcore.util.util import get_complete_file_name, get_complete_file_name_and_path
 
-__all__ = ['Ephemeris', 'AspectIDLProcessing']
+__all__ = ["Ephemeris", "AspectIDLProcessing"]
 
 logger = get_logger(__name__)
 
 
 class AspectIDLProcessing(SSWIDLTask):
     """A IDL Task that will calculate the aspect solution based on HK product data input."""
+
     def __init__(self):
-        script = '''
+        script = """
             workdir = '{{ work_dir }}'
             print, workdir
             cd, workdir
@@ -44,7 +45,7 @@ class AspectIDLProcessing(SSWIDLTask):
             FOREACH hk_file, hk_files, file_index DO BEGIN
                 catch, error
                 if error ne 0 then begin
-                    print, hk_file.parentfits, 'A IDL error occured: ' + !error_state.msg
+                    print, hk_file.parentfits, 'A IDL error occurred: ' + !error_state.msg
                     data_f.error = "FATAL_IDL_ERROR"
                     data = [data, data_f]
                     catch, /cancel
@@ -90,7 +91,7 @@ class AspectIDLProcessing(SSWIDLTask):
 
                 print,"Calibrating data..."
                 flush, -1
-                ; First, substract dark currents and applies relative gains
+                ; First, subtract dark currents and applies relative gains
                 stx_calib_sas_data, data_f, calib_file
 
                 ; copy result in a new object
@@ -122,9 +123,8 @@ class AspectIDLProcessing(SSWIDLTask):
 
             undefine, hk_file, hk_files, data_e, i, di, data_f, d
 
-'''
-        super().__init__(script=script, work_dir='stix/idl/processing/aspect/',
-                         params={'hk_files': list()})
+"""
+        super().__init__(script=script, work_dir="stix/idl/processing/aspect/", params={"hk_files": list()})
 
     def pack_params(self):
         """Preprocessing step applying json formatting to the input data.
@@ -136,9 +136,9 @@ class AspectIDLProcessing(SSWIDLTask):
         """
         packed = self.params.copy()
         logger.info("calling IDL for hk files:")
-        for f in packed['hk_files']:
+        for f in packed["hk_files"]:
             logger.info(f"    {f['parentfits']}")
-        packed['hk_files'] = json.dumps(packed['hk_files'])
+        packed["hk_files"] = json.dumps(packed["hk_files"])
         return packed
 
     def postprocessing(self, result, fits_processor):
@@ -161,7 +161,7 @@ class AspectIDLProcessing(SSWIDLTask):
         """
         files = []
         logger.info("returning from IDL")
-        if 'data' in result and 'processed_files' in result:
+        if "data" in result and "processed_files" in result:
             for file_idx, resfile in enumerate(result.processed_files):
                 file_path = Path(resfile.decode())
                 logger.info(f"IDL postprocessing HK file: {resfile}")
@@ -176,51 +176,49 @@ class AspectIDLProcessing(SSWIDLTask):
                 idldata = result.data[result.data["parentfits"] == file_idx]
                 n = len(idldata)
 
-                data['time'] = SCETime(coarse=idldata['scet_time_c'], fine=idldata['scet_time_f'])
+                data["time"] = SCETime(coarse=idldata["scet_time_c"], fine=idldata["scet_time_f"])
                 # data['timedel'] = SCETimeDelta.from_float(idldata["duration"] * u.s)
                 # we have instantaneous data so the integration time is set to 0
-                data['timedel'] = SCETimeDelta(coarse=0, fine=0)
-                data['time_utc'] = [t.decode() for t in idldata['time']]
+                data["timedel"] = SCETimeDelta(coarse=0, fine=0)
+                data["time_utc"] = [t.decode() for t in idldata["time"]]
                 # [datetime.strptime(t.decode(), '%Y-%m-%dT%H:%M:%S.%f') for t in idldata['time']]
-                data['control_index'] = idldata['control_index']
-                data['spice_disc_size'] = (idldata['spice_disc_size'] * u.arcsec).astype(np.float32)
-                data['y_srf'] = (idldata['y_srf'] * u.arcsec).astype(np.float32)
-                data['z_srf'] = (idldata['z_srf'] * u.arcsec).astype(np.float32)
-                data['sas_ok'] = (idldata['sas_ok']).astype(np.bool_)
-                data['sas_ok'].description = "0: not usable, 1: good"
-                data['sas_error'] = [e.decode() if hasattr(e, 'decode') else e
-                                     for e in idldata['error']]
+                data["control_index"] = idldata["control_index"]
+                data["spice_disc_size"] = (idldata["spice_disc_size"] * u.arcsec).astype(np.float32)
+                data["y_srf"] = (idldata["y_srf"] * u.arcsec).astype(np.float32)
+                data["z_srf"] = (idldata["z_srf"] * u.arcsec).astype(np.float32)
+                data["sas_ok"] = (idldata["sas_ok"]).astype(np.bool_)
+                data["sas_ok"].description = "0: not usable, 1: good"
+                data["sas_error"] = [e.decode() if hasattr(e, "decode") else e for e in idldata["error"]]
 
-                data['solo_loc_carrington_lonlat'] = np.tile(np.array([0.0, 0.0]), (n, 1)).\
-                    astype(np.float32) * u.deg
-                data['solo_loc_carrington_dist'] = np.tile(np.array([0.0]), (n, 1)).\
-                    astype(np.float32) * u.km
-                data['solo_loc_heeq_zxy'] = np.tile(np.array([0.0, 0.0, 0.0]), (n, 1)).\
-                    astype(np.float32) * u.km
-                data['roll_angle_rpy'] = np.tile(np.array([0.0, 0.0, 0.0]), (n, 1)).\
-                    astype(np.float32) * u.deg
+                data["solo_loc_carrington_lonlat"] = np.tile(np.array([0.0, 0.0]), (n, 1)).astype(np.float32) * u.deg
+                data["solo_loc_carrington_dist"] = np.tile(np.array([0.0]), (n, 1)).astype(np.float32) * u.km
+                data["solo_loc_heeq_zxy"] = np.tile(np.array([0.0, 0.0, 0.0]), (n, 1)).astype(np.float32) * u.km
+                data["roll_angle_rpy"] = np.tile(np.array([0.0, 0.0, 0.0]), (n, 1)).astype(np.float32) * u.deg
 
-                for idx, d in enumerate(data['time']):
+                for idx, d in enumerate(data["time"]):
                     orient, dist, car, heeq = Spice.instance.get_auxiliary_positional_data(date=d)
 
-                    data[idx]['solo_loc_carrington_lonlat'] = car.to('deg').astype(np.float32)
-                    data[idx]['solo_loc_carrington_dist'] = dist.to('km').astype(np.float32)
-                    data[idx]['solo_loc_heeq_zxy'] = heeq.to('km').astype(np.float32)
-                    data[idx]['roll_angle_rpy'] = orient.to('deg').astype(np.float32)
+                    data[idx]["solo_loc_carrington_lonlat"] = car.to("deg").astype(np.float32)
+                    data[idx]["solo_loc_carrington_dist"] = dist.to("km").astype(np.float32)
+                    data[idx]["solo_loc_heeq_zxy"] = heeq.to("km").astype(np.float32)
+                    data[idx]["roll_angle_rpy"] = orient.to("deg").astype(np.float32)
 
-                control['parent'] = get_complete_file_name(file_path.name)
+                control["parent"] = get_complete_file_name(file_path.name)
 
                 aux = Ephemeris(control=control, data=data, idb_versions=HK.idb_versions)
 
                 aux.add_additional_header_keyword(
-                    ('STX_GSW', result.idlgswversion[0].decode(),
-                     'Version of STX-GSW that provided data'))
-                aux.add_additional_header_keyword(
-                    ('HISTORY', 'aspect data processed by STX-GSW', ''))
-                files.extend([SingleProcessingStepResult(aux.name, aux.level, aux.type,
-                                                         aux.get_processing_version(),
-                                                         fop, file_path, datetime.now())
-                              for fop in fits_processor.write_fits(aux)])
+                    ("STX_GSW", result.idlgswversion[0].decode(), "Version of STX-GSW that provided data")
+                )
+                aux.add_additional_header_keyword(("HISTORY", "aspect data processed by STX-GSW", ""))
+                files.extend(
+                    [
+                        SingleProcessingStepResult(
+                            aux.name, aux.level, aux.type, aux.get_processing_version(), fop, file_path, datetime.now()
+                        )
+                        for fop in fits_processor.write_fits(aux)
+                    ]
+                )
         else:
             logger.error("IDL ERROR")
 
@@ -233,33 +231,47 @@ class Ephemeris(GenericProduct, L2Mixin):
 
     In ANC product format.
     """
+
     PRODUCT_PROCESSING_VERSION = 2
 
-    def __init__(self, *, service_type=0, service_subtype=0, ssid=1, control, data,
-                 idb_versions=defaultdict(SCETimeRange), **kwargs):
-        super().__init__(service_type=service_type, service_subtype=service_subtype,
-                         ssid=ssid, control=control, data=data,
-                         idb_versions=idb_versions, **kwargs)
-        self.name = 'ephemeris'
-        self.level = 'ANC'
-        self.type = 'asp'
+    def __init__(
+        self,
+        *,
+        service_type=0,
+        service_subtype=0,
+        ssid=1,
+        control,
+        data,
+        idb_versions=defaultdict(SCETimeRange),
+        **kwargs,
+    ):
+        super().__init__(
+            service_type=service_type,
+            service_subtype=service_subtype,
+            ssid=ssid,
+            control=control,
+            data=data,
+            idb_versions=idb_versions,
+            **kwargs,
+        )
+        self.name = "ephemeris"
+        self.level = "ANC"
+        self.type = "asp"
         self.ssid = 1
         self.service_subtype = 0
         self.service_type = 0
 
     @property
     def dmin(self):
-        return np.nanmin([self.data['y_srf'].min().to_value('arcsec'),
-                         self.data['z_srf'].min().to_value('arcsec')])
+        return np.nanmin([self.data["y_srf"].min().to_value("arcsec"), self.data["z_srf"].min().to_value("arcsec")])
 
     @property
     def dmax(self):
-        return np.nanmax([self.data['y_srf'].max().to_value('arcsec'),
-                         self.data['z_srf'].max().to_value('arcsec')])
+        return np.nanmax([self.data["y_srf"].max().to_value("arcsec"), self.data["z_srf"].max().to_value("arcsec")])
 
     @property
     def bunit(self):
-        return 'arcsec'
+        return "arcsec"
 
     @property
     def fits_daily_file(self):
@@ -267,5 +279,4 @@ class Ephemeris(GenericProduct, L2Mixin):
 
     @classmethod
     def is_datasource_for(cls, *, service_type, service_subtype, ssid, **kwargs):
-        return (kwargs['level'] == 'ANC' and service_type == 0
-                and service_subtype == 0 and ssid == 1)
+        return kwargs["level"] == "ANC" and service_type == 0 and service_subtype == 0 and ssid == 1

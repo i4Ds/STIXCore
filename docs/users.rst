@@ -5,7 +5,7 @@ Installation
 ------------
 
 While under initial development STIXcore is installable form github using `pip` once we have a stable
-version it wil be published on pypi.
+version it will be published on pypi.
 
 We recommend installing STIXcore in an isolated virtual environment.
 
@@ -33,7 +33,7 @@ example the code below will create a `~stixcore.tmtc.tm.tm_1.TM_1_1` packet.
 Low Level Operations
 """"""""""""""""""""
 Low level operation are possible using other classes a typical use case would be debugging some some
-unexpect behaviours or values in the the TM/TC. The code below demonstrates how to parse manually
+unexpected behaviours or values in the the TM/TC. The code below demonstrates how to parse manually
 parse and extract the packet data from the XML file provided from the EDDS.
 
 .. code-block:: python

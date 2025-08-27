@@ -21,8 +21,8 @@ from stixcore.processing.TMTCtoLB import process_tmtc_to_levelbinary
 from stixcore.soop.manager import SOOPManager
 from stixcore.tmtc.packets import TMTC
 
-warnings.filterwarnings('ignore', module='astropy.io.fits.card')
-warnings.filterwarnings('ignore', module='astropy.utils.metadata')
+warnings.filterwarnings("ignore", module="astropy.io.fits.card")
+warnings.filterwarnings("ignore", module="astropy.utils.metadata")
 
 
 def clear_dir(dir):
@@ -36,6 +36,7 @@ def clear_dir(dir):
 
 class ProductLevel(Enum):
     """Enum Type for Processing steps to make them sortable"""
+
     TM = -2
     LB = -1
     L0 = 0
@@ -56,114 +57,162 @@ class ProductLevel(Enum):
 
 
 def main():
+    parser = argparse.ArgumentParser(description="stix pipeline processing")
 
-    parser = argparse.ArgumentParser(description='stix pipeline processing')
+    # paths
+    parser.add_argument(
+        "-t",
+        "--tm_dir",
+        help="input directory to the (tm xml) files",
+        default=CONFIG.get("Paths", "tm_archive"),
+        type=str,
+    )
 
-    # pathes
-    parser.add_argument("-t", "--tm_dir",
-                        help="input directory to the (tm xml) files",
-                        default=CONFIG.get('Paths', 'tm_archive'), type=str)
+    parser.add_argument(
+        "-f", "--fits_dir", help="output directory for the ", default=CONFIG.get("Paths", "fits_archive"), type=str
+    )
 
-    parser.add_argument("-f", "--fits_dir",
-                        help="output directory for the ",
-                        default=CONFIG.get('Paths', 'fits_archive'), type=str)
+    parser.add_argument(
+        "-s",
+        "--spice_dir",
+        help="directory to the spice kernels files",
+        default=CONFIG.get("Paths", "spice_kernels"),
+        type=str,
+    )
 
-    parser.add_argument("-s", "--spice_dir",
-                        help="directory to the spice kernels files",
-                        default=CONFIG.get('Paths', 'spice_kernels'), type=str)
+    parser.add_argument("-S", "--spice_file", help="path to the spice meta kernel", default=None, type=str)
 
-    parser.add_argument("-S", "--spice_file",
-                        help="path to the spice meta kernel",
-                        default=None, type=str)
-
-    parser.add_argument("-p", "--soop_dir",
-                        help="directory to the SOOP files",
-                        default=CONFIG.get('Paths', 'soop_files'), type=str)
+    parser.add_argument(
+        "-p", "--soop_dir", help="directory to the SOOP files", default=CONFIG.get("Paths", "soop_files"), type=str
+    )
 
     # IDL Bridge
-    parser.add_argument("--idl_enabled",
-                        help="IDL is setup to interact with the pipeline",
-                        default=CONFIG.getboolean('IDLBridge', 'enabled', fallback=False),
-                        action='store_true', dest='idl_enabled')
-    parser.add_argument("--idl_disabled",
-                        help="IDL is setup to interact with the pipeline",
-                        default=not CONFIG.getboolean('IDLBridge', 'enabled', fallback=False),
-                        action='store_false', dest='idl_enabled')
+    parser.add_argument(
+        "--idl_enabled",
+        help="IDL is setup to interact with the pipeline",
+        default=CONFIG.getboolean("IDLBridge", "enabled", fallback=False),
+        action="store_true",
+        dest="idl_enabled",
+    )
+    parser.add_argument(
+        "--idl_disabled",
+        help="IDL is setup to interact with the pipeline",
+        default=not CONFIG.getboolean("IDLBridge", "enabled", fallback=False),
+        action="store_false",
+        dest="idl_enabled",
+    )
 
-    parser.add_argument("--idl_gsw_path",
-                        help="directory where the IDL gsw is installed",
-                        default=CONFIG.get('IDLBridge', 'gsw_path'), type=str)
+    parser.add_argument(
+        "--idl_gsw_path",
+        help="directory where the IDL gsw is installed",
+        default=CONFIG.get("IDLBridge", "gsw_path"),
+        type=str,
+    )
 
-    parser.add_argument("--idl_batchsize",
-                        help="batch size how many TM prodcts batched by the IDL bridge",
-                        default=CONFIG.getint('IDLBridge', 'batchsize', fallback=10), type=int)
+    parser.add_argument(
+        "--idl_batchsize",
+        help="batch size how many TM products batched by the IDL bridge",
+        default=CONFIG.getint("IDLBridge", "batchsize", fallback=10),
+        type=int,
+    )
 
     # logging
-    parser.add_argument("--stop_on_error",
-                        help="the pipeline stops on any error",
-                        default=CONFIG.getboolean('Logging', 'stop_on_error', fallback=False),
-                        action='store_true', dest='stop_on_error')
+    parser.add_argument(
+        "--stop_on_error",
+        help="the pipeline stops on any error",
+        default=CONFIG.getboolean("Logging", "stop_on_error", fallback=False),
+        action="store_true",
+        dest="stop_on_error",
+    )
 
-    parser.add_argument("--continue_on_error",
-                        help="the pipeline reports any error and continouse processing",
-                        default=not CONFIG.getboolean('Logging', 'stop_on_error', fallback=False),
-                        action='store_false', dest='stop_on_error')
+    parser.add_argument(
+        "--continue_on_error",
+        help="the pipeline reports any error and continouse processing",
+        default=not CONFIG.getboolean("Logging", "stop_on_error", fallback=False),
+        action="store_false",
+        dest="stop_on_error",
+    )
 
-    parser.add_argument("-o", "--out_file",
-                        help="file all processed files will be logged into",
-                        default=None, type=str)
-    parser.add_argument("-l", "--log_file",
-                        help="a optional file all logging is appended",
-                        default=None, type=str)
-    parser.add_argument("--log_level",
-                        help="the level of logging",
-                        default=None, type=str,
-                        choices=["CRITICAL", "ERROR", "WARNING", "INFO", "DEBUG", "NOTSET"])
+    parser.add_argument("-o", "--out_file", help="file all processed files will be logged into", default=None, type=str)
+    parser.add_argument("-l", "--log_file", help="a optional file all logging is appended", default=None, type=str)
+    parser.add_argument(
+        "--log_level",
+        help="the level of logging",
+        default=None,
+        type=str,
+        choices=["CRITICAL", "ERROR", "WARNING", "INFO", "DEBUG", "NOTSET"],
+    )
 
     # processing
-    parser.add_argument("-b", "--start_level",
-                        help="the processing level where to start",
-                        default="TM", type=str, choices=[e.name for e in ProductLevel])
-    parser.add_argument("-e", "--end_level",
-                        help="the processing level where to stop the pipeline",
-                        default="L2", type=str, choices=[e.name for e in ProductLevel])
-    parser.add_argument("--filter", "-F",
-                        help="filter expression applied to all input files example '*sci*.fits'",
-                        default=None, type=str, dest='filter')
-    parser.add_argument("--input_files", "-i",
-                        help="input txt file with list af absolute paths of files to process",
-                        default=None, type=str, dest='input_files')
-    parser.add_argument("-c", "--clean",
-                        help="clean all files from <fits_dir> first",
-                        default=False, type=bool, const=True, nargs="?")
+    parser.add_argument(
+        "-b",
+        "--start_level",
+        help="the processing level where to start",
+        default="TM",
+        type=str,
+        choices=[e.name for e in ProductLevel],
+    )
+    parser.add_argument(
+        "-e",
+        "--end_level",
+        help="the processing level where to stop the pipeline",
+        default="L2",
+        type=str,
+        choices=[e.name for e in ProductLevel],
+    )
+    parser.add_argument(
+        "--filter",
+        "-F",
+        help="filter expression applied to all input files example '*sci*.fits'",
+        default=None,
+        type=str,
+        dest="filter",
+    )
+    parser.add_argument(
+        "--input_files",
+        "-i",
+        help="input txt file with list af absolute paths of files to process",
+        default=None,
+        type=str,
+        dest="input_files",
+    )
+    parser.add_argument(
+        "-c", "--clean", help="clean all files from <fits_dir> first", default=False, type=bool, const=True, nargs="?"
+    )
 
-    parser.add_argument("-r", "--rid_lut_file",
-                        help=("Path to the rid LUT file"),
-                        default=CONFIG.get('Publish', 'rid_lut_file'), type=str)
+    parser.add_argument(
+        "-r",
+        "--rid_lut_file",
+        help=("Path to the rid LUT file"),
+        default=CONFIG.get("Publish", "rid_lut_file"),
+        type=str,
+    )
 
-    parser.add_argument("--update_rid_lut",
-                        help="update rid lut file before publishing",
-                        default=False,
-                        action='store_true', dest='update_rid_lut')
+    parser.add_argument(
+        "--update_rid_lut",
+        help="update rid lut file before publishing",
+        default=False,
+        action="store_true",
+        dest="update_rid_lut",
+    )
 
     args = parser.parse_args()
 
-    # pathes
-    CONFIG.set('Paths', 'tm_archive', args.tm_dir)
-    CONFIG.set('Paths', 'fits_archive', args.fits_dir)
-    CONFIG.set('Paths', 'spice_kernels', args.spice_dir)
-    CONFIG.set('Paths', 'soop_files', args.soop_dir)
+    # paths
+    CONFIG.set("Paths", "tm_archive", args.tm_dir)
+    CONFIG.set("Paths", "fits_archive", args.fits_dir)
+    CONFIG.set("Paths", "spice_kernels", args.spice_dir)
+    CONFIG.set("Paths", "soop_files", args.soop_dir)
 
     # IDL Bridge
-    CONFIG.set('IDLBridge', 'enabled', str(args.idl_enabled))
-    CONFIG.set('IDLBridge', 'gsw_path', args.idl_gsw_path)
-    CONFIG.set('IDLBridge', 'batchsize', str(args.idl_batchsize))
+    CONFIG.set("IDLBridge", "enabled", str(args.idl_enabled))
+    CONFIG.set("IDLBridge", "gsw_path", args.idl_gsw_path)
+    CONFIG.set("IDLBridge", "batchsize", str(args.idl_batchsize))
 
     # logging
-    CONFIG.set('Logging', 'stop_on_error', str(args.stop_on_error))
+    CONFIG.set("Logging", "stop_on_error", str(args.stop_on_error))
 
-    logging.basicConfig(format='%(asctime)s %(message)s', force=True,
-                        filename=args.log_file, filemode="a+")
+    logging.basicConfig(format="%(asctime)s %(message)s", force=True, filename=args.log_file, filemode="a+")
 
     if args.log_level:
         logging.getLogger().setLevel(logging.getLevelName(args.log_level))
@@ -173,24 +222,23 @@ def main():
     args.end_level = ProductLevel.from_str(args.end_level)
 
     if args.end_level.value < args.start_level.value:
-        raise ValueError(f"--start_level ({args.start_level}) should be lover then"
-                         f"--end_level ({args.end_level})")
+        raise ValueError(f"--start_level ({args.start_level}) should be lover then--end_level ({args.end_level})")
 
     if args.spice_file:
         spicemeta = Path(args.spice_file)
     else:
-        _spm = SpiceKernelManager(Path(CONFIG.get('Paths', 'spice_kernels')))
+        _spm = SpiceKernelManager(Path(CONFIG.get("Paths", "spice_kernels")))
         spicemeta = _spm.get_latest_mk_and_pred()
 
     RidLutManager.instance = RidLutManager(Path(args.rid_lut_file), update=args.update_rid_lut)
 
     Spice.instance = Spice(spicemeta)
 
-    soc = SOCManager(Path(CONFIG.get('Paths', 'tm_archive')))
+    soc = SOCManager(Path(CONFIG.get("Paths", "tm_archive")))
 
-    SOOPManager.instance = SOOPManager(Path(CONFIG.get('Paths', 'soop_files')))
+    SOOPManager.instance = SOOPManager(Path(CONFIG.get("Paths", "soop_files")))
 
-    fitsdir = Path(CONFIG.get('Paths', 'fits_archive'))
+    fitsdir = Path(CONFIG.get("Paths", "fits_archive"))
     FILTER = args.filter
 
     l0_proc = Level0(fitsdir, fitsdir)
@@ -205,8 +253,8 @@ def main():
 
     if args.input_files:
         try:
-            p = re.compile('.*' if not FILTER else FILTER)
-            with open(args.input_files, "r") as f:
+            p = re.compile(".*" if not FILTER else FILTER)
+            with open(args.input_files) as f:
                 for ifile in f:
                     try:
                         ifile = Path(ifile.strip())
@@ -215,7 +263,7 @@ def main():
                     except Exception as e:
                         print(e)
                         print("skipping this input file line")
-        except IOError as e:
+        except OSError as e:
             print(e)
             print("Fall back to default input")
 
@@ -232,8 +280,7 @@ def main():
         else:
             tmfiles = soc.get_files(tmtc=TMTC.All if FILTER is None else FILTER)
 
-        processed_files[ProductLevel.LB].extend(
-            list(process_tmtc_to_levelbinary(tmfiles, archive_path=fitsdir)))
+        processed_files[ProductLevel.LB].extend(list(process_tmtc_to_levelbinary(tmfiles, archive_path=fitsdir)))
         FILTER = None
 
     if args.start_level == ProductLevel.L0:
@@ -244,10 +291,8 @@ def main():
         else:
             processed_files[ProductLevel.LB].extend((fitsdir / "LB").rglob(FILTER))
 
-    if ((ProductLevel.L0.value >= args.start_level.value)
-            and (args.end_level.value >= ProductLevel.L0.value)):
-        processed_files[ProductLevel.L0].extend(
-            l0_proc.process_fits_files(files=processed_files[ProductLevel.LB]))
+    if (ProductLevel.L0.value >= args.start_level.value) and (args.end_level.value >= ProductLevel.L0.value):
+        processed_files[ProductLevel.L0].extend(l0_proc.process_fits_files(files=processed_files[ProductLevel.LB]))
         FILTER = None
 
     if args.start_level == ProductLevel.L1:
@@ -258,10 +303,8 @@ def main():
         else:
             processed_files[ProductLevel.L0].extend((fitsdir / "L0").rglob(FILTER))
 
-    if ((ProductLevel.L1.value >= args.start_level.value)
-            and (args.end_level.value >= ProductLevel.L1.value)):
-        processed_files[ProductLevel.L1].extend(
-            l1_proc.process_fits_files(files=processed_files[ProductLevel.L0]))
+    if (ProductLevel.L1.value >= args.start_level.value) and (args.end_level.value >= ProductLevel.L1.value):
+        processed_files[ProductLevel.L1].extend(l1_proc.process_fits_files(files=processed_files[ProductLevel.L0]))
         FILTER = None
 
     if args.start_level == ProductLevel.L2:
@@ -272,18 +315,16 @@ def main():
         else:
             processed_files[ProductLevel.L1].extend((fitsdir / "L1").rglob(FILTER))
 
-    if ((ProductLevel.L2.value >= args.start_level.value)
-            and (args.end_level.value >= ProductLevel.L2.value)):
-        processed_files[ProductLevel.L2].extend(
-            l2_proc.process_fits_files(files=processed_files[ProductLevel.L1]))
+    if (ProductLevel.L2.value >= args.start_level.value) and (args.end_level.value >= ProductLevel.L2.value):
+        processed_files[ProductLevel.L2].extend(l2_proc.process_fits_files(files=processed_files[ProductLevel.L1]))
         FILTER = None
 
-    outstream = sys.stdout if not args.out_file else open(args.out_file, 'w')
+    outstream = sys.stdout if not args.out_file else open(args.out_file, "w")
     for le in processed_files.keys():
         for f in processed_files[le]:
             print(str(f), file=outstream)
     outstream.close()
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     main()

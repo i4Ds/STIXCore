@@ -16,19 +16,19 @@ def idb_manager():
 
 
 def teardown_function():
-    downloadtest = Path(os.path.abspath(__file__)).parent / 'data/v2.26.33'
+    downloadtest = Path(os.path.abspath(__file__)).parent / "data/v2.26.33"
     if downloadtest.exists():
         shutil.rmtree(str(downloadtest))
 
 
 @pytest.mark.remote_data
 def test_idb_manager(idb_manager):
-    assert str(idb_manager.data_root) ==\
-           str(Path(__file__).parent.parent.parent / "data" / "test" / "idb")
+    assert str(idb_manager.data_root) == str(Path(__file__).parent.parent.parent / "data" / "test" / "idb")
 
 
-@pytest.mark.parametrize('versions', [("2.26.1", False), ("2.26.2", False), ((2, 26, 3), False),
-                                      ("2.26.34", True), ("1.2.3", False)])
+@pytest.mark.parametrize(
+    "versions", [("2.26.1", False), ("2.26.2", False), ((2, 26, 3), False), ("2.26.34", True), ("1.2.3", False)]
+)
 def test_has_version(versions, idb_manager):
     versionlabel, should = versions
     has_ver = idb_manager.has_version(versionlabel)
@@ -38,10 +38,10 @@ def test_has_version(versions, idb_manager):
 @pytest.mark.remote_data
 def test_force_version_str(idb_manager):
     idb_manager.download_version("2.26.35", force=True)
-    idb_m = IDBManager(test_data.idb.DIR, force_version='2.26.35')
+    idb_m = IDBManager(test_data.idb.DIR, force_version="2.26.35")
     idb_f = idb_m.get_idb("any")
-    assert idb_f.get_idb_version() == '2.26.35'
-    assert idb_f.filename == test_data.idb.DIR / 'v2.26.35' / 'idb.sqlite'
+    assert idb_f.get_idb_version() == "2.26.35"
+    assert idb_f.filename == test_data.idb.DIR / "v2.26.35" / "idb.sqlite"
 
     idb = idb_m.get_idb(obt=SCETime.min_time())
     assert idb_f == idb
@@ -51,10 +51,10 @@ def test_force_version_str(idb_manager):
 
 
 def test_force_version_path():
-    p = test_data.idb.DIR.parent / 'idb_force' / 'idb.sqlite'
+    p = test_data.idb.DIR.parent / "idb_force" / "idb.sqlite"
     idb_m = IDBManager(test_data.idb.DIR, force_version=p)
     idb = idb_m.get_idb("any")
-    assert idb.get_idb_version() == '2.26.35'
+    assert idb.get_idb_version() == "2.26.35"
     assert idb.filename == p
 
 
@@ -74,7 +74,7 @@ def test_find_version(idb_manager):
     idb.close()
 
     # fall back to the default
-    idb = idb_manager.get_idb(obt=SCETime(coarse=2 ** 31 - 1, fine=0))
+    idb = idb_manager.get_idb(obt=SCETime(coarse=2**31 - 1, fine=0))
     assert idb.get_idb_version() == "2.26.38"
 
     assert idb_manager.find_version(obt=None) == "2.26.32"
@@ -91,7 +91,7 @@ def test_get_versions(idb_manager):
 def test_get_idb_not_found_error(idb_manager):
     with pytest.raises(ValueError) as e:
         _ = idb_manager.get_idb("a.b.c")
-    assert str(e.value).startswith('Version')
+    assert str(e.value).startswith("Version")
 
 
 @pytest.mark.remote_data

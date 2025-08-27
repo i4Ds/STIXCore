@@ -36,7 +36,7 @@ It is also advisable to configure the upstream remote at this point
 Isolated Environment
 --------------------
 It is highly recommended to work in an isolated python environment there are a number of tools
-available to help mange and create isolated environment such as
+available to help manage and create isolated environment such as
 
 * `Anaconda <https://anaconda.org>`__
 * `Pyenv <https://github.com/pyenv/pyenv>`__
@@ -159,4 +159,4 @@ If your changes where intended and your are happy with the reported differences 
 Update the original test data
 *****************************
 
-On each merge to the git master brunch a web hook (https://pub099.cs.technik.fhnw.ch/end2end/rebuild_hook.cgi - credentials stored as git secrets) is triggered to regenerate the original test data and TM source data and the https://pub099.cs.technik.fhnw.ch/data/end2end/data/head.zip gets replaced with the latest data. For that regenerating of the data a dedicated STIXCore environment is running on pub099 (/data/stix/end2en). That STIXCore environment always pulls the latest code updates from the master branch and reprocess the data. That way each new PR has to generated identical data as the last approved merged PR or the needs manual approval for the detected changes.
+On each merge to the git master branch a web hook (https://pub099.cs.technik.fhnw.ch/end2end/rebuild_hook.cgi - credentials stored as git secrets) is triggered to regenerate the original test data and TM source data and the https://pub099.cs.technik.fhnw.ch/data/end2end/data/head.zip gets replaced with the latest data. For that regenerating of the data a dedicated STIXCore environment is running on pub099 (/data/stix/end2en). That STIXCore environment always pulls the latest code updates from the master branch and reprocess the data. That way each new PR has to generated identical data as the last approved merged PR or the needs manual approval for the detected changes.

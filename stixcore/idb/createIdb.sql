@@ -3,7 +3,7 @@ CREATE TABLE `A_User_Config_Table_TC_Is_Referenced`
        `Type`                  int,
        `SubType`                       int
 );
-CREATE TABLE `CAF`
+CREATE TABLE `CAL`
  (
        `CAF_NUMBR`                     varchar (20) NOT NULL,
        `CAF_DESCR`                     varchar (64) NOT NULL,

@@ -9,12 +9,12 @@ def test_singleton():
 
 def test_get_reason():
     r = RidLutManager.instance.get_reason(1)
-    assert r == 'subject, purpose1, r1'
+    assert r == "subject, purpose1, r1"
 
 
 def test_get_reason_multi():
     r = RidLutManager.instance.get_reason(223)
-    assert r == 'subject, purpose, r223 , c2 subject, purpose_again, r223 , c2'
+    assert r == "subject, purpose, r223 , c2 subject, purpose_again, r223 , c2"
 
 
 def test_get_scaling_factor():

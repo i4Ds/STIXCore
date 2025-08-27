@@ -34,7 +34,7 @@ logger = get_logger(__name__)
 
 @pytest.fixture
 def soc_manager():
-    return SOCManager(Path(__file__).parent.parent.parent / 'data' / 'test' / 'io' / 'soc')
+    return SOCManager(Path(__file__).parent.parent.parent / "data" / "test" / "io" / "soc")
 
 
 @pytest.fixture
@@ -54,66 +54,63 @@ def out_dir(tmp_path):
 
 @pytest.fixture
 def packet():
-    data = '0da4c0090066100319000000000000000212000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000b788014000000000ffffffff000000000000000000000000000000000000000000000000000000001f114cffffff' # noqa:
-    packet = GenericTMPacket('0x' + data)
+    data = "0da4c0090066100319000000000000000212000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000b788014000000000ffffffff000000000000000000000000000000000000000000000000000000001f114cffffff"  # noqa:
+    packet = GenericTMPacket("0x" + data)
     return packet
 
 
 def test_level_0_descaling_trigger(out_dir):
     lb = test_data.products.LB_21_6_21_fits_scaled
-    l0 = Level0(out_dir / 'LB', out_dir)
+    l0 = Level0(out_dir / "LB", out_dir)
     res = l0.process_fits_files(files=[lb])
     assert len(res) == 1
-    hist = fits.getval(res[0], 'HISTORY')
-    factor = fits.getval(res[0], 'TRIG_SCA')
+    hist = fits.getval(res[0], "HISTORY")
+    factor = fits.getval(res[0], "TRIG_SCA")
     assert "trigger descaled with 30" in hist
     assert factor == 30
 
 
 def test_level_0_descaling_warning(out_dir):
     lb = test_data.products.LB_21_6_24_scale_change
-    l0 = Level0(out_dir / 'LB', out_dir)
+    l0 = Level0(out_dir / "LB", out_dir)
     res = l0.process_fits_files(files=[lb])
     assert len(res) == 1
-    datawarn = fits.getval(res[0], 'DATAWARN')
-    comment = fits.getval(res[0], 'COMMENT')
+    datawarn = fits.getval(res[0], "DATAWARN")
+    comment = fits.getval(res[0], "COMMENT")
     assert datawarn == 1
     assert "Multiple compression schemes detected, trigger values maybe incorrect." in comment
 
 
 @pytest.mark.skip(reason="needs proper spice pointing kernels")
 def test_level_2(out_dir, spicekernelmanager):
-    SOOPManager.instance = SOOPManager(Path(__file__).parent.parent.parent
-                                       / 'data' / 'test' / 'soop')
+    SOOPManager.instance = SOOPManager(Path(__file__).parent.parent.parent / "data" / "test" / "soop")
 
     idlfiles = 4 if CONFIG.getboolean("IDLBridge", "enabled", fallback=False) else 0
 
     l1 = test_data.products.L1_fits
-    l2 = Level2(out_dir / 'L1', out_dir)
+    l2 = Level2(out_dir / "L1", out_dir)
     res = l2.process_fits_files(files=l1)
     assert len(res) == len(test_data.products.L1_fits) + idlfiles
     input_names = [f.name for f in l1]
     for ffile in res:
         pl2 = Product(ffile)
-        assert pl2.level == 'L2'
+        assert pl2.level == "L2"
         assert pl2.parent[0] in input_names
 
 
 @pytest.mark.skip(reason="needs proper spice pointing kernels")
 def test_level_2_auxiliary(out_dir, spicekernelmanager):
-    SOOPManager.instance = SOOPManager(Path(__file__).parent.parent.parent
-                                       / 'data' / 'test' / 'soop')
-    l1 = [p for p in test_data.products.L1_fits if p.name.startswith('solo_L1_stix-hk-maxi')]
+    SOOPManager.instance = SOOPManager(Path(__file__).parent.parent.parent / "data" / "test" / "soop")
+    l1 = [p for p in test_data.products.L1_fits if p.name.startswith("solo_L1_stix-hk-maxi")]
 
-    l2 = Level2(out_dir / 'L1', out_dir)
+    l2 = Level2(out_dir / "L1", out_dir)
     res = l2.process_fits_files(files=l1)
     print(res)
-    assert len(res) == len(l1) * (2 if CONFIG.getboolean("IDLBridge", "enabled", fallback=False)
-                                  else 1)
+    assert len(res) == len(l1) * (2 if CONFIG.getboolean("IDLBridge", "enabled", fallback=False) else 1)
 
 
 def test_get_calibration_polynomial(idb):
-    poly = idb.get_calibration_polynomial('CIX00036TM')
+    poly = idb.get_calibration_polynomial("CIX00036TM")
     assert isinstance(poly, IDBPolynomialCalibration)
     assert poly(1) == poly.A[1]
     assert poly.valid is True
@@ -122,37 +119,47 @@ def test_get_calibration_polynomial(idb):
     assert poly([1, 2, 3]) == [poly.A[1], poly.A[1] * 2, poly.A[1] * 3]
 
 
-@patch('stixcore.io.soc.manager.SOCPacketFile')
+@patch("stixcore.io.soc.manager.SOCPacketFile")
 def test_pipeline(socpacketfile, out_dir):
-
-    l0_proc = Level0(out_dir / 'LB', out_dir)
-    l1_proc = Level1(out_dir / 'LB', out_dir)
+    l0_proc = Level0(out_dir / "LB", out_dir)
+    l1_proc = Level1(out_dir / "LB", out_dir)
 
     all = True
     report = dict()
 
-    exclude = ['__doc__', 'TM_DIR', 'XML_TM',
-               # the following TMs have invalid times: year 2086
-               'TM_1_2_48000', 'TM_236_19', 'TM_237_12',
-               'TM_239_14', 'TM_5_4_54304', 'TM_6_6_53250']
+    exclude = [
+        "__doc__",
+        "TM_DIR",
+        "XML_TM",
+        # the following TMs have invalid times: year 2086
+        "TM_1_2_48000",
+        "TM_236_19",
+        "TM_237_12",
+        "TM_239_14",
+        "TM_5_4_54304",
+        "TM_6_6_53250",
+    ]
     # TODO go on here
     # singletest = ['TM_21_6_42']
 
-    for pid, fkey in enumerate([k for k in test_data.tmtc.__dict__.keys()
-                                if ((k not in exclude)
-                                    and not (k.startswith('TM_21_6_')
-                                    and not k.endswith('_complete'))
-                                    )]):
+    for pid, fkey in enumerate(
+        [
+            k
+            for k in test_data.tmtc.__dict__.keys()
+            if ((k not in exclude) and not (k.startswith("TM_21_6_") and not k.endswith("_complete")))
+        ]
+    ):
         # for pid, fkey in enumerate([k for k in test_data.tmtc.__dict__.keys()
         #                            if k in singletest]):
         hex_file = test_data.tmtc.__dict__[fkey]
 
         try:
-            with hex_file.open('r') as file:
+            with hex_file.open("r") as file:
                 hex = file.readlines()
 
             socpacketfile.get_packet_binaries.return_value = list(
-                [(pid*1000 + i, unhexlify(re.sub(r"\s+", "", h))) for i, h in enumerate(hex)])
+                [(pid * 1000 + i, unhexlify(re.sub(r"\s+", "", h))) for i, h in enumerate(hex)]
+            )
             socpacketfile.file = hex_file
 
             lb_files = process_tmtc_to_levelbinary([socpacketfile], archive_path=out_dir)
@@ -173,14 +180,14 @@ def test_pipeline(socpacketfile, out_dir):
         for key, error in report.items():
             logger.error(f"Error while processing TM file: {key}")
             logger.error(error)
-        raise ValueError("Pipline Test went wrong")
+        raise ValueError("Pipeline Test went wrong")
 
 
 def test_export_single(packet):
     p = packet.export(descr=True)
     assert isinstance(p, dict)
     # assert 'solo_ANC_soc-pred-mk_V106_20201116_001.tm' in p['spice_kernel']
-    assert 'solo_ANC_soc-flown-mk_V105_20200515_001.tm' in p['spice_kernel']
+    assert "solo_ANC_soc-flown-mk_V105_20200515_001.tm" in p["spice_kernel"]
 
 
 def test_export_all():
@@ -193,7 +200,7 @@ def test_export_all():
         p = packet.export(descr=True)
         assert isinstance(p, dict)
         # assert 'solo_ANC_soc-pred-mk_V106_20201116_001.tm' in p['spice_kernel']
-        assert 'solo_ANC_soc-flown-mk_V105_20200515_001.tm' in p['spice_kernel']
+        assert "solo_ANC_soc-flown-mk_V105_20200515_001.tm" in p["spice_kernel"]
 
 
 def test_print(packet):
@@ -204,9 +211,9 @@ def test_print(packet):
 
 
 def test_single_vs_batch(out_dir):
-    CONTINUE_ON_ERROR = CONFIG.getboolean('Logging', 'stop_on_error', fallback=False)
+    CONTINUE_ON_ERROR = CONFIG.getboolean("Logging", "stop_on_error", fallback=False)
     try:
-        CONFIG.set('Logging', 'stop_on_error', str(False))
+        CONFIG.set("Logging", "stop_on_error", str(False))
 
         tm_files = test_data.tmtc.XML_TM
 
@@ -247,25 +254,24 @@ def test_single_vs_batch(out_dir):
 
         for i, f_b in enumerate(files_b):
             f_s = files_s[i]
-            diff = FITSDiff(f_b, f_s, ignore_keywords=['CHECKSUM', 'DATASUM', 'DATE',
-                                                       'VERS_SW', 'VERS_CFG'])
+            diff = FITSDiff(f_b, f_s, ignore_keywords=["CHECKSUM", "DATASUM", "DATE", "VERS_SW", "VERS_CFG"])
             assert diff.identical
     finally:
-        CONFIG.set('Logging', 'stop_on_error', str(CONTINUE_ON_ERROR))
+        CONFIG.set("Logging", "stop_on_error", str(CONTINUE_ON_ERROR))
 
 
 def test_pipeline_logging(spicekernelmanager, out_dir):
-    CONTINUE_ON_ERROR = CONFIG.getboolean('Logging', 'stop_on_error', fallback=False)
-    FITS_ARCHIVE = CONFIG.get('Paths', 'fits_archive')
-    LOG_LEVEL = CONFIG.get('Pipeline', 'log_level')
-    LOG_DIR = CONFIG.get('Pipeline', 'log_dir')
+    CONTINUE_ON_ERROR = CONFIG.getboolean("Logging", "stop_on_error", fallback=False)
+    FITS_ARCHIVE = CONFIG.get("Paths", "fits_archive")
+    LOG_LEVEL = CONFIG.get("Pipeline", "log_level")
+    LOG_DIR = CONFIG.get("Pipeline", "log_dir")
     try:
-        CONFIG.set('Logging', 'stop_on_error', str(False))
-        CONFIG.set('Paths', 'fits_archive', str(out_dir / "fits"))
-        CONFIG.set('Pipeline', 'log_level', str('DEBUG'))
-        CONFIG.set('Pipeline', 'log_dir', str(out_dir / "logging"))
+        CONFIG.set("Logging", "stop_on_error", str(False))
+        CONFIG.set("Paths", "fits_archive", str(out_dir / "fits"))
+        CONFIG.set("Pipeline", "log_level", "DEBUG")
+        CONFIG.set("Pipeline", "log_dir", str(out_dir / "logging"))
 
-        log_dir = Path(CONFIG.get('Pipeline', 'log_dir'))
+        log_dir = Path(CONFIG.get("Pipeline", "log_dir"))
         log_dir.mkdir(parents=True, exist_ok=True)
 
         PipelineStatus.instance = PipelineStatus(None)
@@ -277,23 +283,23 @@ def test_pipeline_logging(spicekernelmanager, out_dir):
         assert len(list(log_dir.rglob("*.log.err"))) == 0
         assert len(list(log_dir.rglob("*.out"))) == 3
         # TODO increase if level2 for more products is available
-        assert len(list(Path(CONFIG.get('Paths', 'fits_archive')).rglob("*.fits"))) == 15
+        assert len(list(Path(CONFIG.get("Paths", "fits_archive")).rglob("*.fits"))) == 15
 
     finally:
-        CONFIG.set('Logging', 'stop_on_error', str(CONTINUE_ON_ERROR))
-        CONFIG.set('Paths', 'fits_archive', str(FITS_ARCHIVE))
-        CONFIG.set('Pipeline', 'log_level', str(LOG_LEVEL))
-        CONFIG.set('Pipeline', 'log_dir', str(LOG_DIR))
+        CONFIG.set("Logging", "stop_on_error", str(CONTINUE_ON_ERROR))
+        CONFIG.set("Paths", "fits_archive", str(FITS_ARCHIVE))
+        CONFIG.set("Pipeline", "log_level", str(LOG_LEVEL))
+        CONFIG.set("Pipeline", "log_dir", str(LOG_DIR))
 
 
 @patch("smtplib.SMTP")
 def test_mail(s):
     tm_file = "tm_file"
     err_file = "err_file"
-    sender = CONFIG.get('Pipeline', 'error_mail_sender')
-    receivers = CONFIG.get('Pipeline', 'error_mail_receivers').split(",")
-    host = CONFIG.get('Pipeline', 'error_mail_smpt_host', fallback='localhost')
-    port = CONFIG.getint('Pipeline', 'error_mail_smpt_port', fallback=25)
+    sender = CONFIG.get("Pipeline", "error_mail_sender")
+    receivers = CONFIG.get("Pipeline", "error_mail_receivers").split(",")
+    host = CONFIG.get("Pipeline", "error_mail_smpt_host", fallback="localhost")
+    port = CONFIG.getint("Pipeline", "error_mail_smpt_port", fallback=25)
     smtp_server = smtplib.SMTP(host=host, port=port)
     message = f"""Subject: StixCore TMTC Processing Error
 
@@ -316,7 +322,7 @@ do not answer to this mail.
         print(e)
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     _spm = SpiceKernelManager(Path("/data/stix/spice/kernels/"))
     Spice.instance = Spice(_spm.get_latest_mk())
     print(Spice.instance.meta_kernel_path)
@@ -325,20 +331,20 @@ if __name__ == '__main__':
 
     SOOPManager.instance = SOOPManager(Path("/data/stix/SOLSOC/from_soc"))
 
-    l1 = [Path('/home/shane/fits_20220321/L1/2020/06/07/HK/solo_L1_stix-hk-maxi_20200607_V01.fits'),
-          Path('/home/shane/fits_20220321/L1/2021/08/26/HK/solo_L1_stix-hk-maxi_20210826_V01.fits'),
-          Path('/home/shane/fits_20220321/L1/2021/08/28/HK/solo_L1_stix-hk-maxi_20210828_V01.fits'),
-          Path('/home/shane/fits_20220321/L1/2021/09/23/HK/solo_L1_stix-hk-maxi_20210923_V01.fits'),
-          Path('/home/shane/fits_20220321/L1/2021/10/09/HK/solo_L1_stix-hk-maxi_20211009_V01.fits')
-          ]
+    l1 = [
+        Path("/home/shane/fits_20220321/L1/2020/06/07/HK/solo_L1_stix-hk-maxi_20200607_V01.fits"),
+        Path("/home/shane/fits_20220321/L1/2021/08/26/HK/solo_L1_stix-hk-maxi_20210826_V01.fits"),
+        Path("/home/shane/fits_20220321/L1/2021/08/28/HK/solo_L1_stix-hk-maxi_20210828_V01.fits"),
+        Path("/home/shane/fits_20220321/L1/2021/09/23/HK/solo_L1_stix-hk-maxi_20210923_V01.fits"),
+        Path("/home/shane/fits_20220321/L1/2021/10/09/HK/solo_L1_stix-hk-maxi_20211009_V01.fits"),
+    ]
 
     # glob.glob("/home/shane/fits_20220321/L1/2022/01/0*/**/solo_L1_stix-hk-maxi*.fits", recursive=True)]  # noqa
     # glob.glob("/home/shane/fits_20220321/L1/**/solo_L1_stix-hk-maxi*.fits", recursive=True)]
 
-    l1 = [Path(f) for f in
-          glob.glob("/home/shane/fits_20220321/L1/**/solo_L1_stix-hk-maxi*.fits", recursive=True)]
+    l1 = [Path(f) for f in glob.glob("/home/shane/fits_20220321/L1/**/solo_L1_stix-hk-maxi*.fits", recursive=True)]
 
-    l2 = Level2(out_dir / 'L1', out_dir_main)
+    l2 = Level2(out_dir / "L1", out_dir_main)
     res = l2.process_fits_files(files=l1)
 
     print("DONE")

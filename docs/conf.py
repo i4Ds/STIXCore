@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 #
 # Configuration file for the Sphinx documentation builder.
 #
@@ -9,14 +8,15 @@
 
 # -- Project information -----------------------------------------------------
 
-project = 'STIXCore'
-copyright = '2020, STIX Team'
-author = 'STIX Team'
+project = "STIXCore"
+copyright = "2020, STIX Team"
+author = "STIX Team"
 
 # The full version, including alpha/beta/rc tags
 from stixcore import __version__
+
 release = __version__
-is_development = '.dev' in __version__
+is_development = ".dev" in __version__
 
 # -- General configuration ---------------------------------------------------
 
@@ -24,18 +24,18 @@ is_development = '.dev' in __version__
 # extensions coming with Sphinx (named 'sphinx.ext.*') or your custom
 # ones.
 extensions = [
-    'sphinx.ext.autodoc',
-    'sphinx.ext.intersphinx',
-    'sphinx.ext.todo',
-    'sphinx.ext.coverage',
-    'sphinx.ext.inheritance_diagram',
-    'sphinx.ext.viewcode',
-    'sphinx.ext.napoleon',
-    'sphinx.ext.doctest',
-    'sphinx.ext.mathjax',
-    'sphinx_automodapi.automodapi',
-    'sphinx_automodapi.smart_resolver',
-    'matplotlib.sphinxext.plot_directive'
+    "sphinx.ext.autodoc",
+    "sphinx.ext.intersphinx",
+    "sphinx.ext.todo",
+    "sphinx.ext.coverage",
+    "sphinx.ext.inheritance_diagram",
+    "sphinx.ext.viewcode",
+    "sphinx.ext.napoleon",
+    "sphinx.ext.doctest",
+    "sphinx.ext.mathjax",
+    "sphinx_automodapi.automodapi",
+    "sphinx_automodapi.smart_resolver",
+    "matplotlib.sphinxext.plot_directive",
 ]
 
 # Add any paths that contain templates here, relative to this directory.
@@ -44,18 +44,18 @@ extensions = [
 # List of patterns, relative to source directory, that match files and
 # directories to ignore when looking for source files.
 # This pattern also affects html_static_path and html_extra_path.
-exclude_patterns = ['_build', 'Thumbs.db', '.DS_Store']
+exclude_patterns = ["_build", "Thumbs.db", ".DS_Store"]
 
 # The suffix(es) of source filenames.
 # You can specify multiple suffix as a list of string:
-source_suffix = '.rst'
+source_suffix = ".rst"
 
 # The master toctree document.
-master_doc = 'index'
+master_doc = "index"
 
 # The reST default role (used for this markup: `text`) to use for all
 # documents. Set to the "smart" one.
-default_role = 'obj'
+default_role = "obj"
 
 # Disable having a separate return type row
 napoleon_use_rtype = False
@@ -67,16 +67,13 @@ napoleon_google_docstring = False
 
 # Example configuration for intersphinx: refer to the Python standard library.
 intersphinx_mapping = {
-    'python': ('https://docs.python.org/3/',
-               (None, 'http://data.astropy.org/intersphinx/python3.inv')),
-    'numpy': ('https://docs.scipy.org/doc/numpy/',
-              (None, 'http://data.astropy.org/intersphinx/numpy.inv')),
-    'scipy': ('https://docs.scipy.org/doc/scipy/reference/',
-              (None, 'http://data.astropy.org/intersphinx/scipy.inv')),
-    'matplotlib': ('https://matplotlib.org/',
-                   (None, 'http://data.astropy.org/intersphinx/matplotlib.inv')),
-    'astropy': ('http://docs.astropy.org/en/stable/', None),
-    'sunpy': ('https://docs.sunpy.org/en/stable/', None)}
+    "python": ("https://docs.python.org/3/", (None, "http://data.astropy.org/intersphinx/python3.inv")),
+    "numpy": ("https://docs.scipy.org/doc/numpy/", (None, "http://data.astropy.org/intersphinx/numpy.inv")),
+    "scipy": ("https://docs.scipy.org/doc/scipy/reference/", (None, "http://data.astropy.org/intersphinx/scipy.inv")),
+    "matplotlib": ("https://matplotlib.org/", (None, "http://data.astropy.org/intersphinx/matplotlib.inv")),
+    "astropy": ("http://docs.astropy.org/en/stable/", None),
+    "sunpy": ("https://docs.sunpy.org/en/stable/", None),
+}
 
 # -- Options for HTML output -------------------------------------------------
 
@@ -84,9 +81,11 @@ intersphinx_mapping = {
 # a list of builtin themes.
 
 try:
-    from sunpy_sphinx_theme.conf import *
+    import sunpy_sphinx_theme  # noqa: F401
+
+    html_theme = "sunpy"
 except ImportError:
-    html_theme = 'default'
+    html_theme = "default"
 
 
 # Add any paths that contain custom static files (such as style sheets) here,
@@ -98,23 +97,24 @@ except ImportError:
 graphviz_output_format = "svg"
 
 graphviz_dot_args = [
-    '-Nfontsize=10',
-    '-Nfontname=Helvetica Neue, Helvetica, Arial, sans-serif',
-    '-Efontsize=10',
-    '-Efontname=Helvetica Neue, Helvetica, Arial, sans-serif',
-    '-Gfontsize=10',
-    '-Gfontname=Helvetica Neue, Helvetica, Arial, sans-serif'
+    "-Nfontsize=10",
+    "-Nfontname=Helvetica Neue, Helvetica, Arial, sans-serif",
+    "-Efontsize=10",
+    "-Efontname=Helvetica Neue, Helvetica, Arial, sans-serif",
+    "-Gfontsize=10",
+    "-Gfontname=Helvetica Neue, Helvetica, Arial, sans-serif",
 ]
 
 # Workaround to install and execute git-lfs on Read the Docs
 import os
-on_rtd = os.environ.get('READTHEDOCS', None) == 'True'
-if on_rtd and not os.path.exists('./git-lfs'):
-    os.system('wget https://github.com/git-lfs/git-lfs/releases/download/v2.13.2/git-lfs-linux-amd64-v2.13.2.tar.gz')
-    os.system('tar xvfz git-lfs-linux-amd64-v2.13.2.tar.gz')
-    os.system('./git-lfs install')  # make lfs available in current repository
-    os.system('./git-lfs fetch')  # download content from remote
-    os.system('./git-lfs checkout')  # make local files to have the real content on them
+
+on_rtd = os.environ.get("READTHEDOCS", None) == "True"
+if on_rtd and not os.path.exists("./git-lfs"):
+    os.system("wget https://github.com/git-lfs/git-lfs/releases/download/v2.13.2/git-lfs-linux-amd64-v2.13.2.tar.gz")
+    os.system("tar xvfz git-lfs-linux-amd64-v2.13.2.tar.gz")
+    os.system("./git-lfs install")  # make lfs available in current repository
+    os.system("./git-lfs fetch")  # download content from remote
+    os.system("./git-lfs checkout")  # make local files to have the real content on them
 
 """
 Write the latest changelog into the documentation.
@@ -122,9 +122,10 @@ Write the latest changelog into the documentation.
 target_file = os.path.abspath("./whatsnew/latest_changelog.txt")
 try:
     from sunpy.util.towncrier import generate_changelog_for_docs
+
     if is_development:
         generate_changelog_for_docs("../", target_file)
 except Exception as e:
     print(f"Failed to add changelog to docs with error {e}.")
 # Make sure the file exists or else sphinx will complain.
-open(target_file, 'a').close()
+open(target_file, "a").close()

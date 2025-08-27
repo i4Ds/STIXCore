@@ -11,7 +11,7 @@ It will generate output in stixcore/util/scripts/ddpd.html
 
 replace V02U.fit with V02.fits
 
-Descriptions are derived from defferent sources doc strings, idb, fits files
+Descriptions are derived from different sources doc strings, idb, fits files
 last override is from stixcore/data/test/ddpd.in.csv
 
 open the html in word.
@@ -89,7 +89,7 @@ from stixcore.products.product import Product, read_qtable
 name_counter = defaultdict(int)
 
 IDB = IDBManager(test_data.idb.DIR).get_idb("2.26.34")
-descriptions = Table.read("stixcore/data/test/ddpd.in.csv", format='csv', delimiter="\t")
+descriptions = Table.read("stixcore/data/test/ddpd.in.csv", format="csv", delimiter="\t")
 
 
 def mtable(columns, data, tclass):
@@ -110,14 +110,16 @@ def mtable(columns, data, tclass):
 
 
 def header2table(header):
-    headerdata = np.vstack((np.array(list(header.keys())),
-                            np.array(list(header.comments)),
-                            np.array([str(v).replace(";", "; ").replace(".SOL.", ".SOL. ")
-                                      for v in header.values()]))).transpose()
-    return mtable([("Name", "width: 15%"),
-                   ("Description", "width: 25%"),
-                   ("Value example", "width: 60%")
-                   ], headerdata, "cheader")
+    headerdata = np.vstack(
+        (
+            np.array(list(header.keys())),
+            np.array(list(header.comments)),
+            np.array([str(v).replace(";", "; ").replace(".SOL.", ".SOL. ") for v in header.values()]),
+        )
+    ).transpose()
+    return mtable(
+        [("Name", "width: 15%"), ("Description", "width: 25%"), ("Value example", "width: 60%")], headerdata, "cheader"
+    )
 
 
 def myunit(unit):
@@ -128,7 +130,7 @@ def myunit(unit):
 
 def mytype(dtype):
     o = dtype.name
-    u = re.sub('[0-9]+', '', o)
+    u = re.sub("[0-9]+", "", o)
     u = u.replace("bytes", "str")
     return f"{u}"
 
@@ -143,8 +145,8 @@ def mydim(dim, n, colname):
     u = u.replace(" ", "")
     # u = u.replace("(N,)", "(N)")
     # u = re.sub(r"\(([0-9]+)", r"(N, \1", u)
-    if colname == 'packet':
-        u = '(P)'
+    if colname == "packet":
+        u = "(P)"
     return f"Nx{u}"
 
 
@@ -156,30 +158,34 @@ def data2table(data, level):
 
         desc = "TBD"
 
-        if colname in descriptions['name']:
-            _desc = str(descriptions['description'][descriptions['name'] == colname][0])
+        if colname in descriptions["name"]:
+            _desc = str(descriptions["description"][descriptions["name"] == colname][0])
             parts = _desc.split("|")
             if len(parts) > 1:
                 _desc = parts[0] if level == "L0" else parts[1]
-            if _desc != '--':
+            if _desc != "--":
                 desc = _desc
             else:
                 name_counter[colname] += 1
         else:
             name_counter[colname] += 1
 
-        if (desc == "TBD" and hasattr(c, "meta") and
-           "NIXS" in c.meta and isinstance(c.meta["NIXS"], str)):
+        if desc == "TBD" and hasattr(c, "meta") and "NIXS" in c.meta and isinstance(c.meta["NIXS"], str):
             desc = IDB.get_parameter_description(c.meta["NIXS"])
 
-        des.append((colname, mytype(c.dtype), myunit(c.unit),
-                    mydim(c.shape, len(c), colname), desc))
+        des.append((colname, mytype(c.dtype), myunit(c.unit), mydim(c.shape, len(c), colname), desc))
 
-    return mtable([("Name", "width: 30%"),
-                   ("Type", "width: 10%"),
-                   ("Unit", "width: 10%"),
-                   ("Dims.", "width: 10%"),
-                   ("Description", "width: 40%")], des, "cdata")
+    return mtable(
+        [
+            ("Name", "width: 30%"),
+            ("Type", "width: 10%"),
+            ("Unit", "width: 10%"),
+            ("Dims.", "width: 10%"),
+            ("Description", "width: 40%"),
+        ],
+        des,
+        "cdata",
+    )
 
 
 def mydescriptor(prod, sup=0):
@@ -189,8 +195,7 @@ def mydescriptor(prod, sup=0):
 
 
 def mydescription(prod):
-    doc = [ldesc.strip() for ldesc in (prod.__doc__+"\n\n\n").split('\n\n\n')
-           if len(ldesc.strip()) > 1]
+    doc = [ldesc.strip() for ldesc in (prod.__doc__ + "\n\n\n").split("\n\n\n") if len(ldesc.strip()) > 1]
     return doc[0] if len(doc) > 0 else "TBD"
 
 
@@ -238,7 +243,7 @@ def product(file_in):
                 data2table(data, prod.level)
             except KeyError:
                 pass
-        if prod.type == 'sci':
+        if prod.type == "sci":
             h5("Supplements")
             with ul():
                 with li():
@@ -249,7 +254,7 @@ def product(file_in):
                           Such supplements can contain additional but also (partly) overlapping data compared to the already existing data product of the same time and type (base product).
                           In the FITS "COMMENT" header keyword, you will find a reference to the base product and a brief description of the TM configuration for this product.
                           If supplement data products are available for the same time period, merging this data into the base product for the best scientific approach could be worthwhile.
-                          But this merging has to be done manually by the user. Please contact the STIX team if you have any questions.""") # noqa
+                          But this merging has to be done manually by the user. Please contact the STIX team if you have any questions.""")  # noqa
                 with li():
                     b("Descriptors: ")
                     span(mydescriptor(prod, sup=1))
@@ -270,29 +275,30 @@ def product(file_in):
         return (prod.level, prod.type, di)
 
 
-if __name__ == '__main__':
-
-    typenames = {"sci": "Science Data",
-                 "hk": "Housekeeping Data",
-                 "ql": "Quicklook Data",
-                 "asp": "Ancillary Aspect Data",
-                 "cal": "Calibration"}
+if __name__ == "__main__":
+    typenames = {
+        "sci": "Science Data",
+        "hk": "Housekeeping Data",
+        "ql": "Quicklook Data",
+        "asp": "Ancillary Aspect Data",
+        "cal": "Calibration",
+    }
 
     collector = defaultdict(lambda: defaultdict(list))
 
-    doc = dominate.document(title='STIX DPDD')
+    doc = dominate.document(title="STIX DPDD")
 
     files = [  # LL
         # "LL/solo_LL01_stix-ql-lightcurve_0628185012-0628186272_V202203231133.fits",
         # "LL/solo_LL01_stix-ql-flareflag_0628185012-0628186272_V202203231133.fits",
         # L0
         # science
-        "L0/21/6/20/solo_L0_stix-sci-xray-rpd_0678187309-0678187429_V02_2106280011-54760.fits", # noqa
-        "L0/21/6/21/solo_L0_stix-sci-xray-cpd_0688454771-0688455372_V02_2110250007-65280.fits", # noqa
-        "L0/21/6/22/solo_L0_stix-sci-xray-scpd_0642038387-0642038407_V02_0087031810-50884.fits", # noqa
-        "L0/21/6/23/solo_L0_stix-sci-xray-vis_0678187308-0678187429_V02_2106280004-54716.fits", # noqa
-        "L0/21/6/42/solo_L0_stix-sci-aspect-burst_0687412111-0687419343_V02_2110130059.fits", # noqa
-        "L0/21/6/24/solo_L0_stix-sci-xray-spec_0689786926-0689801914_V02_2111090002-50819.fits", # noqa
+        "L0/21/6/20/solo_L0_stix-sci-xray-rpd_0678187309-0678187429_V02_2106280011-54760.fits",  # noqa
+        "L0/21/6/21/solo_L0_stix-sci-xray-cpd_0688454771-0688455372_V02_2110250007-65280.fits",  # noqa
+        "L0/21/6/22/solo_L0_stix-sci-xray-scpd_0642038387-0642038407_V02_0087031810-50884.fits",  # noqa
+        "L0/21/6/23/solo_L0_stix-sci-xray-vis_0678187308-0678187429_V02_2106280004-54716.fits",  # noqa
+        "L0/21/6/42/solo_L0_stix-sci-aspect-burst_0687412111-0687419343_V02_2110130059.fits",  # noqa
+        "L0/21/6/24/solo_L0_stix-sci-xray-spec_0689786926-0689801914_V02_2111090002-50819.fits",  # noqa
         # QL
         "L0/21/6/31/solo_L0_stix-ql-background_0668822400_V02.fits",
         "L0/21/6/34/solo_L0_stix-ql-flareflag_0684547200_V02.fits",
@@ -304,15 +310,14 @@ if __name__ == '__main__':
         "L0/3/25/1/solo_L0_stix-hk-mini_0643507200_V02.fits",
         # CAL
         "L0/21/6/41/solo_L0_stix-cal-energy_0640137600_V02.fits",
-
         # L1
         # science
-        "L1/2021/06/28/SCI/solo_L1_stix-sci-xray-rpd_20210628T092301-20210628T092501_V02_2106280010-54759.fits", # noqa
-        "L1/2021/06/28/SCI/solo_L1_stix-sci-xray-cpd_20210628T190505-20210628T191459_V02_2106280009-54755.fits", # noqa
-        "L1/2021/06/28/SCI/solo_L1_stix-sci-xray-scpd_20210628T092301-20210628T092502_V02_2106280006-54720.fits", # noqa
-        "L1/2021/06/28/SCI/solo_L1_stix-sci-xray-vis_20210628T092301-20210628T092502_V02_2106280004-54716.fits", # noqa
-        "L1/2021/10/13/SCI/solo_L1_stix-sci-aspect-burst_20211013T034959-20211013T055031_V02_2110130059.fits", # noqa
-        "L1/2021/06/28/SCI/solo_L1_stix-sci-xray-spec_20210628T230132-20210628T234123_V02_2106280041-54988.fits", # noqa
+        "L1/2021/06/28/SCI/solo_L1_stix-sci-xray-rpd_20210628T092301-20210628T092501_V02_2106280010-54759.fits",  # noqa
+        "L1/2021/06/28/SCI/solo_L1_stix-sci-xray-cpd_20210628T190505-20210628T191459_V02_2106280009-54755.fits",  # noqa
+        "L1/2021/06/28/SCI/solo_L1_stix-sci-xray-scpd_20210628T092301-20210628T092502_V02_2106280006-54720.fits",  # noqa
+        "L1/2021/06/28/SCI/solo_L1_stix-sci-xray-vis_20210628T092301-20210628T092502_V02_2106280004-54716.fits",  # noqa
+        "L1/2021/10/13/SCI/solo_L1_stix-sci-aspect-burst_20211013T034959-20211013T055031_V02_2110130059.fits",  # noqa
+        "L1/2021/06/28/SCI/solo_L1_stix-sci-xray-spec_20210628T230132-20210628T234123_V02_2106280041-54988.fits",  # noqa
         # QL
         "L1/2020/06/16/QL/solo_L1_stix-ql-background_20200616_V02.fits",
         "L1/2020/06/16/QL/solo_L1_stix-ql-flareflag_20200616_V02.fits",
@@ -324,17 +329,20 @@ if __name__ == '__main__':
         "L1/2021/09/20/HK/solo_L1_stix-hk-mini_20210920_V02.fits",
         # CAL
         "L1/2023/02/13/CAL/solo_L1_stix-cal-energy_20230213_V02.fits",
-
         # ANC
         # "ANC/2023/06/06/AUX/solo_L2_stix-aux-ephemeris_20230606_V02U.fits"
-        ]
+    ]
 
     remote = ["https://pub099.cs.technik.fhnw.ch/data/fits/" + x for x in files]
     # files = ["/home/shane/fits_test/" + x for x in files]
     files = [("/data/stix/out/fits_v1.2.0/" + x, remote[i]) for i, x in enumerate(files)]
 
-    files.append(("/data/stix/out/test/fits_ANC/ANC/2024/04/11/ASP/solo_ANC_stix-asp-ephemeris_20240411_V02U.fits",  # noqa
-                 "https://pub099.cs.technik.fhnw.ch/data/fits/ANC/2024/04/11/ASP/solo_ANC_stix-asp-ephemeris_20240411_V02U.fits"))  # noqa
+    files.append(
+        (
+            "/data/stix/out/test/fits_ANC/ANC/2024/04/11/ASP/solo_ANC_stix-asp-ephemeris_20240411_V02U.fits",  # noqa
+            "https://pub099.cs.technik.fhnw.ch/data/fits/ANC/2024/04/11/ASP/solo_ANC_stix-asp-ephemeris_20240411_V02U.fits",
+        )
+    )  # noqa
 
     with tempfile.TemporaryDirectory() as tempdir:
         temppath = Path(tempdir)
@@ -344,7 +352,7 @@ if __name__ == '__main__':
                 # urllib.request.urlretrieve(f, lf)
                 # print(f"Download: {f} to {lf}")
                 lf = f
-                l, t, pr = product(lf)
+                l, t, pr = product(lf)  # noqa: E741
                 collector[l][t].append(pr)
             except Exception as e:
                 print(e)
@@ -359,13 +367,12 @@ if __name__ == '__main__':
 
         # print(doc)
 
-        name_counter = {k: v for k, v in sorted(name_counter.items(),
-                                                key=lambda item: item[1], reverse=True)}
+        name_counter = {k: v for k, v in sorted(name_counter.items(), key=lambda item: item[1], reverse=True)}
 
         lutable = Table()
-        lutable['counter'] = list(name_counter.values())
-        lutable['name'] = list(name_counter.keys())
-        lutable['description'] = ""
+        lutable["counter"] = list(name_counter.values())
+        lutable["name"] = list(name_counter.keys())
+        lutable["description"] = ""
 
         print(lutable)
 

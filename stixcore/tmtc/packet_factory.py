@@ -2,14 +2,22 @@ from binascii import unhexlify
 
 from stixcore.tmtc.packets import GenericPacket, GenericTMPacket, SourcePacketHeader
 
-__all__ = ['Packet', 'BaseFactory', 'TMTCPacketFactory', 'TMPacketFactory',
-           'MultipleMatchError', 'NoMatchError', 'ValidationFunctionError']
+__all__ = [
+    "Packet",
+    "BaseFactory",
+    "TMTCPacketFactory",
+    "TMPacketFactory",
+    "MultipleMatchError",
+    "NoMatchError",
+    "ValidationFunctionError",
+]
 
 
 class BaseFactory:
     """
     An abstract base factory
     """
+
     def __init__(self, registry=None):
         """
         Method for running the factory.
@@ -75,6 +83,7 @@ class TMTCPacketFactory(BaseFactory):
     """
     Factory from TM/TC packets returning either TM or TC Packets
     """
+
     def __init__(self, registry=None):
         super().__init__(registry=registry)
         self.tm_packet_factory = TMPacketFactory(registry=GenericTMPacket._registry)  # noqa
@@ -91,6 +100,7 @@ class TMPacketFactory(BaseFactory):
     """
     Factory from TM packet return the correct type of based on the packet data and registered.
     """
+
     def __init__(self, registry=None):
         super().__init__(registry=registry)
 

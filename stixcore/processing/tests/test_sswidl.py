@@ -5,13 +5,11 @@ from stixcore.processing.sswidl import SSWIDLProcessor, SSWIDLTask
 
 
 class T1(SSWIDLTask):
-
     def __init__(self):
         super().__init__(script="print, 'T1'")
 
 
 class T2(SSWIDLTask):
-
     def __init__(self):
         super().__init__(script="print, 'T2'")
 

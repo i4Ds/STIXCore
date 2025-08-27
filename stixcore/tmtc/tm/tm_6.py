@@ -1,7 +1,8 @@
 """Service 6 – Memory management."""
+
 from stixcore.tmtc.packets import GenericTMPacket
 
-__all__ = ['TM_6_6', 'TM_6_10']
+__all__ = ["TM_6_6", "TM_6_10"]
 
 
 class TM_6_6(GenericTMPacket):

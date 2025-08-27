@@ -1,4 +1,5 @@
 """Module to encapsulate the SOC file reading and writing."""
+
 from pathlib import Path
 from binascii import unhexlify
 from xml.etree import ElementTree as Et
@@ -6,7 +7,7 @@ from xml.etree import ElementTree as Et
 from stixcore.tmtc.packets import TMTC
 from stixcore.util.logging import get_logger
 
-__all__ = ['SOCManager', 'SOCPacketFile']
+__all__ = ["SOCManager", "SOCPacketFile"]
 
 
 logger = get_logger(__name__)
@@ -39,14 +40,14 @@ class SOCPacketFile:
         self.spacecraft_date = None  # TODO some file name conventions?
         self.tmtc = TMTC.All
 
-        with open(self.file, "r") as f:
+        with open(self.file) as f:
             header = f.read(1000)
 
-            if 'Response' not in header:
+            if "Response" not in header:
                 raise ValueError("xml does not contain any 'Response'")
-            if 'PktRawResponse' in header:
+            if "PktRawResponse" in header:
                 self.tmtc = TMTC.TM
-            elif 'PktTcReportResponse' in header:
+            elif "PktTcReportResponse" in header:
                 self.tmtc = TMTC.TC
             else:
                 raise ValueError("xml does not contain any TM or TC response")
@@ -61,12 +62,12 @@ class SOCPacketFile:
         """
         root = Et.parse(str(self.file)).getroot()
         if self.tmtc == TMTC.TC:
-            for i, node in enumerate(root.iter('PktTcReportListElement')):
+            for i, node in enumerate(root.iter("PktTcReportListElement")):
                 # TODO add TC packer reading
                 pass
         elif self.tmtc == TMTC.TM:
-            for node in root.iter('PktRawResponseElement'):
-                packet_id = int(node.attrib['packetID'])
+            for node in root.iter("PktRawResponseElement"):
+                packet_id = int(node.attrib["packetID"])
                 packet = list(node)[0]
                 packet_binary = unhexlify(packet.text)
                 # Not sure why guess and extra moc header

@@ -20,7 +20,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        python-version: ["3.9"]
+        python-version: ["3.11"]
 
     steps:
     - name: Checkout github repo (+ download lfs dependencies)
@@ -41,4 +41,4 @@ jobs:
         if [ -f requirements.txt ]; then pip install -r requirements.txt; fi
     - name: end2end test with pytest
       run: |
-        pytest -p no:warnings --doctest-rst -m "end2end" --pyargs stixcore
+        pytest -p no:warnings --doctest-rst -m "end2end" --pyargs stixcore --remote-data=any

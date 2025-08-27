@@ -1,4 +1,4 @@
-__all__ = ['Singleton']
+__all__ = ["Singleton"]
 
 
 class Singleton(type):
@@ -8,11 +8,11 @@ class Singleton(type):
     @property
     def instance(cls):
         if cls._instance is None:
-            raise ValueError('Singleton not initalized')
+            raise ValueError("Singleton not initialized")
         return cls._instance
 
     @instance.setter
     def instance(cls, value):
         if not isinstance(value, cls):
-            raise ValueError(f'Singleton must be of type: {cls}')
+            raise ValueError(f"Singleton must be of type: {cls}")
         cls._instance = value

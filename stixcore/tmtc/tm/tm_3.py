@@ -1,7 +1,8 @@
 """Service 3 – housekeeping telemetry report."""
+
 from stixcore.tmtc.packets import GenericTMPacket
 
-__all__ = ['TM_3_25_1', 'TM_3_25_2', 'TM_3_25_4']
+__all__ = ["TM_3_25_1", "TM_3_25_2", "TM_3_25_4"]
 
 
 class TM_3_25_1(GenericTMPacket):

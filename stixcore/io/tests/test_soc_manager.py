@@ -17,14 +17,13 @@ def base_dir():
 
 
 def test_soc_manager(soc_manager):
-    assert str(soc_manager.data_root) ==\
-           str((Path(__file__).parent.parent.parent / "data" / "test" / "io" / "soc"))
+    assert str(soc_manager.data_root) == str(Path(__file__).parent.parent.parent / "data" / "test" / "io" / "soc")
 
 
 def test_root_not_found_error():
     with pytest.raises(ValueError) as e:
         _ = SOCManager(".foo/")
-    assert str(e.value).startswith('path not found')
+    assert str(e.value).startswith("path not found")
 
 
 def test_get_files(soc_manager):
@@ -45,4 +44,5 @@ def test_soc_file(base_dir):
 
     with pytest.raises(ValueError) as e:
         _ = SOCPacketFile(".foo/")
-        assert str(e.value).startswith('path not found')
+
+    assert "path not found" in str(e.value)

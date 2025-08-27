@@ -58,9 +58,10 @@ References
 
 STIX-TN-0015-ETH_I1R0_Caliste_Rates
 """
+
 import numpy as np
 
-__all__ = ['get_livetime_fraction']
+__all__ = ["get_livetime_fraction"]
 
 
 def get_livetime_fraction(trigger_rate, *, eta, tau):
@@ -81,7 +82,7 @@ def get_livetime_fraction(trigger_rate, *, eta, tau):
     `float`, `float`, `float`:
         The live time fraction
     """
-    photons_in = trigger_rate / (1. - trigger_rate * (tau + eta))
-    livetime_fraction = 1 / (1. + (tau + eta) * photons_in)
+    photons_in = trigger_rate / (1.0 - trigger_rate * (tau + eta))
+    livetime_fraction = 1 / (1.0 + (tau + eta) * photons_in)
     two_photon = np.exp(-eta * photons_in) * livetime_fraction
     return livetime_fraction, two_photon, photons_in

@@ -16,14 +16,14 @@ from stixcore.soop.manager import SOOPManager
 from stixcore.util.logging import get_logger
 from stixcore.util.util import get_complete_file_name_and_path, get_incomplete_file_name_and_path
 
-__all__ = ['AspectANC']
+__all__ = ["AspectANC"]
 
 logger = get_logger(__name__)
 
 
 class AspectANC(SingleProductProcessingStepMixin):
-    """Processing step from a HK L1 fits file to a solo_ANC_stix-asp-ephemeris*.fits file.
-    """
+    """Processing step from a HK L1 fits file to a solo_ANC_stix-asp-ephemeris*.fits file."""
+
     INPUT_PATTERN = "solo_L1_stix-hk-maxi_*.fits"
 
     def __init__(self, source_dir: Path, output_dir: Path):
@@ -49,8 +49,7 @@ class AspectANC(SingleProductProcessingStepMixin):
         """
         return list(self.source_dir.rglob(self.ProductInputPattern))
 
-    def test_for_processing(self, candidate: Path,
-                            phm: ProcessingHistoryStorage) -> TestForProcessingResult:
+    def test_for_processing(self, candidate: Path, phm: ProcessingHistoryStorage) -> TestForProcessingResult:
         """_summary_
 
         Parameters
@@ -67,15 +66,15 @@ class AspectANC(SingleProductProcessingStepMixin):
         """
         try:
             c_header = fits.getheader(candidate)
-            f_data_end = datetime.fromisoformat(c_header['DATE-END'])
-            f_create_date = datetime.fromisoformat(c_header['DATE'])
-            f_version = int(c_header['VERSION'])
+            f_data_end = datetime.fromisoformat(c_header["DATE-END"])
+            f_create_date = datetime.fromisoformat(c_header["DATE"])
+            f_version = int(c_header["VERSION"])
 
             cfn = get_complete_file_name_and_path(candidate)
 
-            was_processed = phm.has_processed_fits_products('ephemeris', 'ANC', 'asp',
-                                                            Ephemeris.get_cls_processing_version(),
-                                                            str(cfn), f_create_date)
+            was_processed = phm.has_processed_fits_products(
+                "ephemeris", "ANC", "asp", Ephemeris.get_cls_processing_version(), str(cfn), f_create_date
+            )
 
             # found already in the processing history
             if was_processed:
@@ -90,8 +89,7 @@ class AspectANC(SingleProductProcessingStepMixin):
             # safety margin of 1day until we start with processing of HK files into ANC-asp files
             # only use flown spice kernels not predicted once as pointing information
             # can be "very off"
-            if (f_data_end > (Spice.instance.get_mk_date(meta_kernel_type="flown")
-                              - timedelta(hours=24))):
+            if f_data_end > (Spice.instance.get_mk_date(meta_kernel_type="flown") - timedelta(hours=24)):
                 return TestForProcessingResult.NotSuitable
 
             return TestForProcessingResult.Suitable
@@ -99,8 +97,9 @@ class AspectANC(SingleProductProcessingStepMixin):
             logger.error(e)
         return TestForProcessingResult.NotSuitable
 
-    def process_fits_files(self, files: list[Path], *, soopmanager: SOOPManager,
-                           spice_kernel_path: Path, processor, config) -> list[Path]:
+    def process_fits_files(
+        self, files: list[Path], *, soopmanager: SOOPManager, spice_kernel_path: Path, processor, config
+    ) -> list[Path]:
         """Performs the processing (expected to run in a dedicated python process) from a
         list of solo_L1_stix-hk-maxi_*.fits into solo_ANC_stix-asp-ephemeris*.fits files.
 
@@ -134,39 +133,36 @@ class AspectANC(SingleProductProcessingStepMixin):
             l1hk = Product(pf)
 
             data = QTable()
-            data['cha_diode0'] = l1hk.data['hk_asp_photoa0_v']
-            data['cha_diode1'] = l1hk.data['hk_asp_photoa1_v']
-            data['chb_diode0'] = l1hk.data['hk_asp_photob0_v']
-            data['chb_diode1'] = l1hk.data['hk_asp_photob1_v']
-            data['time'] = [d.strftime('%Y-%m-%dT%H:%M:%S.%f')
-                            for d in l1hk.data['time'].to_datetime()]
-            data['scet_time_f'] = l1hk.data['time'].fine
-            data['scet_time_c'] = l1hk.data['time'].coarse
+            data["cha_diode0"] = l1hk.data["hk_asp_photoa0_v"]
+            data["cha_diode1"] = l1hk.data["hk_asp_photoa1_v"]
+            data["chb_diode0"] = l1hk.data["hk_asp_photob0_v"]
+            data["chb_diode1"] = l1hk.data["hk_asp_photob1_v"]
+            data["time"] = [d.strftime("%Y-%m-%dT%H:%M:%S.%f") for d in l1hk.data["time"].to_datetime()]
+            data["scet_time_f"] = l1hk.data["time"].fine
+            data["scet_time_c"] = l1hk.data["time"].coarse
 
             # TODO set to seconds
-            dur = (l1hk.data['time'][1:] - l1hk.data['time'][0:-1]).as_float().value
-            data['duration'] = dur[0]
-            data['duration'][0:-1] = dur
-            data['duration'][:] = dur[-1]
+            dur = (l1hk.data["time"][1:] - l1hk.data["time"][0:-1]).as_float().value
+            data["duration"] = dur[0]
+            data["duration"][0:-1] = dur
+            data["duration"][:] = dur[-1]
 
-            data['spice_disc_size'] = [Spice.instance.get_sun_disc_size(date=d)
-                                       for d in l1hk.data['time']]
+            data["spice_disc_size"] = [Spice.instance.get_sun_disc_size(date=d) for d in l1hk.data["time"]]
 
-            data['y_srf'] = 0.0
-            data['z_srf'] = 0.0
-            data['calib'] = 0.0
-            data['sas_ok'] = np.byte(0)
-            data['error'] = ""
-            data['control_index'] = l1hk.data['control_index']
+            data["y_srf"] = 0.0
+            data["z_srf"] = 0.0
+            data["calib"] = 0.0
+            data["sas_ok"] = np.byte(0)
+            data["error"] = ""
+            data["control_index"] = l1hk.data["control_index"]
 
             dataobj = dict()
             for coln in data.colnames:
                 dataobj[coln] = data[coln].value.tolist()
 
-            f = {'parentfits': str(get_incomplete_file_name_and_path(pf)),
-                 'data': dataobj}
+            f = {"parentfits": str(get_incomplete_file_name_and_path(pf)), "data": dataobj}
 
-            idlprocessor[AspectIDLProcessing].params['hk_files'].append(f)
+            idlprocessor[AspectIDLProcessing].params["hk_files"].append(f)
             idlprocessor.opentasks += 1
 
             if idlprocessor.opentasks >= max_idlbatch:

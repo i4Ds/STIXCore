@@ -1,6 +1,7 @@
 """Processing module for applying the skm decompression for configured parameters."""
 
-from stixcore.calibration.compression import decompress as algo_decompress
+from stixpy.calibration.compression import decompress as algo_decompress
+
 from stixcore.tmtc.parameter import CompressedParameter
 
 __all__ = ["decompress"]

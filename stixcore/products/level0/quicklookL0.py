@@ -1,7 +1,7 @@
 """
 High level STIX data products created from single stand alone packets or a sequence of packets.
 """
-import warnings
+
 from itertools import chain, repeat
 from collections import defaultdict
 
@@ -332,6 +332,10 @@ class Background(QLProduct):
         return kwargs["level"] == "L0" and service_type == 21 and service_subtype == 6 and ssid == 31
 
 
+class QLSpectraReshapeError(Exception):
+    pass
+
+
 class Spectra(QLProduct):
     """Quick Look Spectra data product.
 
@@ -374,19 +378,14 @@ class Spectra(QLProduct):
         did = packets.get_value("NIX00100")
         pad_before = did[0]
         pad_after = 31 - did[-1]
-        control_indices = np.hstack([np.full(ns, cind) for ns, cind
-                                     in control[['num_samples', 'index']]])
-        control_indices = np.pad(control_indices, (pad_before, pad_after),
-                                 mode='edge')
+        control_indices = np.hstack([np.full(ns, cind) for ns, cind in control[["num_samples", "index"]]])
+        control_indices = np.pad(control_indices, (pad_before, pad_after), mode="edge")
         try:
             control_indices = control_indices.reshape(-1, 32)
         except ValueError as e:
-            err_message = str(e)
-            if 'cannot reshape array' in err_message:
-                warnings.warn(err_message)
-            else:
-                raise e
-
+            if "cannot reshape" in str(e):
+                raise QLSpectraReshapeError(str(e))
+            raise e
         duration, time, scet_timerange = cls._get_time(control, num_energies, packets, pad_before, pad_after)
 
         counts = []

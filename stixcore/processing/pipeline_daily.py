@@ -269,16 +269,17 @@ def run_daily_pipeline(args):
         hk_in_files = []
 
         fl_sdc_months = flarelist_sdc.find_processing_months(phs)
-        # fl_sdc_months = []
+        fl_sdc_months = []
 
         # fl_sc_months = flarelist_sc.find_processing_months(phs)
         fl_sc_months = []
 
-        # ll_candidates = ll03ql.get_processing_files(phs)
-        ll_candidates = []
+        ll_candidates = ll03ql.get_processing_files(phs)
+        # ll_candidates = []
+        # ll_candidates = ll_candidates[0:40]
 
         fl_to_fl_files = fl_to_fl.get_processing_files(phs)
-        # fl_to_fl_files = []
+        fl_to_fl_files = []
 
         # all processing files should be terminated before the next step as the different
         # processing steeps might create new candidates

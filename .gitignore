@@ -153,7 +153,6 @@ docs/_build
 docs/generated
 docs/api
 docs/whatsnew/latest_changelog.txt
-stixcore/version.py
 htmlcov/
 *.prof
 pdpp.html
@@ -165,3 +164,4 @@ stixcore/data/test/products/end2end/
 monitor_status.json
 stixcore/data/test/idb/v2.26.38/idb.sqlite
 .python-version
+sunpy/_version.py

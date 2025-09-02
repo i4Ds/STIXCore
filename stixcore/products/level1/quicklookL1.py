@@ -11,8 +11,7 @@ from stixcore.products.product import L1Mixin
 from stixcore.time import SCETimeRange
 from stixcore.util.logging import get_logger
 
-__all__ = ['LightCurve', 'Background', 'Spectra', 'Variance', 'FlareFlag',
-           'EnergyCalibration', 'TMStatusFlareList']
+__all__ = ["LightCurve", "Background", "Spectra", "Variance", "FlareFlag", "EnergyCalibration", "TMStatusFlareList"]
 
 logger = get_logger(__name__)
 
@@ -23,18 +22,25 @@ class LightCurve(QLProduct, L1Mixin):
     In level 1 format.
     """
 
-    def __init__(self, *, service_type, service_subtype, ssid, control, data,
-                 idb_versions=defaultdict(SCETimeRange), **kwargs):
-        super().__init__(service_type=service_type, service_subtype=service_subtype, ssid=ssid,
-                         control=control, data=data, idb_versions=idb_versions, **kwargs)
+    def __init__(
+        self, *, service_type, service_subtype, ssid, control, data, idb_versions=defaultdict(SCETimeRange), **kwargs
+    ):
+        super().__init__(
+            service_type=service_type,
+            service_subtype=service_subtype,
+            ssid=ssid,
+            control=control,
+            data=data,
+            idb_versions=idb_versions,
+            **kwargs,
+        )
 
-        self.name = 'lightcurve'
-        self.level = 'L1'
+        self.name = "lightcurve"
+        self.level = "L1"
 
     @classmethod
-    def is_datasource_for(cls,  *, service_type, service_subtype, ssid, **kwargs):
-        return (kwargs['level'] == 'L1' and service_type == 21
-                and service_subtype == 6 and ssid == 30)
+    def is_datasource_for(cls, *, service_type, service_subtype, ssid, **kwargs):
+        return kwargs["level"] == "L1" and service_type == 21 and service_subtype == 6 and ssid == 30
 
 
 class Background(QLProduct, L1Mixin):
@@ -43,18 +49,25 @@ class Background(QLProduct, L1Mixin):
     In level 1 format.
     """
 
-    def __init__(self, *, service_type, service_subtype, ssid, control, data,
-                 idb_versions=defaultdict(SCETimeRange), **kwargs):
-        super().__init__(service_type=service_type, service_subtype=service_subtype, ssid=ssid,
-                         control=control, data=data, idb_versions=idb_versions, **kwargs)
+    def __init__(
+        self, *, service_type, service_subtype, ssid, control, data, idb_versions=defaultdict(SCETimeRange), **kwargs
+    ):
+        super().__init__(
+            service_type=service_type,
+            service_subtype=service_subtype,
+            ssid=ssid,
+            control=control,
+            data=data,
+            idb_versions=idb_versions,
+            **kwargs,
+        )
 
-        self.name = 'background'
-        self.level = 'L1'
+        self.name = "background"
+        self.level = "L1"
 
     @classmethod
-    def is_datasource_for(cls,  *, service_type, service_subtype, ssid, **kwargs):
-        return (kwargs['level'] == 'L1' and service_type == 21
-                and service_subtype == 6 and ssid == 31)
+    def is_datasource_for(cls, *, service_type, service_subtype, ssid, **kwargs):
+        return kwargs["level"] == "L1" and service_type == 21 and service_subtype == 6 and ssid == 31
 
 
 class Spectra(QLProduct, L1Mixin):
@@ -63,26 +76,33 @@ class Spectra(QLProduct, L1Mixin):
     In level 1 format.
     """
 
-    def __init__(self, *, service_type, service_subtype, ssid, control, data,
-                 idb_versions=defaultdict(SCETimeRange), **kwargs):
-        super().__init__(service_type=service_type, service_subtype=service_subtype, ssid=ssid,
-                         control=control, data=data, idb_versions=idb_versions, **kwargs)
+    def __init__(
+        self, *, service_type, service_subtype, ssid, control, data, idb_versions=defaultdict(SCETimeRange), **kwargs
+    ):
+        super().__init__(
+            service_type=service_type,
+            service_subtype=service_subtype,
+            ssid=ssid,
+            control=control,
+            data=data,
+            idb_versions=idb_versions,
+            **kwargs,
+        )
 
-        self.name = 'spectra'
-        self.level = 'L1'
+        self.name = "spectra"
+        self.level = "L1"
 
     @property
     def dmin(self):
-        return self.data['spectra'].min().value
+        return self.data["spectra"].min().value
 
     @property
     def dmax(self):
-        return self.data['spectra'].max().value
+        return self.data["spectra"].max().value
 
     @classmethod
-    def is_datasource_for(cls,  *, service_type, service_subtype, ssid, **kwargs):
-        return (kwargs['level'] == 'L1' and service_type == 21
-                and service_subtype == 6 and ssid == 32)
+    def is_datasource_for(cls, *, service_type, service_subtype, ssid, **kwargs):
+        return kwargs["level"] == "L1" and service_type == 21 and service_subtype == 6 and ssid == 32
 
 
 class Variance(QLProduct, L1Mixin):
@@ -91,31 +111,38 @@ class Variance(QLProduct, L1Mixin):
     In level 1 format.
     """
 
-    def __init__(self, *, service_type, service_subtype, ssid, control, data,
-                 idb_versions=defaultdict(SCETimeRange), **kwargs):
-        super().__init__(service_type=service_type, service_subtype=service_subtype, ssid=ssid,
-                         control=control, data=data, idb_versions=idb_versions, **kwargs)
+    def __init__(
+        self, *, service_type, service_subtype, ssid, control, data, idb_versions=defaultdict(SCETimeRange), **kwargs
+    ):
+        super().__init__(
+            service_type=service_type,
+            service_subtype=service_subtype,
+            ssid=ssid,
+            control=control,
+            data=data,
+            idb_versions=idb_versions,
+            **kwargs,
+        )
 
-        self.name = 'variance'
-        self.level = 'L1'
+        self.name = "variance"
+        self.level = "L1"
 
     @property
     def dmin(self):
-        return self.data['variance'].min()
+        return self.data["variance"].min()
 
     @property
     def dmax(self):
-        return self.data['variance'].max()
+        return self.data["variance"].max()
 
     @property
     def bunit(self):
         # TODO define
-        return ' '
+        return " "
 
     @classmethod
-    def is_datasource_for(cls,  *, service_type, service_subtype, ssid, **kwargs):
-        return (kwargs['level'] == 'L1' and service_type == 21
-                and service_subtype == 6 and ssid == 33)
+    def is_datasource_for(cls, *, service_type, service_subtype, ssid, **kwargs):
+        return kwargs["level"] == "L1" and service_type == 21 and service_subtype == 6 and ssid == 33
 
 
 class FlareFlag(QLProduct, L1Mixin):
@@ -124,31 +151,38 @@ class FlareFlag(QLProduct, L1Mixin):
     In level 1 format.
     """
 
-    def __init__(self, *, service_type, service_subtype, ssid, control, data,
-                 idb_versions=defaultdict(SCETimeRange), **kwargs):
-        super().__init__(service_type=service_type, service_subtype=service_subtype, ssid=ssid,
-                         control=control, data=data, idb_versions=idb_versions, **kwargs)
+    def __init__(
+        self, *, service_type, service_subtype, ssid, control, data, idb_versions=defaultdict(SCETimeRange), **kwargs
+    ):
+        super().__init__(
+            service_type=service_type,
+            service_subtype=service_subtype,
+            ssid=ssid,
+            control=control,
+            data=data,
+            idb_versions=idb_versions,
+            **kwargs,
+        )
 
-        self.name = 'flareflag'
-        self.level = 'L1'
+        self.name = "flareflag"
+        self.level = "L1"
 
     @property
     def dmin(self):
-        return np.nanmin([self.data['loc_y'].min(), self.data['loc_z'].min()])
+        return np.nanmin([self.data["loc_y"].min(), self.data["loc_z"].min()])
 
     @property
     def dmax(self):
-        return np.nanmax([self.data['loc_y'].max(), self.data['loc_z'].max()])
+        return np.nanmax([self.data["loc_y"].max(), self.data["loc_z"].max()])
 
     @property
     def bunit(self):
         # TODO define
-        return ' '
+        return " "
 
     @classmethod
-    def is_datasource_for(cls,  *, service_type, service_subtype, ssid, **kwargs):
-        return (kwargs['level'] == 'L1' and service_type == 21
-                and service_subtype == 6 and ssid == 34)
+    def is_datasource_for(cls, *, service_type, service_subtype, ssid, **kwargs):
+        return kwargs["level"] == "L1" and service_type == 21 and service_subtype == 6 and ssid == 34
 
 
 class EnergyCalibration(QLProduct, L1Mixin):
@@ -157,19 +191,26 @@ class EnergyCalibration(QLProduct, L1Mixin):
     In level 1 format.
     """
 
-    def __init__(self, *, service_type, service_subtype, ssid, control, data,
-                 idb_versions=defaultdict(SCETimeRange), **kwargs):
-        super().__init__(service_type=service_type, service_subtype=service_subtype, ssid=ssid,
-                         control=control, data=data, idb_versions=idb_versions, **kwargs)
+    def __init__(
+        self, *, service_type, service_subtype, ssid, control, data, idb_versions=defaultdict(SCETimeRange), **kwargs
+    ):
+        super().__init__(
+            service_type=service_type,
+            service_subtype=service_subtype,
+            ssid=ssid,
+            control=control,
+            data=data,
+            idb_versions=idb_versions,
+            **kwargs,
+        )
 
-        self.name = 'energy'
-        self.level = 'L1'
-        self.type = 'cal'
+        self.name = "energy"
+        self.level = "L1"
+        self.type = "cal"
 
     @classmethod
-    def is_datasource_for(cls,  *, service_type, service_subtype, ssid, **kwargs):
-        return (kwargs['level'] == 'L1' and service_type == 21
-                and service_subtype == 6 and ssid == 41)
+    def is_datasource_for(cls, *, service_type, service_subtype, ssid, **kwargs):
+        return kwargs["level"] == "L1" and service_type == 21 and service_subtype == 6 and ssid == 41
 
 
 class TMStatusFlareList(QLProduct, L1Mixin):
@@ -178,13 +219,21 @@ class TMStatusFlareList(QLProduct, L1Mixin):
     In level 1 format.
     """
 
-    def __init__(self, *, service_type, service_subtype, ssid, control, data,
-                 idb_versions=defaultdict(SCETimeRange), **kwargs):
-        super().__init__(service_type=service_type, service_subtype=service_subtype, ssid=ssid,
-                         control=control, data=data, idb_versions=idb_versions, **kwargs)
+    def __init__(
+        self, *, service_type, service_subtype, ssid, control, data, idb_versions=defaultdict(SCETimeRange), **kwargs
+    ):
+        super().__init__(
+            service_type=service_type,
+            service_subtype=service_subtype,
+            ssid=ssid,
+            control=control,
+            data=data,
+            idb_versions=idb_versions,
+            **kwargs,
+        )
 
-        self.name = 'tmstatusflarelist'
-        self.level = 'L1'
+        self.name = "tmstatusflarelist"
+        self.level = "L1"
 
     @property
     def dmin(self):
@@ -199,9 +248,8 @@ class TMStatusFlareList(QLProduct, L1Mixin):
     @property
     def bunit(self):
         # TODO define
-        return ''
+        return ""
 
     @classmethod
-    def is_datasource_for(cls,  *, service_type, service_subtype, ssid, **kwargs):
-        return (kwargs['level'] == 'L1' and service_type == 21
-                and service_subtype == 6 and ssid == 43)
+    def is_datasource_for(cls, *, service_type, service_subtype, ssid, **kwargs):
+        return kwargs["level"] == "L1" and service_type == 21 and service_subtype == 6 and ssid == 43

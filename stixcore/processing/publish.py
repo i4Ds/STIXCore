@@ -30,8 +30,7 @@ from stixcore.time.datetime import SCETime
 from stixcore.util.logging import get_logger
 from stixcore.util.util import get_complete_file_name, is_incomplete_file_name
 
-__all__ = ['PublishConflicts', 'PublishHistoryStorage', 'publish_fits_to_esa',
-           'PublishHistoryStorage', 'PublishResult']
+__all__ = ["PublishConflicts", "PublishHistoryStorage", "publish_fits_to_esa", "PublishHistoryStorage", "PublishResult"]
 
 logger = get_logger(__name__)
 
@@ -51,7 +50,7 @@ class PublishConflicts(Enum):
 
 
 class PublishResult(Enum):
-    """Result type for a FITS file published to ESA """
+    """Result type for a FITS file published to ESA"""
 
     PUBLISHED = 10
     """All good files was published"""
@@ -72,6 +71,7 @@ class PublishResult(Enum):
 
 class Capturing(list):
     """Context manager to read from stdout into a variable."""
+
     def __enter__(self):
         self._stdout = sys.stdout
         sys.stdout = self._stringio = StringIO()
@@ -79,7 +79,7 @@ class Capturing(list):
 
     def __exit__(self, *args):
         self.extend(self._stringio.getvalue().splitlines())
-        del self._stringio    # free up some memory
+        del self._stringio  # free up some memory
         sys.stdout = self._stdout
 
 
@@ -104,9 +104,9 @@ class PublishHistoryStorage:
         try:
             self.conn = sqlite3.connect(self.filename)
             self.cur = self.conn.cursor()
-            logger.info('PublishHistory DB loaded from {}'.format(self.filename))
+            logger.info(f"PublishHistory DB loaded from {self.filename}")
 
-            sql = '''CREATE TABLE if not exists published (
+            sql = """CREATE TABLE if not exists published (
                         id INTEGER PRIMARY KEY AUTOINCREMENT,
                         name TEXT UNIQUE NOT NULL,
                         path TEXT NOT NULL,
@@ -117,14 +117,14 @@ class PublishHistoryStorage:
                         modified_esaname TEXT,
                         result INTEGER
                     )
-            '''
+            """
             self.cur.execute(sql)
-            self.cur.execute('CREATE INDEX if not exists esaname ON published (esaname)')
-            self.cur.execute('CREATE INDEX if not exists p_date ON published (p_date)')
+            self.cur.execute("CREATE INDEX if not exists esaname ON published (esaname)")
+            self.cur.execute("CREATE INDEX if not exists p_date ON published (p_date)")
 
             self.conn.commit()
         except sqlite3.Error:
-            logger.error('Failed load DB from {}'.format(self.filename))
+            logger.error(f"Failed load DB from {self.filename}")
             self.close()
             raise
 
@@ -175,41 +175,38 @@ class PublishHistoryStorage:
         name = path.name
         dir = str(path.parent)
         date = datetime.now().timestamp()
-        parts = name[:-5].split('_')
+        parts = name[:-5].split("_")
         version = int(parts[4].lower().replace("v", "").replace("u", ""))
-        esa_name = '_'.join(parts[0:5])
+        esa_name = "_".join(parts[0:5])
         m_date = path.stat().st_ctime
         try:
-            self.cur.execute("""insert into published
+            self.cur.execute(
+                """insert into published
                                     (name, path, version, p_date, m_date, esaname)
                                     values(?, ?, ?, ?, ?, ?)""",
-                             (name, dir, version, date, m_date, esa_name))
+                (name, dir, version, date, m_date, esa_name),
+            )
             others = self.find_by_esa_name(esa_name)
-            if (len(others) > 1):
+            if len(others) > 1:
                 return (PublishConflicts.SAME_ESA_NAME, others)
             else:
                 return (PublishConflicts.ADDED, others)
         except sqlite3.IntegrityError:
             return (PublishConflicts.SAME_EXISTS, self.find_by_name(name))
 
-    def _execute(self, sql, arguments=None, result_type='list'):
+    def _execute(self, sql, arguments=None, result_type="list"):
         """Execute sql and return results in a list or a dictionary."""
         if not self.cur:
-            raise Exception('DB is not initialized!')
+            raise Exception("DB is not initialized!")
         else:
             if arguments:
                 self.cur.execute(sql, arguments)
             else:
                 self.cur.execute(sql)
-            if result_type == 'list':
+            if result_type == "list":
                 rows = self.cur.fetchall()
             else:
-                rows = [
-                    dict(
-                        zip([column[0]
-                            for column in self.cur.description], row))
-                    for row in self.cur.fetchall()
-                ]
+                rows = [dict(zip([column[0] for column in self.cur.description], row)) for row in self.cur.fetchall()]
             return rows
 
     def find_by_name(self, name):
@@ -225,7 +222,7 @@ class PublishHistoryStorage:
         `hash`
             the history entry
         """
-        return self._execute("select * from published where name = ?", (name, ), result_type='hash')
+        return self._execute("select * from published where name = ?", (name,), result_type="hash")
 
     def find_by_esa_name(self, esa_name):
         """Finds all history entries based on the the ESA name (not unique).
@@ -240,8 +237,9 @@ class PublishHistoryStorage:
         `list`
             list of all found files with the same ESA file name
         """
-        return self._execute("select * from published where esaname = ? order by p_date asc",
-                             (esa_name, ), result_type='hash')
+        return self._execute(
+            "select * from published where esaname = ? order by p_date asc", (esa_name,), result_type="hash"
+        )
 
     def set_modified_esa_name(self, name, id):
         """Updates the modified ESA file name of an entry.
@@ -258,8 +256,7 @@ class PublishHistoryStorage:
         `hash`
             the update result
         """
-        return self._execute("update published set modified_esaname = ? where id = ? ",
-                             (name, id), result_type='hash')
+        return self._execute("update published set modified_esaname = ? where id = ? ", (name, id), result_type="hash")
 
     def set_result(self, result, id):
         """Sets the result of a publishing action for a given file.
@@ -276,8 +273,7 @@ class PublishHistoryStorage:
         `hash`
             the update result
         """
-        return self._execute("update published set result = ? where id = ? ",
-                             (result.value, id), result_type='hash')
+        return self._execute("update published set result = ? where id = ? ", (result.value, id), result_type="hash")
 
     def get_all(self):
         """Queries all entries
@@ -298,7 +294,7 @@ def send_mail_report(files):
     files : dict
         all handled files grouped by the success/error state
     """
-    if CONFIG.getboolean('Publish', 'report_mail_send', fallback=False):
+    if CONFIG.getboolean("Publish", "report_mail_send", fallback=False):
         try:
             try:
                 with Capturing() as open_tm_files:
@@ -306,15 +302,17 @@ def send_mail_report(files):
             except Exception as se:
                 open_tm_files = str(se)
 
-            sender = CONFIG.get('Pipeline', 'error_mail_sender', fallback='')
-            receivers = CONFIG.get('Publish', 'report_mail_receivers').split(",")
-            host = CONFIG.get('Pipeline', 'error_mail_smpt_host', fallback='localhost')
-            port = CONFIG.getint('Pipeline', 'error_mail_smpt_port', fallback=25)
+            sender = CONFIG.get("Pipeline", "error_mail_sender", fallback="")
+            receivers = CONFIG.get("Publish", "report_mail_receivers").split(",")
+            host = CONFIG.get("Pipeline", "error_mail_smpt_host", fallback="localhost")
+            port = CONFIG.getint("Pipeline", "error_mail_smpt_port", fallback=25)
             smtp_server = smtplib.SMTP(host=host, port=port)
-            su = (f"E {len(files[PublishResult.ERROR])} "
-                  f"I {len(files[PublishResult.IGNORED]) + len(files[PublishResult.BLACKLISTED])} "
-                  f"S {len(files[PublishResult.MODIFIED])} "
-                  f"P {len(files[PublishResult.PUBLISHED])}")
+            su = (
+                f"E {len(files[PublishResult.ERROR])} "
+                f"I {len(files[PublishResult.IGNORED]) + len(files[PublishResult.BLACKLISTED])} "
+                f"S {len(files[PublishResult.MODIFIED])} "
+                f"P {len(files[PublishResult.PUBLISHED])}"
+            )
             error = "" if len(files[PublishResult.ERROR]) <= 0 else "ERROR-"
             message = f"""Subject: StixCore TMTC Publishing {error}Report {su}
 
@@ -369,16 +367,16 @@ def update_ephemeris_headers(fits_file, spice):
         Spice kernel manager with loaded spice kernels.
     """
     product = Product(fits_file)
-    if product.level in ['L1', 'L2', 'ANC']:
-        ephemeris_headers = \
-            spice.get_fits_headers(start_time=product.utc_timerange.start,
-                                   average_time=product.utc_timerange.center)
-        with fits.open(fits_file, 'update') as f:
+    if product.level in ["L1", "L2", "ANC"]:
+        ephemeris_headers = spice.get_fits_headers(
+            start_time=product.utc_timerange.start, average_time=product.utc_timerange.center
+        )
+        with fits.open(fits_file, "update") as f:
             for hdu in f:
-                now = datetime.now().isoformat(timespec='milliseconds')
-                hdu.header['HISTORY'] = f'updated ephemeris header with latest kernel at {now}'
+                now = datetime.now().isoformat(timespec="milliseconds")
+                hdu.header["HISTORY"] = f"updated ephemeris header with latest kernel at {now}"
                 # rename the header filename to be complete
-                hdu.header['FILENAME'] = get_complete_file_name(hdu.header['FILENAME'])
+                hdu.header["FILENAME"] = get_complete_file_name(hdu.header["FILENAME"])
                 hdu.header.update(ephemeris_headers)
                 # just update the first primary HDU
                 break
@@ -399,10 +397,10 @@ def add_BSD_comment(p):
         the comment string in case of BSD
     """
     try:
-        parts = p.name.split('_')
+        parts = p.name.split("_")
         if len(parts) > 5:
             rid = parts[5].replace(".fits", "")
-            rid = int(rid.split('-')[0])
+            rid = int(rid.split("-")[0])
 
             reason = RidLutManager.instance.get_reason(rid)
 
@@ -412,7 +410,7 @@ def add_BSD_comment(p):
     except Exception as e:
         logger.debug(e, exc_info=True)
         logger.info(f"no BSD request comment added nothing found in LUT for rid: {rid}")
-    return ''
+    return ""
 
 
 def add_history(p, name):
@@ -425,7 +423,7 @@ def add_history(p, name):
     name : str
         the ESA file name version of the FITS file.
     """
-    time_formated = datetime.now().isoformat(timespec='milliseconds')
+    time_formated = datetime.now().isoformat(timespec="milliseconds")
     h_entry = f"published to ESA SOAR as '{name}' on {time_formated}"
     fits.setval(p, "HISTORY", value=h_entry)
 
@@ -478,99 +476,163 @@ def publish_fits_to_esa(args):
         list of published files
     """
 
-    parser = argparse.ArgumentParser(description='STIX publish to ESA processing step',
-                                     formatter_class=argparse.ArgumentDefaultsHelpFormatter)
+    parser = argparse.ArgumentParser(
+        description="STIX publish to ESA processing step", formatter_class=argparse.ArgumentDefaultsHelpFormatter
+    )
 
-    # pathes
-    parser.add_argument("-t", "--target_dir",
-                        help="target directory where fits files should be copied to",
-                        default=CONFIG.get('Publish', 'target_dir'), type=str)
+    # paths
+    parser.add_argument(
+        "-t",
+        "--target_dir",
+        help="target directory where fits files should be copied to",
+        default=CONFIG.get("Publish", "target_dir"),
+        type=str,
+    )
 
-    # pathes
-    parser.add_argument("-T", "--target_host",
-                        help="target host server where fits files should be copied to",
-                        default=CONFIG.get('Publish', 'target_host', fallback="localhost"),
-                        type=str)
+    # paths
+    parser.add_argument(
+        "-T",
+        "--target_host",
+        help="target host server where fits files should be copied to",
+        default=CONFIG.get("Publish", "target_host", fallback="localhost"),
+        type=str,
+    )
 
-    parser.add_argument("-s", "--same_esa_name_dir",
-                        help=("target directory where fits files should be copied to if there are "
-                              "any naming conflicts with already published files"),
-                        default=CONFIG.get('Publish', 'same_esa_name_dir'), type=str)
+    parser.add_argument(
+        "-s",
+        "--same_esa_name_dir",
+        help=(
+            "target directory where fits files should be copied to if there are "
+            "any naming conflicts with already published files"
+        ),
+        default=CONFIG.get("Publish", "same_esa_name_dir"),
+        type=str,
+    )
 
-    parser.add_argument("-r", "--rid_lut_file",
-                        help=("Path to the rid LUT file"),
-                        default=CONFIG.get('Publish', 'rid_lut_file'), type=str)
+    parser.add_argument(
+        "-r",
+        "--rid_lut_file",
+        help=("Path to the rid LUT file"),
+        default=CONFIG.get("Publish", "rid_lut_file"),
+        type=str,
+    )
 
-    parser.add_argument("--update_rid_lut",
-                        help="update rid lut file before publishing",
-                        default=False,
-                        action='store_true', dest='update_rid_lut')
+    parser.add_argument(
+        "--update_rid_lut",
+        help="update rid lut file before publishing",
+        default=False,
+        action="store_true",
+        dest="update_rid_lut",
+    )
 
-    parser.add_argument("--sort_files",
-                        help="should the matched FITS be sorted by name before publishing.",
-                        default=False,
-                        action='store_true', dest='sort_files')
+    parser.add_argument(
+        "--sort_files",
+        help="should the matched FITS be sorted by name before publishing.",
+        default=False,
+        action="store_true",
+        dest="sort_files",
+    )
 
-    parser.add_argument("--blacklist_files",
-                        help="input txt file with file names to that should not be delivered",
-                        default=None, type=str, dest='blacklist_files')
+    parser.add_argument(
+        "--blacklist_files",
+        help="input txt file with file names to that should not be delivered",
+        default=None,
+        type=str,
+        dest="blacklist_files",
+    )
 
-    parser.add_argument("--supplement_report",
-                        help="path to file where supplements and request reasons are summarized",
-                        default=CONFIG.get('Publish', 'supplement_report',
-                                           fallback=str(Path.home() / "supplement_report.csv")),
-                        type=str, dest='supplement_report')
+    parser.add_argument(
+        "--supplement_report",
+        help="path to file where supplements and request reasons are summarized",
+        default=CONFIG.get("Publish", "supplement_report", fallback=str(Path.home() / "supplement_report.csv")),
+        type=str,
+        dest="supplement_report",
+    )
 
-    parser.add_argument("-d", "--db_file",
-                        help="Path to the history publishing database", type=str,
-                        default=CONFIG.get('Publish', 'db_file',
-                                           fallback=str(Path.home() / "published.sqlite")))
+    parser.add_argument(
+        "-d",
+        "--db_file",
+        help="Path to the history publishing database",
+        type=str,
+        default=CONFIG.get("Publish", "db_file", fallback=str(Path.home() / "published.sqlite")),
+    )
 
-    parser.add_argument("-w", "--waiting_period",
-                        help="how long to wait after last file modification before publishing",
-                        default=CONFIG.get('Publish', 'waiting_period', fallback="14d"), type=str)
+    parser.add_argument(
+        "-w",
+        "--waiting_period",
+        help="how long to wait after last file modification before publishing",
+        default=CONFIG.get("Publish", "waiting_period", fallback="14d"),
+        type=str,
+    )
 
-    parser.add_argument("-n", "--batch_size",
-                        help="maximum number of files to publish at this run",
-                        default=CONFIG.getint('Publish', 'batch_size', fallback=-1), type=int)
+    parser.add_argument(
+        "-n",
+        "--batch_size",
+        help="maximum number of files to publish at this run",
+        default=CONFIG.getint("Publish", "batch_size", fallback=-1),
+        type=int,
+    )
 
-    parser.add_argument("-v", "--include_versions",
-                        help="what versions should be published",
-                        default=CONFIG.get('Publish', 'include_versions', fallback="*"), type=str)
+    parser.add_argument(
+        "-v",
+        "--include_versions",
+        help="what versions should be published",
+        default=CONFIG.get("Publish", "include_versions", fallback="*"),
+        type=str,
+    )
 
-    parser.add_argument("-l", "--include_levels",
-                        help="what levels should be published", type=str,
-                        default=CONFIG.get('Publish', 'include_levels', fallback="L0, L1, L2, ANC"))
+    parser.add_argument(
+        "-l",
+        "--include_levels",
+        help="what levels should be published",
+        type=str,
+        default=CONFIG.get("Publish", "include_levels", fallback="L0, L1, L2, ANC"),
+    )
 
-    parser.add_argument("-p", "--include_products",
-                        help="what products should be published", type=str,
-                        default=CONFIG.get('Publish', 'include_products',
-                                           fallback="ql,hk,sci,asp,cal"))
+    parser.add_argument(
+        "-p",
+        "--include_products",
+        help="what products should be published",
+        type=str,
+        default=CONFIG.get("Publish", "include_products", fallback="ql,hk,sci,asp,cal"),
+    )
 
-    parser.add_argument("-f", "--fits_dir",
-                        help="input FITS directory for files to publish ",
-                        default=CONFIG.get('Publish', 'fits_dir'), type=str)
+    parser.add_argument(
+        "-f",
+        "--fits_dir",
+        help="input FITS directory for files to publish ",
+        default=CONFIG.get("Publish", "fits_dir"),
+        type=str,
+    )
 
-    parser.add_argument("-o", "--log_dir",
-                        help="output directory for daily logging ",
-                        default=CONFIG.get('Publish', 'log_dir', fallback=str(Path.home())),
-                        type=str, dest='log_dir')
+    parser.add_argument(
+        "-o",
+        "--log_dir",
+        help="output directory for daily logging ",
+        default=CONFIG.get("Publish", "log_dir", fallback=str(Path.home())),
+        type=str,
+        dest="log_dir",
+    )
 
-    parser.add_argument("--log_level",
-                        help="the level of logging",
-                        default=None, type=str,
-                        choices=["CRITICAL", "ERROR", "WARNING", "INFO", "DEBUG", "NOTSET"],
-                        dest='log_level')
+    parser.add_argument(
+        "--log_level",
+        help="the level of logging",
+        default=None,
+        type=str,
+        choices=["CRITICAL", "ERROR", "WARNING", "INFO", "DEBUG", "NOTSET"],
+        dest="log_level",
+    )
 
-    parser.add_argument("-S", "--spice_file",
-                        help="path to the spice meta kernel",
-                        default=None, type=str)
+    parser.add_argument("-S", "--spice_file", help="path to the spice meta kernel", default=None, type=str)
 
     args = parser.parse_args(args)
 
-    logging.basicConfig(format='%(asctime)s %(message)s', force=True,
-                        filename=Path(args.log_dir) / f"pub_{date.today().strftime('%Y%m%d')}.log",
-                        filemode="a+")
+    logging.basicConfig(
+        format="%(asctime)s %(message)s",
+        force=True,
+        filename=Path(args.log_dir) / f"pub_{date.today().strftime('%Y%m%d')}.log",
+        filemode="a+",
+    )
 
     if args.log_level:
         logging.getLogger().setLevel(logging.getLevelName(args.log_level))
@@ -578,7 +640,7 @@ def publish_fits_to_esa(args):
     if args.spice_file:
         spicemeta = [Path(args.spice_file)]
     else:
-        _spm = SpiceKernelManager(Path(CONFIG.get('Paths', 'spice_kernels')))
+        _spm = SpiceKernelManager(Path(CONFIG.get("Paths", "spice_kernels")))
         spicemeta = _spm.get_latest_mk()
 
     spice = Spice(spicemeta)
@@ -587,7 +649,7 @@ def publish_fits_to_esa(args):
     RidLutManager.instance = RidLutManager(Path(args.rid_lut_file), update=args.update_rid_lut)
 
     scp = None
-    if args.target_host != 'localhost':
+    if args.target_host != "localhost":
         ssh = SSHClient()
         ssh.load_system_host_keys()
         ssh.connect(args.target_host)
@@ -598,7 +660,7 @@ def publish_fits_to_esa(args):
     db_file = Path(args.db_file)
     fits_dir = Path(args.fits_dir)
     if not fits_dir.exists():
-        logger.error(f'path not found to input files: {fits_dir}')
+        logger.error(f"path not found to input files: {fits_dir}")
         return
 
     wait_period = u.Quantity(args.waiting_period)
@@ -606,36 +668,37 @@ def publish_fits_to_esa(args):
 
     target_dir = Path(args.target_dir)
     if (scp is None) and (not target_dir.exists()):
-        logger.info(f'path not found to target dir: {target_dir} creating dir')
+        logger.info(f"path not found to target dir: {target_dir} creating dir")
         target_dir.mkdir(parents=True, exist_ok=True)
 
     same_esa_name_dir = Path(args.same_esa_name_dir)
     if not same_esa_name_dir.exists():
-        logger.info(f'path not found to target dir: {same_esa_name_dir} creating dir')
+        logger.info(f"path not found to target dir: {same_esa_name_dir} creating dir")
         same_esa_name_dir.mkdir(parents=True, exist_ok=True)
 
-    include_levels = dict([(level, 1) for level in
-                           args.include_levels.lower().replace(" ", "").split(",")])
+    include_levels = dict([(level, 1) for level in args.include_levels.lower().replace(" ", "").split(",")])
 
     if args.include_versions == "*":
         include_all_versions = True
     else:
         include_all_versions = False
-        include_versions = dict([(int(version), 1) for version in
-                                 args.include_versions.lower().replace(" ", "")
-                                 .replace("v", "").split(",")])
+        include_versions = dict(
+            [
+                (int(version), 1)
+                for version in args.include_versions.lower().replace(" ", "").replace("v", "").split(",")
+            ]
+        )
 
     if args.include_products == "*":
         include_all_products = True
     else:
         include_all_products = False
-        include_products = dict([(prod, 1) for prod in
-                                 args.include_products.lower().replace(" ", "").split(",")])
+        include_products = dict([(prod, 1) for prod in args.include_products.lower().replace(" ", "").split(",")])
 
     candidates = fits_dir.rglob("solo_*.fits")
     to_publish = list()
     now = datetime.now().timestamp()
-    next_week = datetime.now(timezone.utc) + timedelta(hours=24*7)
+    next_week = datetime.now(timezone.utc) + timedelta(hours=24 * 7)
     hist = PublishHistoryStorage(db_file)
     n_candidates = 0
 
@@ -643,7 +706,7 @@ def publish_fits_to_esa(args):
 
     if args.blacklist_files:
         try:
-            with open(args.blacklist_files, "r") as f:
+            with open(args.blacklist_files) as f:
                 for ifile in f:
                     try:
                         ifile = ifile.strip()
@@ -653,53 +716,52 @@ def publish_fits_to_esa(args):
                         print(e)
                         print("skipping this blacklist file line")
             blacklist_files = set(blacklist_files)
-        except IOError as e:
+        except OSError as e:
             print(e)
             print("Fall back to no blacklist files")
 
     supplement_report = None
     if args.supplement_report:
         args.supplement_report = Path(args.supplement_report)
-        supplement_report = Table(names=["filename", "basefile", 'comment'],
-                                  dtype=[str, str, str])
+        supplement_report = Table(names=["filename", "basefile", "comment"], dtype=[str, str, str])
         if not args.supplement_report.exists():
             ascii.write(supplement_report, args.supplement_report, delimiter="\t")
 
     tempdir = tempfile.TemporaryDirectory()
     tempdir_path = Path(tempdir.name)
 
-    logger.info(f'db_file: {db_file}')
-    logger.info(f'include_all_products: {include_all_products}')
-    logger.info(f'include_products: {include_products}')
-    logger.info(f'include_all_versions: {include_all_versions}')
-    logger.info(f'include_versions: {include_all_products}')
-    logger.info(f'include_levels: {include_levels}')
-    logger.info(f'same_esa_name_dir: {same_esa_name_dir}')
-    logger.info(f'target_dir: {target_dir}')
-    logger.info(f'target_host: {args.target_host}')
-    logger.info(f'scp: {not scp is None}')
-    logger.info(f'wait_period: {wait_period}')
-    logger.info(f'fits_dir: {fits_dir}')
-    logger.info(f'temp_dir: {tempdir_path}')
-    logger.info(f'rid_lut_file: {args.rid_lut_file}')
-    logger.info(f'update_rid_lut: {args.update_rid_lut}')
+    logger.info(f"db_file: {db_file}")
+    logger.info(f"include_all_products: {include_all_products}")
+    logger.info(f"include_products: {include_products}")
+    logger.info(f"include_all_versions: {include_all_versions}")
+    logger.info(f"include_versions: {include_all_products}")
+    logger.info(f"include_levels: {include_levels}")
+    logger.info(f"same_esa_name_dir: {same_esa_name_dir}")
+    logger.info(f"target_dir: {target_dir}")
+    logger.info(f"target_host: {args.target_host}")
+    logger.info(f"scp: {scp is not None}")
+    logger.info(f"wait_period: {wait_period}")
+    logger.info(f"fits_dir: {fits_dir}")
+    logger.info(f"temp_dir: {tempdir_path}")
+    logger.info(f"rid_lut_file: {args.rid_lut_file}")
+    logger.info(f"update_rid_lut: {args.update_rid_lut}")
     logger.info(f"update_rid_lut_url: {CONFIG.get('Publish', 'rid_lut_file_update_url')}")
-    logger.info(f'sort file: {args.sort_files}')
-    logger.info(f'blacklist files: {blacklist_files}')
-    logger.info(f'supplement report: {args.supplement_report}')
-    logger.info(f'batch size: {args.batch_size}')
+    logger.info(f"sort file: {args.sort_files}")
+    logger.info(f"blacklist files: {blacklist_files}")
+    logger.info(f"supplement report: {args.supplement_report}")
+    logger.info(f"batch size: {args.batch_size}")
     logger.info(f"send Mail report: {CONFIG.getboolean('Publish', 'report_mail_send')}")
     logger.info(f"receivers: {CONFIG.get('Publish', 'report_mail_receivers')}")
-    logger.info(f'log dir: {args.log_dir}')
-    logger.info(f'log level: {args.log_level}')
-    logger.info(f'Spice: {spice.meta_kernel_path}')
+    logger.info(f"log dir: {args.log_dir}")
+    logger.info(f"log level: {args.log_level}")
+    logger.info(f"Spice: {spice.meta_kernel_path}")
 
     logger.info("\nstart publishing\n")
     published = defaultdict(list)
 
     for c in candidates:
         n_candidates += 1
-        parts = c.name[:-5].split('_')
+        parts = c.name[:-5].split("_")
         level = parts[1].lower()
 
         if not include_all_versions:
@@ -733,12 +795,12 @@ def publish_fits_to_esa(args):
             continue
 
         if (args.batch_size >= 0) and (len(to_publish) >= args.batch_size):
-            logger.info(f'batch size ({args.batch_size}) exceeded > stop looking for more files.')
+            logger.info(f"batch size ({args.batch_size}) exceeded > stop looking for more files.")
             break
         to_publish.append(c)
 
-    logger.info(f'#candidates: {n_candidates}')
-    logger.info(f'#to_publish: {len(to_publish)}')
+    logger.info(f"#candidates: {n_candidates}")
+    logger.info(f"#to_publish: {len(to_publish)}")
 
     if args.sort_files:
         to_publish = sorted(to_publish)
@@ -756,10 +818,10 @@ def publish_fits_to_esa(args):
             try:
                 # do not publish products from the future
                 p_header = fits.getheader(p)
-                if 'DATE-BEG' in p_header and ":" not in p_header['DATE-BEG']:
-                    p_data_beg = datetime.fromisoformat(p_header['DATE-BEG'])
+                if "DATE-BEG" in p_header and ":" not in p_header["DATE-BEG"]:
+                    p_data_beg = datetime.fromisoformat(p_header["DATE-BEG"])
                 else:
-                    p_data_beg = SCETime.from_float(p_header['OBT_BEG'] * u.s).to_datetime()
+                    p_data_beg = SCETime.from_float(p_header["OBT_BEG"] * u.s).to_datetime()
                 if p_data_beg > next_week:
                     hist.set_result(PublishResult.IGNORED, data[0]["id"])
                     published[PublishResult.IGNORED].append(data)
@@ -787,12 +849,12 @@ def publish_fits_to_esa(args):
                 new_entry_id = None
                 for f in data:
                     # do not test against itself
-                    if p.name == f['name']:
-                        new_entry_id = f['id']
+                    if p.name == f["name"]:
+                        new_entry_id = f["id"]
                         continue
                     with fits.open(p) as a:
-                        with fits.open(Path(f['path']) / f['name']) as b:
-                            diff = HDUDiff(a["DATA"], b["DATA"], ignore_keywords=['*'])
+                        with fits.open(Path(f["path"]) / f["name"]) as b:
+                            diff = HDUDiff(a["DATA"], b["DATA"], ignore_keywords=["*"])
 
                             if diff.identical:
                                 equal_data_once = True
@@ -801,14 +863,14 @@ def publish_fits_to_esa(args):
                 # ignore re-requested data
                 if equal_data_once:  # and new_entry_id:
                     hist.set_result(PublishResult.IGNORED, new_entry_id)
-                    data[-1]['result'] = PublishResult.IGNORED
+                    data[-1]["result"] = PublishResult.IGNORED
                     published[PublishResult.IGNORED].append(data)
                 else:
                     # cases that covers the same time period but other configurations (pixel sets)
 
-                    sup_nr = len([1 for d in data if d['modified_esaname']]) + 1
+                    sup_nr = len([1 for d in data if d["modified_esaname"]]) + 1
 
-                    # only allow vor sup1 and sup2
+                    # only allow for sup1 and sup2
                     if sup_nr > 2:
                         shutil.copy(p, same_esa_name_dir)
                         hist.set_result(PublishResult.IGNORED, new_entry_id)
@@ -816,31 +878,33 @@ def publish_fits_to_esa(args):
                     else:
                         shutil.copy(p, tempdir_path)
                         old_name = p.name
-                        parts = old_name.split('_')
+                        parts = old_name.split("_")
                         parts[2] += f"-sup{sup_nr}"
-                        new_name = '_'.join(parts)
+                        new_name = "_".join(parts)
 
                         os.rename(tempdir_path / old_name, tempdir_path / new_name)
-                        parent_comment = f"supplement data product combine with: {data[0]['name']}"\
-                                         f". Orig filename of this supplement was {old_name}."
-                        fits.setval(tempdir_path / new_name, 'COMMENT', value=parent_comment)
-                        fits.setval(tempdir_path / new_name, 'FILENAME', value=new_name)
+                        parent_comment = (
+                            f"supplement data product combine with: {data[0]['name']}"
+                            f". Orig filename of this supplement was {old_name}."
+                        )
+                        fits.setval(tempdir_path / new_name, "COMMENT", value=parent_comment)
+                        fits.setval(tempdir_path / new_name, "FILENAME", value=new_name)
 
                         if args.supplement_report:
-                            supplement_report.add_row([new_name, data[0]['name'], comment])
+                            supplement_report.add_row([new_name, data[0]["name"], comment])
 
                         ok, error = copy_file(scp, tempdir_path / new_name, target_dir)
                         if ok:
                             hist.set_result(PublishResult.MODIFIED, new_entry_id)
-                            data[-1]['result'] = PublishResult.MODIFIED
+                            data[-1]["result"] = PublishResult.MODIFIED
 
                             # also set the history entry in the header of the orig file
                             # to the temporary files it was already added by copyFile
                             add_history(p, new_name)
 
-                            modified_esaname = '_'.join(parts[:-1]) + ".fits"
+                            modified_esaname = "_".join(parts[:-1]) + ".fits"
                             hist.set_modified_esa_name(modified_esaname, new_entry_id)
-                            data[-1]['modified_esaname'] = modified_esaname
+                            data[-1]["modified_esaname"] = modified_esaname
                             published[PublishResult.MODIFIED].append(data)
                         else:
                             hist.set_result(PublishResult.ERROR, data[0]["id"])
@@ -854,9 +918,9 @@ def publish_fits_to_esa(args):
     send_mail_report(published)
     if args.supplement_report:
         # append the new report
-        with open(args.supplement_report, mode='a') as f:
+        with open(args.supplement_report, mode="a") as f:
             f.seek(0, os.SEEK_END)
-            supplement_report.write(f, format='ascii.no_header', delimiter="\t")
+            supplement_report.write(f, format="ascii.no_header", delimiter="\t")
     hist.close()
     tempdir.cleanup()
     return published
@@ -866,5 +930,5 @@ def main():
     publish_fits_to_esa(sys.argv[1:])
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     main()

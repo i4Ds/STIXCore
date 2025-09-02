@@ -24,7 +24,7 @@ def processing_tm_file(path, **args):
 
 @pytest.fixture
 def gfts_manager():
-    return GFTSFileHandler(processing_tm_file, re.compile(r'.*test_[0-9]*.tm$'), name="w-dog-test")
+    return GFTSFileHandler(processing_tm_file, re.compile(r".*test_[0-9]*.tm$"), name="w-dog-test")
 
 
 def test_gfts_manager_watchdog(out_dir, gfts_manager):
@@ -36,7 +36,7 @@ def test_gfts_manager_watchdog(out_dir, gfts_manager):
     (out_dir / "test_6.tmp").touch()
 
     observer = Observer()
-    observer.schedule(gfts_manager, out_dir,  recursive=False)
+    observer.schedule(gfts_manager, out_dir, recursive=False)
     observer.start()
 
     assert gfts_manager.queue.qsize() == 0

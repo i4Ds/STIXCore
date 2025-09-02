@@ -1,4 +1,3 @@
-
 import numpy as np
 
 from stixcore.data.test import test_data
@@ -13,31 +12,34 @@ def test_slice():
     assert isinstance(lb_prod, LevelB)
 
     slice = lb_prod[0]
-    assert np.all(slice.data == lb_prod.data[0]) and np.all(slice.data == lb_prod.data[0])
+    assert np.all(slice.data == lb_prod.data[0])
+    assert np.all(slice.data == lb_prod.data[0])
     slice = lb_prod[-1]
-    assert np.all(slice.data == lb_prod.data[-1]) and np.all(slice.data == lb_prod.data[-1])
+    assert np.all(slice.data == lb_prod.data[-1])
+    assert np.all(slice.data == lb_prod.data[-1])
     slice = lb_prod[0:2]
-    assert np.all(slice.data == lb_prod.data[0:2]) and np.all(slice.data == lb_prod.data[0:2])
+    assert np.all(slice.data == lb_prod.data[0:2])
+    assert np.all(slice.data == lb_prod.data[0:2])
     slice = lb_prod[[1, 2, 3]]
-    assert np.all(slice.data == lb_prod.data[[1, 2, 3]]) \
-        and np.all(slice.data == lb_prod.data[[1, 2, 3]])
+    assert np.all(slice.data == lb_prod.data[[1, 2, 3]])
+    assert np.all(slice.data == lb_prod.data[[1, 2, 3]])
 
 
 def test_bsd_requestid():
-    with test_data.tmtc.TM_21_6_24.open('r') as file:
-        hex = '0x' + file.readlines()[0]
+    with test_data.tmtc.TM_21_6_24.open("r") as file:
+        hex = "0x" + file.readlines()[0]
 
     p = TMPacket(hex)
     assert p.bsd_requestid == (51667, 1266516544)
 
-    with test_data.tmtc.TM_21_6_30.open('r') as file:
-        hex = '0x' + file.readlines()[0]
+    with test_data.tmtc.TM_21_6_30.open("r") as file:
+        hex = "0x" + file.readlines()[0]
 
     p = TMPacket(hex)
     assert p.bsd_requestid is False
 
-    with test_data.tmtc.TM_3_25_1.open('r') as file:
-        hex = '0x' + file.readlines()[0]
+    with test_data.tmtc.TM_3_25_1.open("r") as file:
+        hex = "0x" + file.readlines()[0]
 
     p = TMPacket(hex)
     assert p.bsd_requestid is False

@@ -8,7 +8,7 @@ from stixcore.util.logging import get_logger
 
 logger = get_logger(__name__)
 
-__all__ = ['PacketData']
+__all__ = ["PacketData"]
 
 SUBPACKET_NIX = "NIX00403"
 
@@ -64,7 +64,7 @@ class PacketData:
         return self
 
     def set(self, nix, value):
-        """Set the paremeter vale by the NIX name.
+        """Set the parameter vale by the NIX name.
 
         Parameters
         ----------
@@ -103,11 +103,11 @@ class PacketData:
          nix : `str`
             The NIX name of the parameter.
         callback : `callable`
-            the callback to by applayed to each data entry of the parameter.
+            the callback to by applied to each data entry of the parameter.
         args : `any`
             will be passed on to the callback
         addnix : `str`, optional
-            A NIX name where to overide or create a new parameter. by default None
+            A NIX name where to override or create a new parameter. by default None
 
         Returns
         -------
@@ -133,7 +133,7 @@ class PacketData:
         return counter
 
     def __repr__(self):
-        return f'{self.__class__.__name__}({self.__dict__.keys()})'
+        return f"{self.__class__.__name__}({self.__dict__.keys()})"
 
     def has_subpackets(self):
         return hasattr(self, SUBPACKET_NIX)
@@ -180,7 +180,6 @@ def _parse_tree(bitstream, parent, fields):
 
     for i in range(0, counter):
         for pnode in parent.children:
-
             # dynamic packets might jump back or forward
             if pnode.parameter.is_variable():
                 if pnode.parameter.VPD_OFFSET != 0:
@@ -202,15 +201,14 @@ def _parse_tree(bitstream, parent, fields):
                         is_valid = True
                         _parse_tree(bitstream, pnode, children)
                 if not is_valid:
-                    if pnode.name != 'NIXD0159':
+                    if pnode.name != "NIXD0159":
                         # repeater NIXD0159 can be zero according to STIX ICD-0812-ESC Table 93 P123
-                        logger.warning(f'Repeater {pnode.name}  has an invalid value: {raw_val}')
+                        logger.warning(f"Repeater {pnode.name}  has an invalid value: {raw_val}")
 
             # entry = {'name': pnode.name, "value": raw_val}
             # if children:
             #     entry["children"] = children
-            entry = Parameter(name=pnode.name, value=raw_val, idb_info=pnode.parameter,
-                              children=children)
+            entry = Parameter(name=pnode.name, value=raw_val, idb_info=pnode.parameter, children=children)
             fields.append(entry)
 
 
@@ -264,7 +262,7 @@ def parse_bitstream(bitstream, structure):
     """
     # TODO check if faster to use ', '.join(format.values())
     parsed = {name: bitstream.read(format) for name, format in structure.items()}
-    return {'fields': parsed, 'bitstream': bitstream}
+    return {"fields": parsed, "bitstream": bitstream}
 
 
 def parse_repeated(bitstream, structure, num_repeats):
@@ -287,9 +285,8 @@ def parse_repeated(bitstream, structure, num_repeats):
         list of extracted data
     """
     out = defaultdict(list)
-    [[out[name].append(bitstream.readlist(format)) for name, format in structure.items()]
-     for i in range(num_repeats)]
-    return {'fields': out, 'bitstream': bitstream}
+    [[out[name].append(bitstream.readlist(format)) for name, format in structure.items()] for i in range(num_repeats)]
+    return {"fields": out, "bitstream": bitstream}
 
 
 def split_into_length(ar, splits):
@@ -318,7 +315,7 @@ def split_into_length(ar, splits):
         splits = [splits]
 
     for split in splits:
-        parts.append(np.array(ar[start: start + split]))
+        parts.append(np.array(ar[start : start + split]))
         start += split
     if start < len(ar):
         raise ValueError("Length does not match to short")

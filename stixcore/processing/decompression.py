@@ -1,8 +1,9 @@
 """Processing module for applying the skm decompression for configured parameters."""
+
 from stixcore.calibration.compression import decompress as algo_decompress
 from stixcore.tmtc.parameter import CompressedParameter
 
-__all__ = ['decompress']
+__all__ = ["decompress"]
 
 
 def apply_decompress(raw, skm):
@@ -21,14 +22,21 @@ def apply_decompress(raw, skm):
         A uncompressed version of the parameter
     """
     try:
-        decompressed, error = algo_decompress(raw.value, s=skm[0].value, k=skm[1].value,
-                                              m=skm[2].value, return_variance=True)
+        decompressed, error = algo_decompress(
+            raw.value, s=skm[0].value, k=skm[1].value, m=skm[2].value, return_variance=True
+        )
     except AttributeError:
         # If the compression scheme parameters are overridden they will be int no parameters
-        decompressed, error = algo_decompress(raw.value, s=skm[0], k=skm[1], m=skm[2],
-                                              return_variance=True)
-    return CompressedParameter(name=raw.name, idb_info=raw.idb_info, value=raw.value,
-                               decompressed=decompressed, error=error, skm=skm, order=raw.order)
+        decompressed, error = algo_decompress(raw.value, s=skm[0], k=skm[1], m=skm[2], return_variance=True)
+    return CompressedParameter(
+        name=raw.name,
+        idb_info=raw.idb_info,
+        value=raw.value,
+        decompressed=decompressed,
+        error=error,
+        skm=skm,
+        order=raw.order,
+    )
 
 
 def decompress(packet):
@@ -51,9 +59,11 @@ def decompress(packet):
         return 0
     c = 0
     for param_name, (sn, kn, mn) in decompression_parameter.items():
-        skm = (sn if isinstance(sn, int) else packet.data.get(sn),
-               kn if isinstance(kn, int) else packet.data.get(kn),
-               mn if isinstance(mn, int) else packet.data.get(mn))
+        skm = (
+            sn if isinstance(sn, int) else packet.data.get(sn),
+            kn if isinstance(kn, int) else packet.data.get(kn),
+            mn if isinstance(mn, int) else packet.data.get(mn),
+        )
 
-        c += packet.data.apply(param_name, apply_decompress,  skm)
+        c += packet.data.apply(param_name, apply_decompress, skm)
     return c

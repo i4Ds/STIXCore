@@ -1,6 +1,7 @@
 """
 Array like time objects
 """
+
 import logging
 import operator
 
@@ -15,7 +16,7 @@ from astropy.utils.data_info import MixinInfo
 from stixcore import get_logger
 from stixcore.ephemeris.manager import Spice
 
-__all__ = ['SCETBase', 'SCETime', 'SCETimeDelta', 'SCETimeRange', 'SEC_IN_DAY']
+__all__ = ["SCETBase", "SCETime", "SCETimeDelta", "SCETimeRange", "SEC_IN_DAY"]
 
 # SOLO convention top bit is for time sync
 MAX_COARSE = 2**32 - 1
@@ -30,7 +31,7 @@ logger.setLevel(logging.INFO)
 class TimeInfo(MixinInfo):
     attr_names = MixinInfo.attr_names
     _supports_indexing = True
-    _represent_as_dict_attrs = ('coarse', 'fine')
+    _represent_as_dict_attrs = ("coarse", "fine")
 
     def get_sortable_arrays(self):
         pass
@@ -40,7 +41,7 @@ class TimeInfo(MixinInfo):
     # def unit(self):
     #     return None
 
-    def new_like(self, cols, length, metadata_conflicts='warn', name=None):
+    def new_like(self, cols, length, metadata_conflicts="warn", name=None):
         """
         Return a new instance of this class which is consistent with the
         input ``cols`` and has ``length`` rows.
@@ -65,8 +66,8 @@ class TimeInfo(MixinInfo):
             New instance of this class consistent with ``cols``
         """
         # Get merged info attributes like shape, dtype, format, description, etc.
-        attrs = self.merge_cols_attributes(cols, metadata_conflicts, name, ('meta', 'description'))
-        attrs.pop('dtype')  # Not relevant for Time
+        attrs = self.merge_cols_attributes(cols, metadata_conflicts, name, ("meta", "description"))
+        attrs.pop("dtype")  # Not relevant for Time
 
         # cols[0]
         # for col in cols[1:]:
@@ -80,7 +81,7 @@ class TimeInfo(MixinInfo):
         #         raise ValueError('input columns have inconsistent locations')
 
         # Make a new Time object with the desired shape and attributes
-        shape = (length,) + attrs.pop('shape')
+        shape = (length,) + attrs.pop("shape")
         coarse = np.zeros(shape, dtype=np.int32)
         fine = np.zeros(shape, dtype=np.int32)
         out = self._parent_cls(coarse, fine)
@@ -118,6 +119,7 @@ class TimeDetlaInfo(TimeInfo):
 
 class SCETBase(ShapedLikeNDArray):
     """Base time class from which SCETime and SCETimeDelta inherit."""
+
     _astropy_column_attrs = None
 
     # Make sure reverse (radd, rsub, ...) magic methods are called over others
@@ -140,12 +142,11 @@ class SCETBase(ShapedLikeNDArray):
         return self.coarse.shape
 
     def _apply(self, method, *args, **kwargs):
-
         if callable(method):
             apply_method = lambda array: method(array, *args, **kwargs)  # noqa: E731
 
         else:
-            if method == 'replicate':
+            if method == "replicate":
                 apply_method = None
             else:
                 apply_method = operator.methodcaller(method, *args, **kwargs)
@@ -156,7 +157,7 @@ class SCETBase(ShapedLikeNDArray):
             fine = apply_method(fine)
 
         out = self.__class__(coarse, fine)
-        if 'info' in self.__dict__:
+        if "info" in self.__dict__:
             out.info = self.info
 
         return out
@@ -290,14 +291,16 @@ class SCETBase(ShapedLikeNDArray):
         if keepdims and indices.ndim < self.ndim:
             indices = np.expand_dims(indices, axis)
 
-        index = [indices
-                 if i == axis
-                 else np.arange(s).reshape(
-                     (1,) * (i if keepdims or i < axis else i - 1)
-                     + (s,)
-                     + (1,) * (ndim - i - (1 if keepdims or i > axis else 2))
-                 )
-                 for i, s in enumerate(self.shape)]
+        index = [
+            indices
+            if i == axis
+            else np.arange(s).reshape(
+                (1,) * (i if keepdims or i < axis else i - 1)
+                + (s,)
+                + (1,) * (ndim - i - (1 if keepdims or i > axis else 2))
+            )
+            for i, s in enumerate(self.shape)
+        ]
 
         return tuple(index)
 
@@ -307,10 +310,10 @@ class SCETBase(ShapedLikeNDArray):
         self.btime[item] = (value.coarse.astype("uint64") << 16) + value.fine
 
     def __repr__(self):
-        return f'{self.__class__.__name__}(coarse={self.coarse}, fine={self.fine})'
+        return f"{self.__class__.__name__}(coarse={self.coarse}, fine={self.fine})"
 
     def __str__(self):
-        return f'{self.__class__.__name__}(coarse={self.coarse}, fine={self.fine}, {self.btime})'
+        return f"{self.__class__.__name__}(coarse={self.coarse}, fine={self.fine}, {self.btime})"
 
 
 class SCETime(SCETBase):
@@ -350,6 +353,7 @@ class SCETime(SCETBase):
     SCETime(coarse=123, fine=22610)
 
     """
+
     info = TimeInfo()
 
     def __init__(self, coarse, fine=0):
@@ -365,18 +369,17 @@ class SCETime(SCETBase):
         """
         if not isinstance(coarse, SCETime):
             coarse, fine = np.broadcast_arrays(coarse, fine)
-            if not np.issubdtype(coarse.dtype, np.integer) \
-                    or not np.issubdtype(fine.dtype, np.integer):
-                raise ValueError('Coarse and fine times must be integers')
+            if not np.issubdtype(coarse.dtype, np.integer) or not np.issubdtype(fine.dtype, np.integer):
+                raise ValueError("Coarse and fine times must be integers")
             # Convention if top bit is set means times are not synchronised
             time_sync = (coarse >> np.uint16(31)) != 1
             # coarse = np.where(time_sync, coarse, coarse ^ 2 ** 31)
 
             # Check limits
             if np.any(np.logical_or(coarse < 0, coarse > MAX_COARSE)):
-                raise ValueError(f'Coarse time must be in range (0 to {MAX_COARSE})')
+                raise ValueError(f"Coarse time must be in range (0 to {MAX_COARSE})")
             if np.any(np.logical_or(fine < 0, fine > MAX_FINE)):
-                raise ValueError(f'Fine time must be in range (0 to {MAX_FINE})')
+                raise ValueError(f"Fine time must be in range (0 to {MAX_FINE})")
 
             # Can store as uints
             coarse = coarse.astype(np.uint32)
@@ -387,9 +390,9 @@ class SCETime(SCETBase):
     @property
     def fits(self):
         if self.coarse.size == 1:
-            return f'{self.coarse:010d}:{self.fine:05d}'
+            return f"{self.coarse:010d}:{self.fine:05d}"
         else:
-            return [f'{c:010d}:{f:05d}' for c, f in zip(self.coarse, self.fine)]
+            return [f"{c:010d}:{f:05d}" for c, f in zip(self.coarse, self.fine)]
 
     @classmethod
     def from_float(cls, scet_float):
@@ -406,7 +409,7 @@ class SCETime(SCETBase):
         `SCETime`
             The SCETime object
         """
-        sub_seconds, seconds = np.modf(scet_float.to_value('s'))
+        sub_seconds, seconds = np.modf(scet_float.to_value("s"))
         coarse = seconds.astype(np.uint32)
         fine = np.round(MAX_FINE * sub_seconds).astype(np.uint16)
         return SCETime(coarse, fine)
@@ -418,7 +421,7 @@ class SCETime(SCETBase):
         return SCETime(coarse=coarse, fine=fine)
 
     @classmethod
-    def from_string(cls, scet_str, sep=':'):
+    def from_string(cls, scet_str, sep=":"):
         """
         Create an SCETime for a string representation e.g. `'123456:789'`
 
@@ -453,23 +456,22 @@ class SCETime(SCETBase):
 
         kernel_date = Spice.instance.get_mk_date(meta_kernel_type="flown")
 
-        bad = [t.replace(tzinfo=None) > kernel_date
-               for t in (utc if isinstance(utc, list) else [utc])]
+        bad = [t.replace(tzinfo=None) > kernel_date for t in (utc if isinstance(utc, list) else [utc])]
         if any(bad):
             if raise_error is True:
-                raise ValueError(f'Converting OBT to UTC after kernel issue date: {kernel_date}.')
-            logger.warning(f'Converting OBT to UTC after kernel issue date: {kernel_date}.')
+                raise ValueError(f"Converting OBT to UTC after kernel issue date: {kernel_date}.")
+            logger.warning(f"Converting OBT to UTC after kernel issue date: {kernel_date}.")
 
         return utc
 
     def to_time(self):
         return Time(self.to_datetime())
 
-    def to_string(self, full=True, sep=':'):
+    def to_string(self, full=True, sep=":"):
         if self.size == 1:
             if full:
-                return f'{self.coarse:010d}{sep}{self.fine:05d}'
-            return f'{self.coarse:010d}'
+                return f"{self.coarse:010d}{sep}{self.fine:05d}"
+            return f"{self.coarse:010d}"
 
     @staticmethod
     def min_time():
@@ -494,7 +496,7 @@ class SCETime(SCETBase):
         It doesn't make sense to add two 'times'
         """
         if not isinstance(other, (u.Quantity, SCETimeDelta)):
-            raise TypeError('Only Quantities and SCETimeDeltas can be added to SCETimes')
+            raise TypeError("Only Quantities and SCETimeDeltas can be added to SCETimes")
 
         if isinstance(other, u.Quantity):
             other = SCETimeDelta.from_float(other.to(u.s))
@@ -509,8 +511,7 @@ class SCETime(SCETBase):
         Can subtract one time from another, can subtract a time delta or Quantity from an SCETime
         """
         if not isinstance(other, (SCETime, SCETimeDelta, u.Quantity)):
-            raise TypeError('Only quantities, SCETime and SCETimeDelta '
-                            'objects can be subtracted from SCETimes')
+            raise TypeError("Only quantities, SCETime and SCETimeDelta objects can be subtracted from SCETimes")
 
         if isinstance(other, SCETime):
             return SCETimeDelta.from_btime(self.btime - other.btime)
@@ -522,7 +523,7 @@ class SCETime(SCETBase):
         return SCETime.from_btime(self.btime - other.btime)
 
     def __str__(self):
-        return f'{self.coarse}:{self.fine}'
+        return f"{self.coarse}:{self.fine}"
 
     def _comparison_operator(self, other, op):
         if other.__class__ is not self.__class__:
@@ -563,16 +564,15 @@ class SCETimeDelta(SCETBase):
     Examples
     --------
     SCETimeDeltas can be created from directly
-
     >>> SCETimeDelta(1, 2)
     SCETimeDelta(coarse=1, fine=2)
 
-    or as as result of subtracting two times
-
+    or as result of subtracting two times
     >>> SCETime(9, 8) - SCETime(5, 10)
-    SCETimeDelta(coarse=4, fine=-2)
+    SCETimeDelta(coarse=3, fine=65534)
 
     """
+
     info = TimeDetlaInfo()
 
     def __init__(self, coarse, fine=0):
@@ -590,13 +590,12 @@ class SCETimeDelta(SCETBase):
             if isinstance(coarse, u.Quantity):
                 coarse, fine = self._convert_float(coarse)
             coarse, fine = np.broadcast_arrays(coarse, fine)
-            if not np.issubdtype(coarse.dtype, np.integer) \
-                    or not np.issubdtype(fine.dtype, np.integer):
-                raise ValueError('Coarse and fine times must be integers')
+            if not np.issubdtype(coarse.dtype, np.integer) or not np.issubdtype(fine.dtype, np.integer):
+                raise ValueError("Coarse and fine times must be integers")
             if np.any(np.abs(coarse) > MAX_COARSE):
-                raise ValueError('Course time must be in the range -2**31-1 to 2**31-1')
+                raise ValueError("Course time must be in the range -2**31-1 to 2**31-1")
             if np.any(np.abs(fine) > MAX_FINE):
-                raise ValueError('Fine time must be in the range -2**16-1 to 2**16-1')
+                raise ValueError("Fine time must be in the range -2**16-1 to 2**16-1")
             # Fine needs to be 32bit as due to SO convention coarse has max of 2**31 which works
             # for a signed 32 bit in but but fine uses all 16bit as a uint as has to be 32 as a int
             super().__init__(coarse.astype(np.int32), fine.astype(np.int32))
@@ -634,7 +633,7 @@ class SCETimeDelta(SCETBase):
 
     @staticmethod
     def _convert_float(scet_float):
-        scet_float = scet_float.to_value('s')
+        scet_float = scet_float.to_value("s")
         sub_seconds, seconds = np.modf(scet_float)
         fine = np.round(MAX_FINE * sub_seconds).astype(int)
         return seconds.astype(int), fine
@@ -656,13 +655,11 @@ class SCETimeDelta(SCETBase):
             try:
                 other = SCETimeDelta(other)
             except Exception:
-                raise TypeError(f'{other.__class__.__name__} could not '
-                                f'be converted to {self.__class__.__name__}')
+                raise TypeError(f"{other.__class__.__name__} could not be converted to {self.__class__.__name__}")
 
             return SCETimeDelta.from_btime(self.btime - other.btime)
         else:
-            raise TypeError(f'Unsupported operation for types {self.__class__.__name__} '
-                            f'and {other.__class__.__name__}')
+            raise TypeError(f"Unsupported operation for types {self.__class__.__name__} and {other.__class__.__name__}")
 
     def __rsub__(self, other):
         out = self.__sub__(other)
@@ -684,7 +681,7 @@ class SCETimeDelta(SCETBase):
         return SCETimeDelta.from_btime(res)
 
     def __str__(self):
-        return f'{self.coarse}, {self.fine}, {self.btime}'
+        return f"{self.coarse}, {self.fine}, {self.btime}"
 
     def __eq__(self, other):
         if not isinstance(other, (SCETimeDelta, u.Quantity)):
@@ -707,9 +704,10 @@ class SCETimeRange:
     end : `SCETime`
         end time of the range
     """
+
     def __init__(self, *, start=SCETime.max_time(), end=SCETime.min_time()):
         if not isinstance(start, SCETime) or not isinstance(end, SCETime):
-            raise TypeError('Must be SCETime')
+            raise TypeError("Must be SCETime")
 
         self.start = start.min()
         self.end = end.max()
@@ -741,18 +739,17 @@ class SCETimeRange:
         return TimeRange(self.start.to_time(), self.end.to_time())
 
     def duration(self):
-        return (self.end-self.start).as_float()
+        return (self.end - self.start).as_float()
 
     @property
     def avg(self):
-        return self.start + (self.end-self.start)/2
+        return self.start + (self.end - self.start) / 2
 
     def __repr__(self):
-        return f'{self.__class__.__name__}(start={str(self.start)}, end={str(self.end)})'
+        return f"{self.__class__.__name__}(start={str(self.start)}, end={str(self.end)})"
 
     def __str__(self):
-        return (f'{str(self.start)} to ' +
-                f'{str(self.end)}')
+        return f"{str(self.start)} to " + f"{str(self.end)}"
 
     def __eq__(self, other):
         return np.all(self.start == other.start) and np.all(self.end == other.end)

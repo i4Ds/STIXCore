@@ -7,13 +7,14 @@ from pathlib import Path
 from stixcore.config.config import CONFIG
 from stixcore.util.logging import get_logger
 
-__all__ = ['BaseTask', 'SSWIDLProcessor', 'SSWIDLTask']
+__all__ = ["BaseTask", "SSWIDLProcessor", "SSWIDLTask"]
 
 logger = get_logger(__name__)
 
 
 class BaseTask:
     """A processing task to do something later on."""
+
     def __init__(self, *, script="", work_dir=".", params=None):
         """Create a task.
 
@@ -26,19 +27,18 @@ class BaseTask:
         params : any, optional
             additional params, by default None
         """
-        self.script = '' + script
+        self.script = "" + script
         self.gsw_path = Path(CONFIG.get("IDLBridge", "gsw_path", fallback="."))
         self.work_dir = self.gsw_path / work_dir
 
-        self.params = {'gsw_path': str(self.gsw_path),
-                       'work_dir': str(self.work_dir)}
+        self.params = {"gsw_path": str(self.gsw_path), "work_dir": str(self.work_dir)}
         if params is not None:
             self.params.update(params)
         self._results = list()
 
     @property
     def results(self):
-        """Holds the taks results
+        """Holds the task results
 
         Returns
         -------
@@ -106,6 +106,7 @@ if CONFIG.getboolean("IDLBridge", "enabled", fallback=False):
 
     class SSWIDLTask(BaseTask):
         """A task that will use IDL to process any data."""
+
         def __init__(self, *, script="", work_dir=".", params=None):
             """Create a tasks that will use IDL to process data.
 
@@ -120,12 +121,13 @@ if CONFIG.getboolean("IDLBridge", "enabled", fallback=False):
             """
             super().__init__(script=script, work_dir=work_dir, params=params)
 
-            self.script = '''
+            self.script = (
+                """
     ; handle normal errors
     catch, error
     if error ne 0 then begin
         catch, /cancel
-        print, 'A normal error occured: ' + !error_state.msg
+        print, 'A normal error occurred: ' + !error_state.msg
     endif
     !PATH=!PATH+':'+Expand_Path('+{{ gsw_path }}')
     setenv, "IDL_PROJECT_NAME=stix ppl"
@@ -134,16 +136,19 @@ if CONFIG.getboolean("IDLBridge", "enabled", fallback=False):
 
     d = get_delim()
 
-    ''' + script
+    """
+                + script
+            )
 
         def run(self, fits_processor):
             """Run the task and store the result internally."""
             cur_path = os.getcwd()
             os.chdir(self.work_dir)
-            ssw = hissw.Environment(ssw_home="/usr/local/ssw",
-                                    idl_home="/usr/local/idl/idl88",
-                                    ssw_packages=["goes", "hessi", "spex", "xray",
-                                                  "sunspice", "spice", "stix"])
+            ssw = hissw.Environment(
+                ssw_home="/usr/local/ssw",
+                idl_home="/usr/local/idl/idl88",
+                ssw_packages=["goes", "hessi", "spex", "xray", "sunspice", "spice", "stix"],
+            )
 
             results = dict()
             try:
@@ -159,8 +164,7 @@ else:
     # on systems where IDL is not enabled the IDL TASK will do nothing
     # the result will be the input
     class SSWIDLTask(BaseTask):
-
-        def __init__(self, *, script='', work_dir='.', params=None):
+        def __init__(self, *, script="", work_dir=".", params=None):
             super().__init__(script=script, work_dir=work_dir, params=params)
 
         def run(self, fits_processor):
@@ -173,6 +177,7 @@ else:
 
 class SSWIDLProcessor(dict):
     """A collector class for IDL processing tasks to run later."""
+
     def __init__(self, fits_processor):
         """_summary_
 

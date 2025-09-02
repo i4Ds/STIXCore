@@ -13,7 +13,7 @@ from stixcore.soop.manager import SOOPManager
 from stixcore.util.logging import get_logger
 from stixcore.util.util import get_complete_file_name
 
-__all__ = ['TestForProcessingResult', 'SingleProductProcessingStepMixin']
+__all__ = ["TestForProcessingResult", "SingleProductProcessingStepMixin", "SingleProcessingStepResult"]
 
 logger = get_logger(__name__)
 
@@ -27,9 +27,8 @@ class TestForProcessingResult(Enum):
     Suitable = 2
 
 
-class SingleProcessingStepResult():
-    def __init__(self, name: str, level: str, type: str, version: int,
-                 out_path: Path, in_path: Path, date: datetime):
+class SingleProcessingStepResult:
+    def __init__(self, name: str, level: str, type: str, version: int, out_path: Path, in_path: Path, date: datetime):
         """Creates a SingleProcessingStepResult
 
         Parameters
@@ -58,7 +57,7 @@ class SingleProcessingStepResult():
         self.date = date
 
 
-class SingleProductProcessingStepMixin():
+class SingleProductProcessingStepMixin:
     INPUT_PATTERN = "*.fits"
     VERSION_PATTERN = re.compile(r"(.*_V)([0-9]+)U?([\._].*)")
 
@@ -73,8 +72,7 @@ class SingleProductProcessingStepMixin():
     def find_processing_candidates(self) -> list[Path]:
         pass
 
-    def get_version(cls, candidates: list[Path], version='latest') -> list[Path]:
-
+    def get_version(cls, candidates: list[Path], version="latest") -> list[Path]:
         if not version == "latest":
             version = int(str(version).lower().replace("v", ""))
 
@@ -109,8 +107,8 @@ class SingleProductProcessingStepMixin():
 
 # NOT NEEDED NOW
 class FLLevel3:
-    """Processing step from a flare list entry to L3.
-    """
+    """Processing step from a flare list entry to L3."""
+
     def __init__(self, source_dir, output_dir, dbfile):
         self.source_dir = Path(source_dir)
         self.output_dir = Path(output_dir)
@@ -123,7 +121,7 @@ class FLLevel3:
             files = self.level0_files
         product_types = defaultdict(list)
         product_types_batch = defaultdict(int)
-        batch_size = CONFIG.getint('Pipeline', 'parallel_batchsize_L1', fallback=150)
+        batch_size = CONFIG.getint("Pipeline", "parallel_batchsize_L1", fallback=150)
 
         for file in files:
             # group by service,subservice, ssid example: 'L0/21/6/30' as default
@@ -131,39 +129,42 @@ class FLLevel3:
             batch = 0
             prio = 3
             product_type = str(file.parent)
-            if 'L0' in file._parts:
-                product_type = tuple(map(int, file._parts[file._parts.index('L0')+1:-1]))
-                if (product_type[0] == 21 and
-                        product_type[-1] in {20, 21, 22, 23, 24, 42}):  # sci data
+            if "L0" in file._parts:
+                product_type = tuple(map(int, file._parts[file._parts.index("L0") + 1 : -1]))
+                if product_type[0] == 21 and product_type[-1] in {20, 21, 22, 23, 24, 42}:  # sci data
                     product_types_batch[product_type] += 1
                     prio = 2
                 elif product_type[0] == 21:  # ql data
                     prio = 1
                 batch = product_types_batch[product_type] // batch_size
-            product_types[(prio, ) + product_type + (batch, )].append(file)
+            product_types[(prio,) + product_type + (batch,)].append(file)
 
         jobs = []
         with ProcessPoolExecutor() as executor:
             # simple heuristic that the daily QL data takes longest so we start early
             for pt, files in sorted(product_types.items()):
-                jobs.append(executor.submit(process_type, files,
-                                            processor=fitsp.FitsL1Processor(self.output_dir),
-                                            soopmanager=SOOPManager.instance,
-                                            spice_kernel_path=Spice.instance.meta_kernel_path,
-                                            config=CONFIG))
+                jobs.append(
+                    executor.submit(
+                        process_type,
+                        files,
+                        processor=fitsp.FitsL1Processor(self.output_dir),
+                        soopmanager=SOOPManager.instance,
+                        spice_kernel_path=Spice.instance.meta_kernel_path,
+                        config=CONFIG,
+                    )
+                )
 
         for job in jobs:
             try:
                 new_files = job.result()
                 all_files.extend(new_files)
             except Exception:
-                logger.error('error', exc_info=True)
+                logger.error("error", exc_info=True)
 
         return list(set(all_files))
 
 
-def process_type(timeranges, productcls, flarelistparent, *, processor,
-                 soopmanager, spice_kernel_path, config):
+def process_type(timeranges, productcls, flarelistparent, *, processor, soopmanager, spice_kernel_path, config):
     SOOPManager.instance = soopmanager
     all_files = list()
     Spice.instance = Spice(spice_kernel_path)
@@ -178,8 +179,8 @@ def process_type(timeranges, productcls, flarelistparent, *, processor,
             l3 = prod.from_timerange(tr, flarelistparent=flarelistparent)
             all_files.extend(processor.write_fits(l3))
         except Exception as e:
-            logger.error('Error processing timerange %s', tr, exc_info=True)
-            logger.error('%s', e)
-            if CONFIG.getboolean('Logging', 'stop_on_error', fallback=False):
+            logger.error("Error processing timerange %s", tr, exc_info=True)
+            logger.error("%s", e)
+            if CONFIG.getboolean("Logging", "stop_on_error", fallback=False):
                 raise e
     return all_files

@@ -89,7 +89,7 @@ def read_qtable(file, hdu, hdul=None):
             if hasattr(dtype, "subdtype"):
                 dtype = dtype.base
 
-            if col.coord_type != 'UTC':
+            if col.coord_type != "UTC":
                 qtable[col.name] = qtable[col.name].astype(dtype)
             else:
                 qtable[col.name].format = "isot"
@@ -257,8 +257,7 @@ class ProductFactory(BasicRegistrationFactory):
                         service_subtype = 6
                         ssid = 34
 
-                if level not in ["LB", "LL01"] and 'timedel' in data.colnames \
-                   and 'time' in data.colnames:
+                if level not in ["LB", "LL01"] and "timedel" in data.colnames and "time" in data.colnames:
                     data["timedel"] = SCETimeDelta(data["timedel"])
                     offset = SCETime.from_float(pri_header["OBT_BEG"] * u.s)
 
@@ -300,11 +299,21 @@ class ProductFactory(BasicRegistrationFactory):
                 if hasattr(Product, "TYPE") and Product.TYPE == "flarelist":
                     month = datetime.fromisoformat(pri_header["DATE-BEG"]).date()
 
-                p = Product(level=level, service_type=service_type,
-                            service_subtype=service_subtype,
-                            ssid=ssid, control=control,
-                            data=data, energies=energies, idb_versions=idb_versions,
-                            raw=raw, parent=parent, comment=comment, history=history, month=month)
+                p = Product(
+                    level=level,
+                    service_type=service_type,
+                    service_subtype=service_subtype,
+                    ssid=ssid,
+                    control=control,
+                    data=data,
+                    energies=energies,
+                    idb_versions=idb_versions,
+                    raw=raw,
+                    parent=parent,
+                    comment=comment,
+                    history=history,
+                    month=month,
+                )
 
                 # store the old fits header for later reuse
                 if isinstance(p, (L1Mixin, L2Mixin)):
@@ -522,13 +531,11 @@ class GenericProduct(BaseProduct):
 
     @property
     def raw(self):
-        return np.unique(self.control["raw_file"]).tolist() \
-            if "raw_file" in self.control.colnames else []
+        return np.unique(self.control["raw_file"]).tolist() if "raw_file" in self.control.colnames else []
 
     @property
     def parent(self):
-        return np.unique(self.control["parent"]).tolist() \
-            if "parent" in self.control.colnames else []
+        return np.unique(self.control["parent"]).tolist() if "parent" in self.control.colnames else []
 
     @property
     def dmin(self):
@@ -895,6 +902,8 @@ class FitsHeaderMixin:
 
 
 class L1Mixin(FitsHeaderMixin):
+    LEVEL = "L1"
+
     @property
     def utc_timerange(self):
         return self.scet_timerange.to_timerange()

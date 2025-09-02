@@ -50,9 +50,9 @@ class LightCurveL3(QLProduct, L1Mixin):
     for Low Latency Processing
     Level 3 format - svg chart
     """
+
     def __init__(self, *, control, data, parent_file_path: Path, **kwargs):
-        super().__init__(service_type=21, service_subtype=6,
-                         ssid=34, control=control, data=data, **kwargs)
+        super().__init__(service_type=21, service_subtype=6, ssid=34, control=control, data=data, **kwargs)
         self.name = LightCurveL3.NAME
         self.level = LightCurveL3.LEVEL
         self.type = LightCurveL3.TYPE

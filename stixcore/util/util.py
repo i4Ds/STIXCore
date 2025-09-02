@@ -9,7 +9,7 @@ __all__ = [
     "get_complete_file_name_and_path",
     "get_incomplete_file_name_and_path",
     "is_incomplete_file_name",
-    "url_to_path"
+    "url_to_path",
 ]
 
 
@@ -39,6 +39,7 @@ def get_incomplete_file_name(name):
 
 
 def url_to_path(fido_res: StixQueryResponse):
-    if 'url' in fido_res.columns:
-        fido_res['path'] = [Path(url.replace("file:", ""))
-                            if url.startswith("file:") else None for url in fido_res['url']]
+    if "url" in fido_res.columns:
+        fido_res["path"] = [
+            Path(url.replace("file:", "")) if url.startswith("file:") else None for url in fido_res["url"]
+        ]

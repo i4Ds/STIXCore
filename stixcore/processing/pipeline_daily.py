@@ -176,9 +176,13 @@ def run_daily_pipeline(args):
         dest="log_level",
     )
 
-    parser.add_argument("-r", "--rid_lut_file",
-                        help=("Path to the rid LUT file"),
-                        default=CONFIG.get('Publish', 'rid_lut_file'), type=str)
+    parser.add_argument(
+        "-r",
+        "--rid_lut_file",
+        help=("Path to the rid LUT file"),
+        default=CONFIG.get("Publish", "rid_lut_file"),
+        type=str,
+    )
 
     args = parser.parse_args(args)
 
@@ -202,22 +206,20 @@ def run_daily_pipeline(args):
 
         Spice.instance = Spice(spicemeta)
 
-        SOOPManager.instance = SOOPManager(Path(CONFIG.get('Paths', 'soop_files')))
+        SOOPManager.instance = SOOPManager(Path(CONFIG.get("Paths", "soop_files")))
 
         Path(CONFIG.get("Paths", "fits_archive"))
 
-        fido_url = CONFIG.get('Paths', 'fido_search_url',
-                              fallback='https://pub099.cs.technik.fhnw.ch/data/fits')
+        fido_url = CONFIG.get("Paths", "fido_search_url", fallback="https://pub099.cs.technik.fhnw.ch/data/fits")
         fido_client = STIXClient(source=fido_url)
 
-        flare_lut_file = Path(CONFIG.get('Pipeline', 'flareid_sc_lut_file'))
+        flare_lut_file = Path(CONFIG.get("Pipeline", "flareid_sc_lut_file"))
         SCFlareListManager.instance = SCFlareListManager(flare_lut_file, fido_client, update=True)
 
-        flare_lut_file = Path(CONFIG.get('Pipeline', 'flareid_sdc_lut_file'))
+        flare_lut_file = Path(CONFIG.get("Pipeline", "flareid_sdc_lut_file"))
         SDCFlareListManager.instance = SDCFlareListManager(flare_lut_file, update=False)
 
-        RidLutManager.instance = RidLutManager(Path(CONFIG.get('Publish', 'rid_lut_file')),
-                                               update=False)
+        RidLutManager.instance = RidLutManager(Path(CONFIG.get("Publish", "rid_lut_file")), update=False)
 
         db_file = Path(args.db_file)
         fits_in_dir = Path(args.fits_in_dir)
@@ -249,16 +251,21 @@ def run_daily_pipeline(args):
 
         flarelist_sdc = FlareListL3(SDCFlareListManager.instance, fits_out_dir)
         flarelist_sc = FlareListL3(SCFlareListManager.instance, fits_out_dir)
-        fl_to_fl = FLtoFL(fits_in_dir,
-                          fits_out_dir,
-                          products_in_out=[(FlarelistSDC, FlarelistSDCLoc),
-                                           (FlarelistSDCLoc, FlarelistSDCLocImg),
-                                           (FlarelistSC, FlarelistSCLoc),
-                                           (FlarelistSCLoc, FlarelistSCLocImg)],
-                          cadence=timedelta(seconds=1))
+        fl_to_fl = FLtoFL(
+            fits_in_dir,
+            fits_out_dir,
+            products_in_out=[
+                (FlarelistSDC, FlarelistSDCLoc),
+                (FlarelistSDCLoc, FlarelistSDCLocImg),
+                (FlarelistSC, FlarelistSCLoc),
+                (FlarelistSCLoc, FlarelistSCLocImg),
+            ],
+            cadence=timedelta(seconds=1),
+        )
 
-        ll03ql = LL03QL(fits_in_dir, fits_out_dir, in_product=LightCurve, out_product=LightCurveL3,
-                        cadence=timedelta(seconds=1))
+        ll03ql = LL03QL(
+            fits_in_dir, fits_out_dir, in_product=LightCurve, out_product=LightCurveL3, cadence=timedelta(seconds=1)
+        )
 
         plot_writer = PlotProcessor(fits_out_dir)
         l2_fits_writer = FitsL2Processor(fits_out_dir)
@@ -286,39 +293,63 @@ def run_daily_pipeline(args):
         # let each processing "task" run in its own process
         jobs = []
         with ProcessPoolExecutor() as executor:
-            jobs.append(executor.submit(aspect_anc_processor.process_fits_files, hk_in_files,
-                                        soopmanager=SOOPManager.instance,
-                                        spice_kernel_path=Spice.instance.meta_kernel_path,
-                                        processor=l2_fits_writer,
-                                        config=CONFIG))
+            jobs.append(
+                executor.submit(
+                    aspect_anc_processor.process_fits_files,
+                    hk_in_files,
+                    soopmanager=SOOPManager.instance,
+                    spice_kernel_path=Spice.instance.meta_kernel_path,
+                    processor=l2_fits_writer,
+                    config=CONFIG,
+                )
+            )
 
-            jobs.append(executor.submit(flarelist_sdc.process_fits_files, fl_sdc_months,
-                                        soopmanager=SOOPManager.instance,
-                                        spice_kernel_path=Spice.instance.meta_kernel_path,
-                                        processor=l3_fits_writer,
-                                        config=CONFIG))
+            jobs.append(
+                executor.submit(
+                    flarelist_sdc.process_fits_files,
+                    fl_sdc_months,
+                    soopmanager=SOOPManager.instance,
+                    spice_kernel_path=Spice.instance.meta_kernel_path,
+                    processor=l3_fits_writer,
+                    config=CONFIG,
+                )
+            )
 
-            jobs.append(executor.submit(flarelist_sc.process_fits_files, fl_sc_months,
-                                        soopmanager=SOOPManager.instance,
-                                        spice_kernel_path=Spice.instance.meta_kernel_path,
-                                        processor=l3_fits_writer,
-                                        config=CONFIG))
+            jobs.append(
+                executor.submit(
+                    flarelist_sc.process_fits_files,
+                    fl_sc_months,
+                    soopmanager=SOOPManager.instance,
+                    spice_kernel_path=Spice.instance.meta_kernel_path,
+                    processor=l3_fits_writer,
+                    config=CONFIG,
+                )
+            )
 
             # TODO a owen processing step for each flarelist file?
             # for fl_to_fl_file in fl_to_fl_files:
-            jobs.append(executor.submit(fl_to_fl.process_fits_files,
-                                        fl_to_fl_files,
-                                        soopmanager=SOOPManager.instance,
-                                        spice_kernel_path=Spice.instance.meta_kernel_path,
-                                        fl_processor=anc_fits_writer,
-                                        img_processor=l3_fits_writer,
-                                        config=CONFIG))
+            jobs.append(
+                executor.submit(
+                    fl_to_fl.process_fits_files,
+                    fl_to_fl_files,
+                    soopmanager=SOOPManager.instance,
+                    spice_kernel_path=Spice.instance.meta_kernel_path,
+                    fl_processor=anc_fits_writer,
+                    img_processor=l3_fits_writer,
+                    config=CONFIG,
+                )
+            )
 
-            jobs.append(executor.submit(ll03ql.process_fits_files, ll_candidates,
-                                        soopmanager=SOOPManager.instance,
-                                        spice_kernel_path=Spice.instance.meta_kernel_path,
-                                        processor=plot_writer,
-                                        config=CONFIG))
+            jobs.append(
+                executor.submit(
+                    ll03ql.process_fits_files,
+                    ll_candidates,
+                    soopmanager=SOOPManager.instance,
+                    spice_kernel_path=Spice.instance.meta_kernel_path,
+                    processor=plot_writer,
+                    config=CONFIG,
+                )
+            )
 
         # wait for all processes to end
         all_files = []
@@ -333,9 +364,9 @@ def run_daily_pipeline(args):
         # create an entry for each generated file in the ProcessingHistoryStorage
         for pr in all_files:
             if isinstance(pr, SingleProcessingStepResult):
-                phs.add_processed_fits_products(pr.name, pr.level, pr.type,
-                                                pr.version, pr.in_path,
-                                                pr.out_path, pr.date)
+                phs.add_processed_fits_products(
+                    pr.name, pr.level, pr.type, pr.version, pr.in_path, pr.out_path, pr.date
+                )
 
         phs.close()
 

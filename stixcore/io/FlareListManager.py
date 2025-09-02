@@ -65,8 +65,7 @@ class SCFlareListManager(FlareListManager, metaclass=Singleton):
         self._flarelist = self.read_flarelist()
 
     def __str__(self) -> str:
-        return (f"{self.flarelistname}: file: {self.file} update: "
-                f"{self.update} size: {len(self.flarelist)}")
+        return f"{self.flarelistname}: file: {self.file} update: {self.update} size: {len(self.flarelist)}"
 
     def update_list(self):
         """Updates the flarelist file via api request.
@@ -101,45 +100,47 @@ class SCFlareListManager(FlareListManager, metaclass=Singleton):
             today = datetime.now() - timedelta(days=7)
             flare_df_lists = []
             if self.file.exists():
-                old_list = pd.read_csv(self.file, keep_default_na=True, na_values=['None'])
-                mds = old_list['start_UTC'].max()
+                old_list = pd.read_csv(self.file, keep_default_na=True, na_values=["None"])
+                mds = old_list["start_UTC"].max()
                 try:
-                    last_date = datetime.strptime(mds, '%Y-%m-%dT%H:%M:%S')
+                    last_date = datetime.strptime(mds, "%Y-%m-%dT%H:%M:%S")
                 except ValueError:
-                    last_date = datetime.strptime(mds, '%Y-%m-%dT%H:%M:%S.%f')
+                    last_date = datetime.strptime(mds, "%Y-%m-%dT%H:%M:%S.%f")
                 flare_df_lists = [old_list]
             last_date = last_date.replace(hour=0, minute=0, second=0, microsecond=0)
             if not self.file.parent.exists():
-                logger.info(f'path not found: {self.file.parent} creating dir')
+                logger.info(f"path not found: {self.file.parent} creating dir")
                 self.file.parent.mkdir(parents=True, exist_ok=True)
 
             try:
-                while (last_date < today):
+                while last_date < today:
                     # run flare detection for batches of 7 days
                     # 2 days overlap to ensure no flares are missed
                     start = last_date - timedelta(days=2)
                     end = last_date + timedelta(days=7)
 
-                    ql_lc_files = self.fido_client.search(a.Time(start, end),
-                                                          a.Instrument.stix,
-                                                          a.stix.DataProduct.ql_lightcurve)
+                    ql_lc_files = self.fido_client.search(
+                        a.Time(start, end), a.Instrument.stix, a.stix.DataProduct.ql_lightcurve
+                    )
                     try:
                         if len(ql_lc_files) > 0:
                             ql_lc_files.filter_for_latest_version()
                             url_to_path(ql_lc_files)
                     except Exception as e:
-                        logger.error(f'Error filtering for latest version of lightcurve files: {e}')
+                        logger.error(f"Error filtering for latest version of lightcurve files: {e}")
                         ql_lc_files = []
 
-                    ql_bg_files = self.fido_client.search(a.Time(start, end),
-                                                          a.Instrument.stix,
-                                                          a.stix.DataProduct.ql_background)
+                    ql_bg_files = self.fido_client.search(
+                        a.Time(start, end), a.Instrument.stix, a.stix.DataProduct.ql_background
+                    )
                     if len(ql_bg_files) > 0:
                         ql_bg_files.filter_for_latest_version()
                         url_to_path(ql_bg_files)
-                    logger.info(f'flare detection chunk: {start.isoformat()}/{end.isoformat()} '
-                                f'with {len(ql_lc_files)} lightcurve files and '
-                                f'{len(ql_bg_files)} background files')
+                    logger.info(
+                        f"flare detection chunk: {start.isoformat()}/{end.isoformat()} "
+                        f"with {len(ql_lc_files)} lightcurve files and "
+                        f"{len(ql_bg_files)} background files"
+                    )
                     # flares = stixpy.detect_flares(start, end,
                     #                               ql_lc_files=ql_lc_files,
                     #                               ql_bg_files=ql_bg_files)
@@ -147,7 +148,7 @@ class SCFlareListManager(FlareListManager, metaclass=Singleton):
                     flares = []
                     if len(flares) > 0:
                         flare_df_lists.append(pd.DataFrame(flares))
-                        logger.info(f'found {len(flares)} flares')
+                        logger.info(f"found {len(flares)} flares")
                     last_date += timedelta(days=7)
 
             except Exception:
@@ -159,22 +160,22 @@ class SCFlareListManager(FlareListManager, metaclass=Singleton):
             # full_flare_list.drop_duplicates(inplace=True)
             # full_flare_list.sort_values(by="peak_UTC", inplace=True)
             # full_flare_list.reset_index(inplace=True, drop=True)
-            logger.info(f'write total {len(full_flare_list)} flares to local storage')
+            logger.info(f"write total {len(full_flare_list)} flares to local storage")
             # full_flare_list.to_csv(self.file, index_label=False)
         else:
             logger.info(f"read flare list from {self.file}")
-            full_flare_list = pd.read_csv(self.file, keep_default_na=True, na_values=['None'])
+            full_flare_list = pd.read_csv(self.file, keep_default_na=True, na_values=["None"])
 
         return full_flare_list
 
     @staticmethod
     def filter_flare_function(col):
-        return col['lc_peak'][0].value > CONFIG.getint('Processing', 'flarelist_sc_min_count',
-                                                       fallback=1000)
+        return col["lc_peak"][0].value > CONFIG.getint("Processing", "flarelist_sc_min_count", fallback=1000)
 
     def get_data(self, *, start, end, fido_client):
-        month_data = self.flarelist[(self.flarelist['start_UTC'] >= start.isoformat()) &
-                                    (self.flarelist['start_UTC'] < end.isoformat())]
+        month_data = self.flarelist[
+            (self.flarelist["start_UTC"] >= start.isoformat()) & (self.flarelist["start_UTC"] < end.isoformat())
+        ]
 
         if len(month_data) == 0:
             return None, None, None
@@ -184,79 +185,97 @@ class SCFlareListManager(FlareListManager, metaclass=Singleton):
         control = QTable()
         energy = QTable()
 
-        data['flare_id'] = Column(mt['flare_id'].astype(int),
-                                  description=f'unique flare id for flarelist {self.flarelistname}')
-        data['start_UTC'] = Column(0, description="start time of flare")
-        data['start_UTC'] = [Time(d, format='isot', scale='utc') for d in mt['start_UTC']]
-        data['duration'] = Column(mt['duration'].astype(float) * u.s,
-                                  description="duration of flare")
-        data['end_UTC'] = Column(0, description="end time of flare")
-        data['end_UTC'] = [Time(d, format='isot', scale='utc') for d in mt['end_UTC']]
-        data['peak_UTC'] = Column(0, description="flare peak time")
-        data['peak_UTC'] = [Time(d, format='isot', scale='utc') for d in mt['peak_UTC']]
-        data['att_in'] = Column(mt['att_in'].astype(bool),
-                                description="was attenuator in during flare")
-        data['bkg_baseline'] = Column(mt['LC0_BKG'] * u.ct,
-                                      description='background baseline at 4-10 keV')
-        data['GOES_class'] = Column(mt['GOES_class'].astype(str),
-                                    description="GOES class of the GOES XRS data at time of flare"
-                                                " - not derived from STIX data.  Do not use when "
-                                                "flare isn't visible to Earth")
-        data['goes_min_class_est'] = Column(mt['goes_estimated_min_class'].astype(str),
-                                            description="min GOES class estimate derived "
-                                                        "from STIX data")
-        data['goes_max_class_est'] = Column(mt['goes_estimated_max_class'].astype(str),
-                                            description="max GOES class estimate derived "
-                                                        "from STIX data")
-        data['goes_mean_class_est'] = Column(mt['goes_estimated_mean_class'].astype(str),
-                                             description="mean GOES class estimate derived "
-                                                         "from STIX data")
+        data["flare_id"] = Column(
+            mt["flare_id"].astype(int), description=f"unique flare id for flarelist {self.flarelistname}"
+        )
+        data["start_UTC"] = Column(0, description="start time of flare")
+        data["start_UTC"] = [Time(d, format="isot", scale="utc") for d in mt["start_UTC"]]
+        data["duration"] = Column(mt["duration"].astype(float) * u.s, description="duration of flare")
+        data["end_UTC"] = Column(0, description="end time of flare")
+        data["end_UTC"] = [Time(d, format="isot", scale="utc") for d in mt["end_UTC"]]
+        data["peak_UTC"] = Column(0, description="flare peak time")
+        data["peak_UTC"] = [Time(d, format="isot", scale="utc") for d in mt["peak_UTC"]]
+        data["att_in"] = Column(mt["att_in"].astype(bool), description="was attenuator in during flare")
+        data["bkg_baseline"] = Column(mt["LC0_BKG"] * u.ct, description="background baseline at 4-10 keV")
+        data["GOES_class"] = Column(
+            mt["GOES_class"].astype(str),
+            description="GOES class of the GOES XRS data at time of flare"
+            " - not derived from STIX data.  Do not use when "
+            "flare isn't visible to Earth",
+        )
+        data["goes_min_class_est"] = Column(
+            mt["goes_estimated_min_class"].astype(str), description="min GOES class estimate derived from STIX data"
+        )
+        data["goes_max_class_est"] = Column(
+            mt["goes_estimated_max_class"].astype(str), description="max GOES class estimate derived from STIX data"
+        )
+        data["goes_mean_class_est"] = Column(
+            mt["goes_estimated_mean_class"].astype(str), description="mean GOES class estimate derived from STIX data"
+        )
 
-        data['GOES_flux'] = Column(mt['GOES_flux'].astype(float) * u.W / u.m**2,
-                                   description="GOES flux of the GOES XRS data at time of flare"
-                                               "- not derived from STIX data. Do not use when the "
-                                               "flare isn't visible to Earth")
-        data['goes_min_flux_est'] = Column(mt['goes_estimated_min_flux'].astype(float) *
-                                           u.W / u.m**2,
-                                           description="min GOES flux estimate "
-                                                       "derived from STIX data")
-        data['goes_max_flux_est'] = Column(mt['goes_estimated_max_flux'].astype(float) *
-                                           u.W / u.m**2,
-                                           description="max GOES flux estimate "
-                                                       "derived from STIX data")
-        data['goes_mean_flux_est'] = Column(mt['goes_estimated_mean_flux'].astype(float) *
-                                            u.W / u.m**2,
-                                            description="mean GOES flux estimate "
-                                                        "derived from STIX data")
+        data["GOES_flux"] = Column(
+            mt["GOES_flux"].astype(float) * u.W / u.m**2,
+            description="GOES flux of the GOES XRS data at time of flare"
+            "- not derived from STIX data. Do not use when the "
+            "flare isn't visible to Earth",
+        )
+        data["goes_min_flux_est"] = Column(
+            mt["goes_estimated_min_flux"].astype(float) * u.W / u.m**2,
+            description="min GOES flux estimate derived from STIX data",
+        )
+        data["goes_max_flux_est"] = Column(
+            mt["goes_estimated_max_flux"].astype(float) * u.W / u.m**2,
+            description="max GOES flux estimate derived from STIX data",
+        )
+        data["goes_mean_flux_est"] = Column(
+            mt["goes_estimated_mean_flux"].astype(float) * u.W / u.m**2,
+            description="mean GOES flux estimate derived from STIX data",
+        )
 
         # data['cfl_x'] = Column(mt['CFL_X_arcsec'].astype(float) * u.arcsec,
-        #                        description="corse flare location in x direction provided by"
+        #                        description="coarse flare location in x direction provided by"
         #                                    "onboard algorithm. (0,0) represents disk center")
         # data['cfl_y'] = Column(mt['CFL_Y_arcsec'].astype(float) * u.arcsec,
-        #                        description="corse flare location in y direction provided by"
+        #                        description="coarse flare location in y direction provided by"
         #                                    "onboard algorithm. (0,0) represents disk center")
 
-        data['lc_peak'] = Column((np.vstack((mt['LC0_PEAK_COUNTS_4S'].value,
-                                             mt['LC1_PEAK_COUNTS_4S'].value,
-                                             mt['LC2_PEAK_COUNTS_4S'].value,
-                                             mt['LC3_PEAK_COUNTS_4S'].value,
-                                             mt['LC4_PEAK_COUNTS_4S'].value)).T * u.ct).astype(int),
-                                 description="counts in 4s peak window from quicklook lightcurve",
-                                 dtype=np.int64)
+        data["lc_peak"] = Column(
+            (
+                np.vstack(
+                    (
+                        mt["LC0_PEAK_COUNTS_4S"].value,
+                        mt["LC1_PEAK_COUNTS_4S"].value,
+                        mt["LC2_PEAK_COUNTS_4S"].value,
+                        mt["LC3_PEAK_COUNTS_4S"].value,
+                        mt["LC4_PEAK_COUNTS_4S"].value,
+                    )
+                ).T
+                * u.ct
+            ).astype(int),
+            description="counts in 4s peak window from quicklook lightcurve",
+            dtype=np.int64,
+        )
 
-        data['lc_bgk_peak'] = Column((np.vstack((mt['LC0_BKG_COUNTS_4S'].value,
-                                                 mt['LC1_BKG_COUNTS_4S'].value,
-                                                 mt['LC2_BKG_COUNTS_4S'].value,
-                                                 mt['LC3_BKG_COUNTS_4S'].value,
-                                                 mt['LC4_BKG_COUNTS_4S'].value))
-                                     .T * u.ct).astype(int),
-                                     description="background counts in 4s peak window"
-                                                 "from quicklook lightcurve",
-                                     dtype=np.int64)
+        data["lc_bgk_peak"] = Column(
+            (
+                np.vstack(
+                    (
+                        mt["LC0_BKG_COUNTS_4S"].value,
+                        mt["LC1_BKG_COUNTS_4S"].value,
+                        mt["LC2_BKG_COUNTS_4S"].value,
+                        mt["LC3_BKG_COUNTS_4S"].value,
+                        mt["LC4_BKG_COUNTS_4S"].value,
+                    )
+                ).T
+                * u.ct
+            ).astype(int),
+            description="background counts in 4s peak windowfrom quicklook lightcurve",
+            dtype=np.int64,
+        )
 
-        data['energy_index'] = Column(0, description="energy band index", dtype=np.int8)
+        data["energy_index"] = Column(0, description="energy band index", dtype=np.int8)
 
-        data.add_index('flare_id')
+        data.add_index("flare_id")
 
         # add energy axis for the lightcurve peek time data for each flare
         # the energy bins are taken from the daily ql-lightcurve products
@@ -265,21 +284,19 @@ class SCFlareListManager(FlareListManager, metaclass=Singleton):
         # So we do the lookup also just grouped by peak day in order to save file lookups
 
         energy_look_up = {}
-        data['peak_day'] = [d.datetime.day for d in data['peak_UTC']]
-        data_by_day = data.group_by('peak_day')
+        data["peak_day"] = [d.datetime.day for d in data["peak_UTC"]]
+        data_by_day = data.group_by("peak_day")
 
         for day, flares in zip(data_by_day.groups.keys, data_by_day.groups):
-            time = flares['peak_UTC'][0]
-            lc_data = fido_client.search(a.Time(time, time),
-                                         a.Instrument.stix,
-                                         a.stix.DataProduct.ql_lightcurve)
+            time = flares["peak_UTC"][0]
+            lc_data = fido_client.search(a.Time(time, time), a.Instrument.stix, a.stix.DataProduct.ql_lightcurve)
             lc_data.filter_for_latest_version()
             url_to_path(lc_data)
 
             if len(lc_data) == 0:
-                logger.warning(f'No lightcurve data found for flare at time {time}')
+                logger.warning(f"No lightcurve data found for flare at time {time}")
                 continue
-            lc = Product(lc_data['path'][0])
+            lc = Product(lc_data["path"][0])
 
             energy_table_hash = frozenset(pd.core.util.hashing.hash_array(lc.energies.as_array()))
 
@@ -288,19 +305,18 @@ class SCFlareListManager(FlareListManager, metaclass=Singleton):
             if energy_table_hash not in energy_look_up:
                 e_idx = len(energy_look_up.keys())
                 energy_look_up[energy_table_hash] = e_idx
-                lc.energies["index"] = Column(e_idx, description='energy edge table index',
-                                              dtype=np.int8)
+                lc.energies["index"] = Column(e_idx, description="energy edge table index", dtype=np.int8)
                 energy = vstack([energy, lc.energies])
                 if e_idx > 0:
-                    logger.warning(f'multiple energy ql-lc tables found for month {start}')
+                    logger.warning(f"multiple energy ql-lc tables found for month {start}")
 
             # add the energy index to the flare data to all flares of the same day
             # https://docs.astropy.org/en/latest/table/modify_table.html#caveats
-            replace = data.loc[flares['flare_id']]
-            replace['energy_index'] = energy_look_up[energy_table_hash]
-            data.loc[flares['flare_id']] = replace
+            replace = data.loc[flares["flare_id"]]
+            replace["energy_index"] = energy_look_up[energy_table_hash]
+            data.loc[flares["flare_id"]] = replace
 
-        del data['peak_day']
+        del data["peak_day"]
 
         return data, control, energy
 
@@ -364,8 +380,8 @@ class SDCFlareListManager(FlareListManager, metaclass=Singleton):
             today = datetime.now()  # - timedelta(days=60)
             flare_df_lists = []
             if file.exists():
-                old_list = pd.read_csv(file, keep_default_na=True, na_values=['None'])
-                mds = old_list['start_UTC'].max()
+                old_list = pd.read_csv(file, keep_default_na=True, na_values=["None"])
+                mds = old_list["start_UTC"].max()
                 try:
                     last_date = datetime.strptime(mds, "%Y-%m-%dT%H:%M:%S")
                 except ValueError:
@@ -399,18 +415,18 @@ class SDCFlareListManager(FlareListManager, metaclass=Singleton):
             full_flare_list.to_csv(file, index_label=False)
         else:
             logger.info(f"read flare list from {file}")
-            full_flare_list = pd.read_csv(file, keep_default_na=True, na_values=['None'])
+            full_flare_list = pd.read_csv(file, keep_default_na=True, na_values=["None"])
 
         return full_flare_list
 
     @staticmethod
     def filter_flare_function(col):
-        return col['lc_peak'][0].value > CONFIG.getint('Processing', 'flarelist_sdc_min_count',
-                                                       fallback=1000)
+        return col["lc_peak"][0].value > CONFIG.getint("Processing", "flarelist_sdc_min_count", fallback=1000)
 
     def get_data(self, *, start, end, fido_client):
-        month_data = self.flarelist[(self.flarelist['start_UTC'] >= start.isoformat()) &
-                                    (self.flarelist['start_UTC'] < end.isoformat())]
+        month_data = self.flarelist[
+            (self.flarelist["start_UTC"] >= start.isoformat()) & (self.flarelist["start_UTC"] < end.isoformat())
+        ]
 
         if len(month_data) == 0:
             return None, None, None
@@ -420,80 +436,97 @@ class SDCFlareListManager(FlareListManager, metaclass=Singleton):
         control = QTable()
         energy = QTable()
 
-        data['flare_id'] = Column(mt['flare_id'].astype(int),
-                                  description=f'unique flare id for flarelist {self.flarelistname}')
-        data['start_UTC'] = Column(0, description="start time of flare")
-        data['start_UTC'] = [Time(d, format='isot', scale='utc') for d in mt['start_UTC']]
-        data['duration'] = Column(mt['duration'].astype(float) * u.s,
-                                  description="duration of flare")
-        data['end_UTC'] = Column(0, description="end time of flare")
-        data['end_UTC'] = [Time(d, format='isot', scale='utc') for d in mt['end_UTC']]
-        data['peak_UTC'] = Column(0, description="flare peak time")
-        data['peak_UTC'] = [Time(d, format='isot', scale='utc') for d in mt['peak_UTC']]
-        data['att_in'] = Column(mt['att_in'].astype(bool),
-                                description="was attenuator in during flare")
-        data['bkg_baseline'] = Column(mt['LC0_BKG'] * u.ct,
-                                      description='background baseline at 4-10 keV')
-        data['GOES_class'] = Column(mt['GOES_class'].astype(str),
-                                    description="GOES class of the GOES XRS data at time of flare"
-                                                " - not derived from STIX data.  Do not use when "
-                                                "flare isn't visible to Earth")
-        data['goes_min_class_est'] = Column(mt['goes_estimated_min_class'].astype(str),
-                                            description="min GOES class estimate derived "
-                                                        "from STIX data")
-        data['goes_max_class_est'] = Column(mt['goes_estimated_max_class'].astype(str),
-                                            description="max GOES class estimate derived "
-                                                        "from STIX data")
-        data['goes_mean_class_est'] = Column(mt['goes_estimated_mean_class'].astype(str),
-                                             description="mean GOES class estimate derived "
-                                                         "from STIX data")
+        data["flare_id"] = Column(
+            mt["flare_id"].astype(int), description=f"unique flare id for flarelist {self.flarelistname}"
+        )
+        data["start_UTC"] = Column(0, description="start time of flare")
+        data["start_UTC"] = [Time(d, format="isot", scale="utc") for d in mt["start_UTC"]]
+        data["duration"] = Column(mt["duration"].astype(float) * u.s, description="duration of flare")
+        data["end_UTC"] = Column(0, description="end time of flare")
+        data["end_UTC"] = [Time(d, format="isot", scale="utc") for d in mt["end_UTC"]]
+        data["peak_UTC"] = Column(0, description="flare peak time")
+        data["peak_UTC"] = [Time(d, format="isot", scale="utc") for d in mt["peak_UTC"]]
+        data["att_in"] = Column(mt["att_in"].astype(bool), description="was attenuator in during flare")
+        data["bkg_baseline"] = Column(mt["LC0_BKG"] * u.ct, description="background baseline at 4-10 keV")
+        data["GOES_class"] = Column(
+            mt["GOES_class"].astype(str),
+            description="GOES class of the GOES XRS data at time of flare"
+            " - not derived from STIX data.  Do not use when "
+            "flare isn't visible to Earth",
+        )
+        data["goes_min_class_est"] = Column(
+            mt["goes_estimated_min_class"].astype(str), description="min GOES class estimate derived from STIX data"
+        )
+        data["goes_max_class_est"] = Column(
+            mt["goes_estimated_max_class"].astype(str), description="max GOES class estimate derived from STIX data"
+        )
+        data["goes_mean_class_est"] = Column(
+            mt["goes_estimated_mean_class"].astype(str), description="mean GOES class estimate derived from STIX data"
+        )
 
-        data['GOES_flux'] = Column(mt['GOES_flux'].astype(float) * u.W / u.m**2,
-                                   description="GOES flux of the GOES XRS data at time of flare"
-                                               "- not derived from STIX data. Do not use when the "
-                                               "flare isn't visible to Earth")
-        data['goes_min_flux_est'] = Column(mt['goes_estimated_min_flux'].astype(float) *
-                                           u.W / u.m**2,
-                                           description="min GOES flux estimate "
-                                                       "derived from STIX data")
-        data['goes_max_flux_est'] = Column(mt['goes_estimated_max_flux'].astype(float) *
-                                           u.W / u.m**2,
-                                           description="max GOES flux estimate "
-                                                       "derived from STIX data")
-        data['goes_mean_flux_est'] = Column(mt['goes_estimated_mean_flux'].astype(float) *
-                                            u.W / u.m**2,
-                                            description="mean GOES flux estimate "
-                                                        "derived from STIX data")
+        data["GOES_flux"] = Column(
+            mt["GOES_flux"].astype(float) * u.W / u.m**2,
+            description="GOES flux of the GOES XRS data at time of flare"
+            "- not derived from STIX data. Do not use when the "
+            "flare isn't visible to Earth",
+        )
+        data["goes_min_flux_est"] = Column(
+            mt["goes_estimated_min_flux"].astype(float) * u.W / u.m**2,
+            description="min GOES flux estimate derived from STIX data",
+        )
+        data["goes_max_flux_est"] = Column(
+            mt["goes_estimated_max_flux"].astype(float) * u.W / u.m**2,
+            description="max GOES flux estimate derived from STIX data",
+        )
+        data["goes_mean_flux_est"] = Column(
+            mt["goes_estimated_mean_flux"].astype(float) * u.W / u.m**2,
+            description="mean GOES flux estimate derived from STIX data",
+        )
 
         # data['cfl_x'] = Column(mt['CFL_X_arcsec'].astype(float) * u.arcsec,
-        #                        description="corse flare location in x direction provided by"
+        #                        description="coarse flare location in x direction provided by"
         #                                    "onboard algorithm. (0,0) represents disk center")
         # data['cfl_y'] = Column(mt['CFL_Y_arcsec'].astype(float) * u.arcsec,
-        #                        description="corse flare location in y direction provided by"
+        #                        description="coarse flare location in y direction provided by"
         #                                    "onboard algorithm. (0,0) represents disk center")
 
-        data['lc_peak'] = Column((np.vstack((mt['LC0_PEAK_COUNTS_4S'].value,
-                                             mt['LC1_PEAK_COUNTS_4S'].value,
-                                             mt['LC2_PEAK_COUNTS_4S'].value,
-                                             mt['LC3_PEAK_COUNTS_4S'].value,
-                                             mt['LC4_PEAK_COUNTS_4S'].value))
-                                  .T * u.ct).astype(int),
-                                 description="counts in 4s peak window from quicklook lightcurve",
-                                 dtype=np.int64)
+        data["lc_peak"] = Column(
+            (
+                np.vstack(
+                    (
+                        mt["LC0_PEAK_COUNTS_4S"].value,
+                        mt["LC1_PEAK_COUNTS_4S"].value,
+                        mt["LC2_PEAK_COUNTS_4S"].value,
+                        mt["LC3_PEAK_COUNTS_4S"].value,
+                        mt["LC4_PEAK_COUNTS_4S"].value,
+                    )
+                ).T
+                * u.ct
+            ).astype(int),
+            description="counts in 4s peak window from quicklook lightcurve",
+            dtype=np.int64,
+        )
 
-        data['lc_bgk_peak'] = Column((np.vstack((mt['LC0_BKG_COUNTS_4S'].value,
-                                                 mt['LC1_BKG_COUNTS_4S'].value,
-                                                 mt['LC2_BKG_COUNTS_4S'].value,
-                                                 mt['LC3_BKG_COUNTS_4S'].value,
-                                                 mt['LC4_BKG_COUNTS_4S'].value))
-                                      .T * u.ct).astype(int),
-                                     description="background counts in 4s peak window"
-                                                 "from quicklook lightcurve",
-                                     dtype=np.int64)
+        data["lc_bgk_peak"] = Column(
+            (
+                np.vstack(
+                    (
+                        mt["LC0_BKG_COUNTS_4S"].value,
+                        mt["LC1_BKG_COUNTS_4S"].value,
+                        mt["LC2_BKG_COUNTS_4S"].value,
+                        mt["LC3_BKG_COUNTS_4S"].value,
+                        mt["LC4_BKG_COUNTS_4S"].value,
+                    )
+                ).T
+                * u.ct
+            ).astype(int),
+            description="background counts in 4s peak windowfrom quicklook lightcurve",
+            dtype=np.int64,
+        )
 
-        data['energy_index'] = Column(0, description="energy band index", dtype=np.int8)
+        data["energy_index"] = Column(0, description="energy band index", dtype=np.int8)
 
-        data.add_index('flare_id')
+        data.add_index("flare_id")
 
         # add energy axis for the lightcurve peek time data for each flare
         # the energy bins are taken from the daily ql-lightcurve products
@@ -502,21 +535,19 @@ class SDCFlareListManager(FlareListManager, metaclass=Singleton):
         # So we do the lookup also just grouped by peak day in order to save file lookups
 
         energy_look_up = {}
-        data['peak_day'] = [d.datetime.day for d in data['peak_UTC']]
-        data_by_day = data.group_by('peak_day')
+        data["peak_day"] = [d.datetime.day for d in data["peak_UTC"]]
+        data_by_day = data.group_by("peak_day")
 
         for day, flares in zip(data_by_day.groups.keys, data_by_day.groups):
-            time = flares['peak_UTC'][0]
-            lc_data = fido_client.search(a.Time(time, time),
-                                         a.Instrument.stix,
-                                         a.stix.DataProduct.ql_lightcurve)
+            time = flares["peak_UTC"][0]
+            lc_data = fido_client.search(a.Time(time, time), a.Instrument.stix, a.stix.DataProduct.ql_lightcurve)
             lc_data.filter_for_latest_version()
             url_to_path(lc_data)
 
             if len(lc_data) == 0:
-                logger.warning(f'No lightcurve data found for flare at time {time}')
+                logger.warning(f"No lightcurve data found for flare at time {time}")
                 continue
-            lc = Product(lc_data['path'][0])
+            lc = Product(lc_data["path"][0])
 
             energy_table_hash = frozenset(pd.core.util.hashing.hash_array(lc.energies.as_array()))
 
@@ -525,19 +556,18 @@ class SDCFlareListManager(FlareListManager, metaclass=Singleton):
             if energy_table_hash not in energy_look_up:
                 e_idx = len(energy_look_up.keys())
                 energy_look_up[energy_table_hash] = e_idx
-                lc.energies["index"] = Column(e_idx, description='energy edge table index',
-                                              dtype=np.int8)
+                lc.energies["index"] = Column(e_idx, description="energy edge table index", dtype=np.int8)
                 energy = vstack([energy, lc.energies])
                 if e_idx > 0:
-                    logger.warning(f'multiple energy ql-lc tables found for month {start}')
+                    logger.warning(f"multiple energy ql-lc tables found for month {start}")
 
             # add the energy index to the flare data to all flares of the same day
             # https://docs.astropy.org/en/latest/table/modify_table.html#caveats
-            replace = data.loc[flares['flare_id']]
-            replace['energy_index'] = energy_look_up[energy_table_hash]
-            data.loc[flares['flare_id']] = replace
+            replace = data.loc[flares["flare_id"]]
+            replace["energy_index"] = energy_look_up[energy_table_hash]
+            data.loc[flares["flare_id"]] = replace
 
-        del data['peak_day']
+        del data["peak_day"]
 
         return data, control, energy
 

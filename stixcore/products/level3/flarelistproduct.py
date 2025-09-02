@@ -5,7 +5,7 @@ from stixcore.ephemeris.manager import Spice
 from stixcore.products.product import GenericProduct, L3Mixin
 from stixcore.time.datetime import SCETime, SCETimeRange
 
-__all__ = ["FlareListProduct", "FlareOverviewImage"]
+__all__ = ["FlareListProduct", "PeekPreviewImage"]
 
 
 class FlareListProduct(GenericProduct, L3Mixin):
@@ -26,8 +26,7 @@ class PeekPreviewImage(FlareListProduct):
     Name = "peekpreviewimg"
 
     def __init__(self, control, data, energy, maps, parents, *, product_name_suffix="", **kwargs):
-        super().__init__(service_type=0, service_subtype=0, ssid=5, control=control,
-                         data=data, energy=energy, **kwargs)
+        super().__init__(service_type=0, service_subtype=0, ssid=5, control=control, data=data, energy=energy, **kwargs)
         self.name = f"{PeekPreviewImage.Name}-{product_name_suffix}"
         self.level = PeekPreviewImage.Level
         self.type = PeekPreviewImage.Type
@@ -35,8 +34,7 @@ class PeekPreviewImage(FlareListProduct):
         self.maps = maps
         self.parents = parents
 
-        self.add_additional_header_keyword(('NR_MAPS', len(maps) if maps else 0,
-                                            'number of maps in file'))
+        self.add_additional_header_keyword(("NR_MAPS", len(maps) if maps else 0, "number of maps in file"))
 
     @property
     def parent(self):
@@ -58,5 +56,4 @@ class PeekPreviewImage(FlareListProduct):
 
     @classmethod
     def is_datasource_for(cls, *, service_type, service_subtype, ssid, **kwargs):
-        return (kwargs['level'] == PeekPreviewImage.Level and service_type == 0
-                and service_subtype == 0 and ssid == 5)
+        return kwargs["level"] == PeekPreviewImage.Level and service_type == 0 and service_subtype == 0 and ssid == 5

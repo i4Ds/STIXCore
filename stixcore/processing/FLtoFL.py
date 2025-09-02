@@ -24,19 +24,25 @@ from stixcore.soop.manager import SOOPManager
 from stixcore.util.logging import get_logger
 from stixcore.util.util import get_complete_file_name_and_path
 
-__all__ = ['FLtoFL']
+__all__ = ["FLtoFL"]
 
 logger = get_logger(__name__)
 
 
 class FLtoFL(SingleProductProcessingStepMixin):
-    """Processing step from enhance monthly flare list files to next processing steep
-    """
+    """Processing step from enhance monthly flare list files to next processing steep"""
+
     INPUT_PATTERN = "solo_ANC_stix-flarelist-sdc*.fits"
 
-    def __init__(self, source_dir: Path, output_dir: Path, *,
-                 input_pattern: str = '', products_in_out,
-                 cadence: timedelta = timedelta(hours=5)):
+    def __init__(
+        self,
+        source_dir: Path,
+        output_dir: Path,
+        *,
+        input_pattern: str = "",
+        products_in_out,
+        cadence: timedelta = timedelta(hours=5),
+    ):
         """Crates a new Processor.
 
         Parameters
@@ -63,8 +69,7 @@ class FLtoFL(SingleProductProcessingStepMixin):
             a list of fits files candidates
         """
         for product_in, product_out in self.in_products.items():
-            pattern = (f"solo_{product_in.LEVEL}_stix-{product_in.TYPE}-"
-                       f"{product_in.NAME}_*.fits")
+            pattern = f"solo_{product_in.LEVEL}_stix-{product_in.TYPE}-{product_in.NAME}_*.fits"
             for c in self.source_dir.rglob(pattern):
                 yield product_in, product_out, c
 
@@ -83,10 +88,9 @@ class FLtoFL(SingleProductProcessingStepMixin):
                 fl_to_process.append((product_in, product_out, fl_can))
         return fl_to_process
 
-    def test_for_processing(self, candidate: Path,
-                            product_in: FlareList,
-                            product_out: FlareList,
-                            phm: ProcessingHistoryStorage) -> TestForProcessingResult:
+    def test_for_processing(
+        self, candidate: Path, product_in: FlareList, product_out: FlareList, phm: ProcessingHistoryStorage
+    ) -> TestForProcessingResult:
         """_summary_
 
         Parameters
@@ -103,16 +107,19 @@ class FLtoFL(SingleProductProcessingStepMixin):
         """
         try:
             c_header = fits.getheader(candidate)
-            f_data_end = datetime.fromisoformat(c_header['DATE-END'])
-            f_create_date = datetime.fromisoformat(c_header['DATE'])
+            f_data_end = datetime.fromisoformat(c_header["DATE-END"])
+            f_create_date = datetime.fromisoformat(c_header["DATE"])
 
             cfn = get_complete_file_name_and_path(candidate)
 
-            wp = phm.has_processed_fits_products(product_out.NAME,
-                                                 product_out.LEVEL,
-                                                 product_out.TYPE,
-                                                 product_out.get_cls_processing_version(),
-                                                 str(cfn), f_create_date)
+            wp = phm.has_processed_fits_products(
+                product_out.NAME,
+                product_out.LEVEL,
+                product_out.TYPE,
+                product_out.get_cls_processing_version(),
+                str(cfn),
+                f_create_date,
+            )
 
             # found already in the processing history
             if wp:
@@ -121,12 +128,11 @@ class FLtoFL(SingleProductProcessingStepMixin):
             # safety margin of 1day until we process higher products with position and pointing
             # only use flown spice kernels not predicted once as pointing information
             # can be "very off"
-            if (f_data_end > (Spice.instance.get_mk_date(meta_kernel_type="flown")
-                              - timedelta(hours=24))):
+            if f_data_end > (Spice.instance.get_mk_date(meta_kernel_type="flown") - timedelta(hours=24)):
                 return TestForProcessingResult.NotSuitable
 
             # safety margin of x until we start with processing the list files
-            if (f_create_date >= (datetime.now() - self.cadence)):
+            if f_create_date >= (datetime.now() - self.cadence):
                 return TestForProcessingResult.NotSuitable
 
             return TestForProcessingResult.Suitable
@@ -134,9 +140,9 @@ class FLtoFL(SingleProductProcessingStepMixin):
             logger.error(e)
         return TestForProcessingResult.NotSuitable
 
-    def process_fits_files(self, flarelists, *, soopmanager: SOOPManager,
-                           spice_kernel_path: Path, fl_processor,
-                           img_processor, config) -> list[Path]:
+    def process_fits_files(
+        self, flarelists, *, soopmanager: SOOPManager, spice_kernel_path: Path, fl_processor, img_processor, config
+    ) -> list[Path]:
         """Performs the processing (expected to run in a dedicated python process) from a
         list flare list product to an enhanced flare list product.
 
@@ -161,8 +167,7 @@ class FLtoFL(SingleProductProcessingStepMixin):
         CONFIG = config
         SOOPManager.instance = soopmanager
         Spice.instance = Spice(spice_kernel_path)
-        fido_client = STIXClient(source=CONFIG.get('Paths', 'fido_search_url',
-                                                   fallback=STIXClient.baseurl))
+        fido_client = STIXClient(source=CONFIG.get("Paths", "fido_search_url", fallback=STIXClient.baseurl))
         all_files = list()
 
         for in_product, out_product, file_path in flarelists:
@@ -175,20 +180,16 @@ class FLtoFL(SingleProductProcessingStepMixin):
                 month = prod.utc_timerange.start.datetime.date()
 
                 # add flare position if not already present
-                if issubclass(out_product, FlarePositionMixin) and \
-                   not issubclass(in_product, FlarePositionMixin):
+                if issubclass(out_product, FlarePositionMixin) and not issubclass(in_product, FlarePositionMixin):
                     out_product.add_flare_position(data, fido_client, month=month)
 
                 # add soop information if not already present
-                if issubclass(out_product, FlareSOOPMixin) and \
-                   not issubclass(in_product, FlareSOOPMixin):
+                if issubclass(out_product, FlareSOOPMixin) and not issubclass(in_product, FlareSOOPMixin):
                     out_product.add_soop(data)
 
                 # add peek preview images if not already present
-                if issubclass(out_product, FlarePeekPreviewMixin) and \
-                   not issubclass(in_product, FlarePeekPreviewMixin):
-                    out_product.add_peek_preview(data, energy, file_path.name, fido_client,
-                                                 img_processor, month=month)
+                if issubclass(out_product, FlarePeekPreviewMixin) and not issubclass(in_product, FlarePeekPreviewMixin):
+                    out_product.add_peek_preview(data, energy, file_path.name, fido_client, img_processor, month=month)
 
                 out_prod = out_product(control=control, data=data, month=month, energy=energy)
                 out_prod.parent = file_path.name
@@ -196,12 +197,18 @@ class FLtoFL(SingleProductProcessingStepMixin):
                 # call upgrade method to enhance the product
                 out_prod.enhance_from_product(prod)
 
-                new_f = [SingleProcessingStepResult(out_product.NAME, out_product.LEVEL,
-                                                    out_product.TYPE,
-                                                    out_product.get_cls_processing_version(),
-                                                    fop, get_complete_file_name_and_path(file_path),
-                                                    datetime.now())
-                         for fop in fl_processor.write_fits(out_prod)]
+                new_f = [
+                    SingleProcessingStepResult(
+                        out_product.NAME,
+                        out_product.LEVEL,
+                        out_product.TYPE,
+                        out_product.get_cls_processing_version(),
+                        fop,
+                        get_complete_file_name_and_path(file_path),
+                        datetime.now(),
+                    )
+                    for fop in fl_processor.write_fits(out_prod)
+                ]
 
                 all_files.extend(new_f)
             except Exception as e:

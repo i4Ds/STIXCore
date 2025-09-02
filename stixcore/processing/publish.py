@@ -667,7 +667,7 @@ def publish_fits_to_esa(args):
     wait_period = u.Quantity(args.waiting_period)
     wait_period_s = wait_period.to(u.s).value
 
-    LL_wait_period = u.Quantity(CONFIG.get('Publish', 'LL_waiting_period', fallback="1min"))
+    LL_wait_period = u.Quantity(CONFIG.get("Publish", "LL_waiting_period", fallback="1min"))
     LL_wait_period_s = LL_wait_period.to(u.s).value
 
     target_dir = Path(args.target_dir)
@@ -782,7 +782,7 @@ def publish_fits_to_esa(args):
         if level not in include_levels:
             continue
 
-        wp_s = LL_wait_period_s if level.startswith('ll') else wait_period_s
+        wp_s = LL_wait_period_s if level.startswith("ll") else wait_period_s
 
         # is the waiting time after last modification done
         if (now - last_mod) < wp_s:
@@ -816,7 +816,7 @@ def publish_fits_to_esa(args):
 
     for p in to_publish:
         try:
-            isFits = p.suffix == '.fits'
+            isFits = p.suffix == ".fits"
             if isFits:
                 comment = add_BSD_comment(p)
 

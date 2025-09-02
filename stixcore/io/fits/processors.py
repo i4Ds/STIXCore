@@ -1,6 +1,5 @@
 """Module for the different processing levels."""
 
-from math import isnan
 from pathlib import Path
 from datetime import datetime
 
@@ -21,8 +20,15 @@ from stixcore.time.datetime import SEC_IN_DAY
 from stixcore.util.logging import get_logger
 from stixcore.util.util import get_complete_file_name_and_path
 
-__all__ = ['SEC_IN_DAY', 'FitsProcessor', 'FitsLBProcessor', 'FitsL0Processor',
-           'FitsL1Processor', 'FitsL2Processor', 'PlotProcessor']
+__all__ = [
+    "SEC_IN_DAY",
+    "FitsProcessor",
+    "FitsLBProcessor",
+    "FitsL0Processor",
+    "FitsL1Processor",
+    "FitsL2Processor",
+    "PlotProcessor",
+]
 
 
 logger = get_logger(__name__)
@@ -34,6 +40,7 @@ NAN = 2**32 - 1
 
 def empty_if_nan(val):
     return "" if isnan(val) else val
+
 
 
 def version_format(version):
@@ -98,14 +105,13 @@ class FitsProcessor:
             The filename
         """
 
-        user_req = ''
-        if product.control and 'request_id' in product.control.colnames:
+        user_req = ""
+        if product.control and "request_id" in product.control.colnames:
             user_req = f"_{product.control['request_id'][0]:010d}"
 
-        tc_control = ''
-        if product.control and 'tc_packet_seq_control' in product.control.colnames \
-           and user_req != '':
-            tc_control = f'-{product.control["tc_packet_seq_control"][0]:05d}'
+        tc_control = ""
+        if product.control and "tc_packet_seq_control" in product.control.colnames and user_req != "":
+            tc_control = f"-{product.control['tc_packet_seq_control'][0]:05d}"
 
         if status == "" and (not header) and (product.level != "LB" and product.fits_daily_file is True):
             status = "U"
@@ -748,17 +754,19 @@ class FitsL1Processor(FitsL0Processor):
         self.archive_path = archive_path
 
     @classmethod
-    def generate_filename(cls, product, *, version=0, status='', header=True):
-
-        date_range = f'{product.utc_timerange.start.strftime("%Y%m%dT%H%M%S")}-' +\
-                     f'{product.utc_timerange.end.strftime("%Y%m%dT%H%M%S")}'
-        if (product.LEVEL in ['LL03']):
+    def generate_filename(cls, product, *, version=0, status="", header=True):
+        date_range = (
+            f"{product.utc_timerange.start.strftime('%Y%m%dT%H%M%S')}-"
+            + f"{product.utc_timerange.end.strftime('%Y%m%dT%H%M%S')}"
+        )
+        if product.LEVEL in ["LL03"]:
             # for daily LL03 products use fake daily file naming convention all day from 0-24h
             # this is to avoid multiple files per day and to be able to add
-            date_range = f'{product.utc_timerange.start.strftime("%Y%m%dT000000")}-' +\
-                         f'{product.utc_timerange.start.strftime("%Y%m%dT235959")}'
-        elif (product.type not in ['sci', 'flarelist']
-                or product.name == 'burst-aspect'):
+            date_range = (
+                f"{product.utc_timerange.start.strftime('%Y%m%dT000000')}-"
+                + f"{product.utc_timerange.start.strftime('%Y%m%dT235959')}"
+            )
+        elif product.type not in ["sci", "flarelist"] or product.name == "burst-aspect":
             date_range = product.utc_timerange.center.strftime("%Y%m%d")
 
         return FitsProcessor.generate_filename(
@@ -846,7 +854,7 @@ class FitsL1Processor(FitsL0Processor):
             # day boundary
             parts = [prod.level, prod.utc_timerange.center.strftime("%Y/%m/%d"), prod.type.upper()]
             # for science data use start date
-            if prod.type in ["sci", 'flarelist']:
+            if prod.type in ["sci", "flarelist"]:
                 parts[1] = prod.utc_timerange.start.strftime("%Y/%m/%d")
             path = self.archive_path.joinpath(*[str(x) for x in parts])
             path.mkdir(parents=True, exist_ok=True)
@@ -875,8 +883,7 @@ class FitsL1Processor(FitsL0Processor):
                 if col.endswith("_comp_err"):
                     data[col].description = "Error due only to integer compression"
 
-            primary_header, header_override = self.generate_primary_header(filename, prod,
-                                                                           version=version)
+            primary_header, header_override = self.generate_primary_header(filename, prod, version=version)
             primary_hdu = fits.PrimaryHDU()
             primary_hdu.header.update(primary_header)
             primary_hdu.header.update(header_override)
@@ -918,9 +925,13 @@ class FitsL1Processor(FitsL0Processor):
 
             hdul = [primary_hdu, control_hdu, data_hdu]
 
-            idb_versions = QTable(rows=[(version, range.start.as_float(), range.end.as_float())
-                                        for version, range in prod.idb_versions.items()],
-                                  names=["version", "obt_start", "obt_end"])
+            idb_versions = QTable(
+                rows=[
+                    (version, range.start.as_float(), range.end.as_float())
+                    for version, range in prod.idb_versions.items()
+                ],
+                names=["version", "obt_start", "obt_end"],
+            )
             idb_enc = fits.connect._encode_mixins(idb_versions)
             idb_hdu = table_to_hdu(idb_enc)
             idb_hdu = add_default_tuint(idb_hdu)
@@ -1023,10 +1034,10 @@ class FitsANCProcessor(FitsL2Processor):
 
         filename = self.generate_filename(product=prod, version=version, header=False)
 
-        parts = [prod.level, prod.utc_timerange.center.strftime('%Y/%m/%d'), prod.type.upper()]
+        parts = [prod.level, prod.utc_timerange.center.strftime("%Y/%m/%d"), prod.type.upper()]
         # for science data use start date
-        if prod.type in ['flarelist']:
-            parts[1] = prod.utc_timerange.start.strftime('%Y/%m/%d')
+        if prod.type in ["flarelist"]:
+            parts[1] = prod.utc_timerange.start.strftime("%Y/%m/%d")
         path = self.archive_path.joinpath(*[str(x) for x in parts])
         path.mkdir(parents=True, exist_ok=True)
 
@@ -1034,14 +1045,13 @@ class FitsANCProcessor(FitsL2Processor):
         fitspath_complete = get_complete_file_name_and_path(fitspath)
 
         if fitspath.exists():
-            logger.warning('Fits file %s exists data will be overriden', fitspath.name)
+            logger.warning("Fits file %s exists data will be overridden", fitspath.name)
         elif fitspath_complete.exists():
-            logger.warning('Complete Fits file %s exists will be overriden', fitspath.name)
+            logger.warning("Complete Fits file %s exists will be overridden", fitspath.name)
 
         data = prod.data
 
-        primary_header, header_override = self.generate_primary_header(filename, prod,
-                                                                       version=version)
+        primary_header, header_override = self.generate_primary_header(filename, prod, version=version)
         primary_hdu = fits.PrimaryHDU()
         primary_hdu.header.update(primary_header)
         primary_hdu.header.update(header_override)
@@ -1050,7 +1060,7 @@ class FitsANCProcessor(FitsL2Processor):
         # Add comment and history
         [primary_hdu.header.add_comment(com) for com in prod.comment]
         [primary_hdu.header.add_history(com) for com in prod.history]
-        primary_hdu.header.update({'HISTORY': 'Processed by STIXCore ANC'})
+        primary_hdu.header.update({"HISTORY": "Processed by STIXCore ANC"})
 
         data_enc = fits.connect._encode_mixins(data)
         data_hdu = table_to_hdu(data_enc)
@@ -1065,7 +1075,7 @@ class FitsANCProcessor(FitsL2Processor):
             energy_hdu = table_to_hdu(energy_enc)
             energy_hdu = add_default_tuint(energy_hdu)
             energy_hdu.name = "ENERGIES"
-            hdul.append((energy_hdu))
+            hdul.append(energy_hdu)
 
         hdul = fits.HDUList(hdul)
 
@@ -1077,6 +1087,7 @@ class FitsANCProcessor(FitsL2Processor):
 
 class PlotProcessor(FitsL2Processor):
     """A file product processor for plot images"""
+
     def __init__(self, archive_path):
         """Creates a new PlotProcessor object.
 
@@ -1087,7 +1098,7 @@ class PlotProcessor(FitsL2Processor):
         """
         super().__init__(archive_path)
 
-    def generate_filename(self, product, *, version=0, suffix='.svg'):
+    def generate_filename(self, product, *, version=0, suffix=".svg"):
         """Generates a SOAR conform filename based on product characteristics.
 
         Parameters
@@ -1104,8 +1115,7 @@ class PlotProcessor(FitsL2Processor):
         Path
             a Path object with full name and path
         """
-        p = Path(super().generate_filename(product=product, version=version,
-                                           header=True, status='C'))
+        p = Path(super().generate_filename(product=product, version=version, header=True, status="C"))
         return p.with_suffix(suffix).name
 
     def generate_primary_header(self, filename, product, *, version=0):
@@ -1119,7 +1129,7 @@ class PlotProcessor(FitsL2Processor):
         product : Product
             The products holding the data
         version : int, optional
-            teh processing version, by default 0 = detect from codebase
+            the processing version, by default 0 = detect from codebase
 
         Returns
         -------
@@ -1160,8 +1170,7 @@ class PlotProcessor(FitsL2Processor):
         # headers = self.generate_primary_header(filename, product, version=version)
         # headers['parent'] = get_complete_file_name(product.parent_file_path.name)
 
-        parts = [product.level, product.utc_timerange.center.strftime("%Y/%m/%d"),
-                 product.type.upper()]
+        parts = [product.level, product.utc_timerange.center.strftime("%Y/%m/%d"), product.type.upper()]
         # for science data use start date
         if product.type in ["sci", "flarelist"]:
             parts[1] = product.utc_timerange.start.strftime("%Y/%m/%d")
@@ -1213,14 +1222,13 @@ class FitsL3Processor(FitsL2Processor):
         fitspath_complete = get_complete_file_name_and_path(fitspath)
 
         if fitspath.exists():
-            logger.warning('Fits file %s exists data will be overriden', fitspath.name)
+            logger.warning("Fits file %s exists data will be overridden", fitspath.name)
         elif fitspath_complete.exists():
-            logger.warning('Complete Fits file %s exists will be overriden', fitspath.name)
+            logger.warning("Complete Fits file %s exists will be overridden", fitspath.name)
 
         data = prod.data
 
-        primary_header, header_override = self.generate_primary_header(filename, prod,
-                                                                       version=version)
+        primary_header, header_override = self.generate_primary_header(filename, prod, version=version)
 
         primary_hdu = fits.PrimaryHDU()
         primary_hdu.header.update(primary_header)
@@ -1231,7 +1239,7 @@ class FitsL3Processor(FitsL2Processor):
         # Add comment and history
         [primary_hdu.header.add_comment(com) for com in prod.comment]
         [primary_hdu.header.add_history(com) for com in prod.history]
-        primary_hdu.header.update({'HISTORY': 'Processed by STIXCore ANC'})
+        primary_hdu.header.update({"HISTORY": "Processed by STIXCore ANC"})
 
         if hasattr(prod, "maps") and len(prod.maps) > 0:
             # fig = plt.figure(figsize=(12, 6))
@@ -1255,7 +1263,7 @@ class FitsL3Processor(FitsL2Processor):
             for idx, map in enumerate(prod.maps):
                 map_data, header = map
                 image_hdu = fits.ImageHDU(map_data, header=header)
-                image_hdu.name = f'MAP_{idx}'
+                image_hdu.name = f"MAP_{idx}"
                 hdul.append(image_hdu)
 
         data_enc = fits.connect._encode_mixins(data)
@@ -1276,12 +1284,11 @@ class FitsL3Processor(FitsL2Processor):
         hdul = fits.HDUList(hdul)
 
         filetowrite = path / filename
-        logger.info(f'Writing fits file to {filetowrite}')
+        logger.info(f"Writing fits file to {filetowrite}")
         hdul.writeto(filetowrite, overwrite=True, checksum=True)
         return [filetowrite]
 
     def generate_primary_header(self, filename, product, *, version=0):
-
         if product.fits_header is None:
             L2, o = super().generate_primary_header(filename, product, version=version)
             L2headers = L2 + o

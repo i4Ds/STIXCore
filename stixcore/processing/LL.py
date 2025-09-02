@@ -17,19 +17,26 @@ from stixcore.soop.manager import SOOPManager
 from stixcore.util.logging import get_logger
 from stixcore.util.util import get_complete_file_name_and_path
 
-__all__ = ['LL03QL']
+__all__ = ["LL03QL"]
 
 logger = get_logger(__name__)
 
 
 class LL03QL(SingleProductProcessingStepMixin):
-    """Processing step from a ql ligtcurve L1 fits file to LL level 3 plot chart image.
-    """
+    """Processing step from a ql ligtcurve L1 fits file to LL level 3 plot chart image."""
+
     INPUT_PATTERN = "solo_ANC_stix-flarelist-sdc*.fits"
 
-    def __init__(self, source_dir: Path, output_dir: Path, *,
-                 input_pattern: str = '', in_product: LightCurve, out_product: LightCurveL3,
-                 cadence: timedelta = timedelta(minutes=1)):
+    def __init__(
+        self,
+        source_dir: Path,
+        output_dir: Path,
+        *,
+        input_pattern: str = "",
+        in_product: LightCurve,
+        out_product: LightCurveL3,
+        cadence: timedelta = timedelta(minutes=1),
+    ):
         """Crates a new Processor.
 
         Parameters
@@ -71,8 +78,7 @@ class LL03QL(SingleProductProcessingStepMixin):
                 ql_to_process.append(ql_can)
         return ql_to_process
 
-    def test_for_processing(self, candidate: Path,
-                            phm: ProcessingHistoryStorage) -> TestForProcessingResult:
+    def test_for_processing(self, candidate: Path, phm: ProcessingHistoryStorage) -> TestForProcessingResult:
         """Performs a check on each found candidate if it should be processed or skipped
 
         Parameters
@@ -89,23 +95,26 @@ class LL03QL(SingleProductProcessingStepMixin):
         """
         try:
             c_header = fits.getheader(candidate)
-            f_data_end = datetime.fromisoformat(c_header['DATE-END'])
-            f_create_date = datetime.fromisoformat(c_header['DATE'])
+            f_data_end = datetime.fromisoformat(c_header["DATE-END"])
+            f_create_date = datetime.fromisoformat(c_header["DATE"])
 
             cfn = get_complete_file_name_and_path(candidate)
 
-            wp = phm.has_processed_fits_products(self.out_product.NAME,
-                                                 self.out_product.LEVEL,
-                                                 self.out_product.TYPE,
-                                                 self.out_product.get_cls_processing_version(),
-                                                 str(cfn), f_create_date)
+            wp = phm.has_processed_fits_products(
+                self.out_product.NAME,
+                self.out_product.LEVEL,
+                self.out_product.TYPE,
+                self.out_product.get_cls_processing_version(),
+                str(cfn),
+                f_create_date,
+            )
 
             # found already in the processing history
             if wp:
                 return TestForProcessingResult.NotSuitable
 
             # safety margin of x until we start with processing the list files
-            if (f_create_date >= (datetime.now() - self.cadence)):
+            if f_create_date >= (datetime.now() - self.cadence):
                 return TestForProcessingResult.NotSuitable
 
             # only process QL files with data for full 24 hours no created of half a day plots
@@ -114,7 +123,7 @@ class LL03QL(SingleProductProcessingStepMixin):
             # small rounding margin of 4 minutes is allowed (-60)
             # input files oldr then a month will be processed also as for not full 24 hours
             file_age = (datetime.now() - f_data_end).days
-            if (tbins < 60/4 * 60 * 24 - 60) and file_age < 30:
+            if (tbins < 60 / 4 * 60 * 24 - 60) and file_age < 30:
                 return TestForProcessingResult.NotSuitable
 
             return TestForProcessingResult.Suitable
@@ -122,8 +131,9 @@ class LL03QL(SingleProductProcessingStepMixin):
             logger.error(e)
         return TestForProcessingResult.NotSuitable
 
-    def process_fits_files(self, files: list[Path], *, soopmanager: SOOPManager,
-                           spice_kernel_path: Path, processor: PlotProcessor, config) -> list[Path]:
+    def process_fits_files(
+        self, files: list[Path], *, soopmanager: SOOPManager, spice_kernel_path: Path, processor: PlotProcessor, config
+    ) -> list[Path]:
         """Performs the processing (expected to run in a dedicated python process) from a
         list of ql lightcurve products into LL plots.
 
@@ -152,18 +162,22 @@ class LL03QL(SingleProductProcessingStepMixin):
                 data = in_prod.data
                 energy = in_prod.energies
 
-                out_prod = self.out_product(control=control, data=data, energy=energy,
-                                            parent_file_path=file_path, header=in_prod.fits_header)
+                out_prod = self.out_product(
+                    control=control, data=data, energy=energy, parent_file_path=file_path, header=in_prod.fits_header
+                )
 
                 plot_file = processor.write_plot(out_prod)
                 logger.info(f"Generated plot file: {plot_file}")
 
-                new_f = SingleProcessingStepResult(self.out_product.NAME, self.out_product.LEVEL,
-                                                   self.out_product.TYPE,
-                                                   self.out_product.get_cls_processing_version(),
-                                                   plot_file,
-                                                   get_complete_file_name_and_path(file_path),
-                                                   datetime.now())
+                new_f = SingleProcessingStepResult(
+                    self.out_product.NAME,
+                    self.out_product.LEVEL,
+                    self.out_product.TYPE,
+                    self.out_product.get_cls_processing_version(),
+                    plot_file,
+                    get_complete_file_name_and_path(file_path),
+                    datetime.now(),
+                )
 
                 all_files.append(new_f)
             except Exception as e:

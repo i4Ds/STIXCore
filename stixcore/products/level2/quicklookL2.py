@@ -350,7 +350,7 @@ class EnergyCalibration(GenericProduct, EnergyChannelsMixin, L2Mixin):
                     e_actual[:, :, -1] = np.inf
                     e_actual[:, :, 0] = 0.0
                     e_actual_list.append(e_actual)
-
+                pass  # noqa -- end with ECC context sometimes needed for debugging
             l2.data.add_column(Column(name='e_edges_actual', data=e_actual_list,
                                       description="actual energy edges fitted by ECC"))
             l2.data["e_edges_actual"].unit = u.keV

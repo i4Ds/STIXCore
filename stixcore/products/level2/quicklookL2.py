@@ -280,6 +280,21 @@ class EnergyCalibration(GenericProduct, EnergyChannelsMixin, L2Mixin):
             if spec.shape != (32, 12, 1024):
                 raise ValueError(f"Unexpected shape {spec.shape} for counts in {l1product.name}")
 
+            all_spec = spec.sum(axis=1).sum(axis=0)
+            all_spec_table_total_rate = QTable([[np.int16(len(all_spec))], np.int32([all_spec])],
+                                               names=["NUM_POINTS", "COUNTS"])
+            all_spec_rate = spec.reshape(12 * 32, 1024)
+            all_spec_table_rate = QTable([np.repeat(np.arange(32), 12).astype(np.uint8),
+                                          np.tile(np.arange(12), 32).astype(np.uint8),
+                                          np.zeros(12 * 32, dtype=int).astype(np.uint8),
+                                          np.full(12 * 32, 1024, dtype=int).astype(np.int16),
+                                          all_spec_rate.astype(np.int32)],
+                                         names=["DETECTOR_ID",
+                                                "PIXEL_ID",
+                                                "SUBSPEC_ID",
+                                                "NUM_POINTS",
+                                                "COUNTS"])
+
             spec_ecc = spec.reshape(12 * 32, 1024).T.astype(np.float32)
 
             spec_ecc_table = QTable(spec_ecc, names=["ch{:03d}".format(i) for i in range(12 * 32)])
@@ -295,17 +310,34 @@ class EnergyCalibration(GenericProduct, EnergyChannelsMixin, L2Mixin):
             if not re.match(r'^solo_L1_stix-cal-energy_\d+_V.*.fits$', spec_filename):
                 raise ValueError(f"Invalid filename {spec_filename} for energy calibration data")
 
+            spec_filename = spec_filename.replace('.fits', '_ecc_in.fits')
             ecc_install_path = Path(CONFIG.get('ECC', 'ecc_path'))
 
             with ECCManager.instance.context(date) as ecc_run_context_path:
                 spec_file = ecc_run_context_path / spec_filename
+                all_file = ecc_run_context_path / "spec_all.fits"
                 erg_path = ecc_run_context_path / 'ECC_para.fits'
                 bash_script = f"""#!/bin/bash
                               cd {ecc_run_context_path}
 
                               {ecc_install_path}/Bkg
                               {ecc_install_path}/ECC --f_obs "{spec_filename}"
+                              {ecc_install_path}/STX_Calib spec_all.fits ECC_para.fits[1]
                               """
+                primary_hdu = fits.PrimaryHDU()
+
+                all_spec_enc = fits.connect._encode_mixins(all_spec_table_rate)
+                all_spec = table_to_hdu(all_spec_enc)
+                all_spec.name = 'RATE'
+
+                all_spec_total_enc = fits.connect._encode_mixins(all_spec_table_total_rate)
+                all_spec_total = table_to_hdu(all_spec_total_enc)
+                all_spec_total.name = 'TOTAL_RATE'
+
+                hdul = [primary_hdu, all_spec, all_spec_total]
+                hdul = fits.HDUList(hdul)
+                hdul.writeto(all_file, overwrite=True, checksum=True)
+
                 primary_hdu = fits.PrimaryHDU()
                 spec_enc = fits.connect._encode_mixins(spec_ecc_table)
                 spec_hdu = table_to_hdu(spec_enc)
@@ -351,6 +383,7 @@ class EnergyCalibration(GenericProduct, EnergyChannelsMixin, L2Mixin):
                     e_actual[:, :, 0] = 0.0
                     e_actual_list.append(e_actual)
                 pass  # noqa -- end with ECC context sometimes needed for debugging
+
             l2.data.add_column(Column(name='e_edges_actual', data=e_actual_list,
                                       description="actual energy edges fitted by ECC"))
             l2.data["e_edges_actual"].unit = u.keV

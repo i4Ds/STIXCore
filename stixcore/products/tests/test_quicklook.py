@@ -48,7 +48,7 @@ testpackets = [
         qll1.EnergyCalibration,
         "energy",
         "0659318520f00000",
-        "0659326919f00000",
+        "0659402519f00000",
         1,
     ),
 ]

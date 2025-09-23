@@ -656,6 +656,8 @@ class EnergyCalibration(QLProduct):
     In level 0 format.
     """
 
+    PRODUCT_PROCESSING_VERSION = 3
+
     def __init__(
         self, *, service_type, service_subtype, ssid, control, data, idb_versions=defaultdict(SCETimeRange), **kwargs
     ):
@@ -680,6 +682,7 @@ class EnergyCalibration(QLProduct):
         control.add_basic(name="integration_time", nix="NIX00122", packets=packets, dtype=np.uint32, attr="value")
         control.add_basic(name="quiet_time", nix="NIX00123", packets=packets, dtype=np.uint16, attr="value")
         control.add_basic(name="live_time", nix="NIX00124", packets=packets, dtype=np.uint32, attr="value")
+
         control.add_basic(name="average_temperature", nix="NIX00125", packets=packets, dtype=np.uint16, attr="value")
         control.add_data("detector_mask", _get_detector_mask(packets))
         control.add_data("pixel_mask", _get_pixel_mask(packets))
@@ -720,7 +723,8 @@ class EnergyCalibration(QLProduct):
             channels.append(list(chain(*[ch.tolist() for ch in sub_channels])))
         control["num_channels"] = [len(c) for c in channels]
 
-        duration = SCETimeDelta(packets.get_value("NIX00122").astype(np.uint32))
+        # fix for wrong calibration in IDB https://github.com/i4Ds/STIXCore/issues/432
+        duration = SCETimeDelta(packets.get_value("NIX00122") * 10)
         time = SCETime(control["scet_coarse"], control["scet_fine"]) + duration / 2
 
         dids = packets.get_value("NIXD0155")

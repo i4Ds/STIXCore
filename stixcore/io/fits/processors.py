@@ -39,8 +39,7 @@ NAN = 2**32 - 1
 
 
 def empty_if_nan(val):
-    return "" if isnan(val) else val
-
+    return "" if np.isnan(val) else val
 
 
 def version_format(version):

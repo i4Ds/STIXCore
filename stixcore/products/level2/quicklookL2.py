@@ -13,6 +13,7 @@ from astropy.io import fits
 from astropy.io.fits import table_to_hdu
 from astropy.table import Column, QTable
 
+from stixcore.calibration.ecc_post_fit import ecc_post_fit
 from stixcore.calibration.elut_manager import ELUTManager
 from stixcore.config.config import CONFIG
 from stixcore.ecc.manager import ECCManager
@@ -272,6 +273,8 @@ class EnergyCalibration(GenericProduct, EnergyChannelsMixin, L2Mixin):
 
         e_actual_list = []
         off_gain_list = []
+        ecc_err_list = []
+        gain_range_ok_list = []
 
         l2.control.add_column(Column(name='ob_elut_name', data=np.repeat('_' * 50, len(l2.control)),
                                      description="Name of the ELUT active on instrument"))
@@ -313,9 +316,12 @@ class EnergyCalibration(GenericProduct, EnergyChannelsMixin, L2Mixin):
             spec_filename = spec_filename.replace('.fits', '_ecc_in.fits')
             ecc_install_path = Path(CONFIG.get('ECC', 'ecc_path'))
 
-            with ECCManager.instance.context(date) as ecc_run_context_path:
+            with ECCManager.instance.context(date) as ecc_run_context:
+                ecc_run_context_path, ecc_run_cfg = ecc_run_context
+
                 spec_file = ecc_run_context_path / spec_filename
                 all_file = ecc_run_context_path / "spec_all.fits"
+                spec_all_erg = ecc_run_context_path / "spec_all_erg.fits"
                 erg_path = ecc_run_context_path / 'ECC_para.fits'
                 bash_script = f"""#!/bin/bash
                               cd {ecc_run_context_path}
@@ -362,33 +368,74 @@ class EnergyCalibration(GenericProduct, EnergyChannelsMixin, L2Mixin):
                 if not erg_path.exists():
                     raise FileNotFoundError(f"Failed to read ECC result file {erg_path}")
 
-                with fits.open(erg_path) as hdul:
-                    # Access a specific extension by index or name
-                    erg_table = QTable(hdul[1].data)
-                    off_gain = np.array([4.0 * erg_table["off"].value.reshape(32, 12),
-                                         1.0 / (4.0 * erg_table["gain"].value.reshape(32, 12)),
-                                         erg_table["goc"].value.reshape(32, 12)])
-                    l2.control['ob_elut_name'][l2.data['control_index'][spec_idx]] = ob_elut.file
-                    off_gain_list.append(off_gain)
+                control_idx = l2.data['control_index'][spec_idx]
+                livetime = l1product.control['live_time'][control_idx].to_value(u.s)
+                ecc_pf_df = ecc_post_fit(spec_all_erg, erg_path, livetime)
 
-                    gain = off_gain[1, :, :]
-                    offset = off_gain[0, :, :]
+                off_gain = np.array([4.0 * ecc_pf_df["Offset_Cor"].values.reshape(32, 12),
+                                     1.0 / (4.0 * ecc_pf_df["Gain_Cor"].values.reshape(32, 12)),
+                                     ecc_pf_df["goc"].values.reshape(32, 12)])
+                l2.control['ob_elut_name'][l2.data['control_index'][spec_idx]] = ob_elut.file
+                off_gain_list.append(off_gain)
+                ecc_err_list.append(np.array([ecc_pf_df["err_P31"].values.reshape(32, 12),
+                                              ecc_pf_df["err_dE31"].values.reshape(32, 12),
+                                              ecc_pf_df["err_P81"].values.reshape(32, 12),
+                                              ecc_pf_df["err_dE81"].values.reshape(32, 12)]))
 
-                    adc = (offset[..., None] +
-                           (sci_channels["Elower"].to_value() / gain[..., None]))\
-                        .round().astype(np.uint16)
-                    e_actual = (np.searchsorted(np.arange(4096), adc) - offset[..., None])\
-                        * gain[..., None]
-                    e_actual[:, :, -1] = np.inf
-                    e_actual[:, :, 0] = 0.0
-                    e_actual_list.append(e_actual)
-                pass  # noqa -- end with ECC context sometimes needed for debugging
+                gain_range_ok = True
+                for h in ecc_pf_df.index[ecc_pf_df['Gain_Prime'] > ecc_run_cfg.Max_Gain_Prime]:
+                    det_pix_can = [ecc_pf_df['DET'][h], ecc_pf_df['PIX'][h]]
+                    if det_pix_can not in ecc_run_cfg.Ignore_Max_Gain_Prime_Det_Pix_List:
+                        logger.warning(f"ECC result Gain_Prime {ecc_pf_df['Gain_Prime'][h]} "
+                                       f"for DET {det_pix_can[0]} PIX {det_pix_can[1]} exceeds "
+                                       f"Max_Gain {ecc_run_cfg.Max_Gain_Prime}, "
+                                       "but not in ignore list")
+                        gain_range_ok = False
+
+                for h in ecc_pf_df.index[ecc_pf_df['Gain_Prime'] < ecc_run_cfg.Min_Gain_Prime]:
+                    det_pix_can = [ecc_pf_df['DET'][h], ecc_pf_df['PIX'][h]]
+                    if det_pix_can not in ecc_run_cfg.Ignore_Min_Gain_Prime_Det_Pix_List:
+                        logger.warning(f"ECC result Gain_Prime {ecc_pf_df['Gain_Prime'][h]} "
+                                       f"for DET {det_pix_can[0]} PIX {det_pix_can[1]} falls below "
+                                       f"Min_Gain_Prime {ecc_run_cfg.Min_Gain_Prime}, "
+                                       "but not in ignore list")
+                        gain_range_ok = False
+
+                for h in ecc_pf_df.index[ecc_pf_df['Gain_Cor'] < ecc_run_cfg.Min_Gain]:
+                    det_pix_can = [ecc_pf_df['DET'][h], ecc_pf_df['PIX'][h]]
+                    if det_pix_can not in ecc_run_cfg.Ignore_Min_Gain_Det_Pix_List:
+                        logger.warning(f"ECC result Gain_Cor {ecc_pf_df['Gain_Cor'][h]} "
+                                       f"for DET {det_pix_can[0]} PIX {det_pix_can[1]} falls below "
+                                       f"Min_Gain {ecc_run_cfg.Min_Gain}, "
+                                       "but not in ignore list")
+                        gain_range_ok = False
+
+                gain_range_ok_list.append(gain_range_ok)
+
+                gain = off_gain[1, :, :]
+                offset = off_gain[0, :, :]
+
+                adc = (offset[..., None] +
+                       (sci_channels["Elower"].to_value() / gain[..., None]))\
+                    .round().astype(np.uint16)
+                e_actual = (np.searchsorted(np.arange(4096), adc) - offset[..., None])\
+                    * gain[..., None]
+                e_actual[:, :, -1] = np.inf
+                e_actual[:, :, 0] = 0.0
+                e_actual_list.append(e_actual)
+
+                # end of ECC context block
 
             l2.data.add_column(Column(name='e_edges_actual', data=e_actual_list,
                                       description="actual energy edges fitted by ECC"))
             l2.data["e_edges_actual"].unit = u.keV
             l2.data.add_column(Column(name='ecc_offset_gain_goc', data=off_gain_list,
                                       description="result of the ecc fitting: offset, gain, goc"))
+            l2.data.add_column(Column(name='ecc_error', data=ecc_err_list,
+                                      description="error estimate from ECC: err_P31, err_dE31, "
+                                                  "err_P81, err_dE81"))
+            l2.data.add_column(Column(name='gain_range_ok', data=gain_range_ok_list,
+                                      description="is gain in expected range"))
 
             del l2.data["counts_comp_err"]
             del l2.data["counts"]

@@ -2,9 +2,11 @@ import sys
 import json
 import shutil
 import tempfile
+from types import SimpleNamespace
 from pathlib import Path
 from datetime import datetime
 from contextlib import contextmanager
+from configparser import ConfigParser
 
 from stixcore.data.test import test_data
 from stixcore.util.logging import get_logger
@@ -164,6 +166,8 @@ class ECCManager(metaclass=Singleton):
         -------
         `pathlib.Path`
             path to the temporary directory containing the configuration files
+        `SimpleNamespace`
+            config read from post_ecc.ini
 
         Raises
         ------
@@ -188,7 +192,30 @@ class ECCManager(metaclass=Singleton):
             shutil.copytree(config_source, temp_dir, dirs_exist_ok=True)
 
             logger.info(f"Created ECC context in: {temp_dir}")
-            return temp_dir
+
+            config = ConfigParser()
+            config.read(temp_dir / "post_ecc.ini")
+
+            ESS_Config = SimpleNamespace(Max_Gain_Prime=config.getfloat("DEFAULT", "Max_Gain_Prime",
+                                                                        fallback=1.4),
+                                         Min_Gain_Prime=config.getfloat("DEFAULT", "Min_Gain_Prime",
+                                                                        fallback=0.4),
+                                         Min_Gain=config.getfloat("DEFAULT", "Min_Gain",
+                                                                  fallback=0.4),
+                                         Ignore_Max_Gain_Prime_Det_Pix_List=json.loads(
+                                             config.get("DEFAULT",
+                                                        "Ignore_Max_Gain_Prime_Det_Pix_List",
+                                                        fallback="[]")),
+                                         Ignore_Min_Gain_Prime_Det_Pix_List=json.loads(
+                                             config.get("DEFAULT",
+                                                        "Ignore_Min_Gain_Prime_Det_Pix_List",
+                                                        fallback="[]")),
+                                         Ignore_Min_Gain_Det_Pix_List=json.loads(
+                                             config.get("DEFAULT", "Ignore_Min_Gain_Det_Pix_List",
+                                                        fallback="[]")))
+
+            logger.info(f"Read config from in: {temp_dir / 'post_ecc.ini'}")
+            return temp_dir, ESS_Config
 
         except Exception as e:
             # Clean up on error
@@ -196,7 +223,7 @@ class ECCManager(metaclass=Singleton):
                 shutil.rmtree(temp_dir)
             raise e
 
-    def cleanup_context(self, context_path):
+    def cleanup_context(self, context):
         """Clean up a temporary context directory.
 
         Parameters
@@ -205,6 +232,7 @@ class ECCManager(metaclass=Singleton):
             path to the temporary context directory to clean up
         """
         try:
+            context_path, _ = context
             if context_path.exists():
                 shutil.rmtree(context_path)
                 logger.info(f"Cleaned up ECC context: {context_path}")

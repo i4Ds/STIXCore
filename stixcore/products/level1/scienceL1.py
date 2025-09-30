@@ -15,6 +15,8 @@ class RawPixelData(ScienceProduct, L1Mixin):
     In level 1 format.
     """
 
+    NAME = "xray-rpd"
+
     def __init__(
         self, *, service_type, service_subtype, ssid, control, data, idb_versions=defaultdict(SCETimeRange), **kwargs
     ):
@@ -27,12 +29,12 @@ class RawPixelData(ScienceProduct, L1Mixin):
             idb_versions=idb_versions,
             **kwargs,
         )
-        self.name = "xray-rpd"
-        self.level = "L1"
+        self.name = RawPixelData.NAME
+        self.level = RawPixelData.LEVEL
 
     @classmethod
     def is_datasource_for(cls, *, service_type, service_subtype, ssid, **kwargs):
-        return kwargs["level"] == "L1" and service_type == 21 and service_subtype == 6 and ssid == 20
+        return kwargs["level"] == RawPixelData.LEVEL and service_type == 21 and service_subtype == 6 and ssid == 20
 
 
 class CompressedPixelData(ScienceProduct, L1Mixin):
@@ -41,6 +43,8 @@ class CompressedPixelData(ScienceProduct, L1Mixin):
     In level 1 format.
     """
 
+    NAME = "xray-cpd"
+
     def __init__(
         self, *, service_type, service_subtype, ssid, control, data, idb_versions=defaultdict(SCETimeRange), **kwargs
     ):
@@ -53,12 +57,14 @@ class CompressedPixelData(ScienceProduct, L1Mixin):
             idb_versions=idb_versions,
             **kwargs,
         )
-        self.name = "xray-cpd"
-        self.level = "L1"
+        self.name = CompressedPixelData.NAME
+        self.level = CompressedPixelData.LEVEL
 
     @classmethod
     def is_datasource_for(cls, *, service_type, service_subtype, ssid, **kwargs):
-        return kwargs["level"] == "L1" and service_type == 21 and service_subtype == 6 and ssid == 21
+        return (
+            kwargs["level"] == CompressedPixelData.LEVEL and service_type == 21 and service_subtype == 6 and ssid == 21
+        )
 
 
 class SummedPixelData(ScienceProduct, L1Mixin):
@@ -67,6 +73,8 @@ class SummedPixelData(ScienceProduct, L1Mixin):
     In level 1 format.
     """
 
+    NAME = "xray-scpd"
+
     def __init__(
         self, *, service_type, service_subtype, ssid, control, data, idb_versions=defaultdict(SCETimeRange), **kwargs
     ):
@@ -79,12 +87,12 @@ class SummedPixelData(ScienceProduct, L1Mixin):
             idb_versions=idb_versions,
             **kwargs,
         )
-        self.name = "xray-scpd"
-        self.level = "L1"
+        self.name = SummedPixelData.NAME
+        self.level = SummedPixelData.LEVEL
 
     @classmethod
     def is_datasource_for(cls, *, service_type, service_subtype, ssid, **kwargs):
-        return kwargs["level"] == "L1" and service_type == 21 and service_subtype == 6 and ssid == 22
+        return kwargs["level"] == SummedPixelData.LEVEL and service_type == 21 and service_subtype == 6 and ssid == 22
 
 
 class Visibility(ScienceProduct, L1Mixin):
@@ -94,6 +102,8 @@ class Visibility(ScienceProduct, L1Mixin):
     In level 1 format.
     """
 
+    NAME = "xray-vis"
+
     def __init__(
         self, *, service_type, service_subtype, ssid, control, data, idb_versions=defaultdict(SCETimeRange), **kwargs
     ):
@@ -106,8 +116,8 @@ class Visibility(ScienceProduct, L1Mixin):
             idb_versions=idb_versions,
             **kwargs,
         )
-        self.name = "xray-vis"
-        self.level = "L1"
+        self.name = Visibility.NAME
+        self.level = Visibility.LEVEL
 
     @property
     def dmin(self):
@@ -126,7 +136,7 @@ class Visibility(ScienceProduct, L1Mixin):
 
     @classmethod
     def is_datasource_for(cls, *, service_type, service_subtype, ssid, **kwargs):
-        return kwargs["level"] == "L1" and service_type == 21 and service_subtype == 6 and ssid == 23
+        return kwargs["level"] == Visibility.LEVEL and service_type == 21 and service_subtype == 6 and ssid == 23
 
 
 class Spectrogram(ScienceProduct, L1Mixin):
@@ -135,6 +145,8 @@ class Spectrogram(ScienceProduct, L1Mixin):
 
     In level 1 format.
     """
+
+    NAME = "xray-spec"
 
     PRODUCT_PROCESSING_VERSION = 4
 
@@ -150,12 +162,12 @@ class Spectrogram(ScienceProduct, L1Mixin):
             idb_versions=idb_versions,
             **kwargs,
         )
-        self.name = "xray-spec"
-        self.level = "L1"
+        self.name = Spectrogram.NAME
+        self.level = Spectrogram.LEVEL
 
     @classmethod
     def is_datasource_for(cls, *, service_type, service_subtype, ssid, **kwargs):
-        return kwargs["level"] == "L1" and service_type == 21 and service_subtype == 6 and ssid == 24
+        return kwargs["level"] == Spectrogram.LEVEL and service_type == 21 and service_subtype == 6 and ssid == 24
 
 
 class Aspect(ScienceProduct, L1Mixin):
@@ -163,6 +175,8 @@ class Aspect(ScienceProduct, L1Mixin):
 
     In level 1 format.
     """
+
+    NAME = "aspect-burst"
 
     def __init__(
         self, *, service_type, service_subtype, ssid, control, data, idb_versions=defaultdict(SCETimeRange), **kwargs
@@ -176,8 +190,8 @@ class Aspect(ScienceProduct, L1Mixin):
             idb_versions=idb_versions,
             **kwargs,
         )
-        self.name = "aspect-burst"
-        self.level = "L1"
+        self.name = Aspect.NAME
+        self.level = Aspect.LEVEL
 
     @property
     def dmin(self):
@@ -207,4 +221,4 @@ class Aspect(ScienceProduct, L1Mixin):
 
     @classmethod
     def is_datasource_for(cls, *, service_type, service_subtype, ssid, **kwargs):
-        return kwargs["level"] == "L1" and service_type == 21 and service_subtype == 6 and ssid == 42
+        return kwargs["level"] == Aspect.LEVEL and service_type == 21 and service_subtype == 6 and ssid == 42

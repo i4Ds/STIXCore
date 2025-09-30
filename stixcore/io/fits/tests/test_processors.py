@@ -244,8 +244,15 @@ def test_level1_processor_generate_primary_header(product, soop_manager):
     product.utc_timerange = product.scet_timerange.to_timerange()
     product.raw = ["packet1.xml", "packet2.xml"]
     product.parent = ["l01.fits", "l02.fts"]
+    product.LEVEL = "L1"
     product.level = "L1"
     product.type = "ql"
+    product.TYPE = "ql"
+    product.dmin = 1
+    product.dmax = 1
+    product.dunit = ""
+    product.max_exposure = 1
+    product.exposure = 1
     product.service_type = 1
     product.service_subtype = 2
     product.ssid = 3

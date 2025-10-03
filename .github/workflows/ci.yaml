@@ -1,0 +1,49 @@
+name: CI
+
+on:
+  push:
+    branches:
+      - 'main'
+      - '*.*'
+      - '!*backport*'
+      - '*'
+    tags:
+      - 'v*'
+      - '!*dev*'
+      - '!*pre*'
+      - '!*post*'
+  pull_request:
+
+  # Allow manual runs through the web UI
+  workflow_dispatch:
+
+jobs:
+  core:
+    uses: OpenAstronomy/github-actions-workflows/.github/workflows/tox.yml@v2
+    with:
+      coverage: codecov
+      envs: |
+        - linux: py311
+    secrets:
+      CODECOV_TOKEN: ${{ secrets.CODECOV_TOKEN }}
+
+  test:
+    needs: [core]
+    uses: OpenAstronomy/github-actions-workflows/.github/workflows/tox.yml@v2
+    with:
+      envs: |
+        - macos: py311
+        - windows: py311
+
+  doc:
+    needs: [test]
+    uses: OpenAstronomy/github-actions-workflows/.github/workflows/tox.yml@v2
+    with:
+      default_python: '3.11'
+      pytest: false
+      libraries: |
+        apt:
+          - libopenjp2-7
+          - graphviz
+      envs: |
+        - linux: build_docs

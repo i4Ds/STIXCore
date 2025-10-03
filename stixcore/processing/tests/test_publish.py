@@ -232,6 +232,7 @@ def test_fits_incomplete_switch_over(out_dir):
             product.raw = ["packet1.xml", "packet2.xml"]
             product.parent = ["packet1.xml", "packet2.xml"]
             product.level = "L1"
+            product.LEVEL = "L1"
             product.service_type = 21
             product.service_subtype = 6
             product.ssid = 31

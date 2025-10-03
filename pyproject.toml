@@ -15,7 +15,7 @@ license = "BSD-3-Clause"
 license-files = ["LICENSE.rst"]
 authors = [
     {name="Shane Maloney", email = "shane.maloney@dias.ie"},
-    {name="Nicky Maloney", email = "shane.maloney@dias.ie"}
+    {name="Nicky Hochmuth", email = "nicky.hochmuth@ateleris.ch"}
 ]
 dependencies = [
     "bitstring~=4.2",
@@ -30,9 +30,10 @@ dependencies = [
     "roentgen~=2.1",
     "scp",
     "spiceypy~=6.0",
-    "sunpy~=5.1",
+    "sunpy~=6.0.0",
     "watchdog~=6.0",
-    "stixdcpy==3.0"
+    "stixdcpy==3.0",
+    "stixpy@git+https://github.com/TCDSolar/stixpy.git@main",
 ]
 dynamic = ["version"]
 keywords = ["solar physics", "solar", "sun", "solarorbiter", "stix"]

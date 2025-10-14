@@ -415,14 +415,16 @@ class EnergyCalibration(GenericProduct, EnergyChannelsMixin, L2Mixin):
                 gain = off_gain[1, :, :]
                 offset = off_gain[0, :, :]
 
-                adc = (offset[..., None] +
-                       (sci_channels["Elower"].to_value() / gain[..., None]))\
-                    .round().astype(np.uint16)
-                e_actual = (np.searchsorted(np.arange(4096), adc) - offset[..., None])\
-                    * gain[..., None]
-                e_actual[:, :, -1] = np.inf
-                e_actual[:, :, 0] = 0.0
-                e_actual_list.append(e_actual)
+                e_actual = (ob_elut.adc - offset[..., None]) * gain[..., None]
+
+                e_actual_ext = np.pad(e_actual,
+                                      # pad last axis by 1 on both sides
+                                      pad_width=((0, 0), (0, 0), (1, 1)),
+                                      mode='constant',
+                                      # first pad with 0, last pad with inf
+                                      constant_values=(0, np.inf)
+                                      )
+                e_actual_list.append(e_actual_ext)
 
                 # end of ECC context block
 

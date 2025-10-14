@@ -25,7 +25,6 @@ from astropy.table import Table
 from stixcore.config.config import CONFIG
 from stixcore.ephemeris.manager import Spice, SpiceKernelManager
 from stixcore.io.RidLutManager import RidLutManager
-from stixcore.processing.pipeline_status import pipeline_status
 from stixcore.products.product import Product
 from stixcore.time.datetime import SCETime
 from stixcore.util.logging import get_logger
@@ -297,12 +296,6 @@ def send_mail_report(files):
     """
     if CONFIG.getboolean("Publish", "report_mail_send", fallback=False):
         try:
-            try:
-                with Capturing() as open_tm_files:
-                    pipeline_status(["--next"])
-            except Exception as se:
-                open_tm_files = str(se)
-
             sender = CONFIG.get("Pipeline", "error_mail_sender", fallback="")
             receivers = CONFIG.get("Publish", "report_mail_receivers").split(",")
             host = CONFIG.get("Pipeline", "error_mail_smpt_host", fallback="localhost")
@@ -317,10 +310,6 @@ def send_mail_report(files):
             error = "" if len(files[PublishResult.ERROR]) <= 0 else "ERROR-"
             message = f"""Subject: StixCore TMTC Publishing {error}Report {su}
 
-OPEN TM FILES IN QUEUE
-**********************
-
-{open_tm_files}
 
 ERRORS (E)
 **********

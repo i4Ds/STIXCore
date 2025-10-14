@@ -3,8 +3,8 @@ from datetime import datetime, timedelta
 
 from astropy.io import fits
 
-from stixcore.io.fits.processors import PlotProcessor
 from stixcore.io.ProcessingHistoryStorage import ProcessingHistoryStorage
+from stixcore.io.product_processors.plots.processors import PlotProcessor
 from stixcore.processing.SingleStep import (
     SingleProcessingStepResult,
     SingleProductProcessingStepMixin,

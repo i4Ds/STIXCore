@@ -95,8 +95,7 @@ class SCFlareListManager(FlareListManager, metaclass=Singleton):
         """
         if self.update or not self.file.exists():
             last_date = datetime(2020, 1, 1, 0, 0, 0)
-            last_date = datetime(2025, 4, 12, 0, 0, 0)
-            # only run flare detection for time oldet than 7 days
+            # only run flare detection for time older than 7 days
             today = datetime.now() - timedelta(days=7)
             flare_df_lists = []
             if self.file.exists():
@@ -141,6 +140,7 @@ class SCFlareListManager(FlareListManager, metaclass=Singleton):
                         f"with {len(ql_lc_files)} lightcurve files and "
                         f"{len(ql_bg_files)} background files"
                     )
+                    # TODO re-enable flare-list creation
                     # flares = stixpy.detect_flares(start, end,
                     #                               ql_lc_files=ql_lc_files,
                     #                               ql_bg_files=ql_bg_files)

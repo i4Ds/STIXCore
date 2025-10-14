@@ -10,7 +10,7 @@ import astropy.units as u
 from astropy.io import fits
 from astropy.table import QTable
 
-from stixcore.io.fits.processors import FitsL1Processor
+from stixcore.io.product_processors.fits.processors import FitsL1Processor
 from stixcore.processing.publish import (
     PublishConflicts,
     PublishHistoryStorage,

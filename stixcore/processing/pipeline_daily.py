@@ -7,37 +7,35 @@ from pathlib import Path
 from datetime import date, timedelta
 from concurrent.futures import ProcessPoolExecutor
 
-from stixpy.net.client import STIXClient
-
 from stixcore.config.config import CONFIG
 from stixcore.ephemeris.manager import Spice, SpiceKernelManager
-from stixcore.io.fits.processors import (
-    FitsANCProcessor,
-    FitsL2Processor,
-    FitsL3Processor,
-    PlotProcessor,
-)
-from stixcore.io.FlareListManager import SCFlareListManager, SDCFlareListManager
 from stixcore.io.ProcessingHistoryStorage import ProcessingHistoryStorage
+from stixcore.io.product_processors.fits.processors import (  # FitsANCProcessor,; FitsL3Processor,
+    FitsL2Processor,
+)
+from stixcore.io.product_processors.plots.processors import PlotProcessor
 from stixcore.io.RidLutManager import RidLutManager
 from stixcore.processing.AspectANC import AspectANC
-from stixcore.processing.FlareListL3 import FlareListL3
-from stixcore.processing.FLtoFL import FLtoFL
 from stixcore.processing.LL import LL03QL
 from stixcore.processing.pipeline import PipelineStatus
 from stixcore.processing.SingleStep import SingleProcessingStepResult
 from stixcore.products.level1.quicklookL1 import LightCurve
-from stixcore.products.level3.flarelist import (
-    FlarelistSC,
-    FlarelistSCLoc,
-    FlarelistSCLocImg,
-    FlarelistSDC,
-    FlarelistSDCLoc,
-    FlarelistSDCLocImg,
-)
 from stixcore.products.lowlatency.quicklookLL import LightCurveL3
 from stixcore.soop.manager import SOOPManager
 from stixcore.util.logging import STX_LOGGER_DATE_FORMAT, STX_LOGGER_FORMAT, get_logger
+
+# from stixpy.net.client import STIXClient
+# from stixcore.io.FlareListManager import SCFlareListManager, SDCFlareListManager
+# from stixcore.processing.FlareListL3 import FlareListL3
+# from stixcore.processing.FLtoFL import FLtoFL
+# from stixcore.products.level3.flarelist import (
+#     FlarelistSC,
+#     FlarelistSCLoc,
+#     FlarelistSCLocImg,
+#     FlarelistSDC,
+#     FlarelistSDCLoc,
+#     FlarelistSDCLocImg,
+# )
 
 logger = get_logger(__name__)
 
@@ -210,14 +208,15 @@ def run_daily_pipeline(args):
 
         Path(CONFIG.get("Paths", "fits_archive"))
 
-        fido_url = CONFIG.get("Paths", "fido_search_url", fallback="https://pub099.cs.technik.fhnw.ch/data/fits")
-        fido_client = STIXClient(source=fido_url)
+        # fido_url = CONFIG.get("Paths", "fido_search_url", fallback="https://pub099.cs.technik.fhnw.ch/data/fits")
+        # fido_client = STIXClient(source=fido_url)
 
-        flare_lut_file = Path(CONFIG.get("Pipeline", "flareid_sc_lut_file"))
-        SCFlareListManager.instance = SCFlareListManager(flare_lut_file, fido_client, update=True)
+        # flare_lut_file = Path(CONFIG.get("Pipeline", "flareid_sc_lut_file"))
+        # SCFlareListManager.instance = SCFlareListManager(flare_lut_file, fido_client, update=True)
 
-        flare_lut_file = Path(CONFIG.get("Pipeline", "flareid_sdc_lut_file"))
-        SDCFlareListManager.instance = SDCFlareListManager(flare_lut_file, update=False)
+        # TODO reactivate once flarelist processing is finalized
+        # flare_lut_file = Path(CONFIG.get("Pipeline", "flareid_sdc_lut_file"))
+        # SDCFlareListManager.instance = SDCFlareListManager(flare_lut_file, update=False)
 
         RidLutManager.instance = RidLutManager(Path(CONFIG.get("Publish", "rid_lut_file")), update=False)
 
@@ -249,19 +248,20 @@ def run_daily_pipeline(args):
 
         aspect_anc_processor = AspectANC(fits_in_dir, fits_out_dir)
 
-        flarelist_sdc = FlareListL3(SDCFlareListManager.instance, fits_out_dir)
-        flarelist_sc = FlareListL3(SCFlareListManager.instance, fits_out_dir)
-        fl_to_fl = FLtoFL(
-            fits_in_dir,
-            fits_out_dir,
-            products_in_out=[
-                (FlarelistSDC, FlarelistSDCLoc),
-                (FlarelistSDCLoc, FlarelistSDCLocImg),
-                (FlarelistSC, FlarelistSCLoc),
-                (FlarelistSCLoc, FlarelistSCLocImg),
-            ],
-            cadence=timedelta(seconds=1),
-        )
+        # TODO reactivate once flarelist processing is finalized
+        # flarelist_sdc = FlareListL3(SDCFlareListManager.instance, fits_out_dir)
+        # flarelist_sc = FlareListL3(SCFlareListManager.instance, fits_out_dir)
+        # fl_to_fl = FLtoFL(
+        #     fits_in_dir,
+        #     fits_out_dir,
+        #     products_in_out=[
+        #         (FlarelistSDC, FlarelistSDCLoc),
+        #         (FlarelistSDCLoc, FlarelistSDCLocImg),
+        #         (FlarelistSC, FlarelistSCLoc),
+        #         (FlarelistSCLoc, FlarelistSCLocImg),
+        #     ],
+        #     cadence=timedelta(seconds=1),
+        # )
 
         ll03ql = LL03QL(
             fits_in_dir, fits_out_dir, in_product=LightCurve, out_product=LightCurveL3, cadence=timedelta(seconds=1)
@@ -269,24 +269,26 @@ def run_daily_pipeline(args):
 
         plot_writer = PlotProcessor(fits_out_dir)
         l2_fits_writer = FitsL2Processor(fits_out_dir)
-        l3_fits_writer = FitsL3Processor(fits_out_dir)
-        anc_fits_writer = FitsANCProcessor(fits_out_dir)
+        # TODO reactivate once flarelist processing is finalized
+        # l3_fits_writer = FitsL3Processor(fits_out_dir)
+        # anc_fits_writer = FitsANCProcessor(fits_out_dir)
 
-        # hk_in_files = aspect_anc_processor.get_processing_files(phs)
-        hk_in_files = []
-
-        fl_sdc_months = flarelist_sdc.find_processing_months(phs)
-        fl_sdc_months = []
-
-        # fl_sc_months = flarelist_sc.find_processing_months(phs)
-        fl_sc_months = []
+        hk_in_files = aspect_anc_processor.get_processing_files(phs)
 
         ll_candidates = ll03ql.get_processing_files(phs)
         # ll_candidates = []
-        # ll_candidates = ll_candidates[0:40]
 
-        fl_to_fl_files = fl_to_fl.get_processing_files(phs)
-        fl_to_fl_files = []
+        # TODO reactivate once flarelist processing is finalized
+        # fl_sdc_months = flarelist_sdc.find_processing_months(phs)
+        # fl_sdc_months = []
+
+        # TODO reactivate once flarelist processing is finalized
+        # fl_sc_months = flarelist_sc.find_processing_months(phs)
+        # fl_sc_months = []
+
+        # TODO reactivate once flarelist processing is finalized
+        # fl_to_fl_files = fl_to_fl.get_processing_files(phs)
+        # fl_to_fl_files = []
 
         # all processing files should be terminated before the next step as the different
         # processing steeps might create new candidates
@@ -303,42 +305,42 @@ def run_daily_pipeline(args):
                     config=CONFIG,
                 )
             )
+            # TODO reactivate once flarelist processing is finalized
+            # jobs.append(
+            #     executor.submit(
+            #         flarelist_sdc.process_fits_files,
+            #         fl_sdc_months,
+            #         soopmanager=SOOPManager.instance,
+            #         spice_kernel_path=Spice.instance.meta_kernel_path,
+            #         processor=l3_fits_writer,
+            #         config=CONFIG,
+            #     )
+            # )
 
-            jobs.append(
-                executor.submit(
-                    flarelist_sdc.process_fits_files,
-                    fl_sdc_months,
-                    soopmanager=SOOPManager.instance,
-                    spice_kernel_path=Spice.instance.meta_kernel_path,
-                    processor=l3_fits_writer,
-                    config=CONFIG,
-                )
-            )
+            # jobs.append(
+            #     executor.submit(
+            #         flarelist_sc.process_fits_files,
+            #         fl_sc_months,
+            #         soopmanager=SOOPManager.instance,
+            #         spice_kernel_path=Spice.instance.meta_kernel_path,
+            #         processor=l3_fits_writer,
+            #         config=CONFIG,
+            #     )
+            # )
 
-            jobs.append(
-                executor.submit(
-                    flarelist_sc.process_fits_files,
-                    fl_sc_months,
-                    soopmanager=SOOPManager.instance,
-                    spice_kernel_path=Spice.instance.meta_kernel_path,
-                    processor=l3_fits_writer,
-                    config=CONFIG,
-                )
-            )
-
-            # TODO a owen processing step for each flarelist file?
-            # for fl_to_fl_file in fl_to_fl_files:
-            jobs.append(
-                executor.submit(
-                    fl_to_fl.process_fits_files,
-                    fl_to_fl_files,
-                    soopmanager=SOOPManager.instance,
-                    spice_kernel_path=Spice.instance.meta_kernel_path,
-                    fl_processor=anc_fits_writer,
-                    img_processor=l3_fits_writer,
-                    config=CONFIG,
-                )
-            )
+            # # TODO a owen processing step for each flarelist file?
+            # # for fl_to_fl_file in fl_to_fl_files:
+            # jobs.append(
+            #     executor.submit(
+            #         fl_to_fl.process_fits_files,
+            #         fl_to_fl_files,
+            #         soopmanager=SOOPManager.instance,
+            #         spice_kernel_path=Spice.instance.meta_kernel_path,
+            #         fl_processor=anc_fits_writer,
+            #         img_processor=l3_fits_writer,
+            #         config=CONFIG,
+            #     )
+            # )
 
             jobs.append(
                 executor.submit(

@@ -6,7 +6,12 @@ import pytest
 from astropy.table import QTable
 
 from stixcore.data.test import test_data
-from stixcore.io.fits.processors import FitsL0Processor, FitsL1Processor, FitsLBProcessor
+from stixcore.io.product_processors.fits.processors import (
+    FitsL0Processor,
+    FitsL1Processor,
+    FitsLBProcessor,
+)
+from stixcore.io.product_processors.plots.processors import PlotProcessor
 from stixcore.products.product import Product
 from stixcore.soop.manager import SOOPManager
 from stixcore.time import SCETime, SCETimeRange
@@ -51,7 +56,7 @@ def test_levelb_processor_generate_filename_without_rid():
 
 
 @patch("stixcore.products.level0.quicklookL0.QLProduct")
-@patch("stixcore.io.fits.processors.datetime")
+@patch("stixcore.io.product_processors.fits.processors.datetime")
 def test_levelb_processor_generate_primary_header(datetime, product):
     processor = FitsLBProcessor("some/path")
     datetime.now().isoformat.return_value = "1234-05-07T01:02:03.346"
@@ -136,7 +141,7 @@ def test_level0_processor_generate_filename():
 
 
 @patch("stixcore.products.level0.quicklookL0.QLProduct")
-@patch("stixcore.io.fits.processors.datetime")
+@patch("stixcore.io.product_processors.fits.processors.datetime")
 def test_level0_processor_generate_primary_header(datetime, product):
     processor = FitsL0Processor("some/path")
     datetime.now().isoformat.return_value = "1234-05-07T01:02:03.346"
@@ -244,8 +249,15 @@ def test_level1_processor_generate_primary_header(product, soop_manager):
     product.utc_timerange = product.scet_timerange.to_timerange()
     product.raw = ["packet1.xml", "packet2.xml"]
     product.parent = ["l01.fits", "l02.fts"]
+    product.LEVEL = "L1"
     product.level = "L1"
     product.type = "ql"
+    product.TYPE = "ql"
+    product.dmin = 1
+    product.dmax = 1
+    product.dunit = ""
+    product.max_exposure = 1
+    product.exposure = 1
     product.service_type = 1
     product.service_subtype = 2
     product.ssid = 3
@@ -283,3 +295,15 @@ def test_level1_processor_generate_primary_header(product, soop_manager):
                 assert np.allclose(test_data[name], value)
             else:
                 assert value == test_data[name]
+
+
+@patch("stixcore.products.lowlatency.quicklookLL.LightCurveL3")
+def test_plot_processor_generate_filename(product):
+    processor = PlotProcessor("some/path")
+    product.type = "ql"
+    product.scet_timerange = SCETimeRange(start=SCETime(0, 0), end=SCETime(coarse=0, fine=2**16 - 1))
+    product.utc_timerange = product.scet_timerange.to_timerange()
+    product.level = "LL03"
+    product.name = "lightcurve"
+    filename = processor.generate_filename(product, version=1)
+    assert filename == "solo_LL03_stix-ql-lightcurve_20000101_V01C.svg"

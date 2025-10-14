@@ -6,7 +6,7 @@ import pytest
 
 from stixcore.data.test import test_data
 from stixcore.idb.manager import IDBManager
-from stixcore.io.fits.processors import FitsL0Processor, FitsL1Processor
+from stixcore.io.product_processors.fits.processors import FitsL0Processor, FitsL1Processor
 from stixcore.io.soc.manager import SOCPacketFile
 from stixcore.processing.LBtoL0 import Level0
 from stixcore.products.level0.housekeepingL0 import MaxiReport as MaxiReportL0

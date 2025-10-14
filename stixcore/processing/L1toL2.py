@@ -8,7 +8,7 @@ from sunpy.util.datatype_factory_base import NoMatchError
 
 from stixcore.config.config import CONFIG
 from stixcore.ephemeris.manager import Spice
-from stixcore.io.fits.processors import FitsL2Processor
+from stixcore.io.product_processors.fits.processors import FitsL2Processor
 from stixcore.processing.sswidl import SSWIDLProcessor
 from stixcore.products import Product
 from stixcore.products.level0.scienceL0 import NotCombineException

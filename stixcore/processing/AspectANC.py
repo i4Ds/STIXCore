@@ -39,6 +39,22 @@ class AspectANC(SingleProductProcessingStepMixin):
         self.source_dir = Path(source_dir)
         self.output_dir = Path(output_dir)
 
+    def get_processing_files(self, phs) -> list[Path]:
+        """Returns a list of all files which should be processed by this step.
+
+        Returns
+        -------
+        list[Path]
+            a list of fits files candidates
+        """
+        hk_in_files = []
+
+        for fc in self.find_processing_candidates():
+            tr = self.test_for_processing(fc, phs)
+            if tr == TestForProcessingResult.Suitable:
+                hk_in_files.append(fc)
+        return hk_in_files
+
     def find_processing_candidates(self) -> list[Path]:
         """Performs file pattern search in the source directory
 

@@ -4,20 +4,38 @@ import logging
 import smtplib
 import argparse
 from pathlib import Path
-from datetime import date
+from datetime import date, timedelta
 from concurrent.futures import ProcessPoolExecutor
 
 from stixcore.config.config import CONFIG
 from stixcore.ephemeris.manager import Spice, SpiceKernelManager
-from stixcore.io.fits.processors import FitsL2Processor
 from stixcore.io.ProcessingHistoryStorage import ProcessingHistoryStorage
+from stixcore.io.product_processors.fits.processors import (  # FitsANCProcessor,; FitsL3Processor,
+    FitsL2Processor,
+)
+from stixcore.io.product_processors.plots.processors import PlotProcessor
 from stixcore.io.RidLutManager import RidLutManager
 from stixcore.processing.AspectANC import AspectANC
+from stixcore.processing.LL import LL03QL
 from stixcore.processing.pipeline import PipelineStatus
-from stixcore.processing.SingleStep import SingleProcessingStepResult, TestForProcessingResult
+from stixcore.processing.SingleStep import SingleProcessingStepResult
+from stixcore.products.level1.quicklookL1 import LightCurve
+from stixcore.products.lowlatency.quicklookLL import LightCurveL3
 from stixcore.soop.manager import SOOPManager
 from stixcore.util.logging import STX_LOGGER_DATE_FORMAT, STX_LOGGER_FORMAT, get_logger
-from stixcore.util.util import get_complete_file_name_and_path
+
+# from stixpy.net.client import STIXClient
+# from stixcore.io.FlareListManager import SCFlareListManager, SDCFlareListManager
+# from stixcore.processing.FlareListL3 import FlareListL3
+# from stixcore.processing.FLtoFL import FLtoFL
+# from stixcore.products.level3.flarelist import (
+#     FlarelistSC,
+#     FlarelistSCLoc,
+#     FlarelistSCLocImg,
+#     FlarelistSDC,
+#     FlarelistSDCLoc,
+#     FlarelistSDCLocImg,
+# )
 
 logger = get_logger(__name__)
 
@@ -164,14 +182,6 @@ def run_daily_pipeline(args):
         type=str,
     )
 
-    parser.add_argument(
-        "--update_rid_lut",
-        help="update rid lut file before publishing",
-        default=False,
-        action="store_true",
-        dest="update_rid_lut",
-    )
-
     args = parser.parse_args(args)
 
     # paths
@@ -196,9 +206,19 @@ def run_daily_pipeline(args):
 
         SOOPManager.instance = SOOPManager(Path(CONFIG.get("Paths", "soop_files")))
 
-        RidLutManager.instance = RidLutManager(Path(args.rid_lut_file), update=args.update_rid_lut)
-
         Path(CONFIG.get("Paths", "fits_archive"))
+
+        # fido_url = CONFIG.get("Paths", "fido_search_url", fallback="https://pub099.cs.technik.fhnw.ch/data/fits")
+        # fido_client = STIXClient(source=fido_url)
+
+        # flare_lut_file = Path(CONFIG.get("Pipeline", "flareid_sc_lut_file"))
+        # SCFlareListManager.instance = SCFlareListManager(flare_lut_file, fido_client, update=True)
+
+        # TODO reactivate once flarelist processing is finalized
+        # flare_lut_file = Path(CONFIG.get("Pipeline", "flareid_sdc_lut_file"))
+        # SDCFlareListManager.instance = SDCFlareListManager(flare_lut_file, update=False)
+
+        RidLutManager.instance = RidLutManager(Path(CONFIG.get("Publish", "rid_lut_file")), update=False)
 
         db_file = Path(args.db_file)
         fits_in_dir = Path(args.fits_in_dir)
@@ -228,17 +248,50 @@ def run_daily_pipeline(args):
 
         aspect_anc_processor = AspectANC(fits_in_dir, fits_out_dir)
 
+        # TODO reactivate once flarelist processing is finalized
+        # flarelist_sdc = FlareListL3(SDCFlareListManager.instance, fits_out_dir)
+        # flarelist_sc = FlareListL3(SCFlareListManager.instance, fits_out_dir)
+        # fl_to_fl = FLtoFL(
+        #     fits_in_dir,
+        #     fits_out_dir,
+        #     products_in_out=[
+        #         (FlarelistSDC, FlarelistSDCLoc),
+        #         (FlarelistSDCLoc, FlarelistSDCLocImg),
+        #         (FlarelistSC, FlarelistSCLoc),
+        #         (FlarelistSCLoc, FlarelistSCLocImg),
+        #     ],
+        #     cadence=timedelta(seconds=1),
+        # )
+
+        ll03ql = LL03QL(
+            fits_in_dir, fits_out_dir, in_product=LightCurve, out_product=LightCurveL3, cadence=timedelta(seconds=1)
+        )
+
+        plot_writer = PlotProcessor(fits_out_dir)
         l2_fits_writer = FitsL2Processor(fits_out_dir)
+        # TODO reactivate once flarelist processing is finalized
+        # l3_fits_writer = FitsL3Processor(fits_out_dir)
+        # anc_fits_writer = FitsANCProcessor(fits_out_dir)
 
-        # should be done later: internally
-        hk_in_files = []
-        candidates = aspect_anc_processor.find_processing_candidates()
-        v_candidates = aspect_anc_processor.get_version(candidates, version="latest")
-        for fc in v_candidates:
-            tr = aspect_anc_processor.test_for_processing(fc, phs)
-            if tr == TestForProcessingResult.Suitable:
-                hk_in_files.append(fc)
+        hk_in_files = aspect_anc_processor.get_processing_files(phs)
 
+        ll_candidates = ll03ql.get_processing_files(phs)
+        # ll_candidates = []
+
+        # TODO reactivate once flarelist processing is finalized
+        # fl_sdc_months = flarelist_sdc.find_processing_months(phs)
+        # fl_sdc_months = []
+
+        # TODO reactivate once flarelist processing is finalized
+        # fl_sc_months = flarelist_sc.find_processing_months(phs)
+        # fl_sc_months = []
+
+        # TODO reactivate once flarelist processing is finalized
+        # fl_to_fl_files = fl_to_fl.get_processing_files(phs)
+        # fl_to_fl_files = []
+
+        # all processing files should be terminated before the next step as the different
+        # processing steeps might create new candidates
         # let each processing "task" run in its own process
         jobs = []
         with ProcessPoolExecutor() as executor:
@@ -249,6 +302,53 @@ def run_daily_pipeline(args):
                     soopmanager=SOOPManager.instance,
                     spice_kernel_path=Spice.instance.meta_kernel_path,
                     processor=l2_fits_writer,
+                    config=CONFIG,
+                )
+            )
+            # TODO reactivate once flarelist processing is finalized
+            # jobs.append(
+            #     executor.submit(
+            #         flarelist_sdc.process_fits_files,
+            #         fl_sdc_months,
+            #         soopmanager=SOOPManager.instance,
+            #         spice_kernel_path=Spice.instance.meta_kernel_path,
+            #         processor=l3_fits_writer,
+            #         config=CONFIG,
+            #     )
+            # )
+
+            # jobs.append(
+            #     executor.submit(
+            #         flarelist_sc.process_fits_files,
+            #         fl_sc_months,
+            #         soopmanager=SOOPManager.instance,
+            #         spice_kernel_path=Spice.instance.meta_kernel_path,
+            #         processor=l3_fits_writer,
+            #         config=CONFIG,
+            #     )
+            # )
+
+            # # TODO a owen processing step for each flarelist file?
+            # # for fl_to_fl_file in fl_to_fl_files:
+            # jobs.append(
+            #     executor.submit(
+            #         fl_to_fl.process_fits_files,
+            #         fl_to_fl_files,
+            #         soopmanager=SOOPManager.instance,
+            #         spice_kernel_path=Spice.instance.meta_kernel_path,
+            #         fl_processor=anc_fits_writer,
+            #         img_processor=l3_fits_writer,
+            #         config=CONFIG,
+            #     )
+            # )
+
+            jobs.append(
+                executor.submit(
+                    ll03ql.process_fits_files,
+                    ll_candidates,
+                    soopmanager=SOOPManager.instance,
+                    spice_kernel_path=Spice.instance.meta_kernel_path,
+                    processor=plot_writer,
                     config=CONFIG,
                 )
             )
@@ -267,13 +367,7 @@ def run_daily_pipeline(args):
         for pr in all_files:
             if isinstance(pr, SingleProcessingStepResult):
                 phs.add_processed_fits_products(
-                    pr.name,
-                    pr.level,
-                    pr.type,
-                    pr.version,
-                    get_complete_file_name_and_path(pr.in_path),
-                    pr.out_path,
-                    pr.date,
+                    pr.name, pr.level, pr.type, pr.version, pr.in_path, pr.out_path, pr.date
                 )
 
         phs.close()

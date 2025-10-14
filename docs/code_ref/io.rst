@@ -6,8 +6,8 @@ to certain directories.
 
 .. automodapi:: stixcore.io
 
-.. automodapi:: stixcore.io.fits
-.. automodapi:: stixcore.io.fits.processors
+.. automodapi:: stixcore.io.product_processors.fits.processors
+.. automodapi:: stixcore.io.product_processors.plots.processors
 
 .. automodapi:: stixcore.io.soc
 .. automodapi:: stixcore.io.soc.manager

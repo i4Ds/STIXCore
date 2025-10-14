@@ -1,6 +1,6 @@
 from pathlib import Path
 
-from stixcore.io.fits.processors import FitsL2Processor
+from stixcore.io.product_processors.fits.processors import FitsL2Processor
 from stixcore.processing.sswidl import SSWIDLProcessor, SSWIDLTask
 
 

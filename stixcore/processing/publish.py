@@ -6,6 +6,7 @@ import smtplib
 import sqlite3
 import argparse
 import tempfile
+import itertools
 from io import StringIO
 from enum import Enum
 from pprint import pformat
@@ -24,7 +25,6 @@ from astropy.table import Table
 from stixcore.config.config import CONFIG
 from stixcore.ephemeris.manager import Spice, SpiceKernelManager
 from stixcore.io.RidLutManager import RidLutManager
-from stixcore.processing.pipeline_status import pipeline_status
 from stixcore.products.product import Product
 from stixcore.time.datetime import SCETime
 from stixcore.util.logging import get_logger
@@ -296,12 +296,6 @@ def send_mail_report(files):
     """
     if CONFIG.getboolean("Publish", "report_mail_send", fallback=False):
         try:
-            try:
-                with Capturing() as open_tm_files:
-                    pipeline_status(["--next"])
-            except Exception as se:
-                open_tm_files = str(se)
-
             sender = CONFIG.get("Pipeline", "error_mail_sender", fallback="")
             receivers = CONFIG.get("Publish", "report_mail_receivers").split(",")
             host = CONFIG.get("Pipeline", "error_mail_smpt_host", fallback="localhost")
@@ -316,10 +310,6 @@ def send_mail_report(files):
             error = "" if len(files[PublishResult.ERROR]) <= 0 else "ERROR-"
             message = f"""Subject: StixCore TMTC Publishing {error}Report {su}
 
-OPEN TM FILES IN QUEUE
-**********************
-
-{open_tm_files}
 
 ERRORS (E)
 **********
@@ -586,7 +576,7 @@ def publish_fits_to_esa(args):
         "--include_levels",
         help="what levels should be published",
         type=str,
-        default=CONFIG.get("Publish", "include_levels", fallback="L0, L1, L2, ANC"),
+        default=CONFIG.get("Publish", "include_levels", fallback="L0, L1, L2, ANC, LL03"),
     )
 
     parser.add_argument(
@@ -666,6 +656,9 @@ def publish_fits_to_esa(args):
     wait_period = u.Quantity(args.waiting_period)
     wait_period_s = wait_period.to(u.s).value
 
+    LL_wait_period = u.Quantity(CONFIG.get("Publish", "LL_waiting_period", fallback="1min"))
+    LL_wait_period_s = LL_wait_period.to(u.s).value
+
     target_dir = Path(args.target_dir)
     if (scp is None) and (not target_dir.exists()):
         logger.info(f"path not found to target dir: {target_dir} creating dir")
@@ -695,7 +688,9 @@ def publish_fits_to_esa(args):
         include_all_products = False
         include_products = dict([(prod, 1) for prod in args.include_products.lower().replace(" ", "").split(",")])
 
-    candidates = fits_dir.rglob("solo_*.fits")
+    fits_candidates = fits_dir.rglob("solo_*.fits")
+    img_candidates = fits_dir.rglob("solo_*.svg")
+    candidates = itertools.chain(img_candidates, fits_candidates)
     to_publish = list()
     now = datetime.now().timestamp()
     next_week = datetime.now(timezone.utc) + timedelta(hours=24 * 7)
@@ -741,6 +736,7 @@ def publish_fits_to_esa(args):
     logger.info(f"target_host: {args.target_host}")
     logger.info(f"scp: {scp is not None}")
     logger.info(f"wait_period: {wait_period}")
+    logger.info(f"LL wait_period: {LL_wait_period}")
     logger.info(f"fits_dir: {fits_dir}")
     logger.info(f"temp_dir: {tempdir_path}")
     logger.info(f"rid_lut_file: {args.rid_lut_file}")
@@ -761,7 +757,7 @@ def publish_fits_to_esa(args):
 
     for c in candidates:
         n_candidates += 1
-        parts = c.name[:-5].split("_")
+        parts = c.stem.split("_")
         level = parts[1].lower()
 
         if not include_all_versions:
@@ -775,8 +771,10 @@ def publish_fits_to_esa(args):
         if level not in include_levels:
             continue
 
+        wp_s = LL_wait_period_s if level.startswith("ll") else wait_period_s
+
         # is the waiting time after last modification done
-        if (now - last_mod) < wait_period_s:
+        if (now - last_mod) < wp_s:
             continue
 
         if not include_all_products:
@@ -807,33 +805,37 @@ def publish_fits_to_esa(args):
 
     for p in to_publish:
         try:
-            comment = add_BSD_comment(p)
+            isFits = p.suffix == ".fits"
+            if isFits:
+                comment = add_BSD_comment(p)
 
             if is_incomplete_file_name(p.name):
                 p = p.rename(p.parent / get_complete_file_name(p.name))
-                update_ephemeris_headers(p, spice)
+                if isFits:
+                    update_ephemeris_headers(p, spice)
 
             add_res, data = hist.add(p)
 
-            try:
-                # do not publish products from the future
-                p_header = fits.getheader(p)
-                if "DATE-BEG" in p_header and ":" not in p_header["DATE-BEG"]:
-                    p_data_beg = datetime.fromisoformat(p_header["DATE-BEG"])
-                else:
-                    p_data_beg = SCETime.from_float(p_header["OBT_BEG"] * u.s).to_datetime()
-                if p_data_beg > next_week:
-                    hist.set_result(PublishResult.IGNORED, data[0]["id"])
-                    published[PublishResult.IGNORED].append(data)
-                    continue
-            except Exception:
-                pass
+            if isFits:
+                try:
+                    # do not publish products from the future
+                    p_header = fits.getheader(p)
+                    if "DATE-BEG" in p_header and ":" not in p_header["DATE-BEG"]:
+                        p_data_beg = datetime.fromisoformat(p_header["DATE-BEG"])
+                    else:
+                        p_data_beg = SCETime.from_float(p_header["OBT_BEG"] * u.s).to_datetime()
+                    if p_data_beg > next_week:
+                        hist.set_result(PublishResult.IGNORED, data[0]["id"])
+                        published[PublishResult.IGNORED].append(data)
+                        continue
+                except Exception:
+                    pass
 
             if p.name in blacklist_files:
                 hist.set_result(PublishResult.BLACKLISTED, data[0]["id"])
                 published[PublishResult.BLACKLISTED].append(data)
             elif add_res == PublishConflicts.ADDED:
-                ok, error = copy_file(scp, p, target_dir)
+                ok, error = copy_file(scp, p, target_dir, add_history_entry=isFits)
                 if ok:
                     hist.set_result(PublishResult.PUBLISHED, data[0]["id"])
                     published[PublishResult.PUBLISHED].append(data)
@@ -843,7 +845,7 @@ def publish_fits_to_esa(args):
             elif add_res == PublishConflicts.SAME_EXISTS:
                 # do nothing but add to report
                 published[PublishResult.IGNORED].append(data)
-            elif add_res == PublishConflicts.SAME_ESA_NAME:
+            elif add_res == PublishConflicts.SAME_ESA_NAME and isFits:
                 # esa naming conflict
                 equal_data_once = False
                 new_entry_id = None

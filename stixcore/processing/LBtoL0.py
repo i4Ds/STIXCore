@@ -7,7 +7,7 @@ from concurrent.futures import ProcessPoolExecutor
 from stixcore.config.config import CONFIG
 from stixcore.ephemeris.manager import Spice, SpiceKernelManager
 from stixcore.idb.manager import IDBManager
-from stixcore.io.fits.processors import FitsL0Processor
+from stixcore.io.product_processors.fits.processors import FitsL0Processor
 from stixcore.io.RidLutManager import RidLutManager
 from stixcore.products.level0.scienceL0 import NotCombineException
 from stixcore.products.product import Product

@@ -265,11 +265,13 @@ def test_pipeline_logging(spicekernelmanager, out_dir):
     FITS_ARCHIVE = CONFIG.get("Paths", "fits_archive")
     LOG_LEVEL = CONFIG.get("Pipeline", "log_level")
     LOG_DIR = CONFIG.get("Pipeline", "log_dir")
+    SERVER_PORT = CONFIG.getint("Pipeline", "status_server_port")
     try:
         CONFIG.set("Logging", "stop_on_error", str(False))
         CONFIG.set("Paths", "fits_archive", str(out_dir / "fits"))
         CONFIG.set("Pipeline", "log_level", "DEBUG")
         CONFIG.set("Pipeline", "log_dir", str(out_dir / "logging"))
+        CONFIG.set("Pipeline", "status_server_port", "12346")
 
         log_dir = Path(CONFIG.get("Pipeline", "log_dir"))
         log_dir.mkdir(parents=True, exist_ok=True)
@@ -290,6 +292,7 @@ def test_pipeline_logging(spicekernelmanager, out_dir):
         CONFIG.set("Paths", "fits_archive", str(FITS_ARCHIVE))
         CONFIG.set("Pipeline", "log_level", str(LOG_LEVEL))
         CONFIG.set("Pipeline", "log_dir", str(LOG_DIR))
+        CONFIG.set("Pipeline", "status_server_port", str(SERVER_PORT))
 
 
 @patch("smtplib.SMTP")

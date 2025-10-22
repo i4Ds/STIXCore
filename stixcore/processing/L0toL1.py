@@ -8,7 +8,7 @@ from sunpy.util.datatype_factory_base import NoMatchError
 
 from stixcore.config.config import CONFIG
 from stixcore.ephemeris.manager import Spice, SpiceKernelManager
-from stixcore.io.fits.processors import FitsL1Processor
+from stixcore.io.product_processors.fits.processors import FitsL1Processor
 from stixcore.products import Product
 from stixcore.products.level0.quicklookL0 import QLSpectraReshapeError
 from stixcore.products.level0.scienceL0 import NotCombineException
@@ -92,9 +92,9 @@ def process_type(files, *, processor, soopmanager, spice_kernel_path, config):
     CONFIG = config
 
     for file in files:
-        l0 = Product(file)
-        logger.info(f"processing file: {file}")
         try:
+            logger.info(f"processing file: {file} for L0 to L1")
+            l0 = Product(file)
             tmp = Product._check_registered_widget(
                 level="L1",
                 service_type=l0.service_type,

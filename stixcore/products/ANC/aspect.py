@@ -214,7 +214,13 @@ class AspectIDLProcessing(SSWIDLTask):
                 files.extend(
                     [
                         SingleProcessingStepResult(
-                            aux.name, aux.level, aux.type, aux.get_processing_version(), fop, file_path, datetime.now()
+                            aux.name,
+                            aux.level,
+                            aux.type,
+                            aux.get_processing_version(),
+                            fop,
+                            get_complete_file_name_and_path(file_path),
+                            datetime.now(),
                         )
                         for fop in fits_processor.write_fits(aux)
                     ]

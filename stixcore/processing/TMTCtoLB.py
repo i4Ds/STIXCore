@@ -4,7 +4,7 @@ from pathlib import Path
 from concurrent.futures import ProcessPoolExecutor
 
 from stixcore.config.config import CONFIG
-from stixcore.io.fits.processors import FitsLBProcessor
+from stixcore.io.product_processors.fits.processors import FitsLBProcessor
 from stixcore.io.soc.manager import SOCManager
 from stixcore.products.levelb.binary import LevelB
 from stixcore.tmtc.packets import TMTC

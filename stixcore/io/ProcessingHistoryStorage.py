@@ -10,6 +10,8 @@ logger = get_logger(__name__)
 class ProcessingHistoryStorage:
     """Persistent handler for meta data on already processed Products"""
 
+    DB_VERSION = 1
+
     def __init__(self, filename):
         """Create a new persistent handler. Will open or create the given sqlite DB file.
 
@@ -22,6 +24,7 @@ class ProcessingHistoryStorage:
         self.cur = None
         self.filename = filename
         self._connect_database()
+        self._migrate_database()
 
     def _connect_database(self):
         """Connects to the sqlite file or creates an empty one if not present."""
@@ -30,42 +33,45 @@ class ProcessingHistoryStorage:
             self.cur = self.conn.cursor()
             logger.info(f"ProcessingHistoryStorage DB loaded from {self.filename}")
 
-            # TODO reactivate later
-            # self.cur.execute('''CREATE TABLE if not exists processed_flare_products (
-            #             id INTEGER PRIMARY KEY AUTOINCREMENT,
-            #             flareid TEXT NOT NULL,
-            #             flarelist TEXT NOT NULL,
-            #             version INTEGER NOT NULL,
-            #             name TEXT NOT NULL,
-            #             level TEXT NOT NULL,
-            #             type TEXT NOT NULL,
-            #             fitspath TEXT NOT NULL,
-            #             p_date FLOAT NOT NULL
-            #         )
-            # ''')
-            # self.cur.execute('''CREATE INDEX if not exists processed_flare_products_idx ON
-            #                     processed_flare_products (flareid, flarelist, version, name,
-            # level, type)''')
-
-            self.cur.execute("""CREATE TABLE if not exists processed_fits_products (
-                        id INTEGER PRIMARY KEY AUTOINCREMENT,
-                        name TEXT NOT NULL,
-                        level TEXT NOT NULL,
-                        type TEXT NOT NULL,
-                        version INTEGER NOT NULL,
-                        fits_in_path TEXT NOT NULL,
-                        fits_out_path TEXT NOT NULL,
-                        p_date TEXT NOT NULL
-                    )
-            """)
-
-            self.cur.execute("""CREATE INDEX if not exists processed_fits_products_idx ON
-                                processed_fits_products
-                                (name, level, type, version, fits_in_path)""")
-
-            self.conn.commit()
         except sqlite3.Error:
             logger.error(f"Failed load DB from {self.filename}")
+            self.close()
+            raise
+
+    def _migrate_database(self):
+        """Migrate the database to the latest version if needed."""
+        try:
+            curent_DB_version = self.cur.execute("PRAGMA user_version;").fetchone()[0]
+
+            if curent_DB_version < self.DB_VERSION:
+                logger.info(f"Migrating DB from version {curent_DB_version} to {self.DB_VERSION}")
+
+                if curent_DB_version < 1:
+                    self.cur.execute("""CREATE TABLE if not exists processed_fits_products (
+                                        id INTEGER PRIMARY KEY AUTOINCREMENT,
+                                        name TEXT NOT NULL,
+                                        level TEXT NOT NULL,
+                                        type TEXT NOT NULL,
+                                        version INTEGER NOT NULL,
+                                        fits_in_path TEXT NOT NULL,
+                                        fits_out_path TEXT NOT NULL,
+                                        p_date TEXT NOT NULL
+                                        )
+                            """)
+
+                    self.cur.execute("""CREATE INDEX if not exists processed_fits_products_idx ON
+                                        processed_fits_products
+                                        (name, level, type, version, fits_in_path)""")
+                if curent_DB_version < 2:
+                    # future migrations here
+                    pass
+                self.cur.execute(f"PRAGMA user_version = {self.DB_VERSION};")
+                self.conn.commit()
+                logger.info(f"DB migration done up to version {self.DB_VERSION}")
+            else:
+                logger.info(f"DB is already at version {curent_DB_version} no migration to do")
+        except sqlite3.Error:
+            logger.error(f"Failed to migrate DB to version {self.DB_VERSION}")
             self.close()
             raise
 

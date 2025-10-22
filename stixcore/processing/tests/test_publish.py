@@ -10,7 +10,7 @@ import astropy.units as u
 from astropy.io import fits
 from astropy.table import QTable
 
-from stixcore.io.fits.processors import FitsL1Processor
+from stixcore.io.product_processors.fits.processors import FitsL1Processor
 from stixcore.processing.publish import (
     PublishConflicts,
     PublishHistoryStorage,
@@ -125,12 +125,14 @@ def test_publish_fits_to_esa_incomplete(product, out_dir):
         product.raw = ["packet1.xml", "packet2.xml"]
         product.parent = ["packet1.xml", "packet2.xml"]
         product.level = "L1"
+        product.LEVEL = "L1"
         product.service_type = 21
         product.service_subtype = 6
         product.ssid = 31
         product.fits_daily_file = True
         product.type = "ql"
         product.name = "background"
+        product.NAME = "background"
         product.obt_beg = beg
         product.obt_end = end
         product.date_obs = beg
@@ -232,6 +234,8 @@ def test_fits_incomplete_switch_over(out_dir):
             product.raw = ["packet1.xml", "packet2.xml"]
             product.parent = ["packet1.xml", "packet2.xml"]
             product.level = "L1"
+            product.LEVEL = "L1"
+            product.NAME = "background"
             product.service_type = 21
             product.service_subtype = 6
             product.ssid = 31
@@ -315,16 +319,16 @@ def test_fits_incomplete_switch_over(out_dir):
 
 
 @pytest.mark.skipif(sys.platform.startswith("win"), reason="does not run on windows")
-@pytest.mark.skipif(sys.platform != "Darwin", reason="does not run on mac")
+@pytest.mark.skipif(sys.platform == "Darwin", reason="does not run on mac")
 def test_fits_incomplete_switch_over_remove_dup_files(out_dir):
     test_fits_incomplete_switch_over(out_dir)
 
     fits_dir = out_dir / "fits"
     target_dir = out_dir / "move"
 
-    ufiles = list(fits_dir.rglob("*_V*U.fits"))
+    ufiles = sorted(list(fits_dir.rglob("*_V*U.fits")))
     p = re.compile(r".*_V[0-9]+\.fits")
-    cfiles = [f for f in fits_dir.rglob("*.fits") if p.match(f.name)]
+    cfiles = sorted([f for f in fits_dir.rglob("*.fits") if p.match(f.name)])
 
     assert len(ufiles) == 3
     assert len(cfiles) == 4
@@ -339,7 +343,7 @@ def test_fits_incomplete_switch_over_remove_dup_files(out_dir):
     assert len(res) == 1
     moved = list(target_dir.rglob("*.fits"))
     assert len(moved) == 1
-    assert moved[0].name == cfiles[3].name
+    assert moved[0].name == cfiles[2].name
 
 
 @patch("stixcore.products.level1.scienceL1.Spectrogram")

@@ -10,7 +10,7 @@ from pathlib import Path
 from datetime import datetime
 
 from stixcore.config.config import CONFIG
-from stixcore.io.fits.processors import FitsLL01Processor
+from stixcore.io.product_processors.fits.processors import FitsLL01Processor
 from stixcore.io.soc.manager import SOCPacketFile
 from stixcore.products.levelb.binary import LevelB
 from stixcore.products.product import Product

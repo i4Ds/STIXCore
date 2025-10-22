@@ -6,6 +6,8 @@ from collections import defaultdict
 
 import numpy as np
 
+from stixcore.idb.manager import IDBManager
+from stixcore.processing import engineering
 from stixcore.products.level0.quicklookL0 import QLProduct
 from stixcore.products.product import L1Mixin
 from stixcore.time import SCETimeRange
@@ -200,6 +202,7 @@ class EnergyCalibration(QLProduct, L1Mixin):
     """
 
     NAME = "energy"
+    PRODUCT_PROCESSING_VERSION = 3
 
     def __init__(
         self, *, service_type, service_subtype, ssid, control, data, idb_versions=defaultdict(SCETimeRange), **kwargs
@@ -221,6 +224,32 @@ class EnergyCalibration(QLProduct, L1Mixin):
     @classmethod
     def is_datasource_for(cls, *, service_type, service_subtype, ssid, **kwargs):
         return kwargs["level"] == EnergyCalibration.LEVEL and service_type == 21 and service_subtype == 6 and ssid == 41
+
+    @classmethod
+    def from_level0(cls, l0product, parent=""):
+        l1 = cls(
+            service_type=l0product.service_type,
+            service_subtype=l0product.service_subtype,
+            ssid=l0product.ssid,
+            control=l0product.control,
+            data=l0product.data,
+            idb_versions=l0product.idb_versions,
+            comment=l0product.comment,
+            history=l0product.history,
+        )
+
+        l1.control.replace_column("parent", [parent] * len(l1.control))
+        l1.level = "L1"
+        engineering.raw_to_engineering_product(l1, IDBManager.instance)
+
+        # fix for wrong calibration in IDB https://github.com/i4Ds/STIXCore/issues/432
+        # nix00122 was wrong assumed to be in ds but it is plain s
+        l1.control["integration_time"] = l1.control["integration_time"] * 10
+        # nix00124 was wrong assumed to be in ds but it is unscaled ms
+        l1.control["live_time"] = (l1.control["live_time"] / 100.0).to("ms").astype(np.uint32)
+        # nix00124 was wrong assumed to be in s but it is us
+        l1.control["quiet_time"] = (l1.control["quiet_time"] / 100000.0).to("us")
+        return l1
 
 
 class TMStatusFlareList(QLProduct, L1Mixin):

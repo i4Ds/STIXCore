@@ -8,7 +8,6 @@ Code Reference
    :maxdepth: 2
 
    stixcore
-   calibration
    datetime
    ephemeris
    idb

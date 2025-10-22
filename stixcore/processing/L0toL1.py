@@ -10,6 +10,7 @@ from stixcore.config.config import CONFIG
 from stixcore.ephemeris.manager import Spice, SpiceKernelManager
 from stixcore.io.product_processors.fits.processors import FitsL1Processor
 from stixcore.products import Product
+from stixcore.products.level0.quicklookL0 import QLSpectraReshapeError
 from stixcore.products.level0.scienceL0 import NotCombineException
 from stixcore.soop.manager import SOOPManager
 from stixcore.util.logging import get_logger
@@ -112,6 +113,10 @@ def process_type(files, *, processor, soopmanager, spice_kernel_path, config):
             logger.warning("No match for product %s", l0)
         except NotCombineException as nc:
             logger.info(nc)
+        except QLSpectraReshapeError as e:
+            logger.info(str(e))
+            if CONFIG.getboolean("Logging", "stop_on_error", fallback=False):
+                raise e
         except Exception as e:
             logger.error("Error processing file %s", file, exc_info=True)
             logger.error("%s", e)

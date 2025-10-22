@@ -21,19 +21,16 @@ dependencies = [
     "bitstring~=4.2",
     "hissw~=2.3",
     "intervaltree",
-    "numpy",
-    "matplotlib",
     "paramiko",
     "polling2",
     "python-dateutil",
     "pyyaml",
-    "roentgen~=2.1",
     "scp",
     "spiceypy~=6.0",
     "sunpy~=6.0.0",
     "watchdog~=6.0",
     "stixdcpy==3.0",
-    "stixpy@git+https://github.com/TCDSolar/stixpy.git@main",
+    "stixpy>=0.1.3"
 ]
 dynamic = ["version"]
 keywords = ["solar physics", "solar", "sun", "solarorbiter", "stix"]

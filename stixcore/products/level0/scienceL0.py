@@ -968,7 +968,7 @@ class Aspect(ScienceProduct):
             data.add_basic(name="cha_diode1", nix="NIX00091", packets=packets, dtype=np.uint16)
             data.add_basic(name="chb_diode0", nix="NIX00092", packets=packets, dtype=np.uint16)
             data.add_basic(name="chb_diode1", nix="NIX00093", packets=packets, dtype=np.uint16)
-            data["control_index"] = np.hstack([np.full(ns, i) for i, ns in enumerate(samples)])
+            data["control_index"] = np.hstack([np.full(ns, i) for i, ns in enumerate(samples)]).astype(np.uint16)
         except ValueError as e:
             logger.warning(e)
             raise e

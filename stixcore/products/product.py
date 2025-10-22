@@ -71,7 +71,7 @@ def read_qtable(file, hdu, hdul=None):
     `astropy.table.QTable`
         The corrected QTable with correct data types
     """
-    qtable = QTable.read(file, hdu, astropy_native=True)
+    qtable = QTable.read(file, hdu)
     if hdul is None:
         hdul = fits.open(file)
 

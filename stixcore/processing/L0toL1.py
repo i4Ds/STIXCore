@@ -91,9 +91,9 @@ def process_type(files, *, processor, soopmanager, spice_kernel_path, config):
     CONFIG = config
 
     for file in files:
-        l0 = Product(file)
-        logger.info(f"processing file: {file}")
         try:
+            logger.info(f"processing file: {file} for L0 to L1")
+            l0 = Product(file)
             tmp = Product._check_registered_widget(
                 level="L1",
                 service_type=l0.service_type,

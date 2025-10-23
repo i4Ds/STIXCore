@@ -272,6 +272,7 @@ class EnergyCalibration(GenericProduct, EnergyChannelsMixin, L2Mixin):
         ob_elut, sci_channels = ELUTManager.instance.get_elut(date)
 
         e_actual_list = []
+        e_actual_calib_list = []
         off_gain_list = []
         ecc_err_list = []
         gain_range_ok_list = []
@@ -415,6 +416,8 @@ class EnergyCalibration(GenericProduct, EnergyChannelsMixin, L2Mixin):
                 gain = off_gain[1, :, :]
                 offset = off_gain[0, :, :]
 
+                # calculate the actual energy edges taking the applied ELUT into
+                # account for calibration of data recorded with the ELUT
                 e_actual = (ob_elut.adc - offset[..., None]) * gain[..., None]
 
                 e_actual_ext = np.pad(e_actual,
@@ -426,11 +429,26 @@ class EnergyCalibration(GenericProduct, EnergyChannelsMixin, L2Mixin):
                                       )
                 e_actual_list.append(e_actual_ext)
 
+                # calculate the actual energy edges independent of the applied ELUT
+                adc = np.round(offset[..., None] + (sci_channels["Elower"].to_value()
+                               / gain[..., None])).astype(np.uint16)
+                e_actual_calib = (np.searchsorted(np.arange(4096), adc) -
+                                  offset[..., None]) * gain[..., None]
+                e_actual_calib[:, :, -1] = np.inf
+                e_actual_calib[:, :, 0] = 0.0
+
+                e_actual_calib_list.append(e_actual_calib)
+
                 # end of ECC context block
 
             l2.data.add_column(Column(name='e_edges_actual', data=e_actual_list,
-                                      description="actual energy edges fitted by ECC"))
+                                      description="actual energy edges fitted by ECC with applied ELUT"))  # noqa
             l2.data["e_edges_actual"].unit = u.keV
+
+            l2.data.add_column(Column(name='e_edges_actual_calib', data=e_actual_calib_list,
+                                      description="actual energy edges fitted by ECC without applied ELUT"))  # noqa
+            l2.data["e_edges_actual_calib"].unit = u.keV
+
             l2.data.add_column(Column(name='ecc_offset_gain_goc', data=off_gain_list,
                                       description="result of the ecc fitting: offset, gain, goc"))
             l2.data.add_column(Column(name='ecc_error', data=ecc_err_list,

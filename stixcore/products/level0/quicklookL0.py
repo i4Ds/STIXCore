@@ -104,7 +104,7 @@ class QLProduct(CountDataMixin, GenericProduct, EnergyChannelsMixin):
         # When the packets are parsed empty packets are dropped but in LB we don't parse so this
         # is not known need to compare control and levelb.control and only use matching rows
         if len(levelb.control) > len(control):
-            matching_index = np.argwhere(np.in1d(levelb.control["scet_coarse"], np.array(packets.get("scet_coarse"))))
+            matching_index = np.argwhere(np.isin(levelb.control["scet_coarse"], np.array(packets.get("scet_coarse"))))
             control["raw_file"] = levelb.control["raw_file"][matching_index].reshape(-1)
             control["packet"] = levelb.control["packet"][matching_index].reshape(-1)
         else:
@@ -830,7 +830,7 @@ class TMStatusFlareList(QLProduct):
         # When the packets are parsed empty packets are dropped but in LB we don't parse so this
         # is not known need to compare control and levelb.control and only use matching rows
         if len(levelb.control) > len(control):
-            matching_index = np.argwhere(np.in1d(levelb.control["scet_coarse"], np.array(packets.get("scet_coarse"))))
+            matching_index = np.argwhere(np.isin(levelb.control["scet_coarse"], np.array(packets.get("scet_coarse"))))
             control["raw_file"] = levelb.control["raw_file"][matching_index].reshape(-1)
             control["packet"] = levelb.control["packet"][matching_index].reshape(-1)
         else:

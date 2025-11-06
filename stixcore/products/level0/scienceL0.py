@@ -157,7 +157,7 @@ class ScienceProduct(CountDataMixin, GenericProduct, EnergyChannelsMixin, FitsHe
             key_cols.insert(0, "tc_packet_seq_control")
 
         for control in self.control.group_by(key_cols).groups:
-            data = self.data[np.in1d(self.data["control_index"], control["index"])]
+            data = self.data[np.isin(self.data["control_index"], control["index"])]
 
             yield type(self)(
                 service_type=self.service_type,
@@ -375,7 +375,7 @@ class CompressedPixelData(ScienceProduct):
             start = 0
             end = 0
             res = []
-            for npx in data["num_pixel_sets"]:
+            for npx in data["num_pixel_sets"].astype(int):
                 end += npx
                 cur_pm = pixel_indices[start:end].astype(int).tolist()
                 full_pm = np.full((12), 0, dtype=np.ubyte)

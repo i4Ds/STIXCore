@@ -11,7 +11,6 @@ from stixcore.products.common import (
     _get_compression_scheme,
     _get_detector_mask,
     _get_pixel_mask,
-    get_min_uint,
     unscale_triggers,
 )
 from stixcore.products.product import (
@@ -199,7 +198,7 @@ class ScienceProduct(CountDataMixin, GenericProduct, EnergyChannelsMixin, FitsHe
 
         control["index"] = np.ubyte(0)
         packet_ids = levelb.control["packet"].reshape(1, -1)
-        control["packet"] = packet_ids.astype(get_min_uint(packet_ids))
+        control["packet"] = packet_ids.astype(np.min_scalar_type(packet_ids))
         control["raw_file"] = np.unique(levelb.control["raw_file"]).reshape(1, -1)
         control["parent"] = parent
 
@@ -245,7 +244,7 @@ class RawPixelData(ScienceProduct):
         data.add_data("pixel_masks", _get_pixel_mask(packets, "NIXD0407"))
         data.add_data("detector_masks", _get_detector_mask(packets))
         triggers = np.array([packets.get_value(f"NIX00{i}") for i in range(408, 424)]).T
-        data["triggers"] = triggers.astype(get_min_uint(triggers))
+        data["triggers"] = triggers.astype(np.min_scalar_type(triggers))
         data["triggers"].meta = {"NIXS": [f"NIX00{i}" for i in range(408, 424)]}
         data.add_basic(name="num_samples", nix="NIX00406", packets=packets, dtype=np.uint16)
 
@@ -302,7 +301,7 @@ class RawPixelData(ScienceProduct):
         data = data[sub_index]
         data["time"] = control["time_stamp"][0] + data["start_time"] + data["integration_time"] / 2
         data["timedel"] = SCETimeDelta(data["integration_time"])
-        data["counts"] = (counts * u.ct).astype(get_min_uint(counts))
+        data["counts"] = (counts * u.ct).astype(np.min_scalar_type(counts))
         # data.add_meta(name='counts', nix='NIX00065', packets=packets)
         data["control_index"] = control["index"][0]
 
@@ -416,7 +415,7 @@ class CompressedPixelData(ScienceProduct):
                 factor=factor,
             )
 
-        data["triggers"] = triggers.T.astype(get_min_uint(triggers))
+        data["triggers"] = triggers.T.astype(np.min_scalar_type(triggers))
         data["triggers"].meta = {"NIXS": [f"NIX00{i}" for i in range(242, 258)]}
         data["triggers_comp_err"] = np.float32(np.sqrt(triggers_var).T)
         # data.add_basic(name='num_energy_groups', nix='NIX00258', packets=packets, dtype=np.ubyte)
@@ -565,7 +564,7 @@ class CompressedPixelData(ScienceProduct):
 
         data["time"] = control["time_stamp"][0] + data["delta_time"] + data["integration_time"] / 2
         data["timedel"] = data["integration_time"]
-        data["counts"] = (counts * u.ct).astype(get_min_uint(counts))
+        data["counts"] = (counts * u.ct).astype(np.min_scalar_type(counts))
         data.add_meta(name="counts", nix="NIX00260", packets=packets)
         data["counts_comp_err"] = np.float32(counts_var * u.ct)
         data["control_index"] = control["index"][0]
@@ -875,7 +874,7 @@ class Spectrogram(ScienceProduct):
         data["timedel"] = deltas
         data["timedel"].meta = {"NIXS": ["NIX00441", "NIX00269"]}
 
-        data["triggers"] = triggers.astype(get_min_uint(triggers))
+        data["triggers"] = triggers.astype(np.min_scalar_type(triggers))
         data.add_meta(name="triggers", nix="NIX00267", packets=packets)
         data["triggers_comp_err"] = np.float32(np.sqrt(triggers_var))
         data.add_meta(name="triggers_comp_err", nix="NIX00267", packets=packets)
@@ -885,7 +884,7 @@ class Spectrogram(ScienceProduct):
         data["pixel_masks"] = pixel_masks
         data.add_meta(name="pixel_masks", nix="NIXD0407", packets=packets)
 
-        data["counts"] = (counts * u.ct).astype(get_min_uint(counts))
+        data["counts"] = (counts * u.ct).astype(np.min_scalar_type(counts))
         data.add_meta(name="counts", nix="NIX00268", packets=packets)
         data["counts_comp_err"] = np.float32(np.sqrt(counts_var) * u.ct)
         data["control_index"] = np.ubyte(0)
@@ -957,7 +956,7 @@ class Aspect(ScienceProduct):
         control["packet"] = levelb.control["packet"].reshape(1, -1)
         control["parent"] = parent
 
-        control["index"] = np.arange(len(control)).astype(get_min_uint(len(control)))
+        control["index"] = np.arange(len(control)).astype(np.min_scalar_type(len(control)))
 
         delta_time = ((control["summing_value"] * control["averaging_value"]) / 1000.0) * u.s
         samples = packets.get_value("NIX00089")

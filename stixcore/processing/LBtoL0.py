@@ -81,13 +81,15 @@ def process_tm_type(files, tm_type, processor, spice_kernel_path, config, idbm):
     IDBManager.instance = idbm
     CONFIG = config
 
+    logger.info(f"Start Processing TM type: {tm_type} with {len(files)} files")
+
     RidLutManager.instance = RidLutManager(Path(CONFIG.get("Publish", "rid_lut_file")), update=False)
 
     # Stand alone packet data
     if (tm_type[0] == 21 and tm_type[-2] not in {20, 21, 22, 23, 24, 42}) or tm_type[0] != 21:
         for file in files:
-            levelb = Product(file)
             logger.info(f"processing file: {file}")
+            levelb = Product(file)
             tmp = Product._check_registered_widget(
                 level="L0",
                 service_type=levelb.service_type,
@@ -113,6 +115,7 @@ def process_tm_type(files, tm_type, processor, spice_kernel_path, config, idbm):
     else:
         # for each file
         for file in files:
+            logger.info(f"processing file: {file}")
             levelb = Product(file)
             complete, _ = levelb.extract_sequences()
 
@@ -146,6 +149,7 @@ def process_tm_type(files, tm_type, processor, spice_kernel_path, config, idbm):
                         logger.error("%s", e)
                         if CONFIG.getboolean("Logging", "stop_on_error", fallback=False):
                             raise e
+    logger.info(f"Finished Processing TM type: {tm_type} created {len(all_files)} files")
     return all_files
 
 

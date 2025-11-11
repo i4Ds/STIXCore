@@ -54,7 +54,7 @@ class BaseFactory:
 
         for key in self.registry:
             # Call the registered validation function for each registered class
-            if self.registry[key](*args, **kwargs):
+            if self.registry[key](*args):
                 candidates.append(key)
 
         n_matches = len(candidates)
@@ -88,12 +88,12 @@ class TMTCPacketFactory(BaseFactory):
         super().__init__(registry=registry)
         self.tm_packet_factory = TMPacketFactory(registry=GenericTMPacket._registry)  # noqa
 
-    def __call__(self, data):
+    def __call__(self, data, **kwargs):
         if isinstance(data, str):
             data = unhexlify(data)
         sph = SourcePacketHeader(data)
         packet = self._check_registered(sph)
-        return self.tm_packet_factory(packet)
+        return self.tm_packet_factory(packet, **kwargs)
 
 
 class TMPacketFactory(BaseFactory):
@@ -104,8 +104,8 @@ class TMPacketFactory(BaseFactory):
     def __init__(self, registry=None):
         super().__init__(registry=registry)
 
-    def __call__(self, data):
-        return self._check_registered(data)
+    def __call__(self, data, **kwargs):
+        return self._check_registered(data, **kwargs)
 
 
 class NoMatchError(Exception):

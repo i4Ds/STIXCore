@@ -801,14 +801,20 @@ class GenericProduct(BaseProduct):
 
     @classmethod
     def getLeveL0Packets(cls, levelb):
-        packets = [Packet(d) for d in levelb.data["data"]]
+        packets = [Packet(d, keep_parse_tree=False) for d in levelb.data["data"]]
         # packets = []
+        # pid = psutil.Process()
+        # logger.info(f"parsing {len(levelb.data)} packages from level B data")
         # for i, d in enumerate(levelb.data['data']):
-        #    try:
-        #        packets.append(Packet(d))
-        #    except Exception:
-        #        logger.warning(f"corrupt package {i}")
-        #        pass
+        #     try:
+        #         if i % 100 == 0:
+        #             mem = pid.memory_info()
+        #             logger.info(f"Reading package {i} Memory Usage: {round(mem.rss / (1024 * 1024 * 1024), ndigits=3)} GB")
+        #         p = Packet(d, keep_parse_tree=False)
+        #         packets.append(p)
+        #     except Exception as e:
+        #         logger.warning(f"corrupt package {i}", exc_info=e)
+        #         pass
 
         idb_versions = defaultdict(SCETimeRange)
 

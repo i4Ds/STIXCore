@@ -506,7 +506,7 @@ class GenericTMPacket:
         if hasattr(cls, "is_datasource_for"):
             cls._registry[cls] = cls.is_datasource_for
 
-    def __init__(self, data, idb=None):
+    def __init__(self, data, idb=None, *, keep_parse_tree=True):
         """Create a new TM packet parsing common source and data headers.
 
         Parameters
@@ -550,7 +550,7 @@ class GenericTMPacket:
             )
             raise e
         self.data = data
-        self.tree = structure
+        self.tree = structure if keep_parse_tree else None
         # self.group_repeaters()
 
     def group_repeaters(self):

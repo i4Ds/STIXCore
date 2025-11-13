@@ -54,7 +54,7 @@ class HKProduct(GenericProduct):
         return True
 
     @classmethod
-    def from_levelb(cls, levelb, *, parent=""):
+    def from_levelb(cls, levelb, *, parent="", keep_parse_tree=True):
         """Converts level binary HK packets to a L1 product.
 
         Parameters
@@ -73,7 +73,7 @@ class HKProduct(GenericProduct):
             all used IDB versions and time periods
             initialized control table
         """
-        packets, idb_versions = GenericProduct.getLeveL0Packets(levelb)
+        packets, idb_versions = GenericProduct.getLeveL0Packets(levelb, keep_parse_tree=keep_parse_tree)
 
         control = Control()
         control["scet_coarse"] = packets.get("scet_coarse")
@@ -110,8 +110,8 @@ class MiniReport(HKProduct):
         self.name = "mini"
 
     @classmethod
-    def from_levelb(cls, levelb, parent=""):
-        packets, idb_versions, control = super().from_levelb(levelb, parent=parent)
+    def from_levelb(cls, levelb, parent="", keep_parse_tree=True):
+        packets, idb_versions, control = super().from_levelb(levelb, parent=parent, keep_parse_tree=keep_parse_tree)
 
         # Create array of times as dt from date_obs
         times = SCETime(control["scet_coarse"], control["scet_fine"])
@@ -168,8 +168,8 @@ class MaxiReport(HKProduct):
         self.name = "maxi"
 
     @classmethod
-    def from_levelb(cls, levelb, parent=""):
-        packets, idb_versions, control = super().from_levelb(levelb, parent=parent)
+    def from_levelb(cls, levelb, parent="", keep_parse_tree=True):
+        packets, idb_versions, control = super().from_levelb(levelb, parent=parent, keep_parse_tree=keep_parse_tree)
 
         # Create array of times as dt from date_obs
         times = SCETime(control["scet_coarse"], control["scet_fine"])

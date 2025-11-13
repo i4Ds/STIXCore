@@ -99,7 +99,7 @@ def process_tm_type(files, tm_type, processor, spice_kernel_path, config, idbm):
                 control=None,
             )
             try:
-                level0 = tmp.from_levelb(levelb, parent=file.name)
+                level0 = tmp.from_levelb(levelb, parent=file.name, keep_parse_tree=False)
                 if level0:
                     fits_files = processor.write_fits(level0)
                     all_files.extend(fits_files)
@@ -132,7 +132,7 @@ def process_tm_type(files, tm_type, processor, spice_kernel_path, config, idbm):
                             data=None,
                             control=None,
                         )
-                        level0 = tmp.from_levelb(comp, parent=file.name)
+                        level0 = tmp.from_levelb(comp, parent=file.name, keep_parse_tree=False)
                         fits_files = processor.write_fits(level0)
                         all_files.extend(fits_files)
                     except NotCombineException as nc:

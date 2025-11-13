@@ -78,7 +78,7 @@ class QLProduct(CountDataMixin, GenericProduct, EnergyChannelsMixin):
         return True
 
     @classmethod
-    def from_levelb(cls, levelb, *, parent="", NIX00405_offset=0):
+    def from_levelb(cls, levelb, *, parent="", NIX00405_offset=0, keep_parse_tree=True):
         """Converts level binary packets to a L1 product.
 
         Parameters
@@ -97,7 +97,7 @@ class QLProduct(CountDataMixin, GenericProduct, EnergyChannelsMixin):
             all used IDB versions and time periods
             initialized control table
         """
-        packets, idb_versions = GenericProduct.getLeveL0Packets(levelb)
+        packets, idb_versions = GenericProduct.getLeveL0Packets(levelb, keep_parse_tree=keep_parse_tree)
 
         control = Control.from_packets(packets, NIX00405_offset=NIX00405_offset)
 
@@ -138,8 +138,10 @@ class LightCurve(QLProduct):
         self.level = "L0"
 
     @classmethod
-    def from_levelb(cls, levelb, parent=""):
-        packets, idb_versions, control = QLProduct.from_levelb(levelb, parent=parent, NIX00405_offset=QLNIX00405_off)
+    def from_levelb(cls, levelb, parent="", keep_parse_tree=True):
+        packets, idb_versions, control = QLProduct.from_levelb(
+            levelb, parent=parent, NIX00405_offset=QLNIX00405_off, keep_parse_tree=keep_parse_tree
+        )
 
         control.add_data("detector_mask", _get_detector_mask(packets))
         control.add_data("pixel_mask", _get_pixel_mask(packets))
@@ -245,8 +247,10 @@ class Background(QLProduct):
         self.level = "L0"
 
     @classmethod
-    def from_levelb(cls, levelb, parent=""):
-        packets, idb_versions, control = QLProduct.from_levelb(levelb, parent=parent, NIX00405_offset=QLNIX00405_off)
+    def from_levelb(cls, levelb, parent="", keep_parse_tree=True):
+        packets, idb_versions, control = QLProduct.from_levelb(
+            levelb, parent=parent, NIX00405_offset=QLNIX00405_off, keep_parse_tree=keep_parse_tree
+        )
 
         control.add_data("energy_bin_edge_mask", _get_energy_bins(packets, "NIX00266", "NIXD0111"))
         control.add_basic(name="num_energies", nix="NIX00270", packets=packets)
@@ -358,8 +362,10 @@ class Spectra(QLProduct):
         self.level = "L0"
 
     @classmethod
-    def from_levelb(cls, levelb, parent=""):
-        packets, idb_versions, control = QLProduct.from_levelb(levelb, parent=parent, NIX00405_offset=QLNIX00405_off)
+    def from_levelb(cls, levelb, parent="", keep_parse_tree=True):
+        packets, idb_versions, control = QLProduct.from_levelb(
+            levelb, parent=parent, NIX00405_offset=QLNIX00405_off, keep_parse_tree=keep_parse_tree
+        )
 
         control.add_data("pixel_mask", _get_pixel_mask(packets))
         control.add_data("compression_scheme_spectra_skm", _get_compression_scheme(packets, "NIX00452"))
@@ -510,8 +516,10 @@ class Variance(QLProduct):
         self.level = "L0"
 
     @classmethod
-    def from_levelb(cls, levelb, parent=""):
-        packets, idb_versions, control = QLProduct.from_levelb(levelb, parent=parent, NIX00405_offset=QLNIX00405_off)
+    def from_levelb(cls, levelb, parent="", keep_parse_tree=True):
+        packets, idb_versions, control = QLProduct.from_levelb(
+            levelb, parent=parent, NIX00405_offset=QLNIX00405_off, keep_parse_tree=keep_parse_tree
+        )
 
         # Control
         control["samples_per_variance"] = np.array(packets.get_value("NIX00279"), np.ubyte)
@@ -600,8 +608,10 @@ class FlareFlag(QLProduct):
         self.level = "L0"
 
     @classmethod
-    def from_levelb(cls, levelb, parent=""):
-        packets, idb_versions, control = QLProduct.from_levelb(levelb, parent=parent, NIX00405_offset=QLNIX00405_off)
+    def from_levelb(cls, levelb, parent="", keep_parse_tree=True):
+        packets, idb_versions, control = QLProduct.from_levelb(
+            levelb, parent=parent, NIX00405_offset=QLNIX00405_off, keep_parse_tree=keep_parse_tree
+        )
 
         control.add_basic(name="num_samples", nix="NIX00089", packets=packets)
 
@@ -683,8 +693,8 @@ class EnergyCalibration(QLProduct):
         self.type = "cal"
 
     @classmethod
-    def from_levelb(cls, levelb, parent=""):
-        packets, idb_versions, control = QLProduct.from_levelb(levelb, parent=parent)
+    def from_levelb(cls, levelb, parent="", keep_parse_tree=True):
+        packets, idb_versions, control = QLProduct.from_levelb(levelb, parent=parent, keep_parse_tree=keep_parse_tree)
 
         # Control
         control.add_basic(name="integration_time", nix="NIX00122", packets=packets, dtype=np.uint32, attr="value")
@@ -831,8 +841,8 @@ class TMStatusFlareList(QLProduct):
         self.level = "L0"
 
     @classmethod
-    def from_levelb(cls, levelb, parent=""):
-        packets, idb_versions = GenericProduct.getLeveL0Packets(levelb)
+    def from_levelb(cls, levelb, parent="", keep_parse_tree=True):
+        packets, idb_versions = GenericProduct.getLeveL0Packets(levelb, keep_parse_tree=keep_parse_tree)
 
         control = Control()
         control["scet_coarse"] = packets.get("scet_coarse")

@@ -800,8 +800,8 @@ class GenericProduct(BaseProduct):
                     yield out
 
     @classmethod
-    def getLeveL0Packets(cls, levelb):
-        packets = [Packet(d, keep_parse_tree=False) for d in levelb.data["data"]]
+    def getLeveL0Packets(cls, levelb, keep_parse_tree=True):
+        packets = [Packet(d, keep_parse_tree=keep_parse_tree) for d in levelb.data["data"]]
         # packets = []
         # pid = psutil.Process()
         # logger.info(f"parsing {len(levelb.data)} packages from level B data")
@@ -1020,8 +1020,8 @@ class DefaultProduct(GenericProduct, L1Mixin, L2Mixin):
         self.type = f"{self.service_name_map[service_type]}"
 
     @classmethod
-    def from_levelb(cls, levelb, parent):
-        packets, idb_versions = GenericProduct.getLeveL0Packets(levelb)
+    def from_levelb(cls, levelb, parent, keep_parse_tree=True):
+        packets, idb_versions = GenericProduct.getLeveL0Packets(levelb, keep_parse_tree=keep_parse_tree)
 
         control = Control()
         control["scet_coarse"] = packets.get("scet_coarse")

@@ -171,7 +171,7 @@ class ScienceProduct(CountDataMixin, GenericProduct, EnergyChannelsMixin, FitsHe
             )
 
     @classmethod
-    def from_levelb(cls, levelb, *, parent=""):
+    def from_levelb(cls, levelb, *, parent="", keep_parse_tree=True):
         """Converts level binary science packets to a L1 product.
 
         Parameters
@@ -182,6 +182,8 @@ class ScienceProduct(CountDataMixin, GenericProduct, EnergyChannelsMixin, FitsHe
             The parent data file name the binary packed comes from, by default ''
         NIX00405_offset : int, optional
             [description], by default 0
+        keep_parse_tree : bool, optional
+            Whether to keep the parse tree in each packet for debugging and printing, by default True
 
         Returns
         -------
@@ -190,7 +192,7 @@ class ScienceProduct(CountDataMixin, GenericProduct, EnergyChannelsMixin, FitsHe
             all used IDB versions and time periods
             initialized control table
         """
-        packets, idb_versions = GenericProduct.getLeveL0Packets(levelb)
+        packets, idb_versions = GenericProduct.getLeveL0Packets(levelb, keep_parse_tree=keep_parse_tree)
 
         control = ControlSci.from_packets(packets)
         # control.remove_column('num_structures')
@@ -228,8 +230,10 @@ class RawPixelData(ScienceProduct):
         self.name = "xray-rpd"
 
     @classmethod
-    def from_levelb(cls, levelb, parent=""):
-        packets, idb_versions, control = ScienceProduct.from_levelb(levelb, parent=parent)
+    def from_levelb(cls, levelb, parent="", keep_parse_tree=True):
+        packets, idb_versions, control = ScienceProduct.from_levelb(
+            levelb, parent=parent, keep_parse_tree=keep_parse_tree
+        )
 
         data = Data()
         data["start_time"] = packets.get_value("NIX00404").astype(np.uint32)
@@ -340,12 +344,14 @@ class CompressedPixelData(ScienceProduct):
         self.name = "xray-cpd"
 
     @classmethod
-    def from_levelb(cls, levelb, parent=""):
+    def from_levelb(cls, levelb, parent="", keep_parse_tree=True):
         header_comments = []
         header_history = []
         additional_header_keywords = []
 
-        packets, idb_versions, control = ScienceProduct.from_levelb(levelb, parent=parent)
+        packets, idb_versions, control = ScienceProduct.from_levelb(
+            levelb, parent=parent, keep_parse_tree=keep_parse_tree
+        )
 
         c_skm, c_skm_meta = _get_compression_scheme(packets, "NIX00260")
         control.add_data("compression_scheme_counts_skm", (c_skm[0].reshape(1, 3), c_skm_meta))
@@ -637,8 +643,10 @@ class Visibility(ScienceProduct):
         self.name = "xray-vis"
 
     @classmethod
-    def from_levelb(cls, levelb, parent=""):
-        packets, idb_versions, control = ScienceProduct.from_levelb(levelb, parent=parent)
+    def from_levelb(cls, levelb, parent="", keep_parse_tree=True):
+        packets, idb_versions, control = ScienceProduct.from_levelb(
+            levelb, parent=parent, keep_parse_tree=keep_parse_tree
+        )
 
         c_skm, c_skm_meta = _get_compression_scheme(packets, "NIX00263")
         control.add_data("compression_scheme_counts_skm", (c_skm[0].reshape(1, 3), c_skm_meta))
@@ -788,12 +796,14 @@ class Spectrogram(ScienceProduct):
         self.name = "xray-spec"
 
     @classmethod
-    def from_levelb(cls, levelb, parent=""):
+    def from_levelb(cls, levelb, parent="", keep_parse_tree=True):
         header_comments = []
         header_history = []
         additional_header_keywords = []
 
-        packets, idb_versions, control = ScienceProduct.from_levelb(levelb, parent=parent)
+        packets, idb_versions, control = ScienceProduct.from_levelb(
+            levelb, parent=parent, keep_parse_tree=keep_parse_tree
+        )
 
         c_skm, c_skm_meta = _get_compression_scheme(packets, "NIX00268")
         control.add_data("compression_scheme_counts_skm", (c_skm[0].reshape(1, 3), c_skm_meta))
@@ -921,8 +931,8 @@ class Aspect(ScienceProduct):
         self.name = "aspect-burst"
 
     @classmethod
-    def from_levelb(cls, levelb, parent=""):
-        packets, idb_versions = GenericProduct.getLeveL0Packets(levelb)
+    def from_levelb(cls, levelb, parent="", keep_parse_tree=True):
+        packets, idb_versions = GenericProduct.getLeveL0Packets(levelb, keep_parse_tree=keep_parse_tree)
         if len(packets.data) == 0:
             logger.warning("No data all packets empty %s", levelb)
             return None

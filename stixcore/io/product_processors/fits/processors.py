@@ -641,7 +641,7 @@ class FitsL0Processor:
             hdul = fits.HDUList(hdul)
 
             filetowrite = path / filename
-            logger.debug(f"Writing fits file to {filetowrite}")
+            logger.info(f"Writing fits file to {filetowrite}")
             hdul.writeto(filetowrite, overwrite=True, checksum=True)
             created_files.append(filetowrite)
         return created_files

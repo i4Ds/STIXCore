@@ -246,9 +246,9 @@ class PipelineStatus(metaclass=Singleton):
         self.current_tm = (None, datetime.now())
         self.tm_handler = tm_handler
 
-        self.status_server_thread = threading.Thread(target=self.status_server)
-        self.status_server_thread.daemon = True
-        self.status_server_thread.start()
+        # self.status_server_thread = threading.Thread(target=self.status_server)
+        # self.status_server_thread.daemon = True
+        # self.status_server_thread.start()
 
     @staticmethod
     def get_config():

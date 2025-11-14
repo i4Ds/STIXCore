@@ -239,6 +239,9 @@ class Ephemeris(GenericProduct, L2Mixin):
     """
 
     PRODUCT_PROCESSING_VERSION = 2
+    NAME = "ephemeris"
+    LEVEL = "ANC"
+    TYPE = "asp"
 
     def __init__(
         self,
@@ -260,9 +263,9 @@ class Ephemeris(GenericProduct, L2Mixin):
             idb_versions=idb_versions,
             **kwargs,
         )
-        self.name = "ephemeris"
-        self.level = "ANC"
-        self.type = "asp"
+        self.name = Ephemeris.NAME
+        self.level = Ephemeris.LEVEL
+        self.type = Ephemeris.TYPE
         self.ssid = 1
         self.service_subtype = 0
         self.service_type = 0
@@ -285,4 +288,4 @@ class Ephemeris(GenericProduct, L2Mixin):
 
     @classmethod
     def is_datasource_for(cls, *, service_type, service_subtype, ssid, **kwargs):
-        return kwargs["level"] == "ANC" and service_type == 0 and service_subtype == 0 and ssid == 1
+        return kwargs["level"] == Ephemeris.LEVEL and service_type == 0 and service_subtype == 0 and ssid == 1

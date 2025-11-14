@@ -272,8 +272,11 @@ class EnergyCalibration(GenericProduct, EnergyChannelsMixin, L2Mixin):
         ob_elut, sci_channels = ELUTManager.instance.get_elut(date)
 
         e_actual_list = []
-        e_actual_calib_list = []
         off_gain_list = []
+
+        ecc_only_e_actual_list = []
+        ecc_only_off_gain_list = []
+
         ecc_err_list = []
         gain_range_ok_list = []
 
@@ -364,20 +367,31 @@ class EnergyCalibration(GenericProduct, EnergyChannelsMixin, L2Mixin):
                 if process.returncode != 0:
                     raise RuntimeError(f"ECC Bash script failed: {process.stderr}")
 
-                logger.info("ECC bash script executed successfully: %s", process.stdout)
+                logger.info("ECC bash script executed successfully: \n%s", process.stdout)
 
                 if not erg_path.exists():
                     raise FileNotFoundError(f"Failed to read ECC result file {erg_path}")
 
                 control_idx = l2.data['control_index'][spec_idx]
                 livetime = l1product.control['live_time'][control_idx].to_value(u.s)
-                ecc_pf_df = ecc_post_fit(spec_all_erg, erg_path, livetime)
+                ecc_pf_df, idx_ecc = ecc_post_fit(spec_all_erg, erg_path, livetime)
+                logger.info("Run ecc post fit: replaced [%s %%] gain "
+                            "offset pairs with 'better fits'",
+                            round((len(idx_ecc)-idx_ecc.sum())/max(1, len(idx_ecc)) * 100,
+                                  ndigits=1))
 
                 off_gain = np.array([4.0 * ecc_pf_df["Offset_Cor"].values.reshape(32, 12),
                                      1.0 / (4.0 * ecc_pf_df["Gain_Cor"].values.reshape(32, 12)),
                                      ecc_pf_df["goc"].values.reshape(32, 12)])
-                l2.control['ob_elut_name'][l2.data['control_index'][spec_idx]] = ob_elut.file
                 off_gain_list.append(off_gain)
+
+                off_gain_ecc = np.array([4.0 * ecc_pf_df["Offset_ECC"].values.reshape(32, 12),
+                                         1.0 / (4.0 * ecc_pf_df["Gain_ECC"].values.reshape(32, 12)),
+                                         ecc_pf_df["goc"].values.reshape(32, 12)])
+                ecc_only_off_gain_list.append(off_gain_ecc)
+
+                l2.control['ob_elut_name'][l2.data['control_index'][spec_idx]] = ob_elut.file
+
                 ecc_err_list.append(np.array([ecc_pf_df["err_P31"].values.reshape(32, 12),
                                               ecc_pf_df["err_dE31"].values.reshape(32, 12),
                                               ecc_pf_df["err_P81"].values.reshape(32, 12),
@@ -429,35 +443,44 @@ class EnergyCalibration(GenericProduct, EnergyChannelsMixin, L2Mixin):
                                       )
                 e_actual_list.append(e_actual_ext)
 
-                # calculate the actual energy edges independent of the applied ELUT
-                adc = np.round(offset[..., None] + (sci_channels["Elower"].to_value()
-                               / gain[..., None])).astype(np.uint16)
-                e_actual_calib = (np.searchsorted(np.arange(4096), adc) -
-                                  offset[..., None]) * gain[..., None]
-                e_actual_calib[:, :, -1] = np.inf
-                e_actual_calib[:, :, 0] = 0.0
+                gain_ecc = off_gain_ecc[1, :, :]
+                offset_ecc = off_gain_ecc[0, :, :]
 
-                e_actual_calib_list.append(e_actual_calib)
+                # calculate the actual energy edges taking the applied ELUT into
+                # account for calibration of data recorded with the ELUT
+                e_actual_ecc = (ob_elut.adc - offset_ecc[..., None]) * gain_ecc[..., None]
 
-                # end of ECC context block
+                e_actual_ext_ecc = np.pad(e_actual_ecc,
+                                          # pad last axis by 1 on both sides
+                                          pad_width=((0, 0), (0, 0), (1, 1)),
+                                          mode='constant',
+                                          # first pad with 0, last pad with inf
+                                          constant_values=(0, np.inf)
+                                          )
+                ecc_only_e_actual_list.append(e_actual_ext_ecc)
 
-            l2.data.add_column(Column(name='e_edges_actual', data=e_actual_list,
-                                      description="actual energy edges fitted by ECC with applied ELUT"))  # noqa
-            l2.data["e_edges_actual"].unit = u.keV
+            # end of ECC context block
+        # end of for each spectrum
+        l2.data.add_column(Column(name='e_edges_actual', data=e_actual_list,
+                                    description="actual energy edges fitted by ECC and post fitting"))  # noqa
+        l2.data["e_edges_actual"].unit = u.keV
 
-            l2.data.add_column(Column(name='e_edges_actual_calib', data=e_actual_calib_list,
-                                      description="actual energy edges fitted by ECC without applied ELUT"))  # noqa
-            l2.data["e_edges_actual_calib"].unit = u.keV
+        l2.data.add_column(Column(name='offset_gain_goc', data=off_gain_list,
+                                    description="result of the ecc fitting: offset, gain, goc and post fitting"))  # noqa
 
-            l2.data.add_column(Column(name='ecc_offset_gain_goc', data=off_gain_list,
-                                      description="result of the ecc fitting: offset, gain, goc"))
-            l2.data.add_column(Column(name='ecc_error', data=ecc_err_list,
-                                      description="error estimate from ECC: err_P31, err_dE31, "
-                                                  "err_P81, err_dE81"))
-            l2.data.add_column(Column(name='gain_range_ok', data=gain_range_ok_list,
-                                      description="is gain in expected range"))
+        l2.data.add_column(Column(name='ecc_only_e_edges_actual', data=ecc_only_e_actual_list,
+                                    description="actual energy edges fitted by ECC only"))  # noqa
+        l2.data["ecc_only_e_edges_actual"].unit = u.keV
 
-            del l2.data["counts_comp_err"]
-            del l2.data["counts"]
+        l2.data.add_column(Column(name='ecc_only_offset_gain_goc', data=ecc_only_off_gain_list,
+                                  description="result of the ecc fitting only: offset, gain, goc")) # noqa
+
+        l2.data.add_column(Column(name='ecc_error', data=ecc_err_list,
+                                  description="error estimate from ECC: err_P31, err_dE31, err_P81, err_dE81")) # noqa
+        l2.data.add_column(Column(name='gain_range_ok', data=gain_range_ok_list,
+                                  description="is gain in expected range"))
+
+        del l2.data["counts_comp_err"]
+        del l2.data["counts"]
 
         return [l2]

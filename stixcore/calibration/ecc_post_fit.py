@@ -44,7 +44,6 @@ def open_fits_tables(fits_path):
         for i in range(1, len(hdul)):
             header.append(hdul[i].header)
             data.append(hdul[i].data)
-        hdul.flush()
 
     # Get the fields of each data table and sort the data in lists
     data_names = [data_i.columns.names for data_i in data]
@@ -226,4 +225,4 @@ def ecc_post_fit(erg_file, para_file, livetime):
     df.loc[idx, 'Gain_Cor'] = df['Gain_ECC'][idx]
     df.loc[idx, 'Offset_Cor'] = df['Offset_ECC'][idx]
 
-    return df
+    return df, idx

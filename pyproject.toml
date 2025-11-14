@@ -30,7 +30,7 @@ dependencies = [
     "sunpy~=6.0.0",
     "watchdog~=6.0",
     "stixdcpy==3.0",
-    "stixpy@git+https://github.com/TCDSolar/stixpy.git@main"
+    "stixpy>=0.2.0rc1,<0.3"
 ]
 dynamic = ["version"]
 keywords = ["solar physics", "solar", "sun", "solarorbiter", "stix"]

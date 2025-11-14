@@ -17,7 +17,6 @@ VERSION = "2.26.34"
 
 
 @pytest.fixture
-@pytest.mark.remote_data
 def idb():
     return IDBManager(test_data.idb.DIR).get_idb(VERSION)
 
@@ -35,7 +34,7 @@ def test_idb_setup(idb):
 
 def test_idb_setup_fails():
     with pytest.raises(sqlite3.Error) as e:
-        _idb = IDB(Path(os.path.abspath(__file__)).parent / "data")
+        _ = IDB(Path(os.path.abspath(__file__)).parent / "data")
 
     assert len(str(e.value)) > 0
 

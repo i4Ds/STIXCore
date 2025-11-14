@@ -10,7 +10,6 @@ from stixcore.time import SCETime
 
 
 @pytest.fixture
-@pytest.mark.remote_data
 def idb_manager():
     return IDBManager(test_data.idb.DIR)
 

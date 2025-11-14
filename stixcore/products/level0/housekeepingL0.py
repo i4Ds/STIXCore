@@ -65,6 +65,8 @@ class HKProduct(GenericProduct):
             The parent data file name the binary packed comes from, by default ''
         NIX00405_offset : int, optional
             [description], by default 0
+        keep_parse_tree : bool, optional
+            Whether to keep the parse tree in each packet for debugging and printing, by default True
 
         Returns
         -------

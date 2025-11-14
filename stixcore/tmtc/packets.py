@@ -512,6 +512,11 @@ class GenericTMPacket:
         Parameters
         ----------
         data : binary or `TMPacket`
+        idb : `stixcore.idb.idb.IDB` or `stixcore.idb.manager.IDBManager`, optional
+            IDB or IDB manager to use for parsing, by default None then the global IDB manager is used to get the IDB
+            for the OBT time of the packet.
+        keep_parse_tree : bool, optional
+            Whether to keep the parse tree in each packet for debugging and printing, by default True
         """
         if not isinstance(data, TMPacket):
             # TODO should just create TMPacket here

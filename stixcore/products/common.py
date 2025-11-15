@@ -242,21 +242,6 @@ def _get_energies_from_mask(date, mask=None):
     return low, high
 
 
-def get_min_uint(values):
-    """
-    Find the smallest unsigned int that can represent max value.
-    """
-    max_value = np.array(values).max()
-    if max_value < 256:  # 2**8
-        return np.uint8
-    elif max_value < 65536:  # 2**16
-        return np.uint16
-    elif max_value < 4294967296:  # 2**32
-        return np.uint32
-    elif max_value < 18446744073709551616:  # 2**64
-        return np.uint64
-
-
 def rebin_proportional(y1, x1, x2):
     x1 = np.asarray(x1)
     y1 = np.asarray(y1)

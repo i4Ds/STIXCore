@@ -15,7 +15,6 @@ from stixcore.products.common import (
     _get_energy_bins,
     _get_pixel_mask,
     _get_sub_spectrum_mask,
-    get_min_uint,
     rebin_proportional,
     unscale_triggers,
 )
@@ -203,12 +202,12 @@ class LightCurve(QLProduct):
         data["time"] = time
         data["timedel"] = duration
         data.add_meta(name="timedel", nix="NIX00405", packets=packets)
-        data["triggers"] = triggers.astype(get_min_uint(triggers))
+        data["triggers"] = triggers.astype(np.min_scalar_type(triggers))
         data.add_meta(name="triggers", nix="NIX00274", packets=packets)
         data["triggers_comp_err"] = np.float32(np.sqrt(triggers_var))
         data["rcr"] = np.hstack(packets.get_value("NIX00276")).flatten().astype(np.ubyte)
         data.add_meta(name="rcr", nix="NIX00276", packets=packets)
-        data["counts"] = (counts.T * u.ct).astype(get_min_uint(counts))
+        data["counts"] = (counts.T * u.ct).astype(np.min_scalar_type(counts))
         data.add_meta(name="counts", nix="NIX00272", packets=packets)
         data["counts_comp_err"] = np.float32(np.sqrt(counts_var).T * u.ct)
 
@@ -316,10 +315,10 @@ class Background(QLProduct):
         data["time"] = time
         data["timedel"] = duration
         data.add_meta(name="timedel", nix="NIX00405", packets=packets)
-        data["triggers"] = triggers.astype(get_min_uint(triggers))
+        data["triggers"] = triggers.astype(np.min_scalar_type(triggers))
         data.add_meta(name="triggers", nix="NIX00274", packets=packets)
         data["triggers_comp_err"] = np.float32(np.sqrt(triggers_var))
-        data["counts"] = (counts.T * u.ct).astype(get_min_uint(counts))
+        data["counts"] = (counts.T * u.ct).astype(np.min_scalar_type(counts))
         data.add_meta(name="counts", nix="NIX00278", packets=packets)
         data["counts_comp_err"] = np.float32(np.sqrt(counts_var).T * u.ct)
 
@@ -438,10 +437,10 @@ class Spectra(QLProduct):
         data.add_meta(name="timedel", nix="NIX00405", packets=packets)
         data["detector_index"] = detector_index.reshape(-1, 32).astype(np.ubyte)
         data.add_meta(name="detector_index", nix="NIX00100", packets=packets)
-        data["spectra"] = (counts.reshape(-1, 32, num_energies) * u.ct).astype(get_min_uint(counts))
+        data["spectra"] = (counts.reshape(-1, 32, num_energies) * u.ct).astype(np.min_scalar_type(counts))
         data["spectra"].meta = {"NIXS": "NIX00452", "PCF_CURTX": packets.get("NIX00452")[0].idb_info.PCF_CURTX}
         data["spectra_comp_err"] = np.float32(np.sqrt(counts_var.reshape(-1, 32, num_energies)))
-        data["triggers"] = triggers.reshape(-1, num_energies).astype(get_min_uint(triggers))
+        data["triggers"] = triggers.reshape(-1, num_energies).astype(np.min_scalar_type(triggers))
         data.add_meta(name="triggers", nix="NIX00484", packets=packets)
         data["triggers_comp_err"] = np.float32(np.sqrt(triggers_var.reshape(-1, num_energies)))
         data["num_integrations"] = num_integrations.reshape(-1, num_energies).astype(np.ubyte)[:, 0]
@@ -556,7 +555,7 @@ class Variance(QLProduct):
         data["timedel"] = duration
         data.add_meta(name="timedel", nix="NIX00405", packets=packets)
         data["control_index"] = control_indices
-        data["variance"] = variance.astype(get_min_uint(variance))
+        data["variance"] = variance.astype(np.min_scalar_type(variance))
         data.add_meta(name="variance", nix="NIX00281", packets=packets)
         data["variance_comp_err"] = np.float32(np.sqrt(variance_var))
 
@@ -801,7 +800,7 @@ class EnergyCalibration(QLProduct):
         data["timedel"] = duration[unique_time_indices]
         data.add_meta(name="timedel", nix="NIX00122", packets=packets)
 
-        data["counts"] = (full_counts * u.ct).astype(get_min_uint(full_counts))
+        data["counts"] = (full_counts * u.ct).astype(np.min_scalar_type(full_counts))
         data.add_meta(name="counts", nix="NIX00158", packets=packets)
         data["counts_comp_err"] = (np.sqrt(full_counts_var) * u.ct).astype(np.float32)
         data["control_index"] = np.arange(len(control)).astype(np.uint16)
@@ -849,7 +848,7 @@ class TMStatusFlareList(QLProduct):
         control = Control()
         control["scet_coarse"] = packets.get("scet_coarse")
         control["scet_fine"] = packets.get("scet_fine")
-        control["index"] = np.arange(len(control)).astype(get_min_uint(len(control)))
+        control["index"] = np.arange(len(control)).astype(np.min_scalar_type(len(control)))
 
         # When the packets are parsed empty packets are dropped but in LB we don't parse so this
         # is not known need to compare control and levelb.control and only use matching rows

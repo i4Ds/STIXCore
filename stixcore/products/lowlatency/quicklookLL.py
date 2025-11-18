@@ -2,6 +2,7 @@ from pathlib import Path
 from collections import defaultdict
 
 import matplotlib.pyplot as plt
+import numpy as np
 from stixpy.timeseries import quicklook  # noqa  This registers the STIX timeseries with sunpy
 from sunpy.timeseries import TimeSeries
 
@@ -62,10 +63,31 @@ class LightCurveL3(QLProduct, L1Mixin):
 
     def get_plot(self):
         ql_lightcurves = TimeSeries(self.parent_file_path)
-        fig = plt.figure(figsize=(12, 5), layout="tight")
-        ax = ql_lightcurves.plot()
-        ax.set_xlabel("Time [UTC]")
-        fig.add_axes(ax)
+
+        fig, ax_lc = plt.subplots(figsize=(12, 6), layout="tight")
+        ql_lightcurves.plot(axes=ax_lc)
+        ax_lc.set_xlabel("Time [UTC]")
+
+        # Add RCR plot in case of RCR > 0
+        max_rcr = self.data["rcr"].max()
+        if max_rcr > 0:
+            # extend y-range on the right for more whitespace
+            ymin, ymax = ax_lc.get_ylim()
+            extra = (ymax - ymin) * 0.5  # ~20% more space at the top
+            ax_lc.set_ylim(ymin, ymax + extra)
+
+            time = ql_lightcurves.time.datetime
+            rcr = self.data["rcr"].value.astype(np.float16)
+            rcr[rcr == 0] = np.nan  # do not plot zero values
+            ax_rcr = ax_lc.twinx()
+
+            ax_rcr.plot(time, rcr, color="tab:cyan", linewidth=2, label="_nolabel")
+
+            ax_rcr.set_ylabel("RCR >= 1: Attenuator inserted", color="tab:cyan")
+            ax_rcr.set_ylim(-50, max_rcr + 3)  # full axis range
+            ax_rcr.set_yticks([r for r in [1, 3, 5, 7] if r <= (max_rcr + 1)])  # only these ticks
+            ax_rcr.tick_params(axis="y", labelcolor="tab:cyan")
+
         return fig
 
 

@@ -25,8 +25,6 @@ logger = get_logger(__name__)
 class LL03QL(SingleProductProcessingStepMixin):
     """Processing step from a ql ligtcurve L1 fits file to LL level 3 plot chart image."""
 
-    INPUT_PATTERN = "solo_ANC_stix-flarelist-sdc*.fits"
-
     def __init__(
         self,
         source_dir: Path,
@@ -73,7 +71,9 @@ class LL03QL(SingleProductProcessingStepMixin):
             a list of fits files for processing
         """
         ql_to_process = list()
-        for ql_can in self.find_processing_candidates():
+        candidates = self.find_processing_candidates()
+        candidates_latest = self.get_version(candidates, version="latest")
+        for ql_can in candidates_latest:
             if self.test_for_processing(ql_can, phs) == TestForProcessingResult.Suitable:
                 ql_to_process.append(ql_can)
         return ql_to_process

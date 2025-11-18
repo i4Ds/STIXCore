@@ -758,9 +758,10 @@ class FitsL1Processor(FitsL0Processor):
         if product.LEVEL in ["LL03"]:
             # for daily LL03 products use fake daily file naming convention all day from 0-24h
             # this is to avoid multiple files per day and to be able to add
+            # use the time center to avoid issues with day boundary crossing
             date_range = (
-                f"{product.utc_timerange.start.strftime('%Y%m%dT000000')}-"
-                + f"{product.utc_timerange.start.strftime('%Y%m%dT235959')}"
+                f"{product.utc_timerange.center.strftime('%Y%m%dT000000')}-"
+                + f"{product.utc_timerange.center.strftime('%Y%m%dT235959')}"
             )
         elif product.type not in ["sci", "flarelist"] or product.name == "burst-aspect":
             date_range = product.utc_timerange.center.strftime("%Y%m%d")

@@ -327,7 +327,7 @@ def main():
     if CONFIG.getboolean("Pipeline", "sync_tm_at_start", fallback=False):
         logger.info("start sync_tm_at_start")
         res = subprocess.run(
-            f"rsync -av /data/stix/SOLSOC/from_edds/tm/incoming/*PktTmRaw*.xml {str(tmpath)}", shell=True
+            f"rsync -av /data/stix/SOLSOC/from_edds/tm/incomming/*PktTmRaw*.xml {str(tmpath)}", shell=True
         )  # noqa
         logger.info(f"done sync_tm_at_start: {str(res)}")
 

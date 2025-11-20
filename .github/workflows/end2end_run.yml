@@ -24,7 +24,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        python-version: ["3.11"]
+        python-version: ["3.11.10"]
     steps:
     - name: Checkout github repo (+ download lfs dependencies)
       uses: actions/checkout@v2
@@ -42,6 +42,8 @@ jobs:
         python -m pip install --upgrade pip
         python -m pip install -e .[dev]
         if [ -f requirements.txt ]; then pip install -r requirements.txt; fi
+    - name: show environment
+        python -m pip freeze 
     - name: end2end test with pytest
       run: |
         pytest -p no:warnings --doctest-rst -m "end2end" --pyargs stixcore --remote-data=any

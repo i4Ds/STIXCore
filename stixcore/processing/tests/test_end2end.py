@@ -93,7 +93,7 @@ def test_identical(orig_fits, current_fits):
             cfits,
             atol=0.00001,
             rtol=0.00001,
-            ignore_keywords=["CHECKSUM", "DATASUM", "DATE", "VERS_SW", "VERS_CFG", "HISTORY", "COMMENT"],
+            ignore_keywords=["CHECKSUM", "DATASUM", "DATE", "VERS_SW", "VERS_CFG", "HISTORY"],
         )
         if not diff.identical:
             error_c += 1

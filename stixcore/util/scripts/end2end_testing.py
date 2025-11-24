@@ -188,7 +188,7 @@ if __name__ == "__main__":
             splits=1,
             outdir=datapath,
             socdir=Path(
-                "/data/stix/SOLSOC/from_edds/tm/incoming/",
+                "/data/stix/SOLSOC/from_edds/tm/incomming/",
             ),
         )
 

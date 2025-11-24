@@ -12,7 +12,7 @@ unprocessed_tm_files = list()
 TM_REGEX = re.compile(r".*PktTmRaw.*.xml$")
 logging_dir = Path(CONFIG.get("Pipeline", "log_dir"))
 tm_dir = Path(CONFIG.get("Paths", "tm_archive"))
-tm_dir = Path("/data/stix/SOLSOC/from_edds/tm/incoming")
+tm_dir = Path("/data/stix/SOLSOC/from_edds/tm/incomming")
 list_of_log_files = logging_dir.glob("*.xml.out")
 latest_log_file = (
     logging_dir / "TM_BatchRequest.PktTmRaw.SOL.0.2023.305.15.33.13.852.bBWz@2023.352.21.00.01.039.1.xml.out"

@@ -44,7 +44,7 @@ SOLMOC TM data is synced from pub026 via rsync by cron every 15min.
 .. code-block::
 
     # sync TM data from GFTS to local "wait for processing" folder
-    */15 * * * * rsync -av stixcore@147.86.8.26:'/home/solmoc/from_edds/tm/*PktTmRaw*.xml' /data/stix/SOLSOC/from_edds/tm/incoming > /dev/null
+    */15 * * * * rsync -av stixcore@147.86.8.26:'/home/solmoc/from_edds/tm/*PktTmRaw*.xml' /data/stix/SOLSOC/from_edds/tm/incomming > /dev/null
 
 The very latest SPICE kernels are required for accurate pointing information of the satellite.
 We may receive TM files via GFTS that contain data for times that are not available in the latest SPICE kernels, as the latest SPICE kernels have not yet been updated and delivered.
@@ -53,7 +53,7 @@ Therefore, a stage and delay step is added via cron (every 30 min) that only pub
 .. code-block::
 
     # move the TM data from the wait into the processing folder - that will trigger the pipeline to "get started": the wait period is meanwhile short
-    */30 * * * * find /data/stix/SOLSOC/from_edds/tm/incoming/ -type f -mmin +2 -exec rsync -a {} /data/stix/SOLSOC/from_edds/tm/processing/ \;
+    */30 * * * * find /data/stix/SOLSOC/from_edds/tm/incomming/ -type f -mmin +2 -exec rsync -a {} /data/stix/SOLSOC/from_edds/tm/processing/ \;
 
 Sync STIX-CONF repo in all used instances
 *****************************************

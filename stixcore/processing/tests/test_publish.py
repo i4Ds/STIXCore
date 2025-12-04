@@ -343,7 +343,7 @@ def test_fits_incomplete_switch_over_remove_dup_files(out_dir):
     assert len(res) == 1
     moved = list(target_dir.rglob("*.fits"))
     assert len(moved) == 1
-    assert moved[0].name == cfiles[3].name
+    assert moved[0].name == cfiles[2].name
 
 
 @patch("stixcore.products.level1.scienceL1.Spectrogram")

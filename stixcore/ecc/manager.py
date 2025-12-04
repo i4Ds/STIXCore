@@ -12,10 +12,9 @@ from stixcore.data.test import test_data
 from stixcore.util.logging import get_logger
 from stixcore.util.singleton import Singleton
 
-__all__ = ['ECCManager']
+__all__ = ["ECCManager"]
 
-ECC_CONF_INDEX_FILE = Path(__file__).parent.parent / "config" / "data" / "common"\
-    / "ecc" / "ecc_conf_index.json"
+ECC_CONF_INDEX_FILE = Path(__file__).parent.parent / "config" / "data" / "common" / "ecc" / "ecc_conf_index.json"
 
 logger = get_logger(__name__)
 
@@ -70,10 +69,10 @@ class ECCManager(metaclass=Singleton):
                 self.configurations = json.load(f)
                 logger.info(f"Loaded {len(self.configurations)} ECC configurations from index")
         except FileNotFoundError:
-            logger.warning(f'No ECC configuration index found at: {ECC_CONF_INDEX_FILE}')
+            logger.warning(f"No ECC configuration index found at: {ECC_CONF_INDEX_FILE}")
             self.configurations = []
         except json.JSONDecodeError as e:
-            logger.error(f'Error parsing ECC configuration index: {e}')
+            logger.error(f"Error parsing ECC configuration index: {e}")
             self.configurations = []
 
     def find_configuration(self, date=None):
@@ -94,7 +93,7 @@ class ECCManager(metaclass=Singleton):
             return None
 
         if date is None:
-            return self.configurations[0]['configuration']
+            return self.configurations[0]["configuration"]
 
         # Convert date to string for comparison if it's a datetime object
         if isinstance(date, datetime):
@@ -103,11 +102,11 @@ class ECCManager(metaclass=Singleton):
             date_str = str(date)
 
         for config in self.configurations:
-            validity_period = config.get('validityPeriodUTC', [])
+            validity_period = config.get("validityPeriodUTC", [])
             if len(validity_period) == 2:
                 start_date, end_date = validity_period
                 if start_date <= date_str <= end_date:
-                    return config['configuration']
+                    return config["configuration"]
 
         logger.warning(f"No ECC configuration found for date: {date}")
         return None
@@ -196,26 +195,23 @@ class ECCManager(metaclass=Singleton):
             config = ConfigParser()
             config.read(temp_dir / "post_ecc.ini")
 
-            ESS_Config = SimpleNamespace(Max_Gain_Prime=config.getfloat("DEFAULT", "Max_Gain_Prime",
-                                                                        fallback=1.4),
-                                         Min_Gain_Prime=config.getfloat("DEFAULT", "Min_Gain_Prime",
-                                                                        fallback=0.4),
-                                         Min_Gain=config.getfloat("DEFAULT", "Min_Gain",
-                                                                  fallback=0.4),
-                                         Ignore_Max_Gain_Prime_Det_Pix_List=json.loads(
-                                             config.get("DEFAULT",
-                                                        "Ignore_Max_Gain_Prime_Det_Pix_List",
-                                                        fallback="[]")),
-                                         Ignore_Min_Gain_Prime_Det_Pix_List=json.loads(
-                                             config.get("DEFAULT",
-                                                        "Ignore_Min_Gain_Prime_Det_Pix_List",
-                                                        fallback="[]")),
-                                         Ignore_Min_Gain_Det_Pix_List=json.loads(
-                                             config.get("DEFAULT", "Ignore_Min_Gain_Det_Pix_List",
-                                                        fallback="[]")))
+            ECC_Config = SimpleNamespace(
+                Max_Gain_Prime=config.getfloat("DEFAULT", "Max_Gain_Prime", fallback=1.4),
+                Min_Gain_Prime=config.getfloat("DEFAULT", "Min_Gain_Prime", fallback=0.4),
+                Min_Gain=config.getfloat("DEFAULT", "Min_Gain", fallback=0.4),
+                Ignore_Max_Gain_Prime_Det_Pix_List=json.loads(
+                    config.get("DEFAULT", "Ignore_Max_Gain_Prime_Det_Pix_List", fallback="[]")
+                ),
+                Ignore_Min_Gain_Prime_Det_Pix_List=json.loads(
+                    config.get("DEFAULT", "Ignore_Min_Gain_Prime_Det_Pix_List", fallback="[]")
+                ),
+                Ignore_Min_Gain_Det_Pix_List=json.loads(
+                    config.get("DEFAULT", "Ignore_Min_Gain_Det_Pix_List", fallback="[]")
+                ),
+            )
 
             logger.info(f"Read config from in: {temp_dir / 'post_ecc.ini'}")
-            return temp_dir, ESS_Config
+            return temp_dir, ECC_Config
 
         except Exception as e:
             # Clean up on error
@@ -263,24 +259,18 @@ class ECCManager(metaclass=Singleton):
         FileNotFoundError
             if the configuration directory doesn't exist
 
-        Examples
-        --------
-        >>> with ecc_manager.context(datetime(2021, 6, 15)) as context_path:
-        ...     # Use configuration files in context_path
-        ...     config_file = context_path / "ecc_cfg_1" / "config.json"
-        ...     # Files are automatically cleaned up when exiting the with block
         """
-        context_path = None
+        context = None
         try:
-            context_path = self.create_context(date)
-            yield context_path
+            context = self.create_context(date)
+            yield context
         finally:
-            if context_path is not None:
-                self.cleanup_context(context_path)
+            if context is not None:
+                self.cleanup_context(context)
 
 
 # Create singleton instance
-if 'pytest' in sys.modules:
+if "pytest" in sys.modules:
     ECCManager.instance = ECCManager(test_data.ecc)
 else:
     ECCManager.instance = ECCManager()

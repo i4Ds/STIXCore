@@ -11,6 +11,7 @@ from stixcore.processing import engineering
 from stixcore.products.level0.quicklookL0 import QLProduct
 from stixcore.products.product import L1Mixin
 from stixcore.time import SCETimeRange
+from stixcore.time.datetime import SCETime, SCETimeDelta
 from stixcore.util.logging import get_logger
 
 __all__ = ["LightCurve", "Background", "Spectra", "Variance", "FlareFlag", "EnergyCalibration", "TMStatusFlareList"]
@@ -241,6 +242,19 @@ class EnergyCalibration(QLProduct, L1Mixin):
         l1.control.replace_column("parent", [parent] * len(l1.control))
         l1.level = "L1"
         engineering.raw_to_engineering_product(l1, IDBManager.instance)
+
+        # convert SCETimes to UTC Time
+        if "time" in l1.data.colnames and isinstance(l1.data["time"], SCETime):
+            l1.data.replace_column(
+                "time",
+                l1.data["time"].to_time(),
+            )
+        # convert SCETimesDelta to Quantity (s)
+        if "timedel" in l1.data.colnames and isinstance(l1.data["timedel"], SCETimeDelta):
+            l1.data.replace_column(
+                "timedel",
+                l1.data["timedel"].as_float(),
+            )
 
         # fix for wrong calibration in IDB https://github.com/i4Ds/STIXCore/issues/432
         # nix00122 was wrong assumed to be in ds but it is plain s

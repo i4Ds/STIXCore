@@ -15,6 +15,7 @@ from stixcore.io.product_processors.plots.processors import PlotProcessor
 from stixcore.products.product import Product
 from stixcore.soop.manager import SOOPManager
 from stixcore.time import SCETime, SCETimeRange
+from stixcore.time.datetime import SCETimeDelta
 
 
 @pytest.fixture
@@ -189,10 +190,16 @@ def test_level0_processor_generate_primary_header(datetime, product):
 def test_count_data_mixin(p_file):
     processor = FitsL0Processor("some/path")
     p = Product(p_file)
+
+    if isinstance(p.data["timedel"], SCETimeDelta):
+        assert p.exposure == p.data["timedel"].as_float().min().to_value("s")
+        assert p.max_exposure == p.data["timedel"].as_float().max().to_value("s")
+    else:
+        assert p.exposure == p.data["timedel"].min().to_value("s")
+        assert p.max_exposure == p.data["timedel"].max().to_value("s")
+
     assert p.dmin == p.data["counts"].min().value
     assert p.dmax == p.data["counts"].max().value
-    assert p.exposure == p.data["timedel"].min().as_float().to_value()
-    assert p.max_exposure == p.data["timedel"].max().as_float().to_value()
 
     test_data = {
         "DATAMAX": p.dmax,

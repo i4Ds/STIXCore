@@ -24,7 +24,8 @@ from astropy.time import Time
 
 from stixcore.config.config import CONFIG
 from stixcore.ephemeris.manager import Spice
-from stixcore.products.level3.flarelistproduct import PeekPreviewImage
+from stixcore.products.level3.flarelistproduct import PeakPreviewImage
+from stixcore.products.level3.processing import estimate_stix_flare_location
 from stixcore.products.product import CountDataMixin, GenericProduct, L2Mixin, read_qtable
 from stixcore.soop.manager import SOOPManager
 from stixcore.time import SCETime, SCETimeRange
@@ -39,7 +40,7 @@ __all__ = [
     "FlareSOOPMixin",
     "FlareList",
     "FlarelistSDCLocImg",
-    "FlarePeekPreviewMixin",
+    "FlarePeakPreviewMixin",
     "FlarelistSC",
     "FlarelistSCLoc",
     "FlarelistSCLocImg",
@@ -85,13 +86,16 @@ class FlarePositionMixin:
         fido_client: STIXClient,
         *,
         filter_function=lambda x: True,
-        peek_time_colname="peak_UTC",
+        peak_time_colname="peak_UTC",
         start_time_colname="start_UTC",
         end_time_colname="end_UTC",
         keep_all_flares=True,
         month=None,
     ):
-        data["flare_position"] = [SkyCoord(0, 0, frame="icrs", unit="deg") for i in range(0, len(data))]
+        # helio_frame = Helioprojective(observer="earth")
+        # SkyCoord(HeliographicStonyhurst(0 * u.deg, 0 * u.deg))
+        # SkyCoord(0 * u.deg, 0 * u.deg, frame=helio_frame)
+        data["flare_position"] = [SkyCoord(HeliographicStonyhurst(0 * u.deg, 0 * u.deg)) for i in range(0, len(data))]
 
         data["anc_ephemeris_path"] = Column(" " * 500, dtype=str, description="TDB")
         data["cpd_path"] = Column(" " * 500, dtype=str, description="TDB")
@@ -106,11 +110,11 @@ class FlarePositionMixin:
         total_flares = len(data)
 
         day_asp_ephemeris_cache = dict()
-
+        flare_positions = []
         for i, row in enumerate(data):
-            if filter_function(row):
+            if filter_function(row) and i < 200:
                 pass_filter += 1
-                peak_time = row[peek_time_colname]
+                peak_time = row[peak_time_colname]
                 start_time = row[start_time_colname]
                 end_time = row[end_time_colname]
 
@@ -187,15 +191,26 @@ class FlarePositionMixin:
                     best_cpd_idx = 0
                 data[i]["cpd_path"] = cpd_res["path"][best_cpd_idx]
 
-                # do the calculations with stixpy
+                try:
+                    stixpy_cpd = STIXPYProduct(Path(data[i]["cpd_path"]))
+                    coord, map = estimate_stix_flare_location(stixpy_cpd)
 
-                data[i]["flare_position"] = SkyCoord(1, 1, frame="icrs", unit="deg")
-                data[i]["_position_status"] = True
-                data[i]["_position_message"] = "OK"
+                    roll, solo_xyz, pointing = get_hpc_info(start_time, end_time)
+                    solo = HeliographicStonyhurst(*solo_xyz, obstime=peak_time, representation_type="cartesian")
+
+                    # data[i]["flare_position"] = coord.transform_to(Helioprojective(observer=solo))
+                    flare_positions.append(coord.transform_to(Helioprojective(observer=solo)))
+                    data[i]["_position_status"] = True
+                    data[i]["_position_message"] = "OK"
+                except Exception as e:
+                    flare_positions.append(None)
+                    data[i]["_position_message"] = f"Error: {type(e)}"
 
             else:
                 to_remove.append(i)
+                flare_positions.append(None)
 
+        data["flare_position"] = flare_positions
         if not keep_all_flares:
             data.remove_rows(to_remove)
 
@@ -203,7 +218,8 @@ class FlarePositionMixin:
             f"Flare position calculated for month {month} with {total_flares} flares, "
             f"passed filter: {pass_filter} no ephemeris data found for {no_ephemeris} "
             f"flares, no CPD data found for {no_cpd} flares, many CPD data found for "
-            f"{many_cpd} flares, one CPD data found for {one_cpd} flares"
+            f"{many_cpd} flares, one CPD data found for {one_cpd} flares."
+            f"finally {len(data)} flares remaining"
         )
 
 
@@ -212,14 +228,14 @@ class FlareSOOPMixin:
 
     @classmethod
     def add_soop(
-        self, data, *, peek_time_colname="peak_UTC", start_time_colname="start_UTC", end_time_colname="end_UTC"
+        self, data, *, peak_time_colname="peak_UTC", start_time_colname="start_UTC", end_time_colname="end_UTC"
     ):
         soop_encoded_type = list()
         soop_id = list()
         soop_type = list()
 
         for row in data:
-            soops = SOOPManager.instance.find_soops(start=row[peek_time_colname])
+            soops = SOOPManager.instance.find_soops(start=row[peak_time_colname])
             if soops:
                 soop = soops[0]
                 soop_encoded_type.append(soop.encodedSoopType)
@@ -235,13 +251,13 @@ class FlareSOOPMixin:
         data["soop_type"] = Column(soop_type, dtype=str, description="name of the SOOP campaign")
 
 
-class FlarePeekPreviewMixin:
-    """Mixin class to add peek preview images to flare list products.
-    This class provides a method to generate and add peek preview images
+class FlarePeakPreviewMixin:
+    """Mixin class to add peak preview images to flare list products.
+    This class provides a method to generate and add peak preview images
     to the flare list data. The images are generated based on the
     flare's peak time, start time, and end time, using the STIXPy library
     for visibility calculations and image reconstruction.
-    The generated images are stored in the 'peek_preview_path' column of the data.
+    The generated images are stored in the 'peak_preview_path' column of the data.
     The method also updates the status and message columns to indicate
     the success or failure of the image generation process.
 
@@ -249,7 +265,7 @@ class FlarePeekPreviewMixin:
     """
 
     @classmethod
-    def add_peek_preview(
+    def add_peak_preview(
         cls,
         data,
         energies,
@@ -257,7 +273,7 @@ class FlarePeekPreviewMixin:
         fido_client: STIXClient,
         img_processor,
         *,
-        peek_time_colname="peak_UTC",
+        peak_time_colname="peak_UTC",
         start_time_colname="start_UTC",
         end_time_colname="end_UTC",
         anc_ephemeris_path_colname="anc_ephemeris_path",
@@ -266,17 +282,17 @@ class FlarePeekPreviewMixin:
         keep_all_flares=True,
         month=None,
     ):
-        data["peek_preview_path"] = Column(" " * 500, dtype=str, description="TDB")
-        data["preview_start_UTC"] = [Time(d, format="isot", scale="utc") for d in data[peek_time_colname]]
-        data["preview_end_UTC"] = [Time(d, format="isot", scale="utc") for d in data[peek_time_colname]]
-        data["_peek_preview_status"] = Column(False, dtype=bool, description="TDB")
-        data["_peek_preview_message"] = Column(" " * 500, dtype=str, description="TDB")
+        data["peak_preview_path"] = Column(" " * 500, dtype=str, description="TDB")
+        data["preview_start_UTC"] = [Time(d, format="isot", scale="utc") for d in data[peak_time_colname]]
+        data["preview_end_UTC"] = [Time(d, format="isot", scale="utc") for d in data[peak_time_colname]]
+        data["_peak_preview_status"] = Column(False, dtype=bool, description="TDB")
+        data["_peak_preview_message"] = Column(" " * 500, dtype=str, description="TDB")
         to_remove = []
         products = []
         images = 0
 
         for i, row in enumerate(data):
-            peak_time = row[peek_time_colname]
+            peak_time = row[peak_time_colname]
             row[start_time_colname]
             row[end_time_colname]
 
@@ -286,8 +302,8 @@ class FlarePeekPreviewMixin:
             status = False
             message = ""
 
-            peek_preview_start = row[peek_time_colname]
-            peek_preview_end = row[peek_time_colname]
+            peak_preview_start = row[peak_time_colname]
+            peak_preview_end = row[peak_time_colname]
 
             if anc_ephemeris_path.exists() and cpd_path.exists():
                 try:
@@ -295,18 +311,18 @@ class FlarePeekPreviewMixin:
                     # do the imaging with stixpy
 
                     preview_data = data[i : i + 1]
-                    del preview_data["peek_preview_path"]
-                    del preview_data["_peek_preview_status"]
-                    del preview_data["_peek_preview_message"]
+                    del preview_data["peak_preview_path"]
+                    del preview_data["_peak_preview_status"]
+                    del preview_data["_peak_preview_message"]
 
-                    peek_preview_start = row[peek_time_colname] - 10 * u.s
-                    peek_preview_end = row[peek_time_colname] + 10 * u.s
+                    peak_preview_start = row[peak_time_colname] - 10 * u.s
+                    peak_preview_end = row[peak_time_colname] + 10 * u.s
 
-                    preview_data["preview_start_UTC"] = peek_preview_start
-                    preview_data["preview_end_UTC"] = peek_preview_end
+                    preview_data["preview_start_UTC"] = peak_preview_start
+                    preview_data["preview_end_UTC"] = peak_preview_end
 
                     cpd_sci = STIXPYProduct(cpd_path)
-                    time_range_sci = [peek_preview_start, peek_preview_end]
+                    time_range_sci = [peak_preview_start, peak_preview_end]
                     maps = []
                     for energy_range in [[4, 20], [20, 120]] * u.keV:
                         # flare_position = preview_data['flare_position'][0]
@@ -388,7 +404,7 @@ class FlarePeekPreviewMixin:
 
                         maps.append((map_with_erange, header))
 
-                    ppi = PeekPreviewImage(
+                    ppi = PeakPreviewImage(
                         control=QTable(),
                         data=preview_data,
                         month=month,
@@ -407,18 +423,18 @@ class FlarePeekPreviewMixin:
                     status = False
                     message = str(e)
 
-            data[i]["preview_start_UTC"] = peek_preview_start
-            data[i]["preview_end_UTC"] = peek_preview_end
-            data[i]["peek_preview_path"] = "test"
-            data[i]["_peek_preview_status"] = status
-            data[i]["_peek_preview_message"] = message
+            data[i]["preview_start_UTC"] = peak_preview_start
+            data[i]["preview_end_UTC"] = peak_preview_end
+            data[i]["peak_preview_path"] = "test"
+            data[i]["_peak_preview_status"] = status
+            data[i]["_peak_preview_message"] = message
 
         if not keep_all_flares:
             data.remove_rows(to_remove)
 
         logger.info(
             f"Flare images created for month {month} with {len(data)} flares, "
-            f"{len(products)} peek previews created, with total {images} images"
+            f"{len(products)} peak previews created, with total {images} images"
         )
 
         return products
@@ -558,7 +574,7 @@ class FlarelistSDCLoc(FlarelistSDC, FlarePositionMixin):
             data,
             fido_client,
             filter_function=cls.filter_flare_function,
-            peek_time_colname="peak_UTC",
+            peak_time_colname="peak_UTC",
             start_time_colname="start_UTC",
             end_time_colname="end_UTC",
             keep_all_flares=False,
@@ -570,7 +586,7 @@ class FlarelistSDCLoc(FlarelistSDC, FlarePositionMixin):
         return kwargs["level"] == "L3" and service_type == 0 and service_subtype == 0 and ssid == 3
 
 
-class FlarelistSDCLocImg(FlarelistSDCLoc, FlarePeekPreviewMixin):
+class FlarelistSDCLocImg(FlarelistSDCLoc, FlarePeakPreviewMixin):
     """Flarelist product class for StixDataCenter flares.
 
     In ANC product format.
@@ -589,14 +605,14 @@ class FlarelistSDCLocImg(FlarelistSDCLoc, FlarePeekPreviewMixin):
         pass
 
     @classmethod
-    def add_peek_preview(cls, data, energies, parent, fido_client: STIXClient, img_processor, *, month=None):
-        super().add_peek_preview(
+    def add_peak_preview(cls, data, energies, parent, fido_client: STIXClient, img_processor, *, month=None):
+        super().add_peak_preview(
             data,
             energies,
             parent,
             fido_client,
             img_processor,
-            peek_time_colname="peak_UTC",
+            peak_time_colname="peak_UTC",
             start_time_colname="start_UTC",
             end_time_colname="end_UTC",
             anc_ephemeris_path_colname="anc_ephemeris_path",
@@ -695,7 +711,7 @@ class FlarelistSCLoc(FlarelistSC, FlarePositionMixin):
             data,
             fido_client,
             filter_function=cls.filter_flare_function,
-            peek_time_colname="peak_UTC",
+            peak_time_colname="peak_UTC",
             start_time_colname="start_UTC",
             end_time_colname="end_UTC",
             keep_all_flares=False,
@@ -707,7 +723,7 @@ class FlarelistSCLoc(FlarelistSC, FlarePositionMixin):
         return kwargs["level"] == "L3" and service_type == 0 and service_subtype == 0 and ssid == 7
 
 
-class FlarelistSCLocImg(FlarelistSCLoc, FlarePeekPreviewMixin):
+class FlarelistSCLocImg(FlarelistSCLoc, FlarePeakPreviewMixin):
     """Flarelist product class for StixCore flares.
 
     In ANC product format.
@@ -726,14 +742,14 @@ class FlarelistSCLocImg(FlarelistSCLoc, FlarePeekPreviewMixin):
         pass
 
     @classmethod
-    def add_peek_preview(cls, data, energies, parent, fido_client: STIXClient, img_processor, *, month=None):
-        super().add_peek_preview(
+    def add_peak_preview(cls, data, energies, parent, fido_client: STIXClient, img_processor, *, month=None):
+        super().add_peak_preview(
             data,
             energies,
             parent,
             fido_client,
             img_processor,
-            peek_time_colname="peak_UTC",
+            peak_time_colname="peak_UTC",
             start_time_colname="start_UTC",
             end_time_colname="end_UTC",
             anc_ephemeris_path_colname="anc_ephemeris_path",

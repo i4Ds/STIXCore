@@ -6,7 +6,7 @@ from stixcore.products.product import GenericProduct, L3Mixin
 from stixcore.time.datetime import SCETime, SCETimeRange
 from stixcore.util.logging import get_logger
 
-__all__ = ["FlareListProduct", "PeekPreviewImage"]
+__all__ = ["FlareListProduct", "PeakPreviewImage"]
 
 logger = get_logger(__name__)
 
@@ -22,17 +22,17 @@ class FlareListProduct(GenericProduct, L3Mixin):
         pass
 
 
-class PeekPreviewImage(FlareListProduct):
+class PeakPreviewImage(FlareListProduct):
     PRODUCT_PROCESSING_VERSION = 1
     Level = "L3"
     Type = "sci"
-    Name = "peekpreviewimg"
+    Name = "peakpreviewimg"
 
     def __init__(self, control, data, energy, maps, parents, *, product_name_suffix="", **kwargs):
         super().__init__(service_type=0, service_subtype=0, ssid=5, control=control, data=data, energy=energy, **kwargs)
-        self.name = f"{PeekPreviewImage.Name}-{product_name_suffix}"
-        self.level = PeekPreviewImage.Level
-        self.type = PeekPreviewImage.Type
+        self.name = f"{PeakPreviewImage.Name}-{product_name_suffix}"
+        self.level = PeakPreviewImage.Level
+        self.type = PeakPreviewImage.Type
         self.energy = energy
         self.maps = maps
         self.parents = parents
@@ -62,4 +62,4 @@ class PeekPreviewImage(FlareListProduct):
 
     @classmethod
     def is_datasource_for(cls, *, service_type, service_subtype, ssid, **kwargs):
-        return kwargs["level"] == PeekPreviewImage.Level and service_type == 0 and service_subtype == 0 and ssid == 5
+        return kwargs["level"] == PeakPreviewImage.Level and service_type == 0 and service_subtype == 0 and ssid == 5

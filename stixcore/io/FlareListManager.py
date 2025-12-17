@@ -12,6 +12,7 @@ from astropy.table import Column, QTable, vstack
 from astropy.time import Time
 
 from stixcore.config.config import CONFIG
+from stixcore.io.product_processors.fits.processors import CreateUtcColumn
 from stixcore.products.level3.flarelist import FlarelistSC, FlarelistSDC
 from stixcore.products.product import Product
 from stixcore.util.logging import get_logger
@@ -188,12 +189,17 @@ class SCFlareListManager(FlareListManager, metaclass=Singleton):
         data["flare_id"] = Column(
             mt["flare_id"].astype(int), description=f"unique flare id for flarelist {self.flarelistname}"
         )
-        data["start_UTC"] = Column(0, description="start time of flare")
-        data["start_UTC"] = [Time(d, format="isot", scale="utc") for d in mt["start_UTC"]]
+        CreateUtcColumn(
+            data,
+            [Time(d, format="isot", scale="utc") for d in mt["start_UTC"]],
+            "start_UTC",
+            description="start time of flare",
+        )
+
         data["duration"] = Column(mt["duration"].astype(float) * u.s, description="duration of flare")
-        data["end_UTC"] = Column(0, description="end time of flare")
+        data["end_UTC"] = CreateUtcColumn(description="end time of flare")
         data["end_UTC"] = [Time(d, format="isot", scale="utc") for d in mt["end_UTC"]]
-        data["peak_UTC"] = Column(0, description="flare peak time")
+        data["peak_UTC"] = CreateUtcColumn(description="flare peak time")
         data["peak_UTC"] = [Time(d, format="isot", scale="utc") for d in mt["peak_UTC"]]
         data["att_in"] = Column(mt["att_in"].astype(bool), description="was attenuator in during flare")
         data["bkg_baseline"] = Column(mt["LC0_BKG"] * u.ct, description="background baseline at 4-10 keV")
@@ -277,7 +283,7 @@ class SCFlareListManager(FlareListManager, metaclass=Singleton):
 
         data.add_index("flare_id")
 
-        # add energy axis for the lightcurve peek time data for each flare
+        # add energy axis for the lightcurve peak time data for each flare
         # the energy bins are taken from the daily ql-lightcurve products
         # as the definition of the lc energy chanel's are will change only very seldom
         # the ql-lightcurve products assume a constant definition for an entire day.
@@ -439,13 +445,28 @@ class SDCFlareListManager(FlareListManager, metaclass=Singleton):
         data["flare_id"] = Column(
             mt["flare_id"].astype(int), description=f"unique flare id for flarelist {self.flarelistname}"
         )
-        data["start_UTC"] = Column(0, description="start time of flare")
-        data["start_UTC"] = [Time(d, format="isot", scale="utc") for d in mt["start_UTC"]]
+
+        CreateUtcColumn(
+            data,
+            [Time(d, format="isot", scale="utc") for d in mt["start_UTC"]],
+            "start_UTC",
+            description="start time of flare",
+        )
         data["duration"] = Column(mt["duration"].astype(float) * u.s, description="duration of flare")
-        data["end_UTC"] = Column(0, description="end time of flare")
-        data["end_UTC"] = [Time(d, format="isot", scale="utc") for d in mt["end_UTC"]]
-        data["peak_UTC"] = Column(0, description="flare peak time")
-        data["peak_UTC"] = [Time(d, format="isot", scale="utc") for d in mt["peak_UTC"]]
+
+        CreateUtcColumn(
+            data,
+            [Time(d, format="isot", scale="utc") for d in mt["end_UTC"]],
+            "end_UTC",
+            description="end time of flare",
+        )
+        CreateUtcColumn(
+            data,
+            [Time(d, format="isot", scale="utc") for d in mt["peak_UTC"]],
+            "peak_UTC",
+            description="flare peak time",
+        )
+
         data["att_in"] = Column(mt["att_in"].astype(bool), description="was attenuator in during flare")
         data["bkg_baseline"] = Column(mt["LC0_BKG"] * u.ct, description="background baseline at 4-10 keV")
         data["GOES_class"] = Column(
@@ -528,7 +549,7 @@ class SDCFlareListManager(FlareListManager, metaclass=Singleton):
 
         data.add_index("flare_id")
 
-        # add energy axis for the lightcurve peek time data for each flare
+        # add energy axis for the lightcurve peak time data for each flare
         # the energy bins are taken from the daily ql-lightcurve products
         # as the definition of the lc energy chanel's are will change only very seldom
         # the ql-lightcurve products assume a constant definition for an entire day.

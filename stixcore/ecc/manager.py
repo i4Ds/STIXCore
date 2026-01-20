@@ -208,6 +208,7 @@ class ECCManager(metaclass=Singleton):
                 Ignore_Min_Gain_Det_Pix_List=json.loads(
                     config.get("DEFAULT", "Ignore_Min_Gain_Det_Pix_List", fallback="[]")
                 ),
+                Name=configuration_name,
             )
 
             logger.info(f"Read config from in: {temp_dir / 'post_ecc.ini'}")

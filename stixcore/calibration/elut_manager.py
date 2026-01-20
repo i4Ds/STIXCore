@@ -10,7 +10,7 @@ from stixcore.data.test import test_data
 from stixcore.util.logging import get_logger
 from stixcore.util.singleton import Singleton
 
-__all__ = ['ELUTManager']
+__all__ = ["ELUTManager"]
 
 ELUT_DATA_DIR = Path(__file__).parent.parent / "config" / "data" / "common" / "elut"
 
@@ -42,10 +42,10 @@ class ELUTManager(metaclass=Singleton):
             logger.info(f"Loaded {len(self.elut_index)} ELUT entries from index")
 
         except FileNotFoundError:
-            logger.warning(f'No ELUT index found at: {self.elut_index_file}')
+            logger.warning(f"No ELUT index found at: {self.elut_index_file}")
             self.elut_index = []
         except Exception as e:
-            logger.error(f'Error loading ELUT index: {e}')
+            logger.error(f"Error loading ELUT index: {e}")
             self.elut_index = []
 
     def _find_elut_file(self, date):
@@ -173,7 +173,7 @@ class ELUTManager(metaclass=Singleton):
 
 
 # Create singleton instance
-if 'pytest' in sys.modules:
-    ELUTManager.instance = ELUTManager(test_data.elut if hasattr(test_data, 'elut') else None)
+if "pytest" in sys.modules:
+    ELUTManager.instance = ELUTManager(test_data.elut if hasattr(test_data, "elut") else None)
 else:
     ELUTManager.instance = ELUTManager()

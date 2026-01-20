@@ -134,21 +134,6 @@ class Visibility(ScienceProduct, L1Mixin):
         # TODO define columns for dmin/max
         return " "
 
-    @property
-    def dmin(self):
-        # TODO define columns for dmin/max
-        return 0.0
-
-    @property
-    def dmax(self):
-        # TODO define columns for dmin/max
-        return 0.0
-
-    @property
-    def bunit(self):
-        # TODO define columns for dmin/max
-        return ' '
-
     @classmethod
     def is_datasource_for(cls, *, service_type, service_subtype, ssid, **kwargs):
         return kwargs["level"] == Visibility.LEVEL and service_type == 21 and service_subtype == 6 and ssid == 23
@@ -160,6 +145,7 @@ class Spectrogram(ScienceProduct, L1Mixin):
 
     In level 1 format.
     """
+
     PRODUCT_PROCESSING_VERSION = 4
 
     NAME = "xray-spec"
@@ -234,24 +220,6 @@ class Aspect(ScienceProduct, L1Mixin):
     @property
     def bunit(self):
         return " "
-
-    @property
-    def dmin(self):
-        return np.nanmin([self.data['cha_diode0'].min(),
-                          self.data['cha_diode1'].min(),
-                          self.data['chb_diode0'].min(),
-                          self.data['chb_diode1'].min()])
-
-    @property
-    def dmax(self):
-        return np.nanmax([self.data['cha_diode0'].max(),
-                          self.data['cha_diode1'].max(),
-                          self.data['chb_diode0'].max(),
-                          self.data['chb_diode1'].max()])
-
-    @property
-    def bunit(self):
-        return ' '
 
     @classmethod
     def is_datasource_for(cls, *, service_type, service_subtype, ssid, **kwargs):

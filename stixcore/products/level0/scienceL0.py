@@ -161,12 +161,15 @@ class ScienceProduct(CountDataMixin, GenericProduct, EnergyChannelsMixin, FitsHe
             file_chunk = type(self)(
                 service_type=self.service_type,
                 service_subtype=self.service_subtype,
-                ssid=self.ssid, control=control, data=data,
-                idb_versions=self.idb_versions, comment=self.comment,
-                history=self.history
+                ssid=self.ssid,
+                control=control,
+                data=data,
+                idb_versions=self.idb_versions,
+                comment=self.comment,
+                history=self.history,
             )
 
-            if hasattr(self, 'get_additional_extensions'):
+            if hasattr(self, "get_additional_extensions"):
                 for ext, name in self.get_additional_extensions():
                     # Copy all extension data tables to the new product
                     if ext is not None:

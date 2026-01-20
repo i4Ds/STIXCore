@@ -43,7 +43,7 @@ jobs:
         python -m pip install -e .[dev]
         if [ -f requirements.txt ]; then pip install -r requirements.txt; fi
     - name: show environment
-      run: python -m pip freeze 
+      run: python -m pip freeze
     - name: end2end test with pytest
       run: |
         pytest -p no:warnings --doctest-rst -m "end2end" --pyargs stixcore --remote-data=any

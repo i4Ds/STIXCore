@@ -34,7 +34,7 @@ class TestELUTManagerBasics:
         """Test that ELUT index is loaded correctly."""
         manager = ELUTManager()
 
-        assert hasattr(manager, 'elut_index')
+        assert hasattr(manager, "elut_index")
         assert len(manager.elut_index) > 0
 
         # Check that index contains expected structure
@@ -64,7 +64,7 @@ class TestELUTManagerBasics:
 
         assert elut_file is not None
         assert isinstance(elut_file, Path)
-        assert elut_file.suffix == '.csv'
+        assert elut_file.suffix == ".csv"
 
         # Verify the file exists
         elut_path = manager.data_root / elut_file
@@ -178,6 +178,7 @@ class TestELUTManagerBasics:
         manager = ELUTManager()
 
         from stixpy.calibration.detector import get_sci_channels
+
         sci_channels = get_sci_channels(datetime(2022, 8, 1))
 
         with pytest.raises(FileNotFoundError, match="ELUT file not found"):
@@ -185,5 +186,5 @@ class TestELUTManagerBasics:
 
     def test_instance_attribute_exists(self):
         """Test that singleton instance is accessible."""
-        assert hasattr(ELUTManager, 'instance')
+        assert hasattr(ELUTManager, "instance")
         assert isinstance(ELUTManager.instance, ELUTManager)

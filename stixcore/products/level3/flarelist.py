@@ -1,5 +1,6 @@
 from pathlib import Path
 from datetime import datetime
+from itertools import groupby
 
 import numpy as np
 from stixpy.calibration.visibility import (
@@ -10,7 +11,7 @@ from stixpy.calibration.visibility import (
 from stixpy.coordinates.transforms import get_hpc_info
 from stixpy.net.client import STIXClient
 from stixpy.product import Product as STIXPYProduct
-from sunpy.coordinates import HeliographicStonyhurst, Helioprojective
+from sunpy.coordinates import HeliographicStonyhurst, Helioprojective, SphericalScreen
 from sunpy.map import make_fitswcs_header
 from sunpy.net import attrs as a
 from sunpy.time import TimeRange
@@ -95,12 +96,26 @@ class FlarePositionMixin:
         # helio_frame = Helioprojective(observer="earth")
         # SkyCoord(HeliographicStonyhurst(0 * u.deg, 0 * u.deg))
         # SkyCoord(0 * u.deg, 0 * u.deg, frame=helio_frame)
-        data["flare_position"] = [SkyCoord(HeliographicStonyhurst(0 * u.deg, 0 * u.deg)) for i in range(0, len(data))]
+
+        n = len(data)
+
+        data["flareposition_obs_hgs_x"] = Column(
+            np.zeros(n, dtype=float) * u.km, description="HeliographicStonyhurst X of observer"
+        )
+        data["flareposition_obs_hgs_y"] = Column(
+            np.zeros(n, dtype=float) * u.km, description="HeliographicStonyhurst Y of observer"
+        )
+        data["flareposition_obs_hgs_z"] = Column(
+            np.zeros(n, dtype=float) * u.km, description="HeliographicStonyhurst Z of observer"
+        )
+        data["flareposition_hp_tx"] = Column(np.zeros(n, dtype=float) * u.arcsec, description="Helioprojective Tx")
+        data["flareposition_hp_ty"] = Column(np.zeros(n, dtype=float) * u.arcsec, description="Helioprojective Ty")
 
         data["anc_ephemeris_path"] = Column(" " * 500, dtype=str, description="TDB")
         data["cpd_path"] = Column(" " * 500, dtype=str, description="TDB")
         data["_position_status"] = Column(False, dtype=bool, description="TDB")
         data["_position_message"] = Column(" " * 500, dtype=str, description="TDB")
+
         to_remove = []
         pass_filter = 0
         no_ephemeris = 0
@@ -110,9 +125,9 @@ class FlarePositionMixin:
         total_flares = len(data)
 
         day_asp_ephemeris_cache = dict()
-        flare_positions = []
+
         for i, row in enumerate(data):
-            if filter_function(row) and i < 200:
+            if filter_function(row):  # and i < 200:
                 pass_filter += 1
                 peak_time = row[peak_time_colname]
                 start_time = row[start_time_colname]
@@ -183,7 +198,7 @@ class FlarePositionMixin:
                         cpd_res["duration"][i] = header["OBT_END"] - header["OBT_BEG"]
 
                     # TODO: add more criteria to select the best CPD file
-                    cpd_res.sort(["tbins", "duration"])
+                    cpd_res.sort(["inc_peak", "tbins", "duration"], reverse=True)
                     # cpd_res.pprint()
                     best_cpd_idx = 0
                 else:
@@ -193,24 +208,63 @@ class FlarePositionMixin:
 
                 try:
                     stixpy_cpd = STIXPYProduct(Path(data[i]["cpd_path"]))
-                    coord, map = estimate_stix_flare_location(stixpy_cpd)
+                    time_range = TimeRange(max(peak_time - 20 * u.s, start_time), min(peak_time + 20 * u.s, end_time))
+                    overlaps = calculate_overlap(stixpy_cpd.time_range, time_range)
+                    if overlaps is None:
+                        logger.warning(
+                            f"CPD data does not cover time range around peak time {time_range.start} to {time_range.end}"
+                        )
+                        time_range = stixpy_cpd.time_range
+                        contains_peak_time = False
+                    else:
+                        contains_peak_time = True
+                        time_range = overlaps
+
+                    mask = (stixpy_cpd.data["time"] >= time_range.start) & (stixpy_cpd.data["time"] <= time_range.end)
+                    data_at_peak = stixpy_cpd.data[mask]
+                    if len(np.unique(data_at_peak["rcr"])) > 1:
+                        logger.warning(
+                            f"Multiple rcr values found for flare at time {time_range.start} : {time_range.end}"
+                        )
+                        # allow a larger time range for finding a constant rcr sequence
+                        if contains_peak_time:
+                            time_range = TimeRange(
+                                max(peak_time - 40 * u.s, start_time), min(peak_time + 40 * u.s, end_time)
+                            )
+                            mask = (stixpy_cpd.data["time"] >= time_range.start) & (
+                                stixpy_cpd.data["time"] <= time_range.end
+                            )
+                            data_at_peak = stixpy_cpd.data[mask]
+                        length, start_idx, rcr = longest_constant_sequence(data_at_peak["rcr"].value)
+                        time_range = TimeRange(
+                            data_at_peak["time"][start_idx], data_at_peak["time"][start_idx + length - 1]
+                        )
+                        logger.info(
+                            f"Using time range {time_range.start} to {time_range.end} for flare at around {peak_time} with constant rcr={rcr}"
+                        )
+
+                    coord, map = estimate_stix_flare_location(stixpy_cpd, time_range=time_range)
 
                     roll, solo_xyz, pointing = get_hpc_info(start_time, end_time)
                     solo = HeliographicStonyhurst(*solo_xyz, obstime=peak_time, representation_type="cartesian")
+                    with SphericalScreen(solo, only_off_disk=True):
+                        center_hpc = coord.transform_to(Helioprojective(observer=solo))
 
-                    # data[i]["flare_position"] = coord.transform_to(Helioprojective(observer=solo))
-                    flare_positions.append(coord.transform_to(Helioprojective(observer=solo)))
+                    data[i]["flareposition_obs_hgs_x"] = solo_xyz[0].to(u.km)
+                    data[i]["flareposition_obs_hgs_y"] = solo_xyz[1].to(u.km)
+                    data[i]["flareposition_obs_hgs_z"] = solo_xyz[2].to(u.km)
+                    data[i]["flareposition_hp_tx"] = center_hpc.Tx.to(u.arcsec)
+                    data[i]["flareposition_hp_ty"] = center_hpc.Ty.to(u.arcsec)
+
                     data[i]["_position_status"] = True
                     data[i]["_position_message"] = "OK"
                 except Exception as e:
-                    flare_positions.append(None)
+                    data[i]["_position_status"] = False
                     data[i]["_position_message"] = f"Error: {type(e)}"
-
+                    logger.warn(f"Error calculating flare position for flare at time {start_time} : {end_time}: {e}")
             else:
                 to_remove.append(i)
-                flare_positions.append(None)
 
-        data["flare_position"] = flare_positions
         if not keep_all_flares:
             data.remove_rows(to_remove)
 
@@ -762,3 +816,44 @@ class FlarelistSCLocImg(FlarelistSCLoc, FlarePeakPreviewMixin):
     @classmethod
     def is_datasource_for(cls, *, service_type, service_subtype, ssid, **kwargs):
         return kwargs["level"] == "L3" and service_type == 0 and service_subtype == 0 and ssid == 8
+
+
+def longest_constant_sequence(state_array):
+    """Find the longest sequence where state is constant.
+    In case of equal length, prefer the one with the lower state value."""
+    if len(state_array) == 0:
+        return 0, None, None
+
+    max_length = 0
+    max_state = None
+    max_start_idx = None
+    current_idx = 0
+
+    for state, group in groupby(state_array):
+        length = len(list(group))
+        # Update if longer, OR if equal length but lower state value
+        if length > max_length or (length == max_length and (max_state is None or state < max_state)):
+            max_length = length
+            max_state = state
+            max_start_idx = current_idx
+        current_idx += length
+
+    return max_length, max_start_idx, max_state
+
+
+def calculate_overlap(range1, range2):
+    """Calculate the overlap between two TimeRanges.
+    Returns the overlap duration and the overlapping TimeRange, or None if no overlap."""
+
+    # Check if they intersect first
+    if not range1.intersects(range2):
+        return None
+
+    # Calculate intersection boundaries
+    overlap_start = max(range1.start, range2.start)
+    overlap_end = min(range1.end, range2.end)
+
+    # Create the overlapping TimeRange
+    overlap_range = TimeRange(overlap_start, overlap_end)
+
+    return overlap_range

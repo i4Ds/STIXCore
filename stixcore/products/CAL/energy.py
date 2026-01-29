@@ -112,6 +112,12 @@ class EnergyCalibration(GenericProduct, EnergyChannelsMixin, L2Mixin):
 
         date = l2.utc_timerange.start.datetime
         ob_elut, sci_channels = ELUTManager.instance.get_elut(date)
+        ob_elut_end, sci_channels = ELUTManager.instance.get_elut(l2.utc_timerange.end.datetime)
+        # ensure that the same ELUT is used for the whole time range
+        if ob_elut.file != ob_elut_end.file:
+            raise ValueError(
+                f"ELUT change within energy calibration data time range: {ob_elut.file} to {ob_elut_end.file}"
+            )
 
         for spec_idx, spec in enumerate(l2.data["counts"]):
             if spec.shape != (32, 12, 1024):

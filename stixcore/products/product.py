@@ -263,13 +263,13 @@ class ProductFactory(BasicRegistrationFactory):
                 if level not in ["LB", "LL01"] and "timedel" in data.colnames and "time" in data.colnames:
                     # select the time format based on available header keywords
                     offset = None
-                    if "TIMESYS" in pri_header and pri_header["TIMESYS"] == "UTC":
+                    if pri_header.get("TIMESYS", "") == "UTC":
                         try:
                             offset = Time(pri_header["DATE-OBS"])
-                        except Exception:
+                        except ValueError:
                             offset = None
 
-                    # fallback to OBT_BEG if no TIMESYS=UTC or DATE-OBS is present or not parseable
+                    # fallback to OBT_BEG if no TIMESYS=UTC or DATE-OBS is present or can not be parsed
                     if offset is None:
                         offset = SCETime.from_float(pri_header["OBT_BEG"] * u.s)
                         data["timedel"] = SCETimeDelta(data["timedel"])
@@ -578,7 +578,7 @@ class GenericProduct(BaseProduct):
         return " "
 
     @property
-    def exposure(self):
+    def min_exposure(self):
         # default for FITS HEADER
         return 0.0
 
@@ -879,7 +879,7 @@ class CountDataMixin:
         return "counts"
 
     @property
-    def exposure(self):
+    def min_exposure(self):
         if isinstance(self.data["timedel"], SCETimeDelta):
             return self.data["timedel"].as_float().min().to_value("s")
         else:
@@ -951,8 +951,8 @@ class L1Mixin(FitsHeaderMixin):
             self.scet_timerange.to_timerange()
         else:
             return TimeRange(
-                (self.data["time"][0] - self.data["timedel"][0] / 2).datetime,
-                (self.data["time"][-1] + self.data["timedel"][-1] / 2).datetime,
+                (self.data["time"][0] - self.data["timedel"][0] / 2),
+                (self.data["time"][-1] + self.data["timedel"][-1] / 2),
             )
 
     @classmethod

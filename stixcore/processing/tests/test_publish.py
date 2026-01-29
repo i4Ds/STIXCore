@@ -146,7 +146,7 @@ def test_publish_fits_to_esa_incomplete(product, out_dir):
         product.date_obs = beg.to_datetime()
         product.date_beg = beg.to_datetime()
         product.date_end = end.to_datetime()
-        product.exposure = 2
+        product.min_exposure = 2
         product.max_exposure = 3
         product.dmin = 2
         product.dmax = 3
@@ -257,7 +257,7 @@ def test_fits_incomplete_switch_over(out_dir):
             product.date_obs = beg.to_datetime()
             product.date_beg = beg.to_datetime()
             product.date_end = end.to_datetime()
-            product.exposure = 2
+            product.min_exposure = 2
             product.max_exposure = 3
             product.dmin = 2
             product.dmax = 3
@@ -398,7 +398,7 @@ def test_publish_fits_to_esa(product, out_dir):
     product.date_obs = beg.to_datetime()
     product.date_beg = beg.to_datetime()
     product.date_end = end.to_datetime()
-    product.exposure = 2
+    product.min_exposure = 2
     product.max_exposure = 3
     product.dmin = 2
     product.dmax = 3

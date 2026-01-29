@@ -192,10 +192,10 @@ def test_count_data_mixin(p_file):
     p = Product(p_file)
 
     if isinstance(p.data["timedel"], SCETimeDelta):
-        assert p.exposure == p.data["timedel"].as_float().min().to_value("s")
+        assert p.min_exposure == p.data["timedel"].as_float().min().to_value("s")
         assert p.max_exposure == p.data["timedel"].as_float().max().to_value("s")
     else:
-        assert p.exposure == p.data["timedel"].min().to_value("s")
+        assert p.min_exposure == p.data["timedel"].min().to_value("s")
         assert p.max_exposure == p.data["timedel"].max().to_value("s")
 
     assert p.dmin == p.data["counts"].min().value
@@ -204,7 +204,7 @@ def test_count_data_mixin(p_file):
     test_data = {
         "DATAMAX": p.dmax,
         "DATAMIN": p.dmin,
-        "XPOSURE": p.exposure,
+        "XPOSURE": p.min_exposure,
         "XPOMAX": p.max_exposure,
         "BUNIT": "counts",
     }
@@ -264,7 +264,7 @@ def test_level1_processor_generate_primary_header(product, soop_manager):
     product.dmax = 1
     product.dunit = ""
     product.max_exposure = 1
-    product.exposure = 1
+    product.min_exposure = 1
     product.service_type = 1
     product.service_subtype = 2
     product.ssid = 3

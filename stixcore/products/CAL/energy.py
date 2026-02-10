@@ -127,14 +127,15 @@ class EnergyCalibration(GenericProduct, EnergyChannelsMixin, L2Mixin):
             control_index = l2.data["control_index"][spec_idx]
             control = l2.control[:][[control_index]]
 
-            # as we separate each spectra in its own product we only have one entry in the control and therefore the control_index should be always 0
+            # as we separate each spectra in its own product we only have one entry in the control and therefore
+            # the control_index should be always 0
             data["control_index"] = 0
             cal = EnergyCalibration(data=data, control=control)
 
             cal.control.add_column(
                 Column(
                     name="ob_elut_name",
-                    data=str(ob_elut.file),
+                    data=str(ob_elut.file).replace(".csv", ""),
                     description="Name of the ELUT active on instrument",
                 )
             )
@@ -261,21 +262,22 @@ class EnergyCalibration(GenericProduct, EnergyChannelsMixin, L2Mixin):
                     )
                 )
 
-                off_gain_ecc = np.array(
-                    [
-                        4.0 * ecc_pf_df["Offset_ECC"].values.reshape(32, 12),
-                        1.0 / (4.0 * ecc_pf_df["Gain_ECC"].values.reshape(32, 12)),
-                        ecc_pf_df["goc"].values.reshape(32, 12),
-                    ]
-                )
+                # just keeping track of ECC + post fit results for now
+                # off_gain_ecc = np.array(
+                #     [
+                #         4.0 * ecc_pf_df["Offset_ECC"].values.reshape(32, 12),
+                #         1.0 / (4.0 * ecc_pf_df["Gain_ECC"].values.reshape(32, 12)),
+                #         ecc_pf_df["goc"].values.reshape(32, 12),
+                #     ]
+                # )
 
-                cal.data.add_column(
-                    Column(
-                        name="ecc_only_offset_gain_goc",
-                        data=[off_gain_ecc],
-                        description="result of the ecc fitting only: offset, gain, goc",
-                    )
-                )
+                # cal.data.add_column(
+                #     Column(
+                #         name="ecc_only_offset_gain_goc",
+                #         data=[off_gain_ecc],
+                #         description="result of the ecc fitting only: offset, gain, goc",
+                #     )
+                # )
 
                 cal.data.add_column(
                     Column(
@@ -357,30 +359,31 @@ class EnergyCalibration(GenericProduct, EnergyChannelsMixin, L2Mixin):
                 )  # noqa
                 cal.data["e_edges_actual"].unit = u.keV
 
-                gain_ecc = off_gain_ecc[1, :, :]
-                offset_ecc = off_gain_ecc[0, :, :]
+                # just keeping track of ECC + post fit results for now
+                # gain_ecc = off_gain_ecc[1, :, :]
+                # offset_ecc = off_gain_ecc[0, :, :]
 
-                # calculate the actual energy edges taking the applied ELUT into
-                # account for calibration of data recorded with the ELUT
-                e_actual_ecc = (ob_elut.adc - offset_ecc[..., None]) * gain_ecc[..., None]
+                # # calculate the actual energy edges taking the applied ELUT into
+                # # account for calibration of data recorded with the ELUT
+                # e_actual_ecc = (ob_elut.adc - offset_ecc[..., None]) * gain_ecc[..., None]
 
-                e_actual_ext_ecc = np.pad(
-                    e_actual_ecc,
-                    # pad last axis by 1 on both sides
-                    pad_width=((0, 0), (0, 0), (1, 1)),
-                    mode="constant",
-                    # first pad with 0, last pad with inf
-                    constant_values=(0, np.inf),
-                )
+                # e_actual_ext_ecc = np.pad(
+                #     e_actual_ecc,
+                #     # pad last axis by 1 on both sides
+                #     pad_width=((0, 0), (0, 0), (1, 1)),
+                #     mode="constant",
+                #     # first pad with 0, last pad with inf
+                #     constant_values=(0, np.inf),
+                # )
 
-                cal.data.add_column(
-                    Column(
-                        name="ecc_only_e_edges_actual",
-                        data=[e_actual_ext_ecc],
-                        description="actual energy edges fitted by ECC only",
-                    )
-                )  # noqa
-                cal.data["ecc_only_e_edges_actual"].unit = u.keV
+                # cal.data.add_column(
+                #     Column(
+                #         name="ecc_only_e_edges_actual",
+                #         data=[e_actual_ext_ecc],
+                #         description="actual energy edges fitted by ECC only",
+                #     )
+                # )  # noqa
+                # cal.data["ecc_only_e_edges_actual"].unit = u.keV
 
             # end of ECC context block
             del cal.data["counts_comp_err"]

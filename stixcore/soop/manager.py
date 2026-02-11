@@ -528,11 +528,6 @@ class SOOPManager(metaclass=Singleton):
 
             all_soop_file = Path(CONFIG.get("SOOP", "soop_files_download")) / f"{plan}.{version}.all.json"
             if not all_soop_file.exists():
-                if not CONFIG.getboolean("SOOP", "update_by_api", fallback=False):
-                    logger.warning(
-                        f"SOOP file for {plan} version {version} not found at {all_soop_file} and update_by_api is False: skipping download"
-                    )
-                    return
                 self.download_all_soops_from_api(plan, version, all_soop_file)
 
             with open(all_soop_file) as f_all:

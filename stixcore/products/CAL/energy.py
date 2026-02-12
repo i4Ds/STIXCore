@@ -135,7 +135,7 @@ class EnergyCalibration(GenericProduct, EnergyChannelsMixin, L2Mixin):
             cal.control.add_column(
                 Column(
                     name="ob_elut_name",
-                    data=str(ob_elut.file).replace(".csv", ""),
+                    data=[str(ob_elut.file).replace(".csv", "")],
                     description="Name of the ELUT active on instrument",
                 )
             )
@@ -179,7 +179,7 @@ class EnergyCalibration(GenericProduct, EnergyChannelsMixin, L2Mixin):
                 cal.control.add_column(
                     Column(
                         name="ecc_config_name",
-                        data=str(ecc_run_cfg.Name),
+                        data=[str(ecc_run_cfg.Name)],
                         description="Name of the ECC configuration based on data date",
                     )
                 )
@@ -331,7 +331,7 @@ class EnergyCalibration(GenericProduct, EnergyChannelsMixin, L2Mixin):
                         gain_range_ok = False
 
                 cal.data.add_column(
-                    Column(name="gain_range_ok", data=gain_range_ok, description="is gain in expected range")
+                    Column(name="gain_range_ok", data=[gain_range_ok], description="is gain in expected range")
                 )
 
                 gain = off_gain[1, :, :]

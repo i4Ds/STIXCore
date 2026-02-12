@@ -175,37 +175,6 @@ without provided arguments the default values from ``stixcore.ini`` are used
     0 5 * * * cd /home/stixcore/STIXCore/ && /home/stixcore/STIXCore/venv/bin/python /home/stixcore/STIXCore/stixcore/processing/publish.py --update_rid_lut
 
 
-Run the pipeline monitor
-************************
-
-The event based pipeline (observing incoming telemetry files) gets stuck from time to time. There is a process observing the number of open to process files. If the number of open files is constantly increasing over a longer period a notification mail is send out:
-
-.. code-block::
-
-    # run pipeline monitor task to check for pipeline not stuck
-    0 */3 * * * cd /home/stixcore/STIXCore/ && /home/stixcore/STIXCore/venv/bin/python /home/stixcore/STIXCore/stixcore/processing/pipeline_monitor.py -s /home/stixcore/monitor_status.json
-
-
-In case of a pipeline stuck restart the event based processing pipeline.
-
-.. code-block::
-
-    # stop the system.d process
-    sudo systemctl stop stix-pipeline.service
-
-    # wait 20sec so that all open sockets also gets closed
-    # start the process again
-
-    sudo systemctl start stix-pipeline.service
-
-In order to process all tm files that have not been processed so fare the config parameter start_with_unprocessed should be set to true:
-
-.. code-block::
-
-    [Pipeline]
-    start_with_unprocessed = True
-
-
 Run the 'daily' pipeline
 ************************
 

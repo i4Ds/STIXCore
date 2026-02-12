@@ -147,7 +147,6 @@ class Spectrogram(ScienceProduct, L1Mixin):
     """
 
     NAME = "xray-spec"
-
     PRODUCT_PROCESSING_VERSION = 4
 
     def __init__(

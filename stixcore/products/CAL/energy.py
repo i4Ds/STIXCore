@@ -10,10 +10,9 @@ from astropy.io import fits
 from astropy.io.fits import table_to_hdu
 from astropy.table import Column, QTable
 
-from stixcore.calibration.ecc_post_fit import ecc_post_fit
+from stixcore.calibration.ecc_post_fit import ecc_post_fit_on_fits
 from stixcore.calibration.elut_manager import ELUTManager
 from stixcore.config.config import CONFIG
-from stixcore.ecc.manager import ECCManager
 from stixcore.products.product import EnergyChannelsMixin, GenericProduct, L2Mixin
 from stixcore.time import SCETimeRange
 from stixcore.util.logging import get_logger
@@ -34,6 +33,7 @@ class EnergyCalibration(GenericProduct, EnergyChannelsMixin, L2Mixin):
     NAME = "energy"
     LEVEL = "CAL"
     TYPE = "cal"
+    PRODUCT_PROCESSING_VERSION = 3
 
     def __init__(
         self,
@@ -77,7 +77,7 @@ class EnergyCalibration(GenericProduct, EnergyChannelsMixin, L2Mixin):
     @property
     def bunit(self):
         # default for FITS HEADER
-        return "kEV"
+        return "keV"
 
     @property
     def exposure(self):
@@ -105,7 +105,7 @@ class EnergyCalibration(GenericProduct, EnergyChannelsMixin, L2Mixin):
         return []
 
     @classmethod
-    def from_level1(cls, l1product, parent="", idlprocessor=None):
+    def from_level1(cls, l1product, parent="", idlprocessor=None, ecc_manager=None):
         l2 = super().from_level1(l1product, parent=parent)[0]
 
         products = []
@@ -173,7 +173,7 @@ class EnergyCalibration(GenericProduct, EnergyChannelsMixin, L2Mixin):
             spec_filename = spec_filename.replace(".fits", "_ecc_in.fits")
             ecc_install_path = Path(CONFIG.get("ECC", "ecc_path"))
 
-            with ECCManager.instance.context(date) as ecc_run_context:
+            with ecc_manager.context(date) as ecc_run_context:
                 ecc_run_context_path, ecc_run_cfg = ecc_run_context
 
                 cal.control.add_column(
@@ -241,7 +241,7 @@ class EnergyCalibration(GenericProduct, EnergyChannelsMixin, L2Mixin):
                     )
                 )
 
-                ecc_pf_df, idx_ecc = ecc_post_fit(spec_all_erg, erg_path, livetime)
+                ecc_pf_df, idx_ecc = ecc_post_fit_on_fits(spec_all_erg, erg_path, livetime)
                 logger.info(
                     "Run ecc post fit: replaced [%s %%] gain offset pairs with 'better fits'",
                     round((len(idx_ecc) - idx_ecc.sum()) / max(1, len(idx_ecc)) * 100, ndigits=1),

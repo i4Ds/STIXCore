@@ -33,6 +33,8 @@ from astropy.io import fits
 
 from stixcore.util.logging import get_logger
 
+__ALL__ = ["ecc_post_fit_on_fits", "ecc_post_fit"]
+
 logger = get_logger(__name__)
 
 
@@ -45,16 +47,10 @@ def open_fits_tables(fits_path):
             header.append(hdul[i].header)
             data.append(hdul[i].data)
 
-    # Get the fields of each data table and sort the data in lists
-    data_names = [data_i.columns.names for data_i in data]
-    data_format = [data_i.columns.formats for data_i in data]
-    data_unit = [data_i.columns.units for data_i in data]
-    data_list = [[list(data[i][data_names[i][j]]) for j in range(len(data_names[i]))] for i in range(len(data))]
-    return header, data, data_list, data_names, data_format, data_unit
+    return header, data
 
 
-def Read_fits_STIX_One_Pixel(data, PIX=0, DETECTOR_ID=1, Nbin=2024, NRebin=1, NSigma=1):
-    data = data[0]
+def Read_fits_STIX_One_Pixel(data, PIX, DETECTOR_ID, Nbin=2024, NRebin=1, NSigma=1):
     Pix = PIX
     Pix = Pix + (DETECTOR_ID - 1) * 12
     obs = [0] * Nbin
@@ -62,9 +58,6 @@ def Read_fits_STIX_One_Pixel(data, PIX=0, DETECTOR_ID=1, Nbin=2024, NRebin=1, NS
     obs = data.field(3 + Pix)
     nbin = Nbin
     Nbin = [Nbin / NRebin]
-    # TODO: check if we really need to rebin with congrid here
-    # erg_c = congrid(erg_c[:nbin], Nbin)
-    # obs = congrid(obs[:nbin], Nbin)
     erg_c = erg_c[:nbin]
     obs = obs[:nbin]
 
@@ -87,7 +80,7 @@ def gaussian(x, amp, cen, wid):
     return amp * np.exp(-((x - cen) ** 2) / (2 * wid**2))
 
 
-def Fit_Ba_Lines_Robust(erg_c, obs, PLOT_VERBOSE=1, LogScale=1):
+def Fit_Ba_Lines_Robust(erg_c, obs):
     """
     OL, oct 22, 2024
     Robust fit procedure to adjust peak position post ECC
@@ -153,7 +146,20 @@ def Fit_Ba_Lines_Robust(erg_c, obs, PLOT_VERBOSE=1, LogScale=1):
     return P31, P81, dE31, dE81, err_P31, err_P81, err_dE31, err_dE81, H31, H81, Goodness_Flag_31, Goodness_Flag_81
 
 
-def ecc_post_fit(erg_file, para_file, livetime):
+def ecc_post_fit_on_fits(erg_file, para_file, livetime):
+    data_erg = open_fits_tables(erg_file)[1][0]  # only need data and only the first table which contains the spectra
+    data_para = open_fits_tables(para_file)[1][
+        0
+    ]  # only need data and only the first table which contains the ECC parameters
+
+    gain = np.float32(data_para.gain)
+    off = np.float32(data_para.off)
+    goc = np.float32(data_para.goc)
+
+    return ecc_post_fit(data_erg, gain, off, goc, livetime)
+
+
+def ecc_post_fit(data_erg, gain, off, goc, livetime):
     DETs = np.arange(32) + 1
     LARGEs = [0, 1, 2, 3, 4, 5, 6, 7]
     SMALLs = [8, 9, 10, 11]
@@ -164,13 +170,12 @@ def ecc_post_fit(erg_file, para_file, livetime):
     accumulator = []
 
     # Proceed to fit individually each pixel spectrum in the list of files
-    data = open_fits_tables(erg_file)[1]  # only need data
     for DET in DETs:
         for PIX in PIXELs:  # or in  LARGEs, SMALLs
-            erg_c, obs, yerr = Read_fits_STIX_One_Pixel(data, PIX=PIX, DETECTOR_ID=DET, Nbin=2024, NRebin=1, NSigma=1)
+            erg_c, obs, yerr = Read_fits_STIX_One_Pixel(data_erg, PIX=PIX, DETECTOR_ID=DET)
 
             P31, P81, dE31, dE81, err_P31, err_P81, err_dE31, err_dE81, H31, H81, Goodness_Flag31, Goodness_Flag81 = (
-                Fit_Ba_Lines_Robust(erg_c, obs / livetime, PLOT_VERBOSE=0, LogScale=0)
+                Fit_Ba_Lines_Robust(erg_c, obs / livetime)
             )
 
             dict = {
@@ -205,11 +210,9 @@ def ecc_post_fit(erg_file, para_file, livetime):
     df["Offset_Prime"] = O_prime
 
     # check, Run number and pixel number prior to assign Gain and Offset for further correction
-    data_para = open_fits_tables(para_file)[1]  # only need data
-
-    df["Gain_ECC"] = np.float32(data_para[0].gain)
-    df["Offset_ECC"] = np.float32(data_para[0].off)
-    df["goc"] = np.float32(data_para[0].goc)
+    df["Gain_ECC"] = gain
+    df["Offset_ECC"] = off
+    df["goc"] = goc
 
     # 7 - Compute corrected Gain and Offset and fill df
     # 7.2 - Now assign the corrected Gain and Offset values

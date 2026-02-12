@@ -1,4 +1,3 @@
-import sys
 import json
 import shutil
 import tempfile
@@ -8,9 +7,7 @@ from datetime import datetime
 from contextlib import contextmanager
 from configparser import ConfigParser
 
-from stixcore.data.test import test_data
 from stixcore.util.logging import get_logger
-from stixcore.util.singleton import Singleton
 
 __all__ = ["ECCManager"]
 
@@ -19,7 +16,7 @@ ECC_CONF_INDEX_FILE = Path(__file__).parent.parent / "config" / "data" / "common
 logger = get_logger(__name__)
 
 
-class ECCManager(metaclass=Singleton):
+class ECCManager:
     """Manages ECC configurations and provides access to configuration data."""
 
     def __init__(self, data_root=None):
@@ -268,10 +265,3 @@ class ECCManager(metaclass=Singleton):
         finally:
             if context is not None:
                 self.cleanup_context(context)
-
-
-# Create singleton instance
-if "pytest" in sys.modules:
-    ECCManager.instance = ECCManager(test_data.ecc)
-else:
-    ECCManager.instance = ECCManager()

@@ -275,13 +275,6 @@ class TestECCManager:
             # Should not raise an exception
             manager.cleanup_context((nonexistent_path, None))
 
-    def test_singleton_instance_attribute(self):
-        """Test that singleton instance is accessible via class attribute."""
-        with patch("stixcore.ecc.manager.open", mock_open(read_data=json.dumps(self.test_index))):
-            # The instance should be created automatically
-            assert hasattr(ECCManager, "instance")
-            assert isinstance(ECCManager.instance, ECCManager)
-
     def test_context_manager_success(self):
         """Test successful context manager usage."""
         with patch("stixcore.ecc.manager.open", mock_open(read_data=json.dumps(self.test_index))):

@@ -44,11 +44,10 @@ class Spectrogram(ScienceProduct, L2Mixin):
         ]
 
     @classmethod
-    def from_level1(cls, l1product, parent="", idlprocessor=None):
+    def from_level1(cls, l1product, parent="", idlprocessor=None, ecc_manager=None):
         l2 = super().from_level1(l1product, parent=parent)[0]
-        l2.data["test"] = 1
 
-        # interpolate counts if RCR > 0 at any time point
+        # TODO do the actual correction here, for now just copy the data if there are any non-zero rcr values
         if l2.data["rcr"].sum() > 0:
             l2.data_corrected = l2.data[:]
         return [l2]

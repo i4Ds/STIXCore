@@ -7,6 +7,7 @@ from concurrent.futures import ProcessPoolExecutor
 from sunpy.util.datatype_factory_base import NoMatchError
 
 from stixcore.config.config import CONFIG
+from stixcore.ecc.manager import ECCManager
 from stixcore.ephemeris.manager import Spice
 from stixcore.io.product_processors.fits.processors import FitsL2Processor
 from stixcore.processing.sswidl import SSWIDLProcessor
@@ -85,6 +86,7 @@ def process_type(files, *, processor, soopmanager, spice_kernel_path, config):
     all_files = list()
     max_idlbatch = CONFIG.getint("IDLBridge", "batchsize", fallback=20)
     idlprocessor = SSWIDLProcessor(processor)
+    ecc_manager = ECCManager()
     for file in files:
         try:
             l1 = Product(file)
@@ -99,7 +101,9 @@ def process_type(files, *, processor, soopmanager, spice_kernel_path, config):
 
             # see https://github.com/i4Ds/STIXCore/issues/350
             complete_file_name = get_complete_file_name_and_path(file)
-            for l2 in tmp.from_level1(l1, parent=complete_file_name, idlprocessor=idlprocessor):
+            for l2 in tmp.from_level1(
+                l1, parent=complete_file_name, idlprocessor=idlprocessor, ecc_manager=ecc_manager
+            ):
                 new_files = processor.write_fits(l2)
                 all_files.extend(new_files)
             # if a batch of X files have summed up run the IDL processing

@@ -987,7 +987,7 @@ class L2Mixin(FitsHeaderMixin):
         return []
 
     @classmethod
-    def from_level1(cls, l1product, parent="", idlprocessor=None):
+    def from_level1(cls, l1product, parent="", idlprocessor=None, ecc_manager=None):
         l2 = cls(
             service_type=l1product.service_type,
             service_subtype=l1product.service_subtype,

@@ -27,6 +27,7 @@ dependencies = [
     "pyyaml",
     "scp",
     "spiceypy~=6.0",
+    "numpy==2.3.4",
     "sunpy~=6.0.0",
     "watchdog~=6.0",
     "stixdcpy==3.0",

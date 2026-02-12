@@ -166,7 +166,7 @@ def ecc_post_fit(data_erg, gain, off, goc, livetime):
     PIXELs = LARGEs + SMALLs
 
     # Prep Pandas DataFrame
-    df = pd.DataFrame()  # dict will be define later during concactenation with appropriated keys
+    df = pd.DataFrame()  # dict will be defined later during concatenation with appropriate keys
     accumulator = []
 
     # Proceed to fit individually each pixel spectrum in the list of files

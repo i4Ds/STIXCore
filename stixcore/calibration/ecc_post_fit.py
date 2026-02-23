@@ -53,11 +53,10 @@ def open_fits_tables(fits_path):
 def Read_fits_STIX_One_Pixel(data, PIX, DETECTOR_ID, Nbin=2024, NRebin=1, NSigma=1):
     Pix = PIX
     Pix = Pix + (DETECTOR_ID - 1) * 12
-    obs = [0] * Nbin
     erg_c = data.ERG_center  # data.field(0)
     obs = data.field(3 + Pix)
-    nbin = Nbin
-    Nbin = [Nbin / NRebin]
+    # determine number of bins to use, taking into account any requested rebinning
+    nbin = int(Nbin / NRebin)
     erg_c = erg_c[:nbin]
     obs = obs[:nbin]
 
@@ -165,8 +164,6 @@ def ecc_post_fit(data_erg, gain, off, goc, livetime):
     SMALLs = [8, 9, 10, 11]
     PIXELs = LARGEs + SMALLs
 
-    # Prep Pandas DataFrame
-    df = pd.DataFrame()  # dict will be define later during concactenation with appropriated keys
     accumulator = []
 
     # Proceed to fit individually each pixel spectrum in the list of files

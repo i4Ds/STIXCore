@@ -33,7 +33,7 @@ class EnergyCalibration(GenericProduct, EnergyChannelsMixin, L2Mixin):
     NAME = "energy"
     LEVEL = "CAL"
     TYPE = "cal"
-    PRODUCT_PROCESSING_VERSION = 3
+    PRODUCT_PROCESSING_VERSION = 2
 
     def __init__(
         self,
@@ -167,7 +167,7 @@ class EnergyCalibration(GenericProduct, EnergyChannelsMixin, L2Mixin):
 
             spec_filename = l1product.fits_header["FILENAME"]
 
-            if not re.match(r"^solo_L1_stix-cal-energy_\d+_V.*.fits$", spec_filename):
+            if not re.match(r"^solo_L1_stix-cal-energy_\d+_V[\w.]+\.fits$", spec_filename):
                 raise ValueError(f"Invalid filename {spec_filename} for energy calibration data")
 
             spec_filename = spec_filename.replace(".fits", "_ecc_in.fits")
@@ -231,15 +231,19 @@ class EnergyCalibration(GenericProduct, EnergyChannelsMixin, L2Mixin):
                 if not erg_path.exists():
                     raise FileNotFoundError(f"Failed to read ECC result file {erg_path}")
 
-                livetime = control["live_time"].to_value(u.s)
+                livetime = control["live_time"].to(u.s)
+                cal.add_additional_header_keyword(
+                    ("LIVETIME", livetime.value[0], "calibration spectra live time in seconds")
+                )
 
                 cal.data.add_column(
                     Column(
                         name="live_time",
-                        data=[livetime],
+                        data=livetime.value,
                         description="calibration spectra live time in seconds",
                     )
                 )
+                cal.data["live_time"].unit = u.s
 
                 ecc_pf_df, idx_ecc = ecc_post_fit_on_fits(spec_all_erg, erg_path, livetime)
                 logger.info(
@@ -247,18 +251,33 @@ class EnergyCalibration(GenericProduct, EnergyChannelsMixin, L2Mixin):
                     round((len(idx_ecc) - idx_ecc.sum()) / max(1, len(idx_ecc)) * 100, ndigits=1),
                 )
 
-                off_gain = np.array(
-                    [
-                        4.0 * ecc_pf_df["Offset_Cor"].values.reshape(32, 12),
-                        1.0 / (4.0 * ecc_pf_df["Gain_Cor"].values.reshape(32, 12)),
-                        ecc_pf_df["goc"].values.reshape(32, 12),
-                    ]
-                )
+                gain = 1.0 / (4.0 * ecc_pf_df["Gain_Cor"].values.reshape(32, 12))
+                offset = 4.0 * ecc_pf_df["Offset_Cor"].values.reshape(32, 12)
+                goc = ecc_pf_df["goc"].values.reshape(32, 12)
+
                 cal.data.add_column(
                     Column(
-                        name="offset_gain_goc",
-                        data=[off_gain],
-                        description="result of the ecc fitting: offset, gain, goc and post fitting",
+                        name="offset",
+                        data=[offset],
+                        description="offset result of the ecc spectra fitting and post fitting [ADU_Ground_Channels] (1024)",
+                    )
+                )
+                cal.data["offset"].unit = u.adu
+
+                cal.data.add_column(
+                    Column(
+                        name="gain",
+                        data=[gain],
+                        description="gain result of the ecc spectra fitting and post fitting [ADU_Ground_Channels/keV] (1024)",
+                    )
+                )
+                cal.data["gain"].unit = u.adu / u.keV
+
+                cal.data.add_column(
+                    Column(
+                        name="goc",
+                        data=[goc],
+                        description="goodness of correlation result of the ecc spectra fitting",
                     )
                 )
 
@@ -292,7 +311,7 @@ class EnergyCalibration(GenericProduct, EnergyChannelsMixin, L2Mixin):
                                 ]
                             )
                         ],
-                        description="error estimate from ECC: err_P31, err_dE31, err_P81, err_dE81",
+                        description="error estimate from ECC post fit: err_P31, err_dE31, err_P81, err_dE81",
                     )
                 )
 
@@ -334,9 +353,6 @@ class EnergyCalibration(GenericProduct, EnergyChannelsMixin, L2Mixin):
                     Column(name="gain_range_ok", data=[gain_range_ok], description="is gain in expected range")
                 )
 
-                gain = off_gain[1, :, :]
-                offset = off_gain[0, :, :]
-
                 # calculate the actual energy edges taking the applied ELUT into
                 # account for calibration of data recorded with the ELUT
                 e_actual = (ob_elut.adc - offset[..., None]) * gain[..., None]
@@ -354,7 +370,7 @@ class EnergyCalibration(GenericProduct, EnergyChannelsMixin, L2Mixin):
                     Column(
                         name="e_edges_actual",
                         data=[e_actual_ext],
-                        description="actual energy edges fitted by ECC and post fitting",
+                        description="actual energy edges fitted by ECC and post fitting E = (chan + offset) * gain",
                     )
                 )  # noqa
                 cal.data["e_edges_actual"].unit = u.keV

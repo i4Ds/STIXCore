@@ -9,6 +9,7 @@ from stixcore.ephemeris.manager import Spice, SpiceKernelManager
 from stixcore.idb.manager import IDBManager
 from stixcore.io.product_processors.fits.processors import FitsL0Processor
 from stixcore.io.RidLutManager import RidLutManager
+from stixcore.products.level0.quicklookL0 import QLSpectraReshapeError
 from stixcore.products.level0.scienceL0 import NotCombineException
 from stixcore.products.product import Product
 from stixcore.util.logging import get_logger
@@ -103,6 +104,10 @@ def process_tm_type(files, tm_type, processor, spice_kernel_path, config, idbm):
                 if level0:
                     fits_files = processor.write_fits(level0)
                     all_files.extend(fits_files)
+            except QLSpectraReshapeError as e:
+                logger.warning(str(e))
+                if CONFIG.getboolean("Logging", "stop_on_error", fallback=False):
+                    raise e
             except Exception as e:
                 logger.error(
                     f"Error processing file {file} for {levelb.service_type}, {levelb.service_subtype}, {levelb.ssid}",

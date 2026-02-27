@@ -75,6 +75,13 @@ class RidLutTestData:
         self.RID_LUT_UPDATE = self.PUB_DIR / "update_rid_lut.csv"
 
 
+class ECCTestData:
+    def __init__(self, data_dir):
+        self.DIR = data_dir / "ecc"
+        self.ecc_post_fit_erg_fits = self.DIR / "spec_all_erg.fits"
+        self.ecc_post_fit_para_fits = self.DIR / "ECC_para.fits"
+
+
 class TestData:
     def __init__(self, data_dir):
         self.ephemeris = EphemerisTestData(data_dir)
@@ -84,6 +91,7 @@ class TestData:
         self.io = IOTestData(data_dir)
         self.soop = SOOPTestData(data_dir)
         self.rid_lut = RidLutTestData(data_dir)
+        self.ecc = ECCTestData(data_dir)
 
         self.__doc__ = "\n".join([f"{k}\n******************\n\n{v.__doc__}\n\n\n" for k, v in self.__dict__.items()])
 

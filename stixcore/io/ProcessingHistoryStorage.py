@@ -63,6 +63,22 @@ class ProcessingHistoryStorage:
                                         processed_fits_products
                                         (name, level, type, version, fits_in_path)""")
                 if curent_DB_version < 2:
+                    # TODO reactivate later
+                    # self.cur.execute('''CREATE TABLE if not exists processed_flare_products (
+                    #             id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    #             flareid TEXT NOT NULL,
+                    #             flarelist TEXT NOT NULL,
+                    #             version INTEGER NOT NULL,
+                    #             name TEXT NOT NULL,
+                    #             level TEXT NOT NULL,
+                    #             type TEXT NOT NULL,
+                    #             fitspath TEXT NOT NULL,
+                    #             p_date FLOAT NOT NULL
+                    #         )
+                    # ''')
+                    # self.cur.execute('''CREATE INDEX if not exists processed_flare_products_idx ON
+                    #                     processed_flare_products (flareid, flarelist, version, name,
+                    # level, type)''')
                     # future migrations here
                     pass
                 self.cur.execute(f"PRAGMA user_version = {self.DB_VERSION};")

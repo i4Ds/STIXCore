@@ -763,7 +763,7 @@ class FitsL1Processor(FitsL0Processor):
                 f"{product.utc_timerange.center.strftime('%Y%m%dT000000')}-"
                 + f"{product.utc_timerange.center.strftime('%Y%m%dT235959')}"
             )
-        elif product.type not in ["sci", "flarelist"] or product.name == "burst-aspect":
+        elif product.type not in ["sci", "flarelist", "cal"] or product.name == "burst-aspect":
             date_range = product.utc_timerange.center.strftime("%Y%m%d")
 
         return FitsProcessor.generate_filename(
@@ -940,7 +940,7 @@ class FitsL1Processor(FitsL0Processor):
             hdul = fits.HDUList(hdul)
 
             filetowrite = path / filename
-            logger.debug(f"Writing fits file to {filetowrite}")
+            logger.info(f"Writing fits file to {filetowrite}")
             hdul.writeto(filetowrite, overwrite=True, checksum=True)
             created_files.append(filetowrite)
         return created_files
@@ -971,8 +971,8 @@ class FitsL2Processor(FitsL1Processor):
         if version == 0:
             version = product.get_processing_version()
 
-        # TODO remove writeout suppression of all products but ANC files
-        if product.level == "ANC":
+        # TODO remove writeout suppression of all products but ANC and CAL files
+        if product.level in ["ANC", "CAL"]:
             return super().write_fits(product, version=version)
         else:
             logger.info(f"no writeout of L2 {product.type}-{product.name} FITS files.")

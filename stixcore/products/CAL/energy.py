@@ -121,7 +121,11 @@ class EnergyCalibration(GenericProduct, EnergyChannelsMixin, L2Mixin):
 
         for spec_idx, spec in enumerate(l2.data["counts"]):
             if spec.shape != (32, 12, 1024):
-                raise ValueError(f"Unexpected shape {spec.shape} for counts in {l1product.name}")
+                logger.warning(f"Unexpected shape {spec.shape} for counts in {l1product.name}")
+                # skip this spectrum and continue with the next one
+                # this can happen if the tm is not fully transmitted
+                # if more TM is coming in this spectrum will be completed and processed in the next iteration
+                continue
 
             data = l2.data[:][[spec_idx]]
             control_index = l2.data["control_index"][spec_idx]

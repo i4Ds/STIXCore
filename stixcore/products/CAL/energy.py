@@ -411,6 +411,4 @@ class EnergyCalibration(GenericProduct, EnergyChannelsMixin, L2Mixin):
             products.append(cal)
             # end of for each spectrum
 
-        if len(products) > 1:
-            pass
         return products

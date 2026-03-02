@@ -225,6 +225,10 @@ class EnergyCalibration(QLProduct, L1Mixin):
     def is_datasource_for(cls, *, service_type, service_subtype, ssid, **kwargs):
         return kwargs["level"] == EnergyCalibration.LEVEL and service_type == 21 and service_subtype == 6 and ssid == 41
 
+    @property
+    def fits_daily_file(self):
+        return True
+
     @classmethod
     def from_level0(cls, l0product, parent=""):
         l1 = cls(

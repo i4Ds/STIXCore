@@ -763,7 +763,11 @@ class FitsL1Processor(FitsL0Processor):
                 f"{product.utc_timerange.center.strftime('%Y%m%dT000000')}-"
                 + f"{product.utc_timerange.center.strftime('%Y%m%dT235959')}"
             )
-        elif product.type not in ["sci", "flarelist", "cal"] or product.name == "burst-aspect":
+        elif (
+            product.type not in ["sci", "flarelist"]
+            or (product.name == "burst-aspect")
+            or (product.type == "cal" and product.level == "CAL")
+        ):
             date_range = product.utc_timerange.center.strftime("%Y%m%d")
 
         return FitsProcessor.generate_filename(

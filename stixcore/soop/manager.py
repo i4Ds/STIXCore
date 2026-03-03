@@ -529,6 +529,8 @@ class SOOPManager(metaclass=Singleton):
             all_soop_file = Path(CONFIG.get("SOOP", "soop_files_download")) / f"{plan}.{version}.all.json"
 
             if not all_soop_file.exists():
+                # TODO reactivate when API is back
+                return
                 self.download_all_soops_from_api(plan, version, all_soop_file)
 
             with open(all_soop_file) as f_all:

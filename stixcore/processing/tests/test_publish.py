@@ -121,7 +121,15 @@ def test_publish_fits_to_esa_incomplete(product, out_dir):
         )
 
         t = SCETime(coarse=[beg.coarse, end.coarse])
-        product.data = QTable({"time": t, "timedel": t - beg, "fcounts": np.array([1, 2]), "control_index": [1, 1]})
+        t_utc = t.to_time()
+        product.data = QTable(
+            {
+                "time": t_utc,
+                "timedel": (t - beg).as_float().to("cs"),
+                "fcounts": np.array([1, 2]),
+                "control_index": [1, 1],
+            }
+        )
         product.raw = ["packet1.xml", "packet2.xml"]
         product.parent = ["packet1.xml", "packet2.xml"]
         product.level = "L1"
@@ -135,10 +143,10 @@ def test_publish_fits_to_esa_incomplete(product, out_dir):
         product.NAME = "background"
         product.obt_beg = beg
         product.obt_end = end
-        product.date_obs = beg
-        product.date_beg = beg
-        product.date_end = end
-        product.exposure = 2
+        product.date_obs = beg.to_datetime()
+        product.date_beg = beg.to_datetime()
+        product.date_end = end.to_datetime()
+        product.min_exposure = 2
         product.max_exposure = 3
         product.dmin = 2
         product.dmax = 3
@@ -222,10 +230,12 @@ def test_fits_incomplete_switch_over(out_dir):
             )
 
             t = SCETime(coarse=[beg.coarse, end.coarse])
+            t_utc = t.to_time()
+
             product.data = QTable(
                 {
-                    "time": t,
-                    "timedel": t - beg,
+                    "time": t_utc,
+                    "timedel": (t - beg).as_float().to("cs"),
                     "fcounts": np.array([1, 2]),
                     "counts": np.array([1, 2]) * u.deg_C,
                     "control_index": [1, 1],
@@ -244,10 +254,10 @@ def test_fits_incomplete_switch_over(out_dir):
             product.name = "background"
             product.obt_beg = beg
             product.obt_end = end
-            product.date_obs = beg
-            product.date_beg = beg
-            product.date_end = end
-            product.exposure = 2
+            product.date_obs = beg.to_datetime()
+            product.date_beg = beg.to_datetime()
+            product.date_end = end.to_datetime()
+            product.min_exposure = 2
             product.max_exposure = 3
             product.dmin = 2
             product.dmax = 3
@@ -371,7 +381,10 @@ def test_publish_fits_to_esa(product, out_dir):
     )
 
     t = SCETime(coarse=[beg.coarse, end.coarse])
-    product.data = QTable({"time": t, "timedel": t - beg, "fcounts": np.array([1, 2]), "control_index": [1, 1]})
+    t_utc = t.to_time()
+    product.data = QTable(
+        {"time": t_utc, "timedel": (t - beg).as_float().to("cs"), "fcounts": np.array([1, 2]), "control_index": [1, 1]}
+    )
     product.raw = ["packet1.xml", "packet2.xml"]
     product.parent = ["packet1.xml", "packet2.xml"]
     product.level = "L1"
@@ -382,10 +395,10 @@ def test_publish_fits_to_esa(product, out_dir):
     product.name = "xray-spec"
     product.obt_beg = beg
     product.obt_end = end
-    product.date_obs = beg
-    product.date_beg = beg
-    product.date_end = end
-    product.exposure = 2
+    product.date_obs = beg.to_datetime()
+    product.date_beg = beg.to_datetime()
+    product.date_end = end.to_datetime()
+    product.min_exposure = 2
     product.max_exposure = 3
     product.dmin = 2
     product.dmax = 3

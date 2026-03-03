@@ -515,7 +515,7 @@ class FlarelistSDC(FlareList, FlareSOOPMixin):
         return (self.data["lc_peak"].sum(axis=1)).max().value if len(self.data) > 0 else np.nan
 
     @property
-    def exposure(self):
+    def min_exposure(self):
         return self.data["duration"].min().to_value("s") if len(self.data) > 0 else np.nan
 
     @property
@@ -649,7 +649,7 @@ class FlarelistSC(FlareList, FlareSOOPMixin):
         return (self.data["lc_peak"].sum(axis=1)).max().value if len(self.data) > 0 else np.nan
 
     @property
-    def exposure(self):
+    def min_exposure(self):
         return self.data["duration"].min().to_value("s") if len(self.data) > 0 else np.nan
 
     @property

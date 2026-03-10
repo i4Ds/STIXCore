@@ -13,6 +13,7 @@ from astropy.table import Column, QTable
 from stixcore.calibration.ecc_post_fit import ecc_post_fit_on_fits
 from stixcore.calibration.elut_manager import ELUTManager
 from stixcore.config.config import CONFIG
+from stixcore.products.level0.scienceL0 import NotCombineException
 from stixcore.products.product import EnergyChannelsMixin, GenericProduct, L2Mixin
 from stixcore.time import SCETimeRange
 from stixcore.util.logging import get_logger
@@ -412,3 +413,6 @@ class EnergyCalibration(GenericProduct, EnergyChannelsMixin, L2Mixin):
             # end of for each spectrum
 
         return products
+
+    def __add__(self, other):
+        raise NotCombineException(f"Tried to combine 2 cal_energy products: \n{self} and \n{other}")

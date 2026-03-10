@@ -104,16 +104,20 @@ def process_type(files, *, processor, soopmanager, spice_kernel_path, config):
             for l2 in tmp.from_level1(
                 l1, parent=complete_file_name, idlprocessor=idlprocessor, ecc_manager=ecc_manager
             ):
-                new_files = processor.write_fits(l2)
-                all_files.extend(new_files)
+                try:
+                    new_files = processor.write_fits(l2)
+                    all_files.extend(new_files)
+                # we have to check in the for loop as some products might create
+                # multiple files and some of them might be combinable and some not
+                except NotCombineException as nc:
+                    logger.warning(nc)
+
             # if a batch of X files have summed up run the IDL processing
             if idlprocessor.opentasks >= max_idlbatch:
                 all_files.extend(idlprocessor.process())
                 idlprocessor = SSWIDLProcessor(processor)
         except (NoMatchError, KeyError):
             logger.warning("No L2 product match for product %s", l1)
-        except NotCombineException as nc:
-            logger.info(nc)
         except Exception as e:
             logger.error("Error processing file %s", file, exc_info=True)
             logger.error("%s", e)

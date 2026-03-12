@@ -554,6 +554,9 @@ class GenericProduct(BaseProduct):
                 end=self.data["time"][-1] + self.data["timedel"][-1] / 2,
             )
         else:
+            logger.warning(
+                "internal time format is not in SCETime format, scet_timerange will be approximated using Spice. Better to work with utc_timerange property to avoid automatic time conversion"
+            )
             start_str = Spice.instance.datetime_to_scet((self.data["time"][0] - self.data["timedel"][0] / 2).datetime)
             end_str = Spice.instance.datetime_to_scet((self.data["time"][-1] + self.data["timedel"][-1] / 2).datetime)
             if "/" in start_str:

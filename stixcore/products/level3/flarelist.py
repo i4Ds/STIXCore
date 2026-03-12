@@ -499,6 +499,9 @@ class FlarelistSDC(FlareList, FlareSOOPMixin):
     @property
     def scet_timerange(self):
         tr = self.utc_timerange
+        logger.warning(
+            "scet_timerange will be approximated using Spice. Better to work with utc_timerange property to avoid automatic time conversion"
+        )
         start = SCETime.from_string(Spice.instance.datetime_to_scet(tr.start)[2:])
         end = SCETime.from_string(Spice.instance.datetime_to_scet(tr.end)[2:])
         return SCETimeRange(start=start, end=end)
@@ -515,7 +518,7 @@ class FlarelistSDC(FlareList, FlareSOOPMixin):
         return (self.data["lc_peak"].sum(axis=1)).max().value if len(self.data) > 0 else np.nan
 
     @property
-    def exposure(self):
+    def min_exposure(self):
         return self.data["duration"].min().to_value("s") if len(self.data) > 0 else np.nan
 
     @property
@@ -633,6 +636,9 @@ class FlarelistSC(FlareList, FlareSOOPMixin):
     @property
     def scet_timerange(self):
         tr = self.utc_timerange
+        logger.warning(
+            "scet_timerange will be approximated using Spice. Better to work with utc_timerange property to avoid automatic time conversion"
+        )
         start = SCETime.from_string(Spice.instance.datetime_to_scet(tr.start)[2:])
         end = SCETime.from_string(Spice.instance.datetime_to_scet(tr.end)[2:])
         return SCETimeRange(start=start, end=end)
@@ -649,7 +655,7 @@ class FlarelistSC(FlareList, FlareSOOPMixin):
         return (self.data["lc_peak"].sum(axis=1)).max().value if len(self.data) > 0 else np.nan
 
     @property
-    def exposure(self):
+    def min_exposure(self):
         return self.data["duration"].min().to_value("s") if len(self.data) > 0 else np.nan
 
     @property

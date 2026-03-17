@@ -169,6 +169,19 @@ def end2end_pipeline(indir, fitsdir):
 
 
 if __name__ == "__main__":
+    p_scet = Product(Path("/data/stix/out/test/e2e/orig/solo_L1_stix-ql-variance_20210626_V02U.fits"))
+    p_utc = Product(
+        Path("/data/stix/out/test/e2e/orig/solo_L1_stix-ql-variance_20210626_V02U.fits"),
+        get_timeformat_from_TIMESYS=True,
+    )
+
+    end2end_pipeline(
+        indir=Path("/data/stix/out/test/e2e/orig"),
+        fitsdir=Path("/data/stix/out/test/e2e/current"),
+    )
+
+    quit()
+
     if len(sys.argv) > 2:
         zippath = Path(sys.argv[1])
         datapath = Path(sys.argv[2])

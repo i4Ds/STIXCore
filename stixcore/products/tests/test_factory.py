@@ -2,12 +2,16 @@ from datetime import datetime
 
 import pytest
 
+from astropy.time import Time
+from astropy.units import Quantity
+
 from stixcore.data.test import test_data
 from stixcore.products.level0.quicklookL0 import LightCurve as LCL0
 from stixcore.products.level1.quicklookL1 import LightCurve as LCL1
 from stixcore.products.levelb.binary import LevelB
 from stixcore.products.product import Product
 from stixcore.time import SCETime
+from stixcore.time.datetime import SCETimeDelta
 
 
 def test_ql_lb():
@@ -20,6 +24,22 @@ def test_ql_lb():
     assert lb_prod.ssid == 30
     # TODO not really a test just from output
     assert lb_prod.obt_beg == SCETime(coarse=664148503, fine=10710)
+
+
+def test_read_timeformat():
+    lq_scet = Product(test_data.products.L1_LightCurve_fits[0])
+
+    assert type(lq_scet.data["time"][0]) is SCETime
+    assert type(lq_scet.data["timedel"][0]) is SCETimeDelta
+
+    lq_utc = Product(test_data.products.L1_LightCurve_fits[0], get_timeformat_from_TIMESYS=True)
+    assert type(lq_utc.data["time"][0]) is Time
+    assert type(lq_utc.data["timedel"][0]) is Quantity
+
+    assert abs((lq_scet.scet_timerange.start - lq_utc.scet_timerange.start).coarse) < 1
+    assert abs((lq_scet.scet_timerange.end - lq_utc.scet_timerange.end).coarse) < 1
+    assert abs((lq_scet.utc_timerange.start - lq_utc.utc_timerange.start).to("s").value) < 0.2
+    assert abs((lq_scet.utc_timerange.end - lq_utc.utc_timerange.end).to("s").value) < 0.2
 
 
 # The fits file times maybe off by onescet time bin need to regenerate and test

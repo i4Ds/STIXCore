@@ -214,7 +214,9 @@ class BaseProduct:
 
 class ProductFactory(BasicRegistrationFactory):
     def __call__(self, *args, **kwargs):
-        if len(args) == 1 and len(kwargs) == 0:
+        get_timeformat_from_TIMESYS = kwargs.get("get_timeformat_from_TIMESYS", False)
+
+        if len(args) == 1:
             if isinstance(args[0], (str, Path)):
                 file_path = Path(args[0])
                 pri_header = fits.getheader(file_path)
@@ -261,18 +263,24 @@ class ProductFactory(BasicRegistrationFactory):
                         ssid = 34
 
                 if level not in ["LB", "LL01"] and "timedel" in data.colnames and "time" in data.colnames:
-                    # select the time format based on available header keywords
-                    offset = None
-                    if pri_header.get("TIMESYS", "") == "UTC":
-                        try:
-                            offset = Time(pri_header["DATE-OBS"])
-                        except ValueError:
-                            offset = None
-
-                    # fallback to OBT_BEG if no TIMESYS=UTC or DATE-OBS is present or can not be parsed
-                    if offset is None:
-                        offset = SCETime.from_float(pri_header["OBT_BEG"] * u.s)
+                    if level in ["L0", "L1"] and not get_timeformat_from_TIMESYS:
+                        # L0 and L1 date are open by default in SCETime format so we can directly apply the timedelta
                         data["timedel"] = SCETimeDelta(data["timedel"])
+                        offset = SCETime.from_float(pri_header["OBT_BEG"] * u.s)
+                    else:
+                        # in L2 and higher the time format should not be in SCETime format
+                        # select the time format based on available header keywords
+                        offset = None
+                        if pri_header.get("TIMESYS", "") == "UTC":
+                            try:
+                                offset = Time(pri_header["DATE-OBS"])
+                            except ValueError:
+                                offset = None
+
+                        # fallback to OBT_BEG if no TIMESYS=UTC or DATE-OBS is present or can not be parsed
+                        if offset is None:
+                            offset = SCETime.from_float(pri_header["OBT_BEG"] * u.s)
+                            data["timedel"] = SCETimeDelta(data["timedel"])
 
                     try:
                         control["time_stamp"] = SCETime.from_float(control["time_stamp"])
@@ -672,6 +680,12 @@ class GenericProduct(BaseProduct):
         if not isinstance(other, type(self)):
             raise TypeError(f"Products must of same type not {type(self)} and {type(other)}")
 
+        if "time" in self.data.colnames and "time" in other.data.colnames:
+            if type(self.data["time"]) is not type(other.data["time"]):
+                raise TypeError(
+                    f"Products must have the same time format not {type(self.data['time'])} and {type(other.data['time'])}"
+                )
+
         # make a deep copy of the data and control
         other_control = other.control[:]
         other_data = other.data[:]
@@ -684,7 +698,7 @@ class GenericProduct(BaseProduct):
         other_data["old_index"] = [f"o{i}" for i in other_data["control_index"]]
         self_data["old_index"] = [f"s{i}" for i in self_data["control_index"]]
 
-        if (self.service_type, self.service_subtype) == (3, 25) and self.level in ["L0", "LB"]:
+        if (self.service_type, self.service_subtype) == (3, 25):
             self_data["time"] = SCETime(self_control["scet_coarse"], self_control["scet_fine"])
             other_data["time"] = SCETime(other_control["scet_coarse"], other_control["scet_fine"])
 
@@ -697,7 +711,7 @@ class GenericProduct(BaseProduct):
         # So need to do something similar here to avoid comparing un-rounded value to rounded values
         if isinstance(data["time"], SCETime):
             data["time_float"] = np.around((data["time"] - data["time"].min()).as_float().to("cs"))
-        else:
+        else:  # datetime or Time
             data["time_float"] = np.around((data["time"] - data["time"].min()).to("cs"))
         # remove duplicate data based on time bin and sort the data
         data = unique(data, keys=["time_float"])
@@ -807,12 +821,12 @@ class GenericProduct(BaseProduct):
 
                     yield out
         else:  # L1+
-            utc_timerange = self.utc_timerange
+            utc_timerange = self.scet_timerange.to_timerange()
 
             for day in utc_timerange.get_dates():
                 ds = day
                 de = day + 1 * u.day
-                utc_times = self.data["time"]
+                utc_times = self.data["time"].to_time()
                 i = np.where((utc_times >= ds) & (utc_times < de))
 
                 if len(i[0]) > 0:
@@ -962,7 +976,7 @@ class L1Mixin(FitsHeaderMixin):
     @property
     def utc_timerange(self):
         if isinstance(self.data["time"], SCETime):
-            self.scet_timerange.to_timerange()
+            return self.scet_timerange.to_timerange()
         else:
             return TimeRange(
                 (self.data["time"][0] - self.data["timedel"][0] / 2),
@@ -1008,20 +1022,6 @@ class L1Mixin(FitsHeaderMixin):
         l1.control.replace_column("parent", [parent] * len(l1.control))
         l1.level = "L1"
         engineering.raw_to_engineering_product(l1, IDBManager.instance)
-
-        # convert SCETimes to UTC Time
-        if "time" in l1.data.colnames and isinstance(l1.data["time"], SCETime):
-            l1.data.replace_column(
-                "time",
-                l1.data["time"].to_time(),
-            )
-        # convert SCETimesDelta to Quantity (s)
-        if "timedel" in l1.data.colnames and isinstance(l1.data["timedel"], SCETimeDelta):
-            l1.data.replace_column(
-                "timedel",
-                l1.data["timedel"].as_float(),
-            )
-
         return l1
 
 

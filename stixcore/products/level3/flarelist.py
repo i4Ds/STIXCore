@@ -97,24 +97,12 @@ class FlarePositionMixin:
         # SkyCoord(HeliographicStonyhurst(0 * u.deg, 0 * u.deg))
         # SkyCoord(0 * u.deg, 0 * u.deg, frame=helio_frame)
 
-        n = len(data)
-
-        data["flareposition_obs_hgs_x"] = Column(
-            np.zeros(n, dtype=float) * u.km, description="HeliographicStonyhurst X of observer"
-        )
-        data["flareposition_obs_hgs_y"] = Column(
-            np.zeros(n, dtype=float) * u.km, description="HeliographicStonyhurst Y of observer"
-        )
-        data["flareposition_obs_hgs_z"] = Column(
-            np.zeros(n, dtype=float) * u.km, description="HeliographicStonyhurst Z of observer"
-        )
-        data["flareposition_hp_tx"] = Column(np.zeros(n, dtype=float) * u.arcsec, description="Helioprojective Tx")
-        data["flareposition_hp_ty"] = Column(np.zeros(n, dtype=float) * u.arcsec, description="Helioprojective Ty")
-
         data["anc_ephemeris_path"] = Column(" " * 500, dtype=str, description="TDB")
         data["cpd_path"] = Column(" " * 500, dtype=str, description="TDB")
         data["_position_status"] = Column(False, dtype=bool, description="TDB")
         data["_position_message"] = Column(" " * 500, dtype=str, description="TDB")
+        tx_list, ty_list = [], []
+        solo_x_list, solo_y_list, solo_z_list, peak_time_list = [], [], [], []
 
         to_remove = []
         pass_filter = 0
@@ -127,12 +115,11 @@ class FlarePositionMixin:
         day_asp_ephemeris_cache = dict()
 
         for i, row in enumerate(data):
-            if filter_function(row):  # and i < 200:
+            peak_time = row[peak_time_colname]
+            start_time = row[start_time_colname]
+            end_time = row[end_time_colname]
+            if filter_function(row):  # and i < 60:
                 pass_filter += 1
-                peak_time = row[peak_time_colname]
-                start_time = row[start_time_colname]
-                end_time = row[end_time_colname]
-
                 day = peak_time.to_datetime().date()
 
                 if day in day_asp_ephemeris_cache:
@@ -249,21 +236,54 @@ class FlarePositionMixin:
                     solo = HeliographicStonyhurst(*solo_xyz, obstime=peak_time, representation_type="cartesian")
                     with SphericalScreen(solo, only_off_disk=True):
                         center_hpc = coord.transform_to(Helioprojective(observer=solo))
-
-                    data[i]["flareposition_obs_hgs_x"] = solo_xyz[0].to(u.km)
-                    data[i]["flareposition_obs_hgs_y"] = solo_xyz[1].to(u.km)
-                    data[i]["flareposition_obs_hgs_z"] = solo_xyz[2].to(u.km)
-                    data[i]["flareposition_hp_tx"] = center_hpc.Tx.to(u.arcsec)
-                    data[i]["flareposition_hp_ty"] = center_hpc.Ty.to(u.arcsec)
+                        tx_list.append(center_hpc.Tx)
+                        ty_list.append(center_hpc.Ty)
+                    solo_x_list.append(solo.cartesian.x)
+                    solo_y_list.append(solo.cartesian.y)
+                    solo_z_list.append(solo.cartesian.z)
+                    peak_time_list.append(peak_time)
 
                     data[i]["_position_status"] = True
                     data[i]["_position_message"] = "OK"
                 except Exception as e:
                     data[i]["_position_status"] = False
                     data[i]["_position_message"] = f"Error: {type(e)}"
-                    logger.warn(f"Error calculating flare position for flare at time {start_time} : {end_time}: {e}")
+                    logger.warning(f"Error calculating flare position for flare at time {start_time} : {end_time}: {e}")
+                    tx_list.append(np.nan * u.arcsec)
+                    ty_list.append(np.nan * u.arcsec)
+                    solo_x_list.append(np.nan * u.km)
+                    solo_y_list.append(np.nan * u.km)
+                    solo_z_list.append(np.nan * u.km)
+                    peak_time_list.append(peak_time)
             else:
                 to_remove.append(i)
+                tx_list.append(np.nan * u.arcsec)
+                ty_list.append(np.nan * u.arcsec)
+                solo_x_list.append(np.nan * u.km)
+                solo_y_list.append(np.nan * u.km)
+                solo_z_list.append(np.nan * u.km)
+                peak_time_list.append(peak_time)
+                data[i]["_position_status"] = False
+                data[i]["_position_message"] = "flare did not pass the filter function"
+
+        solo_times = Time(peak_time_list)
+        hgs_coords = SkyCoord(
+            u.Quantity(solo_x_list),
+            u.Quantity(solo_y_list),
+            u.Quantity(solo_z_list),
+            frame=HeliographicStonyhurst(obstime=solo_times),
+            representation_type="cartesian",
+        )
+
+        hp_coords = SkyCoord(
+            u.Quantity(tx_list), u.Quantity(ty_list), frame=Helioprojective(obstime=solo_times, observer=hgs_coords)
+        )
+
+        data["location_hgs"] = hgs_coords
+        # description="Flare location in Heliographic Stonyhurst coordinates"
+
+        data["location_hp"] = hp_coords
+        # description="Flare location in Helioprojective coordinates"
 
         if not keep_all_flares:
             data.remove_rows(to_remove)
@@ -275,6 +295,34 @@ class FlarePositionMixin:
             f"{many_cpd} flares, one CPD data found for {one_cpd} flares."
             f"finally {len(data)} flares remaining"
         )
+
+    def on_serialize(self, data):
+        for col_name in ("location_hgs", "location_hp"):
+            if col_name in data.colnames:
+                icrs = data[col_name].icrs
+                icrs_coord = SkyCoord(icrs.ra, icrs.dec, icrs.distance, frame="icrs")
+                col_idx = data.colnames.index(col_name)
+                data.remove_column(col_name)
+                data.add_column(icrs_coord, name=col_name, index=col_idx)
+        s = super()
+        if hasattr(s, "on_serialize"):
+            s.on_serialize(data)
+
+    def on_deserialize(self, data, *, peak_time_colname=None):
+        peak_col = peak_time_colname or self.peak_time_colname
+        if peak_col not in data.colnames:
+            logger.warning(f"on_deserialize: column '{peak_col}' not found, skipping location transform")
+        else:
+            obstime = Time(data[peak_col])
+            if "location_hgs" in data.colnames:
+                data["location_hgs"] = data["location_hgs"].transform_to(HeliographicStonyhurst(obstime=obstime))
+            if "location_hp" in data.colnames:
+                data["location_hp"] = data["location_hp"].transform_to(
+                    Helioprojective(obstime=obstime, observer=data["location_hgs"])
+                )
+        s = super()
+        if hasattr(s, "on_deserialize"):
+            s.on_deserialize(data)
 
 
 class FlareSOOPMixin:
@@ -614,6 +662,7 @@ class FlarelistSDCLoc(FlarelistSDC, FlarePositionMixin):
 
         self.name = FlarelistSDCLoc.NAME
         self.ssid = 3
+        self.peak_time_colname = "peak_UTC"
 
     def enhance_from_product(self, in_prod: GenericProduct):
         pass
@@ -631,7 +680,7 @@ class FlarelistSDCLoc(FlarelistSDC, FlarePositionMixin):
             peak_time_colname="peak_UTC",
             start_time_colname="start_UTC",
             end_time_colname="end_UTC",
-            keep_all_flares=False,
+            keep_all_flares=True,
             month=month,
         )
 
@@ -751,6 +800,7 @@ class FlarelistSCLoc(FlarelistSC, FlarePositionMixin):
 
         self.name = FlarelistSCLoc.NAME
         self.ssid = 7
+        self.peak_time_colname = "peak_UTC"
 
     def enhance_from_product(self, in_prod: GenericProduct):
         pass

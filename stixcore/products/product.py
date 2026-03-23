@@ -336,6 +336,9 @@ class ProductFactory(BasicRegistrationFactory):
                     month=month,
                 )
 
+                if hasattr(p, "on_deserialize") and callable(getattr(p, "on_deserialize")):
+                    p.on_deserialize(p.data)
+
                 if hasattr(p, "get_additional_extensions") and data is not None:
                     for _, name in p.get_additional_extensions():
                         # read the additional extension data
@@ -608,6 +611,18 @@ class GenericProduct(BaseProduct):
     def max_exposure(self):
         # default for FITS HEADER
         return 0.0
+
+    def on_serialize(self, data):
+        """Hook called before writing data to FITS. Mixins override and chain via super()."""
+        s = super()
+        if hasattr(s, "on_serialize"):
+            s.on_serialize(data)
+
+    def on_deserialize(self, data):
+        """Hook called after reading data from FITS. Mixins override and chain via super()."""
+        s = super()
+        if hasattr(s, "on_deserialize"):
+            s.on_deserialize(data)
 
     def find_parent_products(self, root):
         """

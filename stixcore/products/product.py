@@ -3,6 +3,7 @@ from datetime import datetime
 from itertools import chain
 
 import numpy as np
+import pytz
 from sunpy.time.timerange import TimeRange
 from sunpy.util.datatype_factory_base import (
     BasicRegistrationFactory,
@@ -49,7 +50,7 @@ BITS_TO_UINT = {8: np.ubyte, 16: np.uint16, 32: np.uint32, 64: np.uint64}
 
 # date when the min integration time was changed from 1.0s to 0.5s needed to fix count and time
 # offset issue
-MIN_INT_TIME_CHANGE = datetime(2021, 9, 6, 13, tzinfo=datetime.timezone.utc)
+MIN_INT_TIME_CHANGE = datetime(2021, 9, 6, 13, tzinfo=pytz.UTC)
 
 
 def read_qtable(file, hdu, hdul=None):

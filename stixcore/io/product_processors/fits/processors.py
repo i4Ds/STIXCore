@@ -723,22 +723,23 @@ class FitsL0Processor:
         # if not isinstance(product.obt_beg, SCETime):
         #     raise ValueError("Expected SCETime as time format")
 
+        scet_timerange = product.scet_timerange
         headers = FitsProcessor.generate_common_header(filename, product, version=version) + (
             # Name, Value, Comment
             # ('MJDREF', product.obs_beg.mjd),
             # ('DATEREF', product.obs_beg.fits),
-            ("OBT_BEG", product.scet_timerange.start.as_float().value, "Start acquisition time in OBT"),
-            ("OBT_END", product.scet_timerange.end.as_float().value, "End acquisition time in OBT"),
+            ("OBT_BEG", scet_timerange.start.as_float().value, "Start acquisition time in OBT"),
+            ("OBT_END", scet_timerange.end.as_float().value, "End acquisition time in OBT"),
             ("TIMESYS", "OBT", "System used for time keywords"),
             ("LEVEL", "L0", "Processing level of the data"),
-            ("DATE-OBS", product.scet_timerange.start.to_string(), "Depreciated, same as DATE-BEG"),
-            ("DATE-BEG", product.scet_timerange.start.to_string(), "Start time of observation"),
-            ("DATE-AVG", product.scet_timerange.avg.to_string(), "Average time of observation"),
-            ("DATE-END", product.scet_timerange.end.to_string(), "End time of observation"),
+            ("DATE-OBS", scet_timerange.start.to_string(), "Depreciated, same as DATE-BEG"),
+            ("DATE-BEG", scet_timerange.start.to_string(), "Start time of observation"),
+            ("DATE-AVG", scet_timerange.avg.to_string(), "Average time of observation"),
+            ("DATE-END", scet_timerange.end.to_string(), "End time of observation"),
             ("DATAMIN", product.dmin, "Minimum valid physical value"),
             ("DATAMAX", product.dmax, "Maximum valid physical value"),
             ("BUNIT", product.bunit, "Units of physical value, after application of BSCALE, BZERO"),
-            ("XPOSURE", product.exposure, "[s] shortest exposure time"),
+            ("XPOSURE", product.min_exposure, "[s] shortest exposure time"),
             ("XPOMAX", product.max_exposure, "[s] maximum exposure time"),
         )
 
@@ -782,7 +783,7 @@ class FitsL1Processor(FitsL0Processor):
             ("DATAMIN", empty_if_nan(product.dmin), "Minimum valid physical value"),
             ("DATAMAX", empty_if_nan(product.dmax), "Maximum valid physical value"),
             ("BUNIT", product.bunit, "Units of physical value, after application of BSCALE, BZERO"),
-            ("XPOSURE", empty_if_nan(product.exposure), "[s] shortest exposure time"),
+            ("XPOSURE", empty_if_nan(product.min_exposure), "[s] shortest exposure time"),
             ("XPOMAX", empty_if_nan(product.max_exposure), "[s] maximum exposure time"),
         )
 
@@ -1000,7 +1001,7 @@ class FitsL2Processor(FitsL1Processor):
             ("DATAMIN", empty_if_nan(product.dmin), "Minimum valid physical value"),
             ("DATAMAX", empty_if_nan(product.dmax), "Maximum valid physical value"),
             ("BUNIT", product.bunit, "Units of physical value, after application of BSCALE, BZERO"),
-            ("XPOSURE", empty_if_nan(product.exposure), "[s] shortest exposure time"),
+            ("XPOSURE", empty_if_nan(product.min_exposure), "[s] shortest exposure time"),
             ("XPOMAX", empty_if_nan(product.max_exposure), "[s] maximum exposure time"),
         )
 

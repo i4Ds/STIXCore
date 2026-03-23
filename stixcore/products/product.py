@@ -3,6 +3,8 @@ from datetime import datetime
 from itertools import chain
 
 import numpy as np
+import pytz
+from sunpy.time.timerange import TimeRange
 from sunpy.util.datatype_factory_base import (
     BasicRegistrationFactory,
     MultipleMatchError,
@@ -17,6 +19,7 @@ from astropy.time import Time
 
 import stixcore.processing.decompression as decompression
 import stixcore.processing.engineering as engineering
+from stixcore.ephemeris.manager import Spice
 from stixcore.idb.manager import IDBManager
 from stixcore.time import SCETime, SCETimeDelta, SCETimeRange
 from stixcore.tmtc.packet_factory import Packet
@@ -47,7 +50,7 @@ BITS_TO_UINT = {8: np.ubyte, 16: np.uint16, 32: np.uint32, 64: np.uint64}
 
 # date when the min integration time was changed from 1.0s to 0.5s needed to fix count and time
 # offset issue
-MIN_INT_TIME_CHANGE = datetime(2021, 9, 6, 13)
+MIN_INT_TIME_CHANGE = datetime(2021, 9, 6, 13, tzinfo=pytz.UTC)
 
 
 def read_qtable(file, hdu, hdul=None):
@@ -211,7 +214,9 @@ class BaseProduct:
 
 class ProductFactory(BasicRegistrationFactory):
     def __call__(self, *args, **kwargs):
-        if len(args) == 1 and len(kwargs) == 0:
+        get_timeformat_from_TIMESYS = kwargs.get("get_timeformat_from_TIMESYS", False)
+
+        if len(args) == 1:
             if isinstance(args[0], (str, Path)):
                 file_path = Path(args[0])
                 pri_header = fits.getheader(file_path)
@@ -258,8 +263,24 @@ class ProductFactory(BasicRegistrationFactory):
                         ssid = 34
 
                 if level not in ["LB", "LL01"] and "timedel" in data.colnames and "time" in data.colnames:
-                    data["timedel"] = SCETimeDelta(data["timedel"])
-                    offset = SCETime.from_float(pri_header["OBT_BEG"] * u.s)
+                    if level in ["L0", "L1"] and not get_timeformat_from_TIMESYS:
+                        # L0 and L1 date are open by default in SCETime format so we can directly apply the timedelta
+                        data["timedel"] = SCETimeDelta(data["timedel"])
+                        offset = SCETime.from_float(pri_header["OBT_BEG"] * u.s)
+                    else:
+                        # in L2 and higher the time format should not be in SCETime format
+                        # select the time format based on available header keywords
+                        offset = None
+                        if pri_header.get("TIMESYS", "") == "UTC":
+                            try:
+                                offset = Time(pri_header["DATE-OBS"])
+                            except ValueError:
+                                offset = None
+
+                        # fallback to OBT_BEG if no TIMESYS=UTC or DATE-OBS is present or can not be parsed
+                        if offset is None:
+                            offset = SCETime.from_float(pri_header["OBT_BEG"] * u.s)
+                            data["timedel"] = SCETimeDelta(data["timedel"])
 
                     try:
                         control["time_stamp"] = SCETime.from_float(control["time_stamp"])
@@ -535,10 +556,25 @@ class GenericProduct(BaseProduct):
 
     @property
     def scet_timerange(self):
-        return SCETimeRange(
-            start=self.data["time"][0] - self.data["timedel"][0] / 2,
-            end=self.data["time"][-1] + self.data["timedel"][-1] / 2,
-        )
+        if isinstance(self.data["time"], SCETime):
+            return SCETimeRange(
+                start=self.data["time"][0] - self.data["timedel"][0] / 2,
+                end=self.data["time"][-1] + self.data["timedel"][-1] / 2,
+            )
+        else:
+            logger.warning(
+                "internal time format is not in SCETime format, scet_timerange will be approximated using Spice. Better to work with utc_timerange property to avoid automatic time conversion"
+            )
+            start_str = Spice.instance.datetime_to_scet((self.data["time"][0] - self.data["timedel"][0] / 2).datetime)
+            end_str = Spice.instance.datetime_to_scet((self.data["time"][-1] + self.data["timedel"][-1] / 2).datetime)
+            if "/" in start_str:
+                start_str = start_str.split("/")[-1]
+            if "/" in end_str:
+                end_str = end_str.split("/")[-1]
+            return SCETimeRange(
+                start=SCETime.from_string(start_str),
+                end=SCETime.from_string(end_str),
+            )
 
     @property
     def raw(self):
@@ -564,7 +600,7 @@ class GenericProduct(BaseProduct):
         return " "
 
     @property
-    def exposure(self):
+    def min_exposure(self):
         # default for FITS HEADER
         return 0.0
 
@@ -644,6 +680,12 @@ class GenericProduct(BaseProduct):
         if not isinstance(other, type(self)):
             raise TypeError(f"Products must of same type not {type(self)} and {type(other)}")
 
+        if "time" in self.data.colnames and "time" in other.data.colnames:
+            if type(self.data["time"]) is not type(other.data["time"]):
+                raise TypeError(
+                    f"Products must have the same time format not {type(self.data['time'])} and {type(other.data['time'])}"
+                )
+
         # make a deep copy of the data and control
         other_control = other.control[:]
         other_data = other.data[:]
@@ -667,8 +709,10 @@ class GenericProduct(BaseProduct):
 
         # Fits write we do np.around(time - start_time).as_float().to(u.cs)).astype("uint32"))
         # So need to do something similar here to avoid comparing un-rounded value to rounded values
-        data["time_float"] = np.around((data["time"] - data["time"].min()).as_float().to("cs"))
-
+        if isinstance(data["time"], SCETime):
+            data["time_float"] = np.around((data["time"] - data["time"].min()).as_float().to("cs"))
+        else:  # datetime or Time
+            data["time_float"] = np.around((data["time"] - data["time"].min()).to("cs"))
         # remove duplicate data based on time bin and sort the data
         data = unique(data, keys=["time_float"])
         # data.sort(["time_float"])
@@ -863,12 +907,18 @@ class CountDataMixin:
         return "counts"
 
     @property
-    def exposure(self):
-        return self.data["timedel"].as_float().min().to_value("s")
+    def min_exposure(self):
+        if isinstance(self.data["timedel"], SCETimeDelta):
+            return self.data["timedel"].as_float().min().to_value("s")
+        else:
+            return self.data["timedel"].min().to_value("s")
 
     @property
     def max_exposure(self):
-        return self.data["timedel"].as_float().max().to_value("s")
+        if isinstance(self.data["timedel"], SCETimeDelta):
+            return self.data["timedel"].as_float().max().to_value("s")
+        else:
+            return self.data["timedel"].max().to_value("s")
 
 
 class EnergyChannelsMixin:
@@ -925,7 +975,13 @@ class L1Mixin(FitsHeaderMixin):
 
     @property
     def utc_timerange(self):
-        return self.scet_timerange.to_timerange()
+        if isinstance(self.data["time"], SCETime):
+            return self.scet_timerange.to_timerange()
+        else:
+            return TimeRange(
+                (self.data["time"][0] - self.data["timedel"][0] / 2),
+                (self.data["time"][-1] + self.data["timedel"][-1] / 2),
+            )
 
     @classmethod
     def from_level0(cls, l0product, parent=""):
@@ -951,10 +1007,10 @@ class L1Mixin(FitsHeaderMixin):
             if idbs[0] < (2, 26, 36) and len(l1.data) > 1:
                 # Check if request was at min configured time resolution
                 if (
-                    l1.utc_timerange.start.datetime < MIN_INT_TIME_CHANGE
+                    l0product.scet_timerange.start.to_datetime() < MIN_INT_TIME_CHANGE
                     and l1.data["timedel"].as_float().min() == 1 * u.s
                 ) or (
-                    l1.utc_timerange.start.datetime >= MIN_INT_TIME_CHANGE
+                    l0product.scet_timerange.start.to_datetime() >= MIN_INT_TIME_CHANGE
                     and l1.data["timedel"].as_float().min() == 0.5 * u.s
                 ):
                     l1.data["timedel"][1:-1] = l1.data["timedel"][:-2]
@@ -972,7 +1028,13 @@ class L1Mixin(FitsHeaderMixin):
 class L2Mixin(FitsHeaderMixin):
     @property
     def utc_timerange(self):
-        return self.scet_timerange.to_timerange()
+        if isinstance(self.data["time"], SCETime):
+            return self.scet_timerange.to_timerange()
+        else:
+            return TimeRange(
+                (self.data["time"][0] - self.data["timedel"][0] / 2).datetime,
+                (self.data["time"][-1] + self.data["timedel"][-1] / 2).datetime,
+            )
 
     @classmethod
     def get_additional_extensions(cls):

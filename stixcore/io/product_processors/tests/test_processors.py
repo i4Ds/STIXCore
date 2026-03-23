@@ -191,13 +191,13 @@ def test_count_data_mixin(p_file):
     p = Product(p_file)
     assert p.dmin == p.data["counts"].min().value
     assert p.dmax == p.data["counts"].max().value
-    assert p.exposure == p.data["timedel"].min().as_float().to_value()
+    assert p.min_exposure == p.data["timedel"].min().as_float().to_value()
     assert p.max_exposure == p.data["timedel"].max().as_float().to_value()
 
     test_data = {
         "DATAMAX": p.dmax,
         "DATAMIN": p.dmin,
-        "XPOSURE": p.exposure,
+        "XPOSURE": p.min_exposure,
         "XPOMAX": p.max_exposure,
         "BUNIT": "counts",
     }
@@ -257,7 +257,7 @@ def test_level1_processor_generate_primary_header(product, soop_manager):
     product.dmax = 1
     product.dunit = ""
     product.max_exposure = 1
-    product.exposure = 1
+    product.min_exposure = 1
     product.service_type = 1
     product.service_subtype = 2
     product.ssid = 3

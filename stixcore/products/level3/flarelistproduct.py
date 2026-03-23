@@ -4,8 +4,11 @@ from sunpy.time.timerange import TimeRange
 from stixcore.ephemeris.manager import Spice
 from stixcore.products.product import GenericProduct, L3Mixin
 from stixcore.time.datetime import SCETime, SCETimeRange
+from stixcore.util.logging import get_logger
 
 __all__ = ["FlareListProduct", "PeekPreviewImage"]
+
+logger = get_logger(__name__)
 
 
 class FlareListProduct(GenericProduct, L3Mixin):
@@ -47,6 +50,9 @@ class PeekPreviewImage(FlareListProduct):
     @property
     def scet_timerange(self):
         tr = self.utc_timerange
+        logger.warning(
+            "scet_timerange will be approximated using Spice. Better to work with utc_timerange property to avoid automatic time conversion"
+        )
         start = SCETime.from_string(Spice.instance.datetime_to_scet(tr.start)[2:])
         end = SCETime.from_string(Spice.instance.datetime_to_scet(tr.end)[2:])
         return SCETimeRange(start=start, end=end)

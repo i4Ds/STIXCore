@@ -73,8 +73,8 @@ def test_complete(orig_fits, current_fits):
         raise ValueError(f"{error_c} errors out of {len(orig_fits)}\nnumber of fits files differ")
 
 
-@pytest.mark.remote_data
 @pytest.mark.end2end
+@pytest.mark.remote_data
 def test_identical(orig_fits, current_fits):
     error_c = 0
     error_files = list()

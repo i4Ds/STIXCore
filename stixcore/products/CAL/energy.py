@@ -81,7 +81,7 @@ class EnergyCalibration(GenericProduct, EnergyChannelsMixin, L2Mixin):
         return "keV"
 
     @property
-    def exposure(self):
+    def min_exposure(self):
         # default for FITS HEADER
         return self.control["integration_time"].min().to_value(u.s)
 

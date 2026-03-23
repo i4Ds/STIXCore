@@ -3,7 +3,6 @@ from datetime import datetime
 from itertools import chain
 
 import numpy as np
-import pytz
 from sunpy.time.timerange import TimeRange
 from sunpy.util.datatype_factory_base import (
     BasicRegistrationFactory,
@@ -50,7 +49,7 @@ BITS_TO_UINT = {8: np.ubyte, 16: np.uint16, 32: np.uint32, 64: np.uint64}
 
 # date when the min integration time was changed from 1.0s to 0.5s needed to fix count and time
 # offset issue
-MIN_INT_TIME_CHANGE = datetime(2021, 9, 6, 13, tzinfo=pytz.UTC)
+MIN_INT_TIME_CHANGE = datetime(2021, 9, 6, 13, tzinfo=datetime.timezone.utc)
 
 
 def read_qtable(file, hdu, hdul=None):
@@ -1029,7 +1028,7 @@ class L2Mixin(FitsHeaderMixin):
     @property
     def utc_timerange(self):
         if isinstance(self.data["time"], SCETime):
-            self.scet_timerange.to_timerange()
+            return self.scet_timerange.to_timerange()
         else:
             return TimeRange(
                 (self.data["time"][0] - self.data["timedel"][0] / 2).datetime,

@@ -613,16 +613,21 @@ class GenericProduct(BaseProduct):
         return 0.0
 
     def on_serialize(self, data):
-        """Hook called before writing data to FITS. Mixins override and chain via super()."""
-        s = super()
-        if hasattr(s, "on_serialize"):
-            s.on_serialize(data)
+        """Hook called before writing data to FITS. Mixins override and chain via super().
 
-    def on_deserialize(self, data):
+        Uses getattr so plain products without functional mixins are safe —
+        the functional mixins (FlarePositionMixin etc.) appear after GenericProduct
+        in the MRO, so pass would stop the chain before reaching them.
+        """
+        serialize = getattr(super(), "on_serialize", None)
+        if serialize is not None:
+            serialize(data)
+
+    def on_deserialize(self, data, **kwargs):
         """Hook called after reading data from FITS. Mixins override and chain via super()."""
-        s = super()
-        if hasattr(s, "on_deserialize"):
-            s.on_deserialize(data)
+        deserialize = getattr(super(), "on_deserialize", None)
+        if deserialize is not None:
+            deserialize(data, **kwargs)
 
     def find_parent_products(self, root):
         """

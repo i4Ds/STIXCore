@@ -823,10 +823,11 @@ class FitsL1Processor(FitsL0Processor):
             if default[0] not in soop_key_names:
                 soop_headers += tuple([default])
 
+        scet_range = product.scet_timerange
         time_headers = (
             # Name, Value, Comment
-            ("OBT_BEG", product.scet_timerange.start.as_float().value, "Start of acquisition time in OBT"),
-            ("OBT_END", product.scet_timerange.end.as_float().value, "End of acquisition time in OBT"),
+            ("OBT_BEG", scet_range.start.as_float().value, "Start of acquisition time in OBT"),
+            ("OBT_END", scet_range.end.as_float().value, "End of acquisition time in OBT"),
             ("TIMESYS", "UTC", "System used for time keywords"),
             ("LEVEL", "L1", "Processing level of the data"),
             ("DATE-OBS", product.utc_timerange.start.fits, "Start of acquisition time in UTC"),

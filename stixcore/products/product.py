@@ -74,7 +74,10 @@ def read_qtable(file, hdu, hdul=None):
     `astropy.table.QTable`
         The corrected QTable with correct data types
     """
-    qtable = QTable.read(file, hdu, astropy_native=True)
+    astropy_native = True
+    if (hdu.upper() == "DATA") and (file.name.startswith("solo_L0_stix-sci-aspect-burst")):
+        astropy_native = False
+    qtable = QTable.read(file, hdu, astropy_native=astropy_native)
     if hdul is None:
         hdul = fits.open(file)
 
@@ -91,11 +94,12 @@ def read_qtable(file, hdu, hdul=None):
 
             if hasattr(dtype, "subdtype"):
                 dtype = dtype.base
-
+            # qtable[col.name] = qtable[col.name].astype(dtype)
             if col.coord_type != "UTC":
                 qtable[col.name] = qtable[col.name].astype(dtype)
             else:
-                qtable[col.name].format = "isot"
+                # qtable[col.name].format = "isot"
+                pass
 
     return qtable
 

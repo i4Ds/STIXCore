@@ -37,6 +37,7 @@ def flare_data():
 
     data = QTable()
     data["peak_UTC"] = peak_times
+    data["location_time_UTC"] = peak_times
     data["start_UTC"] = peak_times - 60 * u.s
     data["end_UTC"] = peak_times + 60 * u.s
     data["duration"] = np.ones(N) * 120 * u.s
@@ -97,7 +98,7 @@ def test_flarelist_sdcloc_fits_stores_icrs(written_fits):
     assert "location_icrs" in raw.colnames, "ICRS column should be present in FITS"
 
     # manually transform ICRS back to HGS and compare with original
-    obstime = Time(raw["peak_UTC"])
+    obstime = Time(raw["location_time_UTC"])
     hgs = raw["location_icrs"].transform_to(HeliographicStonyhurst(obstime=obstime))
     assert_quantity_allclose(hgs.lon, orig_hgs_lon, atol=1e-6 * u.deg, equal_nan=True)
     assert_quantity_allclose(hgs.lat, orig_hgs_lat, atol=1e-6 * u.deg, equal_nan=True)

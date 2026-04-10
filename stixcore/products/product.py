@@ -98,8 +98,7 @@ def read_qtable(file, hdu, hdul=None):
             if col.coord_type != "UTC":
                 qtable[col.name] = qtable[col.name].astype(dtype)
             else:
-                # qtable[col.name].format = "isot"
-                pass
+                qtable[col.name].format = "isot"
 
     return qtable
 

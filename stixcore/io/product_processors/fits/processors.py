@@ -1068,7 +1068,8 @@ class FitsANCProcessor(FitsL2Processor):
         elif fitspath_complete.exists():
             logger.warning("Complete Fits file %s exists will be overridden", fitspath.name)
 
-        data = prod.data
+        data = prod.data.copy()
+        prod.on_serialize(data)
 
         primary_header, header_override = self.generate_primary_header(filename, prod, version=version)
         primary_hdu = fits.PrimaryHDU()

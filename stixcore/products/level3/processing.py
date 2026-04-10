@@ -177,7 +177,7 @@ def estimate_stix_flare_location(
     wcs_bp = map_bp.wcs
     # Estimate flare location from brightest pixel in backprojection image
     flare_loc = wcs_bp.array_index_to_world(*max_idx)
-    return flare_loc, map_bp
+    return flare_loc, map_bp, solo
 
 
 def _subtract_background_from_stix_meta_pixels(meta_pixels_sci, meta_pixels_bkg):

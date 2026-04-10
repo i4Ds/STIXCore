@@ -274,7 +274,7 @@ def run_daily_pipeline(args):
 
         # TODO reactivate once flarelist processing is finalized
         fl_sdc_months = flarelist_sdc.find_processing_months(phs)
-        fl_sdc_months = []
+        # fl_sdc_months = []
 
         # TODO reactivate once flarelist processing is finalized
         # fl_sc_months = flarelist_sc.find_processing_months(phs)
@@ -282,7 +282,10 @@ def run_daily_pipeline(args):
 
         # TODO reactivate once flarelist processing is finalized
         fl_to_fl_files = fl_to_fl.get_processing_files(phs)
+        # fl_to_fl_files = fl_to_fl_files[2:-1]
         # fl_to_fl_files = []
+
+        fl_to_fl_files = [f for f in fl_to_fl_files if "/2023/" in str(f[2])]
 
         # all processing files should be terminated before the next step as the different
         # processing steeps might create new candidates

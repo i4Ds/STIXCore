@@ -388,6 +388,20 @@ class Spice(SpiceKernelLoader, metaclass=Singleton):
 
         return rsun_arc
 
+    def get_earth_solo_time_shift(self, *, date):
+        """gets Time(Sun to Earth) - Time(Sun to S/C)
+
+        Returns
+        -------
+        `astropy.units.Quantity`
+            Time difference between Sun to Earth and Sun to S/C in seconds
+        """
+        et = spiceypy.scs2e(SOLAR_ORBITER_ID, str(date))
+        solo_sun_hg, sun_solo_lt = spiceypy.spkezr("SOLO", et, "SUN_EARTH_CEQU", "None", "Sun")
+        sun_earth_hee, sun_earth_lt = spiceypy.spkezr("Earth", et, "SOLO_HEE", "None", "Sun")
+
+        return (sun_earth_lt - sun_solo_lt) * u.s
+
     def get_position(self, *, date, frame):
         """
         Get the position of SolarOrbiter at the given date in the given coordinate frame.

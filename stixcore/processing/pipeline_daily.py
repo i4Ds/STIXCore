@@ -285,7 +285,7 @@ def run_daily_pipeline(args):
         # fl_to_fl_files = fl_to_fl_files[2:-1]
         # fl_to_fl_files = []
 
-        fl_to_fl_files = [f for f in fl_to_fl_files if "/2023/" in str(f[2])]
+        fl_to_fl_files = [f for f in fl_to_fl_files if "/2024/" in str(f[2])]
 
         # all processing files should be terminated before the next step as the different
         # processing steeps might create new candidates

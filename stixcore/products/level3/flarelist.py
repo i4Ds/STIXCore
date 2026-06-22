@@ -27,7 +27,7 @@ from astropy.time import Time
 from stixcore.config.config import CONFIG
 from stixcore.ephemeris.manager import Spice
 from stixcore.products.level3.flarelistproduct import PeakPreviewImage
-from stixcore.products.level3.processing import estimate_stix_flare_location
+from stixcore.products.level3.processing import stx_estimate_flare_location
 from stixcore.products.product import CountDataMixin, GenericProduct, L2Mixin, read_qtable
 from stixcore.soop.manager import SOOPManager
 from stixcore.time import SCETime, SCETimeRange
@@ -159,9 +159,12 @@ class FlarePositionMixin(_SerializeMixin):
                             np.nan * u.km,
                             np.nan * u.km,
                             peak_time,
+                            0 * u.s,
                             np.nan * u.km,
                             np.nan * u.km,
                             np.nan * u.km,
+                            0,
+                            np.nan,
                         )
                     )
                     anc_ephemeris_paths.append(_anc_path)
@@ -190,9 +193,12 @@ class FlarePositionMixin(_SerializeMixin):
                             np.nan * u.km,
                             np.nan * u.km,
                             peak_time,
+                            0 * u.s,
                             np.nan * u.km,
                             np.nan * u.km,
                             np.nan * u.km,
+                            0,
+                            np.nan,
                         )
                     )
                     anc_ephemeris_paths.append(_anc_path)
@@ -253,8 +259,12 @@ class FlarePositionMixin(_SerializeMixin):
                         contains_peak_time = True
                         time_range = overlaps
 
-                    mask = (stixpy_cpd.data["time"] >= time_range.start) & (stixpy_cpd.data["time"] <= time_range.end)
+                    _times = stixpy_cpd.data["time"]
+                    _half_bin = stixpy_cpd.data["timedel"] / 2
+                    mask = (_times + _half_bin >= time_range.start) & (_times - _half_bin <= time_range.end)
                     data_at_peak = stixpy_cpd.data[mask]
+                    energy_range = [4, 16] * u.keV
+
                     if len(np.unique(data_at_peak["rcr"])) > 1:
                         logger.warning(
                             f"Multiple rcr values found for flare at time {time_range.start} : {time_range.end}"
@@ -264,9 +274,7 @@ class FlarePositionMixin(_SerializeMixin):
                             time_range = TimeRange(
                                 max(peak_time - 40 * u.s, start_time), min(peak_time + 40 * u.s, end_time)
                             )
-                            mask = (stixpy_cpd.data["time"] >= time_range.start) & (
-                                stixpy_cpd.data["time"] <= time_range.end
-                            )
+                            mask = (_times + _half_bin >= time_range.start) & (_times - _half_bin <= time_range.end)
                             data_at_peak = stixpy_cpd.data[mask]
                         length, start_idx, rcr = longest_constant_sequence(data_at_peak["rcr"].value)
                         time_range = TimeRange(
@@ -276,13 +284,31 @@ class FlarePositionMixin(_SerializeMixin):
                             f"Using time range {time_range.start} to {time_range.end} for flare at around {peak_time} with constant rcr={rcr}"
                         )
 
-                    center_time = time_range.center
-                    flare_loc, _, solo = estimate_stix_flare_location(stixpy_cpd, time_range=time_range)
+                    rcr_at_peak = data_at_peak["rcr"].max()
+                    if rcr_at_peak > 0:
+                        energy_range = [4, 25] * u.keV
+
+                    _, flare_loc, sidelobe, solo, img_time_range = stx_estimate_flare_location(
+                        stixpy_cpd, time_range, energy_range
+                    )
 
                     with SphericalScreen(solo, only_off_disk=True):
-                        center_hgs = flare_loc.transform_to(HeliographicStonyhurst(obstime=center_time)).cartesian
+                        center_hgs = flare_loc.transform_to(
+                            HeliographicStonyhurst(obstime=img_time_range.center)
+                        ).cartesian
                         solo_cartesian_list.append(
-                            (center_hgs.x, center_hgs.y, center_hgs.z, center_time, solo.x, solo.y, solo.z)
+                            (
+                                center_hgs.x,
+                                center_hgs.y,
+                                center_hgs.z,
+                                img_time_range.center,
+                                img_time_range.seconds,
+                                solo.x,
+                                solo.y,
+                                solo.z,
+                                rcr_at_peak,
+                                sidelobe,
+                            )
                         )
 
                     _status = True
@@ -297,9 +323,12 @@ class FlarePositionMixin(_SerializeMixin):
                             np.nan * u.km,
                             np.nan * u.km,
                             peak_time,
+                            0 * u.s,
                             np.nan * u.km,
                             np.nan * u.km,
                             np.nan * u.km,
+                            0,
+                            np.nan,
                         )
                     )
                 anc_ephemeris_paths.append(_anc_path)
@@ -315,9 +344,12 @@ class FlarePositionMixin(_SerializeMixin):
                         np.nan * u.km,
                         np.nan * u.km,
                         peak_time,
+                        0 * u.s,
                         np.nan * u.km,
                         np.nan * u.km,
                         np.nan * u.km,
+                        0,
+                        np.nan,
                     )
                 )
                 anc_ephemeris_paths.append(_anc_path)
@@ -340,7 +372,9 @@ class FlarePositionMixin(_SerializeMixin):
         data["_position_message"] = position_messages
         data["_position_message"].info.description = "Message describing the status of the flare position calculation"
 
-        flare_x, flare_y, flare_z, solo_times, solo_x, solo_y, solo_z = zip(*solo_cartesian_list)
+        flare_x, flare_y, flare_z, solo_times, duration, solo_x, solo_y, solo_z, rcr_at_peak, sidelobe = zip(
+            *solo_cartesian_list
+        )
         solo_times = Time(solo_times)
 
         hgs_coords = SkyCoord(
@@ -368,8 +402,13 @@ class FlarePositionMixin(_SerializeMixin):
         data["solo_location_hgs"] = solo_coords
         data["solo_location_hgs"].info.description = "SOLO location in Heliographic Stonyhurst coordinates"
 
-        # data["location_hgc"] = hgc_coords
-        # data["location_hgc"].info.description = "Flare location in Heliographic Carrington coordinates seen from Earth"
+        data["sidelobes_ratio"] = sidelobe
+        data["sidelobes_ratio"].info.description = "Ratio of sidelobes in the STIX image used to assess imaging quality"
+
+        data["rcr_at_peak"] = rcr_at_peak
+        data[
+            "rcr_at_peak"
+        ].info.description = "max rcr level at flare location estimation time range, > 0 attenuator in place"
 
         data["visible_from_earth"] = FlarePositionMixin.is_visible(hp_coords)
         data[
@@ -377,7 +416,10 @@ class FlarePositionMixin(_SerializeMixin):
         ].info.description = "Whether the flare location is visible from Earth (not occulted by the Sun)"
 
         data[location_time_colname] = solo_times
-        data[location_time_colname].info.description = "time used for flare location estimation in UTC"
+        data[location_time_colname].info.description = "time center used for flare location estimation in UTC"
+
+        data["location_duration"] = duration
+        data["location_duration"].info.description = "duration of the flare location estimation time range"
 
         (
             time_shift,

@@ -3,6 +3,7 @@ from datetime import date
 import numpy as np
 import pytest
 from sunpy.coordinates import HeliographicStonyhurst
+from sunpy.time import TimeRange
 
 import astropy.units as u
 from astropy.coordinates import SkyCoord
@@ -12,7 +13,11 @@ from astropy.tests.helper import assert_quantity_allclose
 from astropy.time import Time
 
 from stixcore.io.product_processors.fits.processors import FitsL3Processor
-from stixcore.products.level3.flarelist import FlarelistSDCLoc
+from stixcore.products.level3.flarelist import (
+    FlarelistSDCLoc,
+    calculate_overlap,
+    longest_constant_sequence,
+)
 from stixcore.products.product import Product
 
 N = 10
@@ -102,3 +107,85 @@ def test_flarelist_sdcloc_fits_stores_icrs(written_fits):
     hgs = raw["location_icrs"].transform_to(HeliographicStonyhurst(obstime=obstime))
     assert_quantity_allclose(hgs.lon, orig_hgs_lon, atol=1e-6 * u.deg, equal_nan=True)
     assert_quantity_allclose(hgs.lat, orig_hgs_lat, atol=1e-6 * u.deg, equal_nan=True)
+
+
+# --- longest_constant_sequence ---
+
+
+def test_lcs_empty():
+    length, start, state = longest_constant_sequence([])
+    assert length == 0
+    assert start is None
+    assert state is None
+
+
+def test_lcs_single_element():
+    length, start, state = longest_constant_sequence([5])
+    assert length == 1
+    assert start == 0
+    assert state == 5
+
+
+def test_lcs_all_same():
+    length, start, state = longest_constant_sequence([3, 3, 3, 3])
+    assert length == 4
+    assert start == 0
+    assert state == 3
+
+
+def test_lcs_clear_winner():
+    length, start, state = longest_constant_sequence([1, 2, 2, 2, 3, 3])
+    assert length == 3
+    assert start == 1
+    assert state == 2
+
+
+def test_lcs_tie_prefers_lower_state():
+    # two runs of length 2: state=1 at index 0, state=3 at index 2
+    length, start, state = longest_constant_sequence([1, 1, 3, 3])
+    assert length == 2
+    assert start == 0
+    assert state == 1
+
+
+def test_lcs_numpy_array():
+    arr = np.array([0, 0, 1, 1, 1, 0])
+    length, start, state = longest_constant_sequence(arr)
+    assert length == 3
+    assert start == 2
+    assert state == 1
+
+
+# --- calculate_overlap ---
+
+
+def test_overlap_no_intersection():
+    r1 = TimeRange("2024-01-01T00:00:00", "2024-01-01T01:00:00")
+    r2 = TimeRange("2024-01-01T02:00:00", "2024-01-01T03:00:00")
+    assert calculate_overlap(r1, r2) is None
+
+
+def test_overlap_partial():
+    r1 = TimeRange("2024-01-01T00:00:00", "2024-01-01T02:00:00")
+    r2 = TimeRange("2024-01-01T01:00:00", "2024-01-01T03:00:00")
+    result = calculate_overlap(r1, r2)
+    assert result is not None
+    assert result.start == Time("2024-01-01T01:00:00")
+    assert result.end == Time("2024-01-01T02:00:00")
+
+
+def test_overlap_contained():
+    r1 = TimeRange("2024-01-01T00:00:00", "2024-01-01T04:00:00")
+    r2 = TimeRange("2024-01-01T01:00:00", "2024-01-01T03:00:00")
+    result = calculate_overlap(r1, r2)
+    assert result is not None
+    assert result.start == Time("2024-01-01T01:00:00")
+    assert result.end == Time("2024-01-01T03:00:00")
+
+
+def test_overlap_identical():
+    r1 = TimeRange("2024-01-01T00:00:00", "2024-01-01T01:00:00")
+    result = calculate_overlap(r1, r1)
+    assert result is not None
+    assert result.start == r1.start
+    assert result.end == r1.end

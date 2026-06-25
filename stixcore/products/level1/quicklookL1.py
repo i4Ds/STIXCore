@@ -249,10 +249,16 @@ class EnergyCalibration(QLProduct, L1Mixin):
         # fix for wrong calibration in IDB https://github.com/i4Ds/STIXCore/issues/432
         # nix00122 was wrong assumed to be in ds but it is plain s
         l1.control["integration_time"] = l1.control["integration_time"] * 10
+        # rescale for idb >= 36
+        scale_lt = 100.0
+        scale_qt = 100000.0
+        if max([int(vl.split(".")[2]) for vl in l1.idb_versions.keys()]) < 36:
+            scale_lt = 1
+            scale_qt = 0.1
         # nix00124 was wrong assumed to be in ds but it is unscaled ms
-        l1.control["live_time"] = (l1.control["live_time"] / 100.0).to("ms").astype(np.uint32)
+        l1.control["live_time"] = (l1.control["live_time"] / scale_lt).to("ms").astype(np.uint32)
         # nix00124 was wrong assumed to be in s but it is us
-        l1.control["quiet_time"] = (l1.control["quiet_time"] / 100000.0).to("us")
+        l1.control["quiet_time"] = (l1.control["quiet_time"] / scale_qt).to("us")
         return l1
 
 

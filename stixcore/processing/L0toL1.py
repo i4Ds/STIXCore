@@ -50,8 +50,8 @@ class Level1:
             batch = 0
             prio = 3
             product_type = str(file.parent)
-            if "L0" in file._parts:
-                product_type = tuple(map(int, file._parts[file._parts.index("L0") + 1 : -1]))
+            if "L0" in file.parts:
+                product_type = tuple(map(int, file.parts[file.parts.index("L0") + 1 : -1]))
                 if product_type[0] == 21 and product_type[-1] in {20, 21, 22, 23, 24, 42}:  # sci data
                     product_types_batch[product_type] += 1
                     prio = 2

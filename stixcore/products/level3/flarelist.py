@@ -788,7 +788,7 @@ class FlarelistSDC(FlareList, FlareSOOPMixin):
     In L3 product format.
     """
 
-    PRODUCT_PROCESSING_VERSION = 2
+    PRODUCT_PROCESSING_VERSION = 3
     NAME = "sdc"
 
     def __init__(self, *, service_type=0, service_subtype=0, ssid=2, data, month, **kwargs):
@@ -844,7 +844,7 @@ class FlarelistSDCLoc(FlarelistSDC, FlarePositionMixin):
     In ANC product format.
     """
 
-    PRODUCT_PROCESSING_VERSION = 2
+    PRODUCT_PROCESSING_VERSION = 3
     NAME = "sdcloc"
 
     def __init__(self, *, service_type=0, service_subtype=0, ssid=3, data, month, **kwargs):

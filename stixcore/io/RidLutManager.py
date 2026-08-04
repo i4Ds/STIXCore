@@ -1,22 +1,162 @@
+import re
 import sys
 import time
 import tempfile
 import urllib.request
 from datetime import date, datetime, timedelta
+from collections import namedtuple
 
 import numpy as np
 
+import astropy.units as u
 from astropy.io import ascii
 from astropy.table import Table
 from astropy.table.operations import unique, vstack
+from astropy.time import Time
 
 from stixcore.config.config import CONFIG
 from stixcore.util.logging import get_logger
 from stixcore.util.singleton import Singleton
 
-__all__ = ["RidLutManager"]
+__all__ = ["RidLutManager", "BackgroundCandidate", "search_background_candidates"]
 
 logger = get_logger(__name__)
+
+#: Keywords (case-insensitive) that mark a BSD request as a background/quiet
+#: observation in the descriptive columns of the RID LUT.
+DEFAULT_BKG_KEYWORDS = ("bkg", "quiet", "background", "non-flaring")
+
+#: Negative keywords: a candidate whose descriptive text contains any of these is
+#: rejected (e.g. "elevated" background is not a clean quiet baseline).
+DEFAULT_BKG_EXCLUDE_KEYWORDS = ("elevated",)
+
+#: Matches a specific flare id referenced in a comment, e.g. "for Flare 2309081508".
+#: Such rows are flare data requests, not dedicated backgrounds.
+_FLARE_REF_RE = re.compile(r"flare\s*\d{3,}")
+
+#: A single background-request candidate from the RID LUT. ``start``/``end``/``mid``
+#: are `~astropy.time.Time`, ``side`` is ``"past"``/``"future"`` relative to the query
+#: time, and ``is_background`` is True when ``purpose == "Background"`` (a clean
+#: background request, preferred over subject-only keyword matches).
+BackgroundCandidate = namedtuple("BackgroundCandidate", ["rid", "start", "end", "mid", "side", "is_background"])
+
+
+def _col_as_lower_str(tbl, name):
+    """Return column ``name`` of ``tbl`` as a lower-cased ``str`` numpy array."""
+    col = tbl[name]
+    try:
+        col = col.filled("")
+    except (AttributeError, TypeError):
+        pass
+    return np.char.lower(np.asarray(col, dtype=str))
+
+
+def search_background_candidates(
+    rid_lut,
+    time,
+    *,
+    window_past,
+    window_future,
+    keywords=DEFAULT_BKG_KEYWORDS,
+    exclude_keywords=DEFAULT_BKG_EXCLUDE_KEYWORDS,
+    exclude_flare_comment=True,
+    purpose_penalty=1.0 * u.day,
+):
+    """Find background-request candidates in a RID LUT near ``time``.
+
+    Rows are recognised as background requests by a case-insensitive keyword
+    match (``keywords``) over the ``subject``/``purpose``/``comment`` columns,
+    then filtered and ranked:
+
+    * **exclude keywords** — a row whose text contains any of ``exclude_keywords``
+      (default ``"elevated"``) is dropped.
+    * **flare-id comment** — if ``exclude_flare_comment`` a row whose comment
+      references a specific flare id (e.g. "for Flare 2309081508") is dropped.
+    * **ranking** — **nearest-in-time first** by ``|time - start|`` (past preferred
+      on a tie), but a request with ``purpose == "Background"`` is preferred over a
+      subject-only keyword match unless the latter is more than ``purpose_penalty``
+      closer. This is implemented as an *effective* distance
+      ``|time - start| + purpose_penalty`` for non-Background rows.
+
+    ``window_past`` / ``window_future`` remain separate bounds on how far a
+    candidate's start may lie in each direction.
+
+    Parameters
+    ----------
+    rid_lut : `~astropy.table.Table`
+        The RID LUT (as produced by `RidLutManager.read_rid_lut`).
+    time : `~astropy.time.Time` or str
+        The query time (e.g. a flare peak).
+    window_past, window_future : `~astropy.units.Quantity`
+        How far back / forward from ``time`` a candidate's start may lie.
+    keywords, exclude_keywords : tuple of str, optional
+        Positive / negative case-insensitive keywords.
+    exclude_flare_comment : bool, optional
+        Drop rows whose comment references a specific flare id.
+    purpose_penalty : `~astropy.units.Quantity`, optional
+        Distance penalty added to non-``Background``-purpose candidates so a clean
+        Background request wins unless a subject-only match is clearly closer.
+
+    Returns
+    -------
+    list of BackgroundCandidate
+        Ranked by ascending effective distance (past preferred on a tie). Empty
+        if the LUT has no matching rows in range.
+    """
+    if rid_lut is None or len(rid_lut) == 0:
+        return []
+    t = time if isinstance(time, Time) else Time(time)
+
+    subj = _col_as_lower_str(rid_lut, "subject")
+    purp = _col_as_lower_str(rid_lut, "purpose")
+    comm = _col_as_lower_str(rid_lut, "comment")
+    haystack = np.char.add(np.char.add(subj, " "), np.char.add(purp, np.char.add(" ", comm)))
+
+    mask = np.zeros(len(rid_lut), dtype=bool)
+    for kw in keywords:
+        mask |= np.char.find(haystack, kw.lower()) >= 0
+    for kw in exclude_keywords:  # negative keywords drop the row
+        mask &= np.char.find(haystack, kw.lower()) < 0
+    if not np.any(mask):
+        return []
+
+    sub = rid_lut[mask]
+    purp_sub = purp[mask]
+    comm_sub = comm[mask]
+    starts = Time(np.asarray(sub["start_utc"], dtype=str), format="isot", scale="utc")
+    durations = np.asarray(sub["duration"], dtype=float) * u.s
+    ends = starts + durations
+    mids = starts + durations / 2
+    rids = np.asarray(sub["unique_id"]).astype(np.int64)
+
+    wp = window_past.to_value(u.day)
+    wf = window_future.to_value(u.day)
+    penalty = purpose_penalty.to_value(u.day)
+    kept = []
+    for i in range(len(sub)):
+        if exclude_flare_comment and _FLARE_REF_RE.search(comm_sub[i]):
+            continue
+        d = (t - starts[i]).to_value(u.day)  # > 0 starts before ``time`` (past), < 0 after (future)
+        if d >= 0:
+            if d > wp:
+                continue
+            side = "past"
+        else:
+            if -d > wf:
+                continue
+            side = "future"
+        is_bg = purp_sub[i].strip() == "background"
+        effective = abs(d) + (0.0 if is_bg else penalty)  # prefer Background at equal-ish distance
+        kept.append(
+            (
+                effective,
+                0 if side == "past" else 1,
+                BackgroundCandidate(int(rids[i]), starts[i], ends[i], mids[i], side, is_bg),
+            )
+        )
+
+    kept.sort(key=lambda x: (x[0], x[1]))
+    return [c for _, _, c in kept]
 
 
 class RidLutManager(metaclass=Singleton):
@@ -77,6 +217,13 @@ class RidLutManager(metaclass=Singleton):
         except IndexError:
             logger.warning("can't get request purpose: no request founds for rid: {rid}")
             return ""
+
+    def find_background_candidates(self, time, *, window_past, window_future, keywords=DEFAULT_BKG_KEYWORDS):
+        """Find background-request candidates near ``time`` (see
+        :func:`search_background_candidates`)."""
+        return search_background_candidates(
+            self.rid_lut, time, window_past=window_past, window_future=window_future, keywords=keywords
+        )
 
     def get_scaling_factor(self, rid):
         """Gets the trigger descaling factor connected to the BSD request.

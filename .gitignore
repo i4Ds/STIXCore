@@ -166,3 +166,4 @@ stixcore/data/test/idb/v2.26.38/idb.sqlite
 .python-version
 sunpy/_version.py
 stixcore/_version.py
+.claude/*

@@ -326,9 +326,18 @@ def main():
 
     if CONFIG.getboolean("Pipeline", "sync_tm_at_start", fallback=False):
         logger.info("start sync_tm_at_start")
+        # let rsync do the filename matching: a shell glob over the incomming dir
+        # expands to too many arguments and fails with "Argument list too long"
         res = subprocess.run(
-            f"rsync -av /data/stix/SOLSOC/from_edds/tm/incomming/*PktTmRaw*.xml {str(tmpath)}", shell=True
-        )  # noqa
+            [
+                "rsync",
+                "-av",
+                "--include=*PktTmRaw*.xml",
+                "--exclude=*",
+                "/data/stix/SOLSOC/from_edds/tm/incomming/",
+                f"{str(tmpath)}/",
+            ]
+        )
         logger.info(f"done sync_tm_at_start: {str(res)}")
 
     soop_path = Path(CONFIG.get("Paths", "soop_files"))

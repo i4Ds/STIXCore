@@ -73,7 +73,10 @@ def read_qtable(file, hdu, hdul=None):
     `astropy.table.QTable`
         The corrected QTable with correct data types
     """
-    qtable = QTable.read(file, hdu)
+    astropy_native = True
+    if (hdu.upper() == "DATA") and (file.name.startswith("solo_L0_stix-sci-aspect-burst")):
+        astropy_native = False
+    qtable = QTable.read(file, hdu, astropy_native=astropy_native)
     if hdul is None:
         hdul = fits.open(file)
 
@@ -90,7 +93,7 @@ def read_qtable(file, hdu, hdul=None):
 
             if hasattr(dtype, "subdtype"):
                 dtype = dtype.base
-
+            # qtable[col.name] = qtable[col.name].astype(dtype)
             if col.coord_type != "UTC":
                 qtable[col.name] = qtable[col.name].astype(dtype)
             else:
@@ -334,6 +337,9 @@ class ProductFactory(BasicRegistrationFactory):
                     history=history,
                     month=month,
                 )
+
+                if hasattr(p, "on_deserialize") and callable(getattr(p, "on_deserialize")):
+                    p.on_deserialize(p.data)
 
                 if hasattr(p, "get_additional_extensions") and data is not None:
                     for _, name in p.get_additional_extensions():
@@ -607,6 +613,23 @@ class GenericProduct(BaseProduct):
     def max_exposure(self):
         # default for FITS HEADER
         return 0.0
+
+    def on_serialize(self, data):
+        """Hook called before writing data to FITS. Mixins override and chain via super().
+
+        Uses getattr so plain products without functional mixins are safe —
+        the functional mixins (FlarePositionMixin etc.) appear after GenericProduct
+        in the MRO, so pass would stop the chain before reaching them.
+        """
+        serialize = getattr(super(), "on_serialize", None)
+        if serialize is not None:
+            serialize(data)
+
+    def on_deserialize(self, data, **kwargs):
+        """Hook called after reading data from FITS. Mixins override and chain via super()."""
+        deserialize = getattr(super(), "on_deserialize", None)
+        if deserialize is not None:
+            deserialize(data, **kwargs)
 
     def find_parent_products(self, root):
         """

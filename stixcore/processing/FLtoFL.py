@@ -15,7 +15,7 @@ from stixcore.processing.SingleStep import (
 )
 from stixcore.products.level3.flarelist import (
     FlareList,
-    FlarePeekPreviewMixin,
+    FlarePeakPreviewMixin,
     FlarePositionMixin,
     FlareSOOPMixin,
 )
@@ -107,7 +107,7 @@ class FLtoFL(SingleProductProcessingStepMixin):
         """
         try:
             c_header = fits.getheader(candidate)
-            f_data_end = datetime.fromisoformat(c_header["DATE-END"])
+            # f_data_end = datetime.fromisoformat(c_header["DATE-END"])
             f_create_date = datetime.fromisoformat(c_header["DATE"])
 
             cfn = get_complete_file_name_and_path(candidate)
@@ -128,8 +128,9 @@ class FLtoFL(SingleProductProcessingStepMixin):
             # safety margin of 1day until we process higher products with position and pointing
             # only use flown spice kernels not predicted once as pointing information
             # can be "very off"
-            if f_data_end > (Spice.instance.get_mk_date(meta_kernel_type="flown") - timedelta(hours=24)):
-                return TestForProcessingResult.NotSuitable
+            # TODO redo
+            # if f_data_end > (Spice.instance.get_mk_date(meta_kernel_type="flown") - timedelta(hours=24)):
+            #    return TestForProcessingResult.NotSuitable
 
             # safety margin of x until we start with processing the list files
             if f_create_date >= (datetime.now() - self.cadence):
@@ -187,9 +188,9 @@ class FLtoFL(SingleProductProcessingStepMixin):
                 if issubclass(out_product, FlareSOOPMixin) and not issubclass(in_product, FlareSOOPMixin):
                     out_product.add_soop(data)
 
-                # add peek preview images if not already present
-                if issubclass(out_product, FlarePeekPreviewMixin) and not issubclass(in_product, FlarePeekPreviewMixin):
-                    out_product.add_peek_preview(data, energy, file_path.name, fido_client, img_processor, month=month)
+                # add peak preview images if not already present
+                if issubclass(out_product, FlarePeakPreviewMixin) and not issubclass(in_product, FlarePeakPreviewMixin):
+                    out_product.add_peak_preview(data, energy, file_path.name, fido_client, img_processor, month=month)
 
                 out_prod = out_product(control=control, data=data, month=month, energy=energy)
                 out_prod.parent = file_path.name

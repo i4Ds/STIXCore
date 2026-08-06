@@ -58,6 +58,24 @@ def set_bscale_unsigned(table_hdu):
     return table_hdu
 
 
+def CreateUtcColumn(table, data, colname, description="UTC Time"):
+    """
+    Create UTC time column for FITS tables.
+
+    Parameters
+    ----------
+    description : `str`
+        Description for the column
+
+    Returns
+    -------
+    `astropy.table.Column`
+        Column representing UTC time
+    """
+    table[colname] = data
+    table[colname].info.description = description
+
+
 def add_default_tuint(table_hdu):
     """
     Add a default empty string tunit if not already defined
@@ -805,10 +823,11 @@ class FitsL1Processor(FitsL0Processor):
             if default[0] not in soop_key_names:
                 soop_headers += tuple([default])
 
+        scet_range = product.scet_timerange
         time_headers = (
             # Name, Value, Comment
-            ("OBT_BEG", product.scet_timerange.start.as_float().value, "Start of acquisition time in OBT"),
-            ("OBT_END", product.scet_timerange.end.as_float().value, "End of acquisition time in OBT"),
+            ("OBT_BEG", scet_range.start.as_float().value, "Start of acquisition time in OBT"),
+            ("OBT_END", scet_range.end.as_float().value, "End of acquisition time in OBT"),
             ("TIMESYS", "UTC", "System used for time keywords"),
             ("LEVEL", "L1", "Processing level of the data"),
             ("DATE-OBS", product.utc_timerange.start.fits, "Start of acquisition time in UTC"),
@@ -1049,7 +1068,8 @@ class FitsANCProcessor(FitsL2Processor):
         elif fitspath_complete.exists():
             logger.warning("Complete Fits file %s exists will be overridden", fitspath.name)
 
-        data = prod.data
+        data = prod.data.copy()
+        prod.on_serialize(data)
 
         primary_header, header_override = self.generate_primary_header(filename, prod, version=version)
         primary_hdu = fits.PrimaryHDU()
@@ -1126,7 +1146,8 @@ class FitsL3Processor(FitsL2Processor):
         elif fitspath_complete.exists():
             logger.warning("Complete Fits file %s exists will be overridden", fitspath.name)
 
-        data = prod.data
+        data = prod.data.copy()
+        prod.on_serialize(data)
 
         primary_header, header_override = self.generate_primary_header(filename, prod, version=version)
 
@@ -1139,7 +1160,7 @@ class FitsL3Processor(FitsL2Processor):
         # Add comment and history
         [primary_hdu.header.add_comment(com) for com in prod.comment]
         [primary_hdu.header.add_history(com) for com in prod.history]
-        primary_hdu.header.update({"HISTORY": "Processed by STIXCore ANC"})
+        primary_hdu.header.update({"HISTORY": "Processed by STIXCore L3"})
 
         if hasattr(prod, "maps") and len(prod.maps) > 0:
             # fig = plt.figure(figsize=(12, 6))

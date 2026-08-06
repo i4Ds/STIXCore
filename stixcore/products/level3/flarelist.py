@@ -1,5 +1,6 @@
 from pathlib import Path
 from datetime import datetime
+from itertools import groupby
 
 import numpy as np
 from stixpy.calibration.visibility import (
@@ -10,7 +11,7 @@ from stixpy.calibration.visibility import (
 from stixpy.coordinates.transforms import get_hpc_info
 from stixpy.net.client import STIXClient
 from stixpy.product import Product as STIXPYProduct
-from sunpy.coordinates import HeliographicStonyhurst, Helioprojective
+from sunpy.coordinates import HeliographicStonyhurst, Helioprojective, SphericalScreen
 from sunpy.map import make_fitswcs_header
 from sunpy.net import attrs as a
 from sunpy.time import TimeRange
@@ -18,13 +19,15 @@ from xrayvision.clean import vis_clean
 
 import astropy.units as u
 from astropy.coordinates import SkyCoord
+from astropy.coordinates.representation import CartesianRepresentation
 from astropy.io import fits
 from astropy.table import Column, QTable
 from astropy.time import Time
 
 from stixcore.config.config import CONFIG
 from stixcore.ephemeris.manager import Spice
-from stixcore.products.level3.flarelistproduct import PeekPreviewImage
+from stixcore.products.level3.flarelistproduct import PeakPreviewImage
+from stixcore.products.level3.processing import stx_estimate_flare_location
 from stixcore.products.product import CountDataMixin, GenericProduct, L2Mixin, read_qtable
 from stixcore.soop.manager import SOOPManager
 from stixcore.time import SCETime, SCETimeRange
@@ -39,7 +42,7 @@ __all__ = [
     "FlareSOOPMixin",
     "FlareList",
     "FlarelistSDCLocImg",
-    "FlarePeekPreviewMixin",
+    "FlarePeakPreviewMixin",
     "FlarelistSC",
     "FlarelistSCLoc",
     "FlarelistSCLocImg",
@@ -75,7 +78,21 @@ def make_stix_fitswcs_header(data, flare_position, *, scale, exposure, rotation_
     return header
 
 
-class FlarePositionMixin:
+class _SerializeMixin:
+    """No-op chain terminator for on_serialize/on_deserialize.
+
+    Functional mixins inherit from this so super() calls always land safely
+    instead of hitting object and raising AttributeError.
+    """
+
+    def on_serialize(self, data):
+        pass
+
+    def on_deserialize(self, data, **kwargs):
+        pass
+
+
+class FlarePositionMixin(_SerializeMixin):
     """_summary_"""
 
     @classmethod
@@ -85,18 +102,19 @@ class FlarePositionMixin:
         fido_client: STIXClient,
         *,
         filter_function=lambda x: True,
-        peek_time_colname="peak_UTC",
+        peak_time_colname="peak_UTC",
         start_time_colname="start_UTC",
         end_time_colname="end_UTC",
+        location_time_colname="location_time_UTC",
         keep_all_flares=True,
         month=None,
     ):
-        data["flare_position"] = [SkyCoord(0, 0, frame="icrs", unit="deg") for i in range(0, len(data))]
+        anc_ephemeris_paths = []
+        cpd_paths = []
+        position_statuses = []
+        position_messages = []
+        solo_cartesian_list = []
 
-        data["anc_ephemeris_path"] = Column(" " * 500, dtype=str, description="TDB")
-        data["cpd_path"] = Column(" " * 500, dtype=str, description="TDB")
-        data["_position_status"] = Column(False, dtype=bool, description="TDB")
-        data["_position_message"] = Column(" " * 500, dtype=str, description="TDB")
         to_remove = []
         pass_filter = 0
         no_ephemeris = 0
@@ -108,12 +126,16 @@ class FlarePositionMixin:
         day_asp_ephemeris_cache = dict()
 
         for i, row in enumerate(data):
-            if filter_function(row):
+            _anc_path = ""
+            _cpd_path = ""
+            _status = False
+            _message = ""
+            peak_time = row[peak_time_colname]
+            start_time = row[start_time_colname]
+            end_time = row[end_time_colname]
+            logger.info(f"Processing flare {i}/{len(data)} at time {start_time} : {end_time} (peak at {peak_time})")
+            if filter_function(row):  # and i < 60:
                 pass_filter += 1
-                peak_time = row[peek_time_colname]
-                start_time = row[start_time_colname]
-                end_time = row[end_time_colname]
-
                 day = peak_time.to_datetime().date()
 
                 if day in day_asp_ephemeris_cache:
@@ -129,10 +151,28 @@ class FlarePositionMixin:
 
                 if len(anc_res) < 1:
                     logger.warning(f"No ephemeris data found for flare at time {start_time} : {end_time}")
-                    data[i]["_position_message"] = "no ephemeris data found"
+                    _message = "no ephemeris data found"
                     no_ephemeris += 1
+                    solo_cartesian_list.append(
+                        (
+                            np.nan * u.km,
+                            np.nan * u.km,
+                            np.nan * u.km,
+                            peak_time,
+                            0 * u.s,
+                            np.nan * u.km,
+                            np.nan * u.km,
+                            np.nan * u.km,
+                            0,
+                            np.nan,
+                        )
+                    )
+                    anc_ephemeris_paths.append(_anc_path)
+                    cpd_paths.append(_cpd_path)
+                    position_statuses.append(_status)
+                    position_messages.append(_message)
                     continue
-                data[i]["anc_ephemeris_path"] = anc_res["path"][0]
+                _anc_path = str(anc_res["path"][0])
 
                 if start_time.datetime.hour < 2:
                     start_time = start_time - 2 * u.hour
@@ -145,8 +185,26 @@ class FlarePositionMixin:
 
                 if len(cpd_res) < 1:
                     logger.warning(f"No CPD data found for flare at time {start_time} : {end_time}")
-                    data[i]["_position_message"] = "no CPD data found"
+                    _message = "no CPD data found"
                     no_cpd += 1
+                    solo_cartesian_list.append(
+                        (
+                            np.nan * u.km,
+                            np.nan * u.km,
+                            np.nan * u.km,
+                            peak_time,
+                            0 * u.s,
+                            np.nan * u.km,
+                            np.nan * u.km,
+                            np.nan * u.km,
+                            0,
+                            np.nan,
+                        )
+                    )
+                    anc_ephemeris_paths.append(_anc_path)
+                    cpd_paths.append(_cpd_path)
+                    position_statuses.append(_status)
+                    position_messages.append(_message)
                     continue
                 if len(cpd_res) > 1:
                     logger.debug(f"Many CPD data found for flare at time {start_time} : {end_time}")
@@ -179,22 +237,206 @@ class FlarePositionMixin:
                         cpd_res["duration"][i] = header["OBT_END"] - header["OBT_BEG"]
 
                     # TODO: add more criteria to select the best CPD file
-                    cpd_res.sort(["tbins", "duration"])
+                    cpd_res.sort(["inc_peak", "tbins", "duration"], reverse=True)
                     # cpd_res.pprint()
                     best_cpd_idx = 0
                 else:
                     one_cpd += 1
                     best_cpd_idx = 0
-                data[i]["cpd_path"] = cpd_res["path"][best_cpd_idx]
+                _cpd_path = str(cpd_res["path"][best_cpd_idx])
 
-                # do the calculations with stixpy
+                try:
+                    stixpy_cpd = STIXPYProduct(Path(_cpd_path))
+                    time_range = TimeRange(max(peak_time - 20 * u.s, start_time), min(peak_time + 20 * u.s, end_time))
+                    overlaps = calculate_overlap(stixpy_cpd.time_range, time_range)
+                    if overlaps is None:
+                        logger.warning(
+                            f"CPD data does not cover time range around peak time {time_range.start} to {time_range.end}"
+                        )
+                        time_range = stixpy_cpd.time_range
+                        contains_peak_time = False
+                    else:
+                        contains_peak_time = True
+                        time_range = overlaps
 
-                data[i]["flare_position"] = SkyCoord(1, 1, frame="icrs", unit="deg")
-                data[i]["_position_status"] = True
-                data[i]["_position_message"] = "OK"
+                    _times = stixpy_cpd.data["time"]
+                    _half_bin = stixpy_cpd.data["timedel"] / 2
+                    mask = (_times + _half_bin >= time_range.start) & (_times - _half_bin <= time_range.end)
+                    data_at_peak = stixpy_cpd.data[mask]
+                    energy_range = [4, 16] * u.keV
+
+                    if len(np.unique(data_at_peak["rcr"])) > 1:
+                        logger.warning(
+                            f"Multiple rcr values found for flare at time {time_range.start} : {time_range.end}"
+                        )
+                        # allow a larger time range for finding a constant rcr sequence
+                        if contains_peak_time:
+                            time_range = TimeRange(
+                                max(peak_time - 40 * u.s, start_time), min(peak_time + 40 * u.s, end_time)
+                            )
+                            mask = (_times + _half_bin >= time_range.start) & (_times - _half_bin <= time_range.end)
+                            data_at_peak = stixpy_cpd.data[mask]
+                        length, start_idx, rcr = longest_constant_sequence(data_at_peak["rcr"].value)
+                        time_range = TimeRange(
+                            data_at_peak["time"][start_idx], data_at_peak["time"][start_idx + length - 1]
+                        )
+                        logger.info(
+                            f"Using time range {time_range.start} to {time_range.end} for flare at around {peak_time} with constant rcr={rcr}"
+                        )
+
+                    rcr_at_peak = data_at_peak["rcr"].max()
+                    if rcr_at_peak > 0:
+                        energy_range = [4, 25] * u.keV
+
+                    _, flare_loc, sidelobe, solo, img_time_range = stx_estimate_flare_location(
+                        stixpy_cpd, time_range, energy_range
+                    )
+
+                    with SphericalScreen(solo, only_off_disk=True):
+                        center_hgs = flare_loc.transform_to(
+                            HeliographicStonyhurst(obstime=img_time_range.center)
+                        ).cartesian
+                        solo_cartesian_list.append(
+                            (
+                                center_hgs.x,
+                                center_hgs.y,
+                                center_hgs.z,
+                                img_time_range.center,
+                                img_time_range.seconds,
+                                solo.x,
+                                solo.y,
+                                solo.z,
+                                rcr_at_peak,
+                                sidelobe,
+                            )
+                        )
+
+                    _status = True
+                    _message = "OK"
+                except Exception as e:
+                    _status = False
+                    _message = f"Error: {type(e)}"
+                    logger.warning(f"Error calculating flare position for flare at time {start_time} : {end_time}: {e}")
+                    solo_cartesian_list.append(
+                        (
+                            np.nan * u.km,
+                            np.nan * u.km,
+                            np.nan * u.km,
+                            peak_time,
+                            0 * u.s,
+                            np.nan * u.km,
+                            np.nan * u.km,
+                            np.nan * u.km,
+                            0,
+                            np.nan,
+                        )
+                    )
+                anc_ephemeris_paths.append(_anc_path)
+                cpd_paths.append(_cpd_path)
+                position_statuses.append(_status)
+                position_messages.append(_message)
 
             else:
                 to_remove.append(i)
+                solo_cartesian_list.append(
+                    (
+                        np.nan * u.km,
+                        np.nan * u.km,
+                        np.nan * u.km,
+                        peak_time,
+                        0 * u.s,
+                        np.nan * u.km,
+                        np.nan * u.km,
+                        np.nan * u.km,
+                        0,
+                        np.nan,
+                    )
+                )
+                anc_ephemeris_paths.append(_anc_path)
+                cpd_paths.append(_cpd_path)
+                position_statuses.append(False)
+                position_messages.append("flare did not pass the filter function")
+
+        primer = fido_client.baseurl.replace(fido_client.datapath, "")
+        primer = primer[7:] if primer.startswith("file://") else primer
+
+        data["anc_ephemeris_path"] = [v.replace(primer, "") for v in anc_ephemeris_paths]
+        data["anc_ephemeris_path"].info.description = "Path to the daily ancillary ephemeris file"
+
+        data["cpd_path"] = [v.replace(primer, "") for v in cpd_paths]
+        data["cpd_path"].info.description = "Path to the CPD file used for flare location estimation"
+
+        data["_position_status"] = position_statuses
+        data["_position_status"].info.description = "Status of the flare position calculation"
+
+        data["_position_message"] = position_messages
+        data["_position_message"].info.description = "Message describing the status of the flare position calculation"
+
+        flare_x, flare_y, flare_z, solo_times, duration, solo_x, solo_y, solo_z, rcr_at_peak, sidelobe = zip(
+            *solo_cartesian_list
+        )
+        solo_times = Time(solo_times)
+
+        hgs_coords = SkyCoord(
+            u.Quantity(flare_x),
+            u.Quantity(flare_y),
+            u.Quantity(flare_z),
+            frame=HeliographicStonyhurst(obstime=solo_times),
+            representation_type="cartesian",
+        )
+
+        solo_coords = SkyCoord(
+            u.Quantity(solo_x),
+            u.Quantity(solo_y),
+            u.Quantity(solo_z),
+            frame=HeliographicStonyhurst(obstime=solo_times),
+            representation_type="cartesian",
+        )
+
+        # hgc_coords = hgs_coords.transform_to(HeliographicCarrington(obstime=solo_times, observer="Earth"))
+        hp_coords = hgs_coords.transform_to(Helioprojective(obstime=solo_times, observer="Earth"))
+
+        data["location_hgs"] = hgs_coords
+        data["location_hgs"].info.description = "Flare location in Heliographic Stonyhurst coordinates"
+
+        data["solo_location_hgs"] = solo_coords
+        data["solo_location_hgs"].info.description = "SOLO location in Heliographic Stonyhurst coordinates"
+
+        data["sidelobes_ratio"] = sidelobe
+        data["sidelobes_ratio"].info.description = "Ratio of sidelobes in the STIX image used to assess imaging quality"
+
+        data["rcr_at_peak"] = rcr_at_peak
+        data[
+            "rcr_at_peak"
+        ].info.description = "max rcr level at flare location estimation time range, > 0 attenuator in place"
+
+        data["visible_from_earth"] = FlarePositionMixin.is_visible(hp_coords)
+        data[
+            "visible_from_earth"
+        ].info.description = "Whether the flare location is visible from Earth (not occulted by the Sun)"
+
+        data[location_time_colname] = solo_times
+        data[location_time_colname].info.description = "time center used for flare location estimation in UTC"
+
+        data["location_duration"] = duration
+        data["location_duration"].info.description = "duration of the flare location estimation time range"
+
+        (
+            time_shift,
+            disc_size,
+        ) = zip(
+            *[
+                (Spice.instance.get_earth_solo_time_shift(date=scet), Spice.instance.get_sun_disc_size(date=scet))
+                for t in solo_times
+                for scet in (Spice.instance.datetime_to_scet(t),)
+            ]
+        )
+
+        data["time_shift"] = time_shift
+        data["time_shift"].info.description = "Time(Sun to Earth) - Time(Sun to S/C)"
+
+        data["sun_disc_size"] = disc_size
+        data["sun_disc_size"].info.description = "Apparent photospheric solar radius"
 
         if not keep_all_flares:
             data.remove_rows(to_remove)
@@ -203,23 +445,81 @@ class FlarePositionMixin:
             f"Flare position calculated for month {month} with {total_flares} flares, "
             f"passed filter: {pass_filter} no ephemeris data found for {no_ephemeris} "
             f"flares, no CPD data found for {no_cpd} flares, many CPD data found for "
-            f"{many_cpd} flares, one CPD data found for {one_cpd} flares"
+            f"{many_cpd} flares, one CPD data found for {one_cpd} flares."
+            f"finally {len(data) - len(to_remove)} flare locations found"
         )
 
+    def on_serialize(self, data):
+        logger.warning(
+            "FlarePositionMixin on_serialize called, transforming location columns to ICRS for serialization"
+        )
 
-class FlareSOOPMixin:
+        if "location_hgs" in data.colnames:
+            icrs = data["location_hgs"].icrs
+            icrs_coord = SkyCoord(icrs.ra, icrs.dec, icrs.distance, frame="icrs")
+            col_idx = data.colnames.index("location_hgs")
+            data.remove_column("location_hgs")
+            data.add_column(icrs_coord, name="location_icrs", index=col_idx)
+        if "solo_location_hgs" in data.colnames:
+            icrs = data["solo_location_hgs"].icrs
+            icrs_coord = SkyCoord(icrs.ra, icrs.dec, icrs.distance, frame="icrs")
+            col_idx = data.colnames.index("solo_location_hgs")
+            data.remove_column("solo_location_hgs")
+            data.add_column(icrs_coord, name="solo_location_icrs", index=col_idx)
+        super().on_serialize(data)
+
+    def on_deserialize(self, data, *, location_time_colname=None, **kwargs):
+        logger.warning(
+            "FlarePositionMixin on_deserialize called, transforming location columns back to heliographic coordinates"
+        )
+        time_col = location_time_colname or self.location_time_colname
+        if time_col not in data.colnames:
+            logger.warning(f"on_deserialize: column '{time_col}' not found, skipping location transform")
+        else:
+            obstime = Time(data[time_col])
+            if "location_icrs" in data.colnames:
+                data["location_hgs"] = data["location_icrs"].transform_to(HeliographicStonyhurst(obstime=obstime))
+            if "solo_location_icrs" in data.colnames:
+                data["solo_location_hgs"] = data["solo_location_icrs"].transform_to(
+                    HeliographicStonyhurst(obstime=obstime)
+                )
+
+        super().on_deserialize(data, **kwargs)
+
+    @classmethod
+    def is_visible(cls, coord):
+        """
+        Returns whether the coordinate is on the visible side of the Sun.
+        This function is a modified version of PR#7118
+        """
+
+        coord = coord.make_3d()
+        data = coord.cartesian
+        data_to_sun = coord.observer.radius * CartesianRepresentation(1, 0, 0) - data
+
+        is_behind = data.x < 0
+        # print(data.x.to(u.AU))
+        is_beyond_limb = np.sqrt(1 - (data.x / data.norm()) ** 2) > coord.rsun / coord.observer.radius
+        # is_above_surface = data_to_sun.norm() >= coord.rsun
+
+        is_on_near_side = data.dot(data_to_sun) >= 0
+
+        return is_behind | is_beyond_limb | (is_on_near_side)
+
+
+class FlareSOOPMixin(_SerializeMixin):
     """_summary_"""
 
     @classmethod
     def add_soop(
-        self, data, *, peek_time_colname="peak_UTC", start_time_colname="start_UTC", end_time_colname="end_UTC"
+        self, data, *, peak_time_colname="peak_UTC", start_time_colname="start_UTC", end_time_colname="end_UTC"
     ):
         soop_encoded_type = list()
         soop_id = list()
         soop_type = list()
 
         for row in data:
-            soops = SOOPManager.instance.find_soops(start=row[peek_time_colname])
+            soops = SOOPManager.instance.find_soops(start=row[peak_time_colname])
             if soops:
                 soop = soops[0]
                 soop_encoded_type.append(soop.encodedSoopType)
@@ -234,14 +534,22 @@ class FlareSOOPMixin:
         data["soop_id"] = Column(soop_id, dtype=str, description="SOOP ID")
         data["soop_type"] = Column(soop_type, dtype=str, description="name of the SOOP campaign")
 
+    # def on_serialize(self, data):
+    #     logger.info("FlareSOOPMixin on_serialize called, but no special handling implemented for SOOP data")
+    #     super().on_serialize(data)
 
-class FlarePeekPreviewMixin:
-    """Mixin class to add peek preview images to flare list products.
-    This class provides a method to generate and add peek preview images
+    # def on_deserialize(self, data, **kwargs):
+    #     logger.info("FlareSOOPMixin on_deserialize called, but no special handling implemented for SOOP data")
+    #     super().on_deserialize(data, **kwargs)
+
+
+class FlarePeakPreviewMixin:
+    """Mixin class to add peak preview images to flare list products.
+    This class provides a method to generate and add peak preview images
     to the flare list data. The images are generated based on the
     flare's peak time, start time, and end time, using the STIXPy library
     for visibility calculations and image reconstruction.
-    The generated images are stored in the 'peek_preview_path' column of the data.
+    The generated images are stored in the 'peak_preview_path' column of the data.
     The method also updates the status and message columns to indicate
     the success or failure of the image generation process.
 
@@ -249,7 +557,7 @@ class FlarePeekPreviewMixin:
     """
 
     @classmethod
-    def add_peek_preview(
+    def add_peak_preview(
         cls,
         data,
         energies,
@@ -257,7 +565,7 @@ class FlarePeekPreviewMixin:
         fido_client: STIXClient,
         img_processor,
         *,
-        peek_time_colname="peak_UTC",
+        peak_time_colname="peak_UTC",
         start_time_colname="start_UTC",
         end_time_colname="end_UTC",
         anc_ephemeris_path_colname="anc_ephemeris_path",
@@ -266,17 +574,17 @@ class FlarePeekPreviewMixin:
         keep_all_flares=True,
         month=None,
     ):
-        data["peek_preview_path"] = Column(" " * 500, dtype=str, description="TDB")
-        data["preview_start_UTC"] = [Time(d, format="isot", scale="utc") for d in data[peek_time_colname]]
-        data["preview_end_UTC"] = [Time(d, format="isot", scale="utc") for d in data[peek_time_colname]]
-        data["_peek_preview_status"] = Column(False, dtype=bool, description="TDB")
-        data["_peek_preview_message"] = Column(" " * 500, dtype=str, description="TDB")
+        data["peak_preview_path"] = Column(" " * 500, dtype=str, description="TDB")
+        data["preview_start_UTC"] = [Time(d, format="isot", scale="utc") for d in data[peak_time_colname]]
+        data["preview_end_UTC"] = [Time(d, format="isot", scale="utc") for d in data[peak_time_colname]]
+        data["_peak_preview_status"] = Column(False, dtype=bool, description="TDB")
+        data["_peak_preview_message"] = Column(" " * 500, dtype=str, description="TDB")
         to_remove = []
         products = []
         images = 0
 
         for i, row in enumerate(data):
-            peak_time = row[peek_time_colname]
+            peak_time = row[peak_time_colname]
             row[start_time_colname]
             row[end_time_colname]
 
@@ -286,8 +594,8 @@ class FlarePeekPreviewMixin:
             status = False
             message = ""
 
-            peek_preview_start = row[peek_time_colname]
-            peek_preview_end = row[peek_time_colname]
+            peak_preview_start = row[peak_time_colname]
+            peak_preview_end = row[peak_time_colname]
 
             if anc_ephemeris_path.exists() and cpd_path.exists():
                 try:
@@ -295,18 +603,18 @@ class FlarePeekPreviewMixin:
                     # do the imaging with stixpy
 
                     preview_data = data[i : i + 1]
-                    del preview_data["peek_preview_path"]
-                    del preview_data["_peek_preview_status"]
-                    del preview_data["_peek_preview_message"]
+                    del preview_data["peak_preview_path"]
+                    del preview_data["_peak_preview_status"]
+                    del preview_data["_peak_preview_message"]
 
-                    peek_preview_start = row[peek_time_colname] - 10 * u.s
-                    peek_preview_end = row[peek_time_colname] + 10 * u.s
+                    peak_preview_start = row[peak_time_colname] - 10 * u.s
+                    peak_preview_end = row[peak_time_colname] + 10 * u.s
 
-                    preview_data["preview_start_UTC"] = peek_preview_start
-                    preview_data["preview_end_UTC"] = peek_preview_end
+                    preview_data["preview_start_UTC"] = peak_preview_start
+                    preview_data["preview_end_UTC"] = peak_preview_end
 
                     cpd_sci = STIXPYProduct(cpd_path)
-                    time_range_sci = [peek_preview_start, peek_preview_end]
+                    time_range_sci = [peak_preview_start, peak_preview_end]
                     maps = []
                     for energy_range in [[4, 20], [20, 120]] * u.keV:
                         # flare_position = preview_data['flare_position'][0]
@@ -388,7 +696,7 @@ class FlarePeekPreviewMixin:
 
                         maps.append((map_with_erange, header))
 
-                    ppi = PeekPreviewImage(
+                    ppi = PeakPreviewImage(
                         control=QTable(),
                         data=preview_data,
                         month=month,
@@ -407,18 +715,18 @@ class FlarePeekPreviewMixin:
                     status = False
                     message = str(e)
 
-            data[i]["preview_start_UTC"] = peek_preview_start
-            data[i]["preview_end_UTC"] = peek_preview_end
-            data[i]["peek_preview_path"] = "test"
-            data[i]["_peek_preview_status"] = status
-            data[i]["_peek_preview_message"] = message
+            data[i]["preview_start_UTC"] = peak_preview_start
+            data[i]["preview_end_UTC"] = peak_preview_end
+            data[i]["peak_preview_path"] = "test"
+            data[i]["_peak_preview_status"] = status
+            data[i]["_peak_preview_message"] = message
 
         if not keep_all_flares:
             data.remove_rows(to_remove)
 
         logger.info(
             f"Flare images created for month {month} with {len(data)} flares, "
-            f"{len(products)} peek previews created, with total {images} images"
+            f"{len(products)} peak previews created, with total {images} images"
         )
 
         return products
@@ -480,7 +788,7 @@ class FlarelistSDC(FlareList, FlareSOOPMixin):
     In L3 product format.
     """
 
-    PRODUCT_PROCESSING_VERSION = 2
+    PRODUCT_PROCESSING_VERSION = 3
     NAME = "sdc"
 
     def __init__(self, *, service_type=0, service_subtype=0, ssid=2, data, month, **kwargs):
@@ -536,7 +844,7 @@ class FlarelistSDCLoc(FlarelistSDC, FlarePositionMixin):
     In ANC product format.
     """
 
-    PRODUCT_PROCESSING_VERSION = 2
+    PRODUCT_PROCESSING_VERSION = 3
     NAME = "sdcloc"
 
     def __init__(self, *, service_type=0, service_subtype=0, ssid=3, data, month, **kwargs):
@@ -544,6 +852,7 @@ class FlarelistSDCLoc(FlarelistSDC, FlarePositionMixin):
 
         self.name = FlarelistSDCLoc.NAME
         self.ssid = 3
+        self.location_time_colname = "location_time_UTC"
 
     def enhance_from_product(self, in_prod: GenericProduct):
         pass
@@ -558,10 +867,10 @@ class FlarelistSDCLoc(FlarelistSDC, FlarePositionMixin):
             data,
             fido_client,
             filter_function=cls.filter_flare_function,
-            peek_time_colname="peak_UTC",
+            peak_time_colname="peak_UTC",
             start_time_colname="start_UTC",
             end_time_colname="end_UTC",
-            keep_all_flares=False,
+            keep_all_flares=True,
             month=month,
         )
 
@@ -570,7 +879,7 @@ class FlarelistSDCLoc(FlarelistSDC, FlarePositionMixin):
         return kwargs["level"] == "L3" and service_type == 0 and service_subtype == 0 and ssid == 3
 
 
-class FlarelistSDCLocImg(FlarelistSDCLoc, FlarePeekPreviewMixin):
+class FlarelistSDCLocImg(FlarelistSDCLoc, FlarePeakPreviewMixin):
     """Flarelist product class for StixDataCenter flares.
 
     In ANC product format.
@@ -589,14 +898,14 @@ class FlarelistSDCLocImg(FlarelistSDCLoc, FlarePeekPreviewMixin):
         pass
 
     @classmethod
-    def add_peek_preview(cls, data, energies, parent, fido_client: STIXClient, img_processor, *, month=None):
-        super().add_peek_preview(
+    def add_peak_preview(cls, data, energies, parent, fido_client: STIXClient, img_processor, *, month=None):
+        super().add_peak_preview(
             data,
             energies,
             parent,
             fido_client,
             img_processor,
-            peek_time_colname="peak_UTC",
+            peak_time_colname="peak_UTC",
             start_time_colname="start_UTC",
             end_time_colname="end_UTC",
             anc_ephemeris_path_colname="anc_ephemeris_path",
@@ -681,6 +990,7 @@ class FlarelistSCLoc(FlarelistSC, FlarePositionMixin):
 
         self.name = FlarelistSCLoc.NAME
         self.ssid = 7
+        self.peak_time_colname = "peak_UTC"
 
     def enhance_from_product(self, in_prod: GenericProduct):
         pass
@@ -695,7 +1005,7 @@ class FlarelistSCLoc(FlarelistSC, FlarePositionMixin):
             data,
             fido_client,
             filter_function=cls.filter_flare_function,
-            peek_time_colname="peak_UTC",
+            peak_time_colname="peak_UTC",
             start_time_colname="start_UTC",
             end_time_colname="end_UTC",
             keep_all_flares=False,
@@ -707,7 +1017,7 @@ class FlarelistSCLoc(FlarelistSC, FlarePositionMixin):
         return kwargs["level"] == "L3" and service_type == 0 and service_subtype == 0 and ssid == 7
 
 
-class FlarelistSCLocImg(FlarelistSCLoc, FlarePeekPreviewMixin):
+class FlarelistSCLocImg(FlarelistSCLoc, FlarePeakPreviewMixin):
     """Flarelist product class for StixCore flares.
 
     In ANC product format.
@@ -726,14 +1036,14 @@ class FlarelistSCLocImg(FlarelistSCLoc, FlarePeekPreviewMixin):
         pass
 
     @classmethod
-    def add_peek_preview(cls, data, energies, parent, fido_client: STIXClient, img_processor, *, month=None):
-        super().add_peek_preview(
+    def add_peak_preview(cls, data, energies, parent, fido_client: STIXClient, img_processor, *, month=None):
+        super().add_peak_preview(
             data,
             energies,
             parent,
             fido_client,
             img_processor,
-            peek_time_colname="peak_UTC",
+            peak_time_colname="peak_UTC",
             start_time_colname="start_UTC",
             end_time_colname="end_UTC",
             anc_ephemeris_path_colname="anc_ephemeris_path",
@@ -746,3 +1056,44 @@ class FlarelistSCLocImg(FlarelistSCLoc, FlarePeekPreviewMixin):
     @classmethod
     def is_datasource_for(cls, *, service_type, service_subtype, ssid, **kwargs):
         return kwargs["level"] == "L3" and service_type == 0 and service_subtype == 0 and ssid == 8
+
+
+def longest_constant_sequence(state_array):
+    """Find the longest sequence where state is constant.
+    In case of equal length, prefer the one with the lower state value."""
+    if len(state_array) == 0:
+        return 0, None, None
+
+    max_length = 0
+    max_state = None
+    max_start_idx = None
+    current_idx = 0
+
+    for state, group in groupby(state_array):
+        length = len(list(group))
+        # Update if longer, OR if equal length but lower state value
+        if length > max_length or (length == max_length and (max_state is None or state < max_state)):
+            max_length = length
+            max_state = state
+            max_start_idx = current_idx
+        current_idx += length
+
+    return max_length, max_start_idx, max_state
+
+
+def calculate_overlap(range1, range2):
+    """Calculate the overlap between two TimeRanges.
+    Returns the overlap duration and the overlapping TimeRange, or None if no overlap."""
+
+    # Check if they intersect first
+    if not range1.intersects(range2):
+        return None
+
+    # Calculate intersection boundaries
+    overlap_start = max(range1.start, range2.start)
+    overlap_end = min(range1.end, range2.end)
+
+    # Create the overlapping TimeRange
+    overlap_range = TimeRange(overlap_start, overlap_end)
+
+    return overlap_range

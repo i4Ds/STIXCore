@@ -24,7 +24,7 @@ logger = get_logger(__name__)
 class FlareListL3(SingleProductProcessingStepMixin):
     """Processing step from a FlareListManager to monthly solo_L3_stix-flarelist-*.fits file."""
 
-    STARTDATE = date(2024, 1, 1)
+    STARTDATE = date(2023, 1, 1)
 
     def __init__(self, flm: FlareListManager, output_dir: Path):
         """Crates a new Processor.
